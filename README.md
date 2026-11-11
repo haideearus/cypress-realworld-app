@@ -1,3 +1,9 @@
+> **Software Factory maintenance fork:** maintained in
+> [haideearus/cypress-realworld-app](https://github.com/haideearus/cypress-realworld-app).
+> Start with the [maintenance guide](docs/FACTORY.md) for our setup status and
+> [AGENTS.md](AGENTS.md) for agent instructions. The original Cypress documentation
+> and attribution follow below.
+
 <p align="center">
   <!-- We use two SVGs here so that this displays correctly
     on Github. This might not look right in other Markdown previewers. -->
