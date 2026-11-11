@@ -51,7 +51,7 @@ template. It does not itself enforce permissions or start agents.
 | Public fork, default `main`, Issues                    | Verified                                |
 | Local clone and upstream remote                        | Verified                                |
 | Agent instructions and maintenance guide               | Added in the foundation PR              |
-| Dependency installation and application tests          | Not run during this documentation setup |
+| Dependency installation and application tests          | Verified locally; see the results below |
 | Factory CI and independent agent reviewer              | Pending                                 |
 | Branch protection and least privilege jobs             | Pending                                 |
 | Live app, persistent storage, production approval gate | Pending                                 |
@@ -61,6 +61,19 @@ template. It does not itself enforce permissions or start agents.
 The inherited workflows refer to upstream services, including Cypress Cloud.
 Review and adapt them before relying on them as this fork's required checks.
 An existing upstream badge is not evidence that our fork passes tests.
+
+## Local verification on 2026-11-11
+
+The locked dependency installation, TypeScript check, lint, and CI frontend build
+passed. Unit tests finished with 44 passed and 10 skipped. Cypress API and desktop
+UI tests finished with 109 passed across 16 specs; one user-search test needed a
+retry. See the [verification report](factory/verification-2026-11-11.md) for the
+commands, scope, and limitations. This is local evidence; the factory's GitHub
+checks and agents still need to be installed.
+
+The chosen hosting direction is a free cloud app plus a free persistent database,
+so the owner's laptop can be off. Follow the [deployment guide](DEPLOYMENT.md)
+for account setup, required production changes, and spending controls.
 
 ## Recreate the local checkout
 
