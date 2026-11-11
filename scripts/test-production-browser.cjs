@@ -61,12 +61,16 @@ async function main() {
         },
         (response) => {
           res.writeHead(response.statusCode, response.headers);
+          response.on("error", () => res.destroy());
           response.pipe(res);
         }
       );
       upstream.on("error", () => {
-        res.writeHead(502);
-        res.end();
+        if (res.headersSent) res.destroy();
+        else {
+          res.writeHead(502);
+          res.end();
+        }
       });
       req.pipe(upstream);
     }
@@ -90,7 +94,8 @@ async function main() {
       stdio: "inherit",
       env: { ...process.env, TEST_APP_URL: "http://127.0.0.1:8081", TEST_APP_ORIGIN: origin },
     });
-    execFileSync(
+    // Keep this event loop available to serve the browser through the TLS proxy.
+    const browser = spawn(
       process.execPath,
       [
         join(dirname(require.resolve("cypress/package.json")), "bin/cypress"),
@@ -106,6 +111,8 @@ async function main() {
       ],
       { stdio: "inherit" }
     );
+    const [exitCode] = await once(browser, "exit");
+    if (exitCode !== 0) throw new Error("Cypress production browser check failed");
   } finally {
     proxy.closeAllConnections();
     await new Promise((resolve) => proxy.close(resolve));

@@ -16,8 +16,8 @@ Runtime: pinned Node 22.20.0, Yarn 1.22.22, Windows; real disposable PostgreSQL
 | Production configuration / artifact / PostgreSQL tests         | 7 passed                                                          |
 | Existing CI frontend build                                     | Passed                                                            |
 | Render Blueprint against provider JSON schema                  | Valid; no schema errors                                           |
-| Production HTTPS browser flow                                  | Final run pending                                                 |
-| Existing API and UI regressions                                | Final run pending                                                 |
+| Production HTTP boundary / HTTPS browser flow                  | 4 HTTP checks and 1 browser test passed                           |
+| Existing API and UI regressions                                | 110 passed across 16 specs                                        |
 | Public deployment, provider quota settings, hosted persistence | Pending provider connections                                      |
 
 The PostgreSQL checks verify once-only initialization, concurrent writes from two
@@ -49,14 +49,14 @@ not counted as failing-before product evidence.
 Local logs are retained outside the repository under the workspace's `outputs`
 directory: `security-red.log`, `production-smoke-red.log`,
 `review-artifact-red.log`, `review-clean-build-green.log`,
-`production-types-final.log`, `production-lint-final.log`,
+`production-types-final.log`, `production-lint-verified.log`,
 `production-unit-green.log`, `production-all-final.log`,
-`production-browser-verified.log`, `final-regression.log`, and final regression
+`production-browser-complete.log`, `final-regression.log`, and final regression
 JUnit files. They are local records, not uploaded GitHub CI results.
 
 The database connection file and test TLS keys are private temporary tooling and
-are not committed. The application data fixture must be restored after the last
-regression run. Cloud-specific cold starts, proxy behavior, live revision,
+are not committed. The original application data fixture was restored after the
+last regression run and matches Git. Cloud-specific cold starts, proxy behavior, live revision,
 free-plan quotas, and persistence across a real hosted restart remain unverified.
 
 See the [independent review](production-review-2026-11-11.md) for its finding and
