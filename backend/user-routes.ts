@@ -13,6 +13,7 @@ import {
   removeUserFromResults,
 } from "./database";
 import { User } from "../src/models/user";
+import { publicUser } from "./public-user";
 import { ensureAuthenticated, validateMiddleware } from "./helpers";
 import {
   shortIdValidation,
@@ -26,7 +27,7 @@ const router = express.Router();
 router.get("/", ensureAuthenticated, (req, res) => {
   /* istanbul ignore next */
   const users = removeUserFromResults(req.user?.id!, getAllUsers());
-  res.status(200).json({ results: users });
+  res.status(200).json({ results: users.map(publicUser) });
 });
 
 router.get("/search", ensureAuthenticated, validateMiddleware([searchValidation]), (req, res) => {
@@ -35,7 +36,7 @@ router.get("/search", ensureAuthenticated, validateMiddleware([searchValidation]
   /* istanbul ignore next */
   const users = removeUserFromResults(req.user?.id!, searchUsers(q as string));
 
-  res.status(200).json({ results: users });
+  res.status(200).json({ results: users.map(publicUser) });
 });
 
 router.post("/", userFieldsValidator, validateMiddleware(isUserValidator), (req, res) => {
@@ -44,7 +45,7 @@ router.post("/", userFieldsValidator, validateMiddleware(isUserValidator), (req,
   const user = createUser(userDetails);
 
   res.status(201);
-  res.json({ user: user });
+  res.json({ user: publicUser(user) });
 });
 
 router.get(
@@ -65,7 +66,7 @@ router.get(
     const user = getUserById(userId);
 
     res.status(200);
-    res.json({ user });
+    res.json({ user: publicUser(user!) });
   }
 );
 

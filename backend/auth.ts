@@ -3,6 +3,7 @@ import passport from "passport";
 import express, { Request, Response } from "express";
 import { User } from "../src/models/user";
 import { getUserBy, getUserById } from "./database";
+import { publicUser } from "./public-user";
 
 const LocalStrategy = require("passport-local").Strategy;
 const router = express.Router();
@@ -43,14 +44,16 @@ router.post("/login", passport.authenticate("local"), (req: Request, res: Respon
     req.session!.cookie.expires = undefined;
   }
 
-  res.send({ user: req.user });
+  res.send({ user: publicUser(req.user!) });
 });
 
 router.post("/logout", (req: Request, res: Response): void => {
   res.clearCookie("connect.sid");
-  req.logout(() => res.redirect("/"));
-  req.session!.destroy(function (err) {
-    res.redirect("/");
+  // Passport 0.5 logs out synchronously; its newer type definitions require a callback.
+  req.logout(() => {});
+  req.session!.destroy((err) => {
+    if (err) res.sendStatus(500);
+    else res.redirect("/");
   });
 });
 
@@ -59,7 +62,7 @@ router.get("/checkAuth", (req, res) => {
   if (!req.user) {
     res.status(401).json({ error: "User is unauthorized" });
   } else {
-    res.status(200).json({ user: req.user });
+    res.status(200).json({ user: publicUser(req.user) });
   }
 });
 

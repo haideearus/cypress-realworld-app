@@ -3,6 +3,7 @@
 
 data
 build
+dist
 coverage
 amplify/*
 aws-exports*

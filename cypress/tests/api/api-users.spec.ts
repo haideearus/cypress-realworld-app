@@ -196,6 +196,30 @@ describe("Users API", function () {
   });
 
   context("POST /login", function () {
+    it("does not expose password hashes in user responses", function () {
+      cy.loginByApi(ctx.authenticatedUser!.username).then((response) => {
+        expect(Object.hasOwn(response.body.user, "password")).to.eq(false);
+      });
+      cy.request(`${Cypress.expose("apiUrl")}/checkAuth`).then((response) => {
+        expect(Object.hasOwn(response.body.user, "password")).to.eq(false);
+      });
+      cy.request(apiUsers).then((response) => {
+        expect(
+          response.body.results.every((user: object) => !Object.hasOwn(user, "password"))
+        ).to.eq(true);
+      });
+      cy.request(`${apiUsers}/${ctx.authenticatedUser!.id}`).then((response) => {
+        expect(Object.hasOwn(response.body.user, "password")).to.eq(false);
+      });
+      cy.request({ url: `${apiUsers}/search`, qs: { q: ctx.searchUser!.username } }).then(
+        (response) => {
+          expect(
+            response.body.results.every((user: object) => !Object.hasOwn(user, "password"))
+          ).to.eq(true);
+        }
+      );
+    });
+
     it("logs in as a user", function () {
       cy.loginByApi(ctx.authenticatedUser!.username).then((response) => {
         expect(response.status).to.eq(200);

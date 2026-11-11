@@ -58,9 +58,23 @@ template. It does not itself enforce permissions or start agents.
 | Secret scanner, audit collector, traffic monitor       | Pending                                 |
 | Cost cap enforcement and kill switch                   | Pending                                 |
 
-The inherited workflows refer to upstream services, including Cypress Cloud.
-Review and adapt them before relying on them as this fork's required checks.
-An existing upstream badge is not evidence that our fork passes tests.
+Ticket #2 archives the inherited workflows under `.github/upstream-workflows`
+and adds a single read-only `Factory CI` job without Cypress Cloud recording.
+Its remote result and required-branch-check configuration must be verified
+separately. An existing upstream badge is not evidence that this fork passes.
+
+## Production preparation (ticket #2)
+
+The production change builds the frontend and compiled API for one origin,
+persists demo data and sessions in PostgreSQL, removes password hashes from user
+responses, and includes real database restart, concurrency, and failure checks.
+The [deployment guide](DEPLOYMENT.md) has exact free-plan setup instructions.
+
+Committed configuration is not a completed cloud deployment. The public URL,
+provider quotas, named production approval, protected branch, cost guard, kill
+switch, and unattended maintenance dispatcher still require installation and
+verification. Until then, this session's agent work demonstrates the intended
+maintenance process but is not an always-running software factory.
 
 ## Local verification on 2026-11-11
 

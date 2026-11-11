@@ -41,6 +41,10 @@ Run commands from the repository root.
 | Build the frontend                     | `yarn build`                                                 |
 | Prepare the existing CI frontend build | `yarn build:ci`                                              |
 | Serve the existing CI build and API    | `yarn start:ci`                                              |
+| Build the full production app          | `yarn build:production`                                      |
+| Start the compiled production app      | `yarn start:production`                                      |
+| Test production with disposable PG     | `yarn test:production`                                       |
+| Test production login over HTTPS       | `yarn test:production:browser`                               |
 | Run one API spec                       | `yarn cypress:run --spec "cypress/tests/api/<file>.spec.ts"` |
 | Run one UI spec                        | `yarn cypress:run --spec "cypress/tests/ui/<file>.spec.ts"`  |
 
@@ -49,6 +53,12 @@ For Cypress end-to-end tests, first build with `yarn build:ci`, then keep
 port 3000 and API on port 3001. Run local tests without Cypress Cloud recording.
 These commands come from the source scripts; consult the setup status for which
 ones have actually been executed in this fork.
+
+Production tests require a private `TEST_DATABASE_URL` for a disposable database
+whose name ends with `_test`. They drop tables. Run the production build and
+`test:production` before the production browser check; its local TLS proxy needs
+OpenSSL (set `OPENSSL_BINARY` if it is outside PATH). See
+[deployment instructions](docs/DEPLOYMENT.md) for production secrets and storage.
 
 ## Complete one maintenance ticket
 
