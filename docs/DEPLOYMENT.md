@@ -122,6 +122,10 @@ tables and must never use the deployed database.
    `render.yaml` after the production PR is merged. It declares one **Free** Node
    service in Frankfurt, and no paid disks or Render databases.
 3. Enter Neon's connection URI as the private `DATABASE_URL` value when asked.
+   Enter the storage values from the private `.env.local` file as
+   `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and `AWS_ENDPOINT_URL_S3`.
+   `AWS_REGION` is `eu-central-1` for this project's Frankfurt region. These are
+   Neon's storage credentials; no separate AWS account is needed.
    Retain the automatically generated `SESSION_SECRET` across deployments; changing
    it logs everyone out. The Blueprint sets `NODE_ENV=production`, skips downloading
    the unused Cypress browser on Render, and installs build dependencies.
