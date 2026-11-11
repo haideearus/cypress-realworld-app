@@ -23,7 +23,8 @@ before claiming that a harness or automation is operational.
 - `cypress/tests/api/`: API regression tests.
 - `cypress/tests/ui/`: browser tests.
 - `data/`: synthetic demo data and database seeds.
-- `.github/workflows/`: inherited CI workflows; factory automation is pending.
+- `.github/workflows/`: app CI and disabled subscription-only factory workflows.
+- `scripts/factory/`: trusted usage policy, ledger, controllers and worker helpers.
 
 ## Tools and commands
 
@@ -38,6 +39,7 @@ Run commands from the repository root.
 | Check TypeScript                       | `yarn types`                                                 |
 | Check lint and formatting              | `yarn lint`                                                  |
 | Run unit tests once                    | `yarn test:unit:ci`                                          |
+| Test factory protections without AI    | `yarn test:factory`                                          |
 | Build the frontend                     | `yarn build`                                                 |
 | Prepare the existing CI frontend build | `yarn build:ci`                                              |
 | Serve the existing CI build and API    | `yarn start:ci`                                              |
@@ -53,6 +55,10 @@ For Cypress end-to-end tests, first build with `yarn build:ci`, then keep
 port 3000 and API on port 3001. Run local tests without Cypress Cloud recording.
 These commands come from the source scripts; consult the setup status for which
 ones have actually been executed in this fork.
+
+The Claude factory is installed disabled. See [docs/CLAUDE-FACTORY.md](docs/CLAUDE-FACTORY.md)
+for installation order, subscription-only authentication, durable usage counters,
+and cancellation. Normal agent tickets cannot modify the harness or its policy.
 
 Production tests require a private `TEST_DATABASE_URL` for a disposable database
 whose name ends with `_test`. They drop tables. Run the production build and

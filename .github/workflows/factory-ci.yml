@@ -42,6 +42,8 @@ jobs:
       - run: corepack enable && corepack prepare yarn@1.22.22 --activate
       - run: yarn install --frozen-lockfile
       - run: yarn predev:cognito:ci
+      - name: Factory policy and simulated agent checks without model calls
+        run: yarn test:factory
       - run: yarn types && yarn lint && yarn test:unit:ci
       - run: yarn build:production && yarn test:production
       - run: yarn test:production:browser

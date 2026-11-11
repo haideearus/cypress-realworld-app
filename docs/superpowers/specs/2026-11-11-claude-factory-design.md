@@ -2,7 +2,8 @@
 
 Date: 2026-11-11, Europe/Bucharest
 
-Status: design for owner review; no agent workflow installed or enabled.
+Status: approved by the owner; implementation in the ticket #6 branch, not yet
+merged or enabled.
 
 Tracking ticket: https://github.com/haideearus/cypress-realworld-app/issues/6
 
@@ -42,18 +43,18 @@ jobs validate artifacts and do not execute agent-generated code.
 
 ## Configuration contract
 
-| Repository variable | Installation value | Meaning |
-| --- | --- | --- |
-| FACTORY_ENABLED | false | Refuse every real model invocation during setup |
-| FACTORY_MAX_TICKETS_PER_DAY | 2 | Distinct tickets first started per Bucharest calendar day |
-| FACTORY_MAX_CODING_ATTEMPTS_PER_TICKET | 2 | Lifetime coding invocations for a ticket |
-| FACTORY_MAX_REVIEWS_PER_TICKET | 2 | Lifetime independent review invocations for a ticket |
-| FACTORY_MAX_AUTOMATIC_RETRIES | 1 | One additional coding attempt, within the two-attempt cap |
-| FACTORY_MAX_CONCURRENT_TICKETS | 1 | One active ticket through coding, CI, and review |
-| FACTORY_TIMEZONE | Europe/Bucharest | Calendar used for the daily counter |
-| FACTORY_RUN_TIMEOUT_MINUTES | 15 | Agent job wall-clock ceiling, not the existing CI timeout |
-| FACTORY_MAX_TURNS_PER_RUN | 20 | Iteration ceiling for each coding or review session |
-| FACTORY_APP_URL | https://haide-software-factory.onrender.com | Reserved for later live monitoring; agents do not test production |
+| Repository variable                    | Installation value                          | Meaning                                                           |
+| -------------------------------------- | ------------------------------------------- | ----------------------------------------------------------------- |
+| FACTORY_ENABLED                        | false                                       | Refuse every real model invocation during setup                   |
+| FACTORY_MAX_TICKETS_PER_DAY            | 2                                           | Distinct tickets first started per Bucharest calendar day         |
+| FACTORY_MAX_CODING_ATTEMPTS_PER_TICKET | 2                                           | Lifetime coding invocations for a ticket                          |
+| FACTORY_MAX_REVIEWS_PER_TICKET         | 2                                           | Lifetime independent review invocations for a ticket              |
+| FACTORY_MAX_AUTOMATIC_RETRIES          | 1                                           | One additional coding attempt, within the two-attempt cap         |
+| FACTORY_MAX_CONCURRENT_TICKETS         | 1                                           | One active ticket through coding, CI, and review                  |
+| FACTORY_TIMEZONE                       | Europe/Bucharest                            | Calendar used for the daily counter                               |
+| FACTORY_RUN_TIMEOUT_MINUTES            | 15                                          | Agent job wall-clock ceiling, not the existing CI timeout         |
+| FACTORY_MAX_TURNS_PER_RUN              | 20                                          | Iteration ceiling for each coding or review session               |
+| FACTORY_APP_URL                        | https://haide-software-factory.onrender.com | Reserved for later live monitoring; agents do not test production |
 
 Validate configuration as typed data. Missing, malformed, or increased limits
 above this approved policy refuse model work. Lower limits can reduce work.

@@ -1,6 +1,6 @@
 # Claude Factory Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Prepare the first implementation PR for subscription-only Claude coding and independent review, with durable enforced limits and no real model calls during installation.
 
@@ -40,49 +40,49 @@
 - .github/workflows/factory-cycle.yml: one coding/publication/CI/fresh-review cycle.
 - .github/workflows/factory-model.yml: least-privilege reusable coding/review job.
 - .github/workflows/factory-review-gate.yml: deterministic current-head gate, no model calls.
-- .github/claude-runtime/: isolated exact-version CLI package and lockfile.
-- scripts/tests/factory-*.test.cjs: real policy, mock HTTP GitHub, temporary Git repos, and workflow contract tests.
+- .github/actions/factory-control/action.yml: trusted controller invocation shared by privileged jobs.
+- scripts/tests/factory-\*.test.cjs: real policy, mock HTTP GitHub, temporary Git repos, and workflow contract tests.
 - docs/CLAUDE-FACTORY.md: owner steps, limits, evidence, recovery, rollout boundaries.
 
 ### Task 1: Policy and durable reservations
 
 **Interfaces:** `readConfig(vars)`, `emptyState(repo)`, `reserve(state,request,config,now)`, `preflight(state,grant,context,config)`, `finish(state,grant,outcome)`, `reviewGate(state,pr)`.
 
-- [ ] Write policy tests for disabled/config/auth refusal, Bucharest date boundaries, daily and lifetime caps, one active ticket, and rerun/stale-head rejection.
-- [ ] Run `node --test scripts/tests/factory-policy.test.cjs`; expect missing module/assertion failures before implementation.
-- [ ] Implement pure transitions, strict state validation, and exact grant identity; no network or secrets.
-- [ ] Run the policy tests; expect all passing. Commit policy and tests.
+- [x] Write policy tests for disabled/config/auth refusal, Bucharest date boundaries, daily and lifetime caps, one active ticket, and rerun/stale-head rejection.
+- [x] Run `node --test scripts/tests/factory-policy.test.cjs`; expect missing module/assertion failures before implementation.
+- [x] Implement pure transitions, strict state validation, and exact grant identity; no network or secrets.
+- [x] Run the policy tests; expect all passing. Commit policy and tests.
 
 ### Task 2: GitHub persistence and artifact boundaries
 
 **Interfaces:** `GitHub.request(method,path,body)`, `Ledger.read()`, `Ledger.initialize()`, `Ledger.update(mutator)`; `validateChanges(files)`, `validateReview(result,head)`.
 
-- [ ] Add fake-HTTP GitHub tests for fixed origin, orphan initialization, CAS races, committed reservations, 403/corruption, and no implicit reset.
-- [ ] Add artifact tests using temporary Git repositories for regular-file allowlists, forbidden policy paths, binary/large changes, secret-like values, and strict current-head review output.
-- [ ] Run new tests; expect missing implementations.
-- [ ] Implement REST adapter, ledger, and artifact validation without executing model artifacts.
-- [ ] Run all factory tests; expect all passing. Commit task.
+- [x] Add fake-HTTP GitHub tests for fixed origin, orphan initialization, CAS races, committed reservations, 403/corruption, and no implicit reset.
+- [x] Add artifact tests using temporary Git repositories for regular-file allowlists, forbidden policy paths, binary/large changes, secret-like values, and strict current-head review output.
+- [x] Run new tests; expect missing implementations.
+- [x] Implement REST adapter, ledger, and artifact validation without executing model artifacts.
+- [x] Run all factory tests; expect all passing. Commit task.
 
 ### Task 3: Trusted controller and isolated worker
 
 **Interfaces:** controller operations `initialize`, `admit`, `publish`, `ci`, `review`, `assess`, `cancel`; worker operations `prepare`, `collect`.
 
-- [ ] Add tests showing a fixture ticket traverses reservations, patch publication, CI association, fresh review, and retry exhaustion without a provider call.
-- [ ] Cover stopped/failed workers, stale PR heads, canceled prior runs, missing artifacts, and rejected patches consuming their reservations.
-- [ ] Run new tests; expect missing controller/worker behavior.
-- [ ] Implement trusted operations, exact run/head binding, fresh prompts, and artifacts with no credentials.
-- [ ] Run all factory tests; expect all passing. Commit task.
+- [x] Add tests showing a fixture ticket traverses reservations, patch publication, CI association, fresh review, and retry exhaustion without a provider call.
+- [x] Cover stopped/failed workers, stale PR heads, canceled prior runs, missing artifacts, and rejected patches consuming their reservations.
+- [x] Run new tests; expect missing controller/worker behavior.
+- [x] Implement trusted operations, exact run/head binding, fresh prompts, and artifacts with no credentials.
+- [x] Run all factory tests; expect all passing. Commit task.
 
 ### Task 4: Disabled workflows and tool pins
 
 **Interfaces:** reusable workflows pass grant IDs and cycle slots; only model steps receive the OAuth secret; jobs return plain ready/head/PR/retry outputs.
 
-- [ ] Add workflow contract tests that parse actual YAML for permissions, real enabled guards, timeouts, immutable actions, no API keys/deploy secrets, and no public mention triggers.
-- [ ] Run contracts before workflow files exist; expect failures.
-- [ ] Add isolated CLI lockfile, pinned action, reusable model/cycle jobs, entry point and deterministic review gate.
-- [ ] Add `test:factory` to package scripts and existing CI, without removing any checks.
-- [ ] Run factory tests, YAML validation/actionlint where available, lint/types/unit/build and applicable production checks. No real model invocation.
-- [ ] Commit workflow deliverable.
+- [x] Add workflow contract tests that parse actual YAML for permissions, real enabled guards, timeouts, immutable actions, no API keys/deploy secrets, and no public mention triggers.
+- [x] Run contracts before workflow files exist; expect failures.
+- [x] Add the pinned action (which installs CLI 2.1.322), reusable model/cycle jobs, entry point and deterministic review gate.
+- [x] Add `test:factory` to package scripts and existing CI, without removing any checks.
+- [x] Run factory tests, YAML validation/actionlint where available, lint/types/unit/build and applicable production checks. No real model invocation.
+- [x] Commit workflow deliverable.
 
 ### Task 5: Evidence, fresh review and PR
 
