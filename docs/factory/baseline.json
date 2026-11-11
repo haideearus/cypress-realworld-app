@@ -1,0 +1,33 @@
+{
+  "recorded_on": "2026-11-11",
+  "track": "maintain-existing-open-source-application",
+  "repository": "https://github.com/haideearus/cypress-realworld-app",
+  "default_branch": "main",
+  "upstream_repository": "https://github.com/cypress-io/cypress-realworld-app",
+  "upstream_branch": "develop",
+  "initial_fork_commit": "0729f68ac220f7cda4ad09c5693dba11d7c532c6",
+  "upstream_commit_at_verification": "0729f68ac220f7cda4ad09c5693dba11d7c532c6",
+  "initial_tree": "da8af7cdcabc4f072932ac5880f1d49c5bae80ab",
+  "license": "MIT",
+  "node_version_file": ".node-version",
+  "node_version": "22.20.0",
+  "package_manager": "yarn@1.22.22",
+  "lockfile": "yarn.lock",
+  "verified": {
+    "is_public_fork": true,
+    "issues_enabled": true,
+    "default_branch_is_main": true,
+    "initial_fork_matches_upstream": true,
+    "local_clone_exists": true,
+    "local_upstream_remote_configured": true
+  },
+  "runtime_checks": {
+    "dependency_installation": "not-run",
+    "application_tests": "not-run",
+    "production_deployment": "not-configured"
+  },
+  "record_scope": "Initial fork snapshot before runtime testing",
+  "current_verification_report": "docs/factory/verification-2026-11-11.md"
+}
+
+warning: in the working copy of 'docs/factory/baseline.json', LF will be replaced by CRLF the next time Git touches it
