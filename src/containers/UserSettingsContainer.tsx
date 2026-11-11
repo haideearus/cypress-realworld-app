@@ -6,6 +6,7 @@ import { Interpreter } from "xstate";
 import { AuthMachineContext, AuthMachineEvents } from "../machines/authMachine";
 import { useActor } from "@xstate/react";
 import PersonalSettingsIllustration from "../components/SvgUndrawPersonalSettingsKihd";
+import AvatarUpload from "../components/AvatarUpload";
 
 const PREFIX = "UserSettingsContainer";
 
@@ -48,6 +49,13 @@ const UserSettingsContainer: React.FC<Props> = ({ authService }) => {
           <PersonalSettingsIllustration style={{ height: 200, width: 300 }} />
         </Grid>
         <Grid item style={{ width: "50%" }}>
+          {currentUser && (
+            <AvatarUpload
+              userId={currentUser.id}
+              avatar={currentUser.avatar}
+              onSaved={() => sendAuth({ type: "REFRESH" })}
+            />
+          )}
           {currentUser && <UserSettingsForm userProfile={currentUser} updateUser={updateUser} />}
         </Grid>
       </Grid>

@@ -1,6 +1,8 @@
 import axios from "axios";
 
 const httpClient = axios.create({
+  baseURL:
+    process.env.VITE_API_BASE_URL || `http://localhost:${process.env.VITE_BACKEND_PORT || 3001}`,
   withCredentials: true,
 });
 

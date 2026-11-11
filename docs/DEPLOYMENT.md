@@ -15,8 +15,10 @@ USD 0 for additional hosting or API charges.
 | Production deployment                   | GitHub environment approval by a named person        |
 
 This is the deployment target, not a claim that it is already configured. The
-upstream application currently stores data in a local JSON file. Connecting a
-PostgreSQL URL alone will not convert it into a PostgreSQL application.
+production change is tracked in [ticket #2](https://github.com/haideearus/cypress-realworld-app/issues/2).
+Local development still uses upstream's JSON file; production uses PostgreSQL.
+Provider connection, public URL verification, and the approval gate are separate
+setup steps. Never infer that they are active merely from committed configuration.
 
 ## 1. Connect Codex to this fork
 
@@ -66,8 +68,7 @@ Sources: [Neon Free plan](https://neon.com/pricing) and
 
 ## 3. Prepare the app for production
 
-An agent must implement and test these changes in a maintenance PR before the
-service can be deployed correctly:
+The production maintenance PR implements these changes:
 
 - Route browser API requests to the deployed API instead of the visitor's
   `localhost:3001`.
@@ -82,20 +83,64 @@ service can be deployed correctly:
 - Verify persistence by creating data, restarting the service, and checking that
   the data remains. Run destructive test fixtures against disposable test data.
 
-The current `yarn start` and `yarn dev` scripts are development scripts that
-reseed the local database. A new, verified production command is required. This
-guide will be updated with its exact build and start commands in that PR.
+`yarn start` and `yarn dev` remain development scripts that reseed local data.
+Production uses these commands instead:
+
+```shell
+yarn install --frozen-lockfile --production=false
+yarn build:production
+yarn start:production
+```
+
+The build emits the website to `dist/client` and compiles the Node server to
+`dist/server`. Startup neither launches Vite nor runs a development seed script.
+The frontend calls `/api` on the same origin. `/healthz` reports the release,
+and `/readyz` checks database connectivity; neither returns secrets.
+
+Production requires `DATABASE_URL` (private PostgreSQL URI), `SESSION_SECRET`
+(at least 32 random characters), and `APP_ORIGIN` (the exact HTTPS origin, with no
+trailing slash). Render's `RENDER_EXTERNAL_URL` supplies the origin automatically
+when `APP_ORIGIN` is absent. Render supplies `PORT`; the default is 10000.
+Never put secrets in `VITE_*` variables: those become public browser code.
+
+PostgreSQL stores the application's JSON state in one `rwa_state` row, plus
+login sessions in `rwa_sessions`. Seed data is inserted only if the state row is
+absent. Each API request acquires a row lock, refreshes stale state, runs the
+upstream business logic, and commits before its response is sent. Failed requests
+roll back. This deliberately serializes requests for a small teaching demo; a
+busy multi-user service would need a relational persistence redesign.
+
+Run production integration tests against a **disposable** PostgreSQL database
+whose name ends in `_test`. Set `TEST_DATABASE_URL` privately in your shell,
+then run `yarn test:production` after the production build. These tests drop demo
+tables and must never use the deployed database.
 
 ## 4. Configure Render after the production PR
 
 1. Sign up at [Render](https://dashboard.render.com/) and connect this GitHub fork.
-2. Choose **New -> Web Service**, Node runtime, branch `main`, and **Free** compute.
-3. Use the build and start commands tested in the production PR.
-4. Add `DATABASE_URL`, a generated `SESSION_SECRET`, and the production settings
-   documented by that PR as environment variables. Secrets belong in the host's
-   settings, not in GitHub files or prompts.
-5. Set **Auto-Deploy: Off** so the host cannot bypass the human production gate.
-6. Configure the health check and use the generated HTTPS `onrender.com` URL.
+2. Choose **New -> Blueprint**, select this fork and branch `main`, and use
+   `render.yaml` after the production PR is merged. It declares one **Free** Node
+   service in Frankfurt, and no paid disks or Render databases.
+3. Enter Neon's connection URI as the private `DATABASE_URL` value when asked.
+   Enter the storage values from the private `.env.local` file as
+   `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and `AWS_ENDPOINT_URL_S3`.
+   `AWS_REGION` is `eu-central-1` for this project's Frankfurt region. These are
+   Neon's storage credentials; no separate AWS account is needed.
+   Retain the automatically generated `SESSION_SECRET` across deployments; changing
+   it logs everyone out. The Blueprint sets `NODE_ENV=production`, skips downloading
+   the unused Cypress browser on Render, and installs build dependencies.
+4. Check the exact commands before creating the service:
+   build `yarn install --frozen-lockfile --production=false && yarn build:production`;
+   start `yarn start:production`; health check `/healthz`.
+5. Confirm **Auto-Deploy: Off** and **Free** before the first deployment. Creating
+   a Blueprint can trigger its initial deployment: that action is itself the
+   named human approval until the GitHub production environment is installed.
+6. Open the generated HTTPS `onrender.com` URL. Log in with the synthetic demo
+   account `Heath93` / `s3cret`, change a profile field or make a fake payment,
+   then restart the service and verify both the change and session remain.
+7. Check `/healthz` and compare its `release` with the approved Git commit.
+   Record the URL, revision, approval actor/time, and persistence result in the
+   deployment evidence. A green local test is not evidence of a public deployment.
 
 Render Free sleeps after inactivity and may take about a minute to wake up.
 Monitoring must allow for this and retry before treating a cold start as a fault.

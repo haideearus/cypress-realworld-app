@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig.tsnode.json",
+  "compilerOptions": { "noEmit": false, "outDir": "dist/server", "rootDir": "." },
+  "include": ["backend/**/*.ts"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"]
+}

@@ -13,6 +13,8 @@
   },
   "dependencies": {
     "@auth0/auth0-react": "2.2.4",
+    "@aws-sdk/client-s3": "3.1166.0",
+    "@aws-sdk/s3-request-presigner": "3.1166.0",
     "@babel/core": "^7.28.0",
     "@babel/plugin-syntax-flow": "^7.14.5",
     "@babel/plugin-transform-react-jsx": "^7.14.9",
@@ -24,6 +26,8 @@
     "@mui/icons-material": "^5.15.12",
     "@mui/lab": "^5.0.0-alpha.167",
     "@mui/material": "^5.15.12",
+    "@neon/config": "1.14.0",
+    "@neon/env": "2.1.3",
     "@okta/jwt-verifier": "^3.0.1",
     "@okta/okta-auth-js": "^7.3.0",
     "@okta/okta-react": "^6.7.0",
@@ -32,12 +36,14 @@
     "aws-amplify": "^6.0.16",
     "axios": "0.28.1",
     "clsx": "1.2.1",
+    "connect-pg-simple": "10.0.0",
     "date-fns": "4.1.0",
     "date-fns-tz": "^3.2.0",
     "detect-port": "^1.5.1",
     "dinero.js": "^2.0.0",
     "formik": "2.4.6",
     "history": "4.10.1",
+    "pg": "8.23.1",
     "postinstall-postinstall": "^2.1.0",
     "react": "18.2.0",
     "react-calendar": "^6.0.0",
@@ -67,6 +73,7 @@
     "@types/bluebird": "3.5.36",
     "@types/connect-flash": "0.0.37",
     "@types/connect-history-api-fallback": "1.3.5",
+    "@types/connect-pg-simple": "7.0.3",
     "@types/cors": "2.8.12",
     "@types/express": "4.17.21",
     "@types/express-paginate": "1.0.4",
@@ -81,6 +88,7 @@
     "@types/morgan": "1.9.3",
     "@types/node": "^22.10.0",
     "@types/passport": "1.0.16",
+    "@types/pg": "8.23.1",
     "@types/react": "^18.2.14",
     "@types/react-dom": "^18.2.6",
     "@types/react-router": "5.1.18",
@@ -171,8 +179,8 @@
     "test:unit": "vitest",
     "test:unit:ci": "vitest --run",
     "test:component:ci": "yarn cypress:run:component",
-    "start:api": "yarn tsnode --files backend/app.ts",
-    "start:api:watch": "nodemon --exec yarn tsnode --watch 'backend' backend/app.ts",
+    "start:api": "yarn tsnode --files backend/main.ts",
+    "start:api:watch": "nodemon --exec yarn tsnode --watch 'backend' backend/main.ts",
     "start:react:proxy-server": "yarn tsnode scripts/testServer.ts",
     "prettier": "prettier --write \"**/**.{ts,js,tsx}\" \"*.{json,md,yml}\"",
     "tsnode": "nyc --silent ts-node -P tsconfig.tsnode.json",
@@ -189,9 +197,14 @@
     "prebuild:ci": "yarn predev:cognito:ci",
     "build:ci": "cross-env CYPRESS_COVERAGE=true vite build",
     "build": "vite build",
-    "codesandbox:start:api": "yarn tsnode:not-instrumented --files backend/app.ts",
+    "codesandbox:start:api": "yarn tsnode:not-instrumented --files backend/main.ts",
     "codesandbox:start": "NODE_ENV=development TSC_COMPILE_ON_ERROR=true concurrently \"vite\" yarn:start:api:codesandbox",
-    "postinstall": "husky install && patch-package"
+    "postinstall": "husky install && patch-package",
+    "build:production": "node scripts/build-production.cjs",
+    "start:production": "cross-env NODE_ENV=production node dist/server/backend/main.js",
+    "test:production": "node --test --test-concurrency=1 scripts/tests/environment.test.cjs scripts/tests/config.test.cjs scripts/tests/postgres-state.test.cjs scripts/tests/production-integration.test.cjs",
+    "test:production:browser": "node scripts/test-production-browser.cjs",
+    "test:neon:services": "node --test scripts/tests/neon-avatars.test.cjs"
   },
   "engines": {
     "node": "^22.0.0 || ^24.0.0"
@@ -230,5 +243,8 @@
       "json"
     ]
   },
-  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
+  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e",
+  "resolutions": {
+    "@types/express-session": "1.18.0"
+  }
 }

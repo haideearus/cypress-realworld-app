@@ -1,0 +1,31 @@
+# Free service only. The durable database is a separate Neon Free project.
+services:
+  - type: web
+    name: haide-software-factory
+    runtime: node
+    plan: free
+    region: frankfurt
+    branch: main
+    autoDeployTrigger: off
+    buildCommand: yarn install --frozen-lockfile --production=false && yarn build:production
+    startCommand: yarn start:production
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_VERSION
+        value: 22.20.0
+      - key: NODE_ENV
+        value: production
+      - key: CYPRESS_INSTALL_BINARY
+        value: "0"
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: AWS_ENDPOINT_URL_S3
+        sync: false
+      - key: AWS_REGION
+        value: eu-central-1

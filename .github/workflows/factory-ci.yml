@@ -1,0 +1,60 @@
+name: Factory CI
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: factory-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17.6
+        env:
+          POSTGRES_USER: factory_test
+          POSTGRES_PASSWORD: disposable-ci-password
+          POSTGRES_DB: rwa_test
+        ports: [5432:5432]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql://factory_test:disposable-ci-password@127.0.0.1:5432/rwa_test
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+      - run: corepack enable && corepack prepare yarn@1.22.22 --activate
+      - run: yarn install --frozen-lockfile
+      - run: yarn predev:cognito:ci
+      - run: yarn types && yarn lint && yarn test:unit:ci
+      - run: yarn build:production && yarn test:production
+      - run: yarn test:production:browser
+      - run: yarn build:ci
+      - name: Start the disposable local app
+        run: yarn start:ci > /tmp/factory-app.log 2>&1 &
+      - name: API and browser regression tests without cloud recording
+        run: yarn cypress:run --browser electron --spec 'cypress/tests/api/*,cypress/tests/ui/*'
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: failure()
+        with:
+          name: test-failure-evidence
+          retention-days: 7
+          path: |
+            cypress/screenshots
+            /tmp/factory-app.log
