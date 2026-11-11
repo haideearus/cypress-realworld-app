@@ -77,7 +77,7 @@ function authorize(request) {
     !/^[1-9]\d*$/.test(request.runId) || !Number.isInteger(request.runAttempt)||request.runAttempt<1 ||
     !/^[a-z][a-z0-9_-]{0,30}$/.test(request.slot) || !['code','review'].includes(request.phase)) deny('Invalid reservation request');
 }
-function audit(state,event,detail,now) {
+function audit(state,event,detail,now=new Date()) {
   state.audit.push({at:now.toISOString(),event,...detail});
   state.audit=state.audit.slice(-500);
 }

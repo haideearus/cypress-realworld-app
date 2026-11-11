@@ -36,4 +36,50 @@ class GitHubFixture {
     return response(404,{message:`Unsupported fixture route ${method} ${path}`});
   };
 }
-module.exports={vars,head,context,GitHubFixture};
+class FactoryFixture extends GitHubFixture {
+  constructor(){super();this.branchHeads=new Map([['main',head]]);this.prs=[];this.runs=[];this.checks=[];
+    this.objects.set(head,{tree:'b'.repeat(40),parents:[]});
+    this.issues=new Map([[10,{number:10,title:'Repair demo',body:'Fix the testable bug',state:'open'}]]);
+    this.ciConclusion='success';this.prHeadOverride=null;this.activeRunStatus='completed';
+    const ledgerFetch=this.fetch;
+    this.fetch=async(url,options={})=>{
+      const u=new URL(url);const path=u.pathname.replace('/repos/haideearus/cypress-realworld-app','');
+      const method=options.method||'GET';const body=options.body?JSON.parse(options.body):null;
+      const respond=(status,data)=>new Response(data===null?null:JSON.stringify(data),{status,headers:{'content-type':'application/json'}});
+      const prData=p=>({...p,head:{ref:p.branch,sha:this.prHeadOverride||this.branchHeads.get(p.branch),repo:{full_name:'haideearus/cypress-realworld-app'}},base:{ref:'main',sha:head}});
+      if(method==='GET'&&path.startsWith('/issues/'))return respond(200,this.issues.get(Number(path.split('/')[2]))||{state:'closed'});
+      if(method==='GET'&&path==='/branches/main')return respond(200,{name:'main',commit:{sha:head},protected:true});
+      if(method==='GET'&&path.startsWith('/git/commits/'))return respond(200,this.objects.get(path.split('/').at(-1))||{tree:{sha:'b'.repeat(40)}});
+      if(method==='GET'&&path.startsWith('/git/ref/heads/agent/')){
+        const branch=path.slice('/git/ref/heads/'.length);const sha=this.branchHeads.get(branch);
+        return sha?respond(200,{object:{sha}}):respond(404,{message:'Not Found'});
+      }
+      if(method==='POST'&&path==='/git/refs'&&body.ref.startsWith('refs/heads/agent/')){
+        const branch=body.ref.slice('refs/heads/'.length);if(this.branchHeads.has(branch))return respond(422,{});
+        this.branchHeads.set(branch,body.sha);return respond(201,{object:{sha:body.sha}});
+      }
+      if(method==='PATCH'&&path.startsWith('/git/refs/heads/agent/')){
+        const branch=path.slice('/git/refs/heads/'.length);const commit=this.objects.get(body.sha);
+        if(body.force!==false||!commit?.parents.includes(this.branchHeads.get(branch)))return respond(422,{});
+        this.branchHeads.set(branch,body.sha);return respond(200,{object:{sha:body.sha}});
+      }
+      if(method==='POST'&&path==='/pulls'){
+        const p={number:20+this.prs.length,branch:body.head,state:'open',draft:false};this.prs.push(p);return respond(201,prData(p));
+      }
+      if(method==='GET'&&path==='/pulls')return respond(200,this.prs.map(prData));
+      if(method==='GET'&&/^\/pulls\/\d+$/.test(path))return respond(200,prData(this.prs.find(p=>p.number===Number(path.split('/')[2]))));
+      if(method==='POST'&&path==='/actions/workflows/factory-ci.yml/dispatches'){
+        this.runs.push({id:501+this.runs.length,name:'Factory CI',path:'.github/workflows/factory-ci.yml',event:'workflow_dispatch',
+          head_sha:this.branchHeads.get(body.ref),head_branch:body.ref,status:'completed',conclusion:this.ciConclusion});return respond(204,null);
+      }
+      if(method==='GET'&&path==='/actions/workflows/factory-ci.yml/runs')return respond(200,{workflow_runs:this.runs});
+      if(method==='GET'&&/^\/actions\/runs\/\d+\/jobs$/.test(path))return respond(200,{jobs:[{name:'verify',status:'completed',conclusion:this.ciConclusion}]});
+      if(method==='GET'&&/^\/actions\/runs\/\d+\/attempts\/\d+$/.test(path))return respond(200,{status:this.activeRunStatus});
+      if(method==='GET'&&/^\/actions\/runs\/\d+$/.test(path))return respond(200,this.runs.find(r=>r.id===Number(path.split('/')[3]))||{status:this.activeRunStatus});
+      if(method==='POST'&&/^\/actions\/runs\/\d+\/cancel$/.test(path)){this.activeRunStatus='completed';return respond(202,{});}
+      if(method==='POST'&&path==='/check-runs'){this.checks.push(body);return respond(201,{id:this.checks.length,...body});}
+      return ledgerFetch(url,options);
+    };
+  }
+}
+module.exports={vars,head,context,GitHubFixture,FactoryFixture};
