@@ -25,5 +25,9 @@
     "dependency_installation": "not-run",
     "application_tests": "not-run",
     "production_deployment": "not-configured"
-  }
+  },
+  "record_scope": "Initial fork snapshot before runtime testing",
+  "current_verification_report": "docs/factory/verification-2026-11-11.md"
 }
+
+warning: in the working copy of 'docs/factory/baseline.json', LF will be replaced by CRLF the next time Git touches it
