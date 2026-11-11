@@ -127,8 +127,11 @@ tables and must never use the deployed database.
    `AWS_REGION` is `eu-central-1` for this project's Frankfurt region. These are
    Neon's storage credentials; no separate AWS account is needed.
    Retain the automatically generated `SESSION_SECRET` across deployments; changing
-   it logs everyone out. The Blueprint sets `NODE_ENV=production`, skips downloading
-   the unused Cypress browser on Render, and installs build dependencies.
+   it logs everyone out. The Blueprint sets `NODE_ENV=production` and
+   `YARN_PRODUCTION=false`, skips downloading the unused Cypress browser on
+   Render, and installs build dependencies. The Yarn override is required during
+   every dependency-install phase: Husky and patch-package are development
+   dependencies used by the repository's install script.
 4. Check the exact commands before creating the service:
    build `yarn install --frozen-lockfile --production=false && yarn build:production`;
    start `yarn start:production`; health check `/healthz`.
@@ -141,6 +144,14 @@ tables and must never use the deployed database.
 7. Check `/healthz` and compare its `release` with the approved Git commit.
    Record the URL, revision, approval actor/time, and persistence result in the
    deployment evidence. A green local test is not evidence of a public deployment.
+
+For a service created manually through **New -> Web Service**, enter all the same
+environment variables explicitly; Render does not automatically apply this
+repository's Blueprint to that existing service. If installation reports
+`husky: not found`, add **YARN_PRODUCTION** with value **false** in the service's
+Environment page, save it, then choose **Manual Deploy -> Clear build cache &
+deploy**. Retain the existing secret values and Free instance. Do not skip install
+scripts: patch-package must still apply the application's dependency patches.
 
 Render Free sleeps after inactivity and may take about a minute to wake up.
 Monitoring must allow for this and retry before treating a cold start as a fault.
