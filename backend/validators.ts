@@ -36,6 +36,27 @@ export const isBankAccountValidator = [
   body("routingNumber").isString().trim(),
 ];
 
+const avatarPath =
+  /^\/avatars\/[A-Za-z0-9_-]{1,64}\/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\.(png|jpg|webp)$/;
+const isAppAvatarReference = (value: unknown) => {
+  if (typeof value !== "string") return false;
+  if (value.startsWith("/api/") && avatarPath.test(value.slice(4))) return true;
+  try {
+    const url = new URL(value);
+    return (
+      url.protocol === "http:" &&
+      url.hostname === "localhost" &&
+      !url.username &&
+      !url.password &&
+      !url.search &&
+      !url.hash &&
+      avatarPath.test(url.pathname)
+    );
+  } catch {
+    return false;
+  }
+};
+
 export const isUserValidator = [
   check("firstName").optional({ checkFalsy: true }).isString().trim(),
   check("lastName").optional({ checkFalsy: true }).isString().trim(),
@@ -44,7 +65,11 @@ export const isUserValidator = [
   check("email").optional({ checkFalsy: true }).isString().trim(),
   check("phoneNumber").optional({ checkFalsy: true }).isString().trim(),
   check("balance").optional({ checkFalsy: true }).isNumeric().trim(),
-  check("avatar").optional({ checkFalsy: true }).isURL().trim(),
+  check("avatar")
+    .optional({ checkFalsy: true })
+    .if((value: string) => !isAppAvatarReference(value))
+    .isURL()
+    .trim(),
   check("defaultPrivacyLevel")
     .optional({ checkFalsy: true })
     .isIn(["public", "private", "contacts"]),

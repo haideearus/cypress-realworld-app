@@ -4,6 +4,7 @@ const { spawn } = require("node:child_process");
 const { once } = require("node:events");
 const { Pool } = require("pg");
 const { randomBytes } = require("node:crypto");
+const http = require("node:http");
 
 const uri = process.env.TEST_DATABASE_URL;
 if (!uri || !new URL(uri).pathname.endsWith("_test"))
@@ -78,6 +79,39 @@ test(
       assert.match(setCookie, /SameSite=Lax/i);
       cookie = setCookie.split(";")[0];
       const user = (await login.json()).user;
+      const slowUpload = http.request(
+        `${base}/api/avatars`,
+        {
+          method: "POST",
+          headers: {
+            cookie,
+            origin,
+            "x-forwarded-proto": "https",
+            "content-type": "image/png",
+            "content-length": "1024",
+          },
+        },
+        (response) => response.resume()
+      );
+      slowUpload.on("error", () => {});
+      slowUpload.write(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+      let responsive = false;
+      try {
+        await new Promise((resolve) => setTimeout(resolve, 250));
+        const concurrent = await fetch(`${base}/api/checkAuth`, {
+          headers: { cookie, "x-forwarded-proto": "https" },
+          signal: AbortSignal.timeout(1500),
+        });
+        responsive = concurrent.status === 200;
+      } catch {
+      } finally {
+        slowUpload.destroy();
+      }
+      assert.equal(
+        responsive,
+        true,
+        "A partially uploaded image must not lock other users out of the API"
+      );
       assert.equal(Object.hasOwn(user, "password"), false);
       const list = await (await api("/users")).json();
       assert.ok(list.results.every((u) => !Object.hasOwn(u, "password")));

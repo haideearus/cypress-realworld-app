@@ -29,6 +29,8 @@ import bankTransferRoutes from "./banktransfer-routes";
 import testDataRoutes from "./testdata-routes";
 import { checkAuth0Jwt, verifyOktaToken, checkCognitoJwt, checkGoogleJwt } from "./helpers";
 import resolvers from "./graphql/resolvers";
+import { avatarRoutes } from "./avatar-routes";
+import { avatarSession } from "./avatar-session";
 
 const schema = loadSchemaSync(join(__dirname, "./graphql/schema.graphql"), {
   loaders: [new GraphQLFileLoader()],
@@ -93,6 +95,11 @@ export function createApp(config: AppConfig, persistence?: { pool: Pool; state: 
     })
   );
   app.use(passport.initialize());
+  app.use(
+    config.production ? "/api/avatars" : "/avatars",
+    persistence ? avatarSession(persistence.state) : passport.session(),
+    avatarRoutes(config.production ? "/api" : `http://localhost:${config.port}`)
+  );
   const api = express.Router();
   if (persistence) api.use(persistResponses(persistence.state));
   api.use(passport.session());

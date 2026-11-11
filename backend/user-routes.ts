@@ -89,6 +89,11 @@ router.patch(
 
     const edits: User = req.body;
 
+    if (userId !== req.user!.id) {
+      res.status(403).json({ error: "You may update only your own profile" });
+      return;
+    }
+
     updateUserById(userId, edits);
 
     res.sendStatus(204);
