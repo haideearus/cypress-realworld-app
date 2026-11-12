@@ -31,7 +31,11 @@
       "approval": null,
       "criteriaHash": "9b5dcbe9e96583239b1e4aa34326c6eccbc280afc6d722153b63e282b0742cf8",
       "branch": "agent/12-denial-diagnostics",
-      "ci": null
+      "ci": {
+        "requestId": "ad91c5e7-6423-4e56-a308-4b52bd51d950",
+        "head": "717eb58ec018a4c6f09a07e9d52e8920706d618b",
+        "runId": null
+      }
     }
   },
   "grants": {
