@@ -1,6 +1,9 @@
 name: Factory controller
 description: Run trusted metadata operations without executing an agent artifact
 inputs:
+  variables_json:
+    required: true
+    description: Repository configuration JSON supplied from workflow scope
   operation:
     required: true
     description: Controller operation
@@ -48,7 +51,7 @@ runs:
       run: node scripts/factory/controller.cjs
       env:
         GH_TOKEN: ${{ github.token }}
-        FACTORY_VARIABLES: ${{ toJSON(vars) }}
+        FACTORY_VARIABLES: ${{ inputs.variables_json }}
         FACTORY_OPERATION: ${{ inputs.operation }}
         FACTORY_INPUTS: ${{ inputs.parameters }}
         FACTORY_BUNDLE_PATH: ${{ inputs.bundle_path }}

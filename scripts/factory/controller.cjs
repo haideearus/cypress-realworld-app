@@ -598,6 +598,16 @@ async function main(env = process.env) {
   const operation = env.FACTORY_OPERATION || inputs.operation;
   const config = policy.readConfig(JSON.parse(env.FACTORY_VARIABLES || "{}"));
   policy.assertSubscriptionEnv(env);
+  if (operation === "validate") {
+    const result = {
+      validated: true,
+      enabled: config.enabled,
+      ready: false,
+      reason: "Configuration validated; no ledger access or model invocation",
+    };
+    output(result, env);
+    return result;
+  }
   const api = new GitHub({ token: env.GH_TOKEN });
   const context = runtimeContext(env);
   const controller = new Controller(api, config, context);

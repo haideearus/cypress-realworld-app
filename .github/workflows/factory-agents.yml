@@ -38,6 +38,7 @@ jobs:
       - uses: ./.github/actions/factory-control
         with:
           operation: initialize
+          variables_json: ${{ toJSON(vars) }}
   cancel:
     if: ${{ inputs.operation == 'cancel' }}
     runs-on: ubuntu-latest
@@ -56,6 +57,7 @@ jobs:
       - uses: ./.github/actions/factory-control
         with:
           operation: cancel
+          variables_json: ${{ toJSON(vars) }}
   admit:
     if: ${{ inputs.operation == 'run' }}
     runs-on: ubuntu-latest
@@ -81,6 +83,7 @@ jobs:
         uses: ./.github/actions/factory-control
         with:
           operation: admit
+          variables_json: ${{ toJSON(vars) }}
           parameters: ${{ toJSON(inputs) }}
   cycle1:
     needs: admit
@@ -124,6 +127,7 @@ jobs:
         uses: ./.github/actions/factory-control
         with:
           operation: admit_pr
+          variables_json: ${{ toJSON(vars) }}
           parameters: ${{ toJSON(inputs) }}
   review_existing:
     needs: admit_pr

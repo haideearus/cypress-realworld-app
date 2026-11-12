@@ -113,3 +113,48 @@ test("gate runs from trusted default-branch source without a model credential or
       assert.equal(step.with.ref, "${{ github.workflow_sha }}");
   }
 });
+test("composite controller gets repository configuration through its declared input", () => {
+  const file = fs.readFileSync(
+    path.join(root, ".github/actions/factory-control/action.yml"),
+    "utf8"
+  );
+  const action = yaml.load(file);
+  assert.doesNotMatch(
+    file,
+    /\$\{\{[^}]*\bvars\b/,
+    "GitHub's composite action manifest does not expose the workflow vars context"
+  );
+  assert.equal(action.inputs.variables_json.required, true);
+  const command = action.runs.steps.find((step) => step.id === "run");
+  assert.equal(command.env.FACTORY_VARIABLES, "${{ inputs.variables_json }}");
+  for (const name of [
+    "factory-agents.yml",
+    "factory-cycle.yml",
+    "factory-pr-review.yml",
+    "factory-review-gate.yml",
+  ]) {
+    for (const job of Object.values(load(name).jobs)) {
+      for (const step of job.steps || []) {
+        if (step.uses === "./.github/actions/factory-control") {
+          assert.equal(
+            step.with.variables_json,
+            "${{ toJSON(vars) }}",
+            `${name} must pass workflow-scoped variables`
+          );
+        }
+      }
+    }
+  }
+});
+test("required CI actually executes the composite action with disabled synthetic configuration", () => {
+  const flow = load("factory-ci.yml");
+  const smoke = flow.jobs.verify.steps.find(
+    (step) => step.uses === "./.github/actions/factory-control"
+  );
+  assert.ok(smoke, "local YAML assertions alone did not catch the runner manifest error");
+  assert.equal(smoke.with.operation, "validate");
+  const config = require("../factory/policy.cjs").readConfig(JSON.parse(smoke.with.variables_json));
+  assert.equal(config.enabled, false);
+  assert.equal(flow.permissions.contents, "read");
+  assert.ok(!JSON.stringify(smoke).includes("secrets."));
+});
