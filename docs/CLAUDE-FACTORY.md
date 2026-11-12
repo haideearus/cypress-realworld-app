@@ -159,6 +159,34 @@ days. PRs, CI links, ledger commits, and model run links provide the longer audi
 trail. Coding evidence is agent-authored and must be checked by CI and review;
 its existence alone is not proof that a RED command really ran.
 
+### Failed-session permission diagnostics
+
+After a failed Claude step, the workflow attempts a diagnostic-only report.
+Open **Preserve sanitized permission-denial diagnostics after a model failure**
+in that job's logs, or download the separate
+`diagnostic-<phase>-<grantId>` artifact within seven days. Its single file is
+`factory-permission-denials.json`. It is never a code bundle or review approval.
+
+The reporter reads the pinned action's `RUNNER_TEMP/claude-execution-output.json`
+while the runner still exists. The action writes this file before throwing on a
+failed session, so the reporter does not depend on outputs from the failed step.
+The input is bounded to 8 MiB and at most 100 denial entries are retained, with
+truncation recorded. Output contains only fixed tool names, descriptive command
+categories/forms, stop reason and counts. It omits raw commands, arguments,
+paths, prompts, transcript text, session IDs, credentials and raw exceptions.
+
+Missing, unsafe, oversized or malformed data produces an explicit unavailable
+report; missing denial information is not recorded as zero denials. An existing
+output file is refused, not overwritten or uploaded as sanitized data. A report
+or upload failure never changes the original model failure to success. Categories
+do not decide tool permissions, and SDK-reported turn counts do not alter quotas.
+
+The two exact denied calls from
+[run #5](https://github.com/haideearus/cypress-realworld-app/actions/runs/43203237182)
+cannot be recovered from its retained logs/artifacts. This feature records future
+failures only. No agent rerun, permission change, quota increase or deployment is
+authorized by preparing or installing it.
+
 For a stop:
 
 1. Set `FACTORY_ENABLED=false` to stop new runs. GitHub may snapshot variables for

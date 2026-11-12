@@ -158,3 +158,26 @@ test("required CI actually executes the composite action with disabled synthetic
   assert.equal(flow.permissions.contents, "read");
   assert.ok(!JSON.stringify(smoke).includes("secrets."));
 });
+test("failed model sessions retain only a separate sanitized diagnostic without changing failure or permissions", () => {
+  const job = load("factory-model.yml").jobs.agent;
+  const model = job.steps.find((step) => step.id === "model");
+  const diagnostic = job.steps.find((step) => step.id === "diagnostics");
+  assert.ok(diagnostic, "model failures currently discard permission-denial details");
+  assert.equal(diagnostic.if, "${{ failure() && steps.model.outcome == 'failure' }}");
+  assert.equal(diagnostic["continue-on-error"], true);
+  assert.equal(diagnostic.run, 'node "$RUNNER_TEMP/factory-control/diagnostics.cjs"');
+  assert.ok(!JSON.stringify(diagnostic).includes("secrets."));
+  assert.notEqual(model["continue-on-error"], true);
+  assert.equal(model.with.show_full_output, "false");
+  const upload = job.steps.find(
+    (step) => step.with?.name === "diagnostic-${{ inputs.phase }}-${{ inputs.grantId }}"
+  );
+  assert.ok(upload);
+  assert.equal(
+    upload.if,
+    "${{ failure() && steps.model.outcome == 'failure' && steps.diagnostics.outcome == 'success' }}"
+  );
+  assert.equal(upload.with.path, "${{ runner.temp }}/factory-permission-denials.json");
+  assert.equal(upload.with["retention-days"], 7);
+  assert.equal(upload["continue-on-error"], true);
+});

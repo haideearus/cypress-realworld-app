@@ -95,6 +95,20 @@ jobs:
           settings: '{"disableAllHooks":true,"enableAllProjectMcpServers":false}'
           display_report: "false"
           show_full_output: "false"
+      - name: Preserve sanitized permission-denial diagnostics after a model failure
+        id: diagnostics
+        if: ${{ failure() && steps.model.outcome == 'failure' }}
+        continue-on-error: true
+        run: node "$RUNNER_TEMP/factory-control/diagnostics.cjs"
+      - name: Upload only the sanitized failure report
+        if: ${{ failure() && steps.model.outcome == 'failure' && steps.diagnostics.outcome == 'success' }}
+        continue-on-error: true
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: diagnostic-${{ inputs.phase }}-${{ inputs.grantId }}
+          path: ${{ runner.temp }}/factory-permission-denials.json
+          if-no-files-found: error
+          retention-days: 7
       - name: Validate and collect only the role output
         run: node "$RUNNER_TEMP/factory-control/worker.cjs"
         env:
