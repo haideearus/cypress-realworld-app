@@ -3,7 +3,8 @@
   "repository": "haideearus/cypress-realworld-app",
   "days": {
     "2026-11-12": [
-      11
+      11,
+      12
     ]
   },
   "tickets": {
@@ -18,6 +19,19 @@
       "approval": null,
       "criteriaHash": "d295d714446efad9eaa6b3bd3c0c25706756dcc2d26160a191f0253438279387",
       "feedback": "Agent, publication, or CI infrastructure failed; no automatic model retry"
+    },
+    "12": {
+      "coding": 0,
+      "origin": "owner-pr",
+      "reviews": 1,
+      "retries": 0,
+      "head": "717eb58ec018a4c6f09a07e9d52e8920706d618b",
+      "status": "reviewing",
+      "pr": 13,
+      "approval": null,
+      "criteriaHash": "9b5dcbe9e96583239b1e4aa34326c6eccbc280afc6d722153b63e282b0742cf8",
+      "branch": "agent/12-denial-diagnostics",
+      "ci": null
     }
   },
   "grants": {
@@ -32,9 +46,24 @@
       "status": "finished",
       "at": "2026-11-12T10:46:10.463Z",
       "outcome": "blocked"
+    },
+    "1f81633d-863a-4257-ab45-6696d3f05d1a": {
+      "id": "1f81633d-863a-4257-ab45-6696d3f05d1a",
+      "ticket": 12,
+      "phase": "review",
+      "slot": "existing",
+      "runId": "43211345723",
+      "runAttempt": 1,
+      "head": "717eb58ec018a4c6f09a07e9d52e8920706d618b",
+      "status": "reserved",
+      "at": "2026-11-12T11:42:00.351Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 12,
+    "runId": "43211345723",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -50,6 +79,15 @@
       "event": "blocked",
       "ticket": 11,
       "reason": "Agent, publication, or CI infrastructure failed; no automatic model retry"
+    },
+    {
+      "at": "2026-11-12T11:42:00.351Z",
+      "event": "reserved",
+      "ticket": 12,
+      "grant": "1f81633d-863a-4257-ab45-6696d3f05d1a",
+      "phase": "review",
+      "runId": "43211345723",
+      "runAttempt": 1
     }
   ]
 }
