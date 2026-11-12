@@ -69,3 +69,42 @@ test("review output must be structured, bounded, valid and bound to the expected
   ])
     assert.throws(() => artifact.validateReview(bad, head), /review/i);
 });
+test("GitHub credential formats are refused in source and every review text field", () => {
+  for (const prefix of ["ghp_", "ghs_", "gho_", "ghu_", "ghr_", "github_pat_"]) {
+    const token = prefix + "X".repeat(40);
+    assert.equal(artifact.secretLike(token), true);
+    assert.throws(
+      () =>
+        artifact.validateChanges([
+          { path: "src/example.ts", mode: "100644", content: `export const token = '${token}';` },
+        ]),
+      /secret/i
+    );
+    assert.throws(
+      () =>
+        artifact.validateReview(
+          {
+            head,
+            verdict: "pass",
+            summary: token,
+            findings: [],
+          },
+          head
+        ),
+      /review/i
+    );
+    assert.throws(
+      () =>
+        artifact.validateReview(
+          {
+            head,
+            verdict: "changes_requested",
+            summary: "Repair needed",
+            findings: [{ severity: "important", message: token }],
+          },
+          head
+        ),
+      /review/i
+    );
+  }
+});

@@ -172,6 +172,62 @@ test("review requires the matching active coding ticket and is bounded to two li
     /review/i
   );
 });
+test("owner PR review reserves the same budget without inventing a coding invocation", () => {
+  const { state, config } = setup();
+  const input = request({ phase: "review", origin: "owner-pr", pr: 30, slot: "existing" });
+  let saved = policy.reserve(state, input, config, now);
+  assert.equal(saved.state.tickets["10"].coding, 0);
+  assert.equal(saved.state.tickets["10"].reviews, 1);
+  assert.deepEqual(saved.state.days["2026-11-11"], [10]);
+  assert.doesNotThrow(() => policy.validateState(saved.state));
+  assert.throws(() => policy.reserve(saved.state, request({ ticket: 11 }), config, now), /active/i);
+  let next = policy.finish(
+    saved.state,
+    saved.grant.id,
+    {
+      status: "reviewed",
+      head,
+      pr: 30,
+      verdict: "pass",
+      evidence: "https://github.com/haideearus/cypress-realworld-app/actions/runs/100",
+    },
+    now
+  );
+  assert.equal(policy.reviewGate(next, { number: 30, head }).ok, true);
+  saved = policy.reserve(next, { ...input, runId: "101", head: "b".repeat(40) }, config, now);
+  assert.equal(policy.reviewGate(saved.state, { number: 30, head }).ok, false);
+  next = policy.finish(saved.state, saved.grant.id, { status: "blocked" }, now);
+  assert.throws(
+    () => policy.reserve(next, { ...input, runId: "102" }, config, now),
+    /review.*limit/i
+  );
+  assert.throws(
+    () => policy.reserve(state, { ...input, actor: "outsider" }, config, now),
+    /unauthorized/i
+  );
+  assert.throws(() => policy.reserve(state, { ...input, pr: 0 }, config, now), /PR/i);
+});
+test("a coding ticket cannot be reclassified as an owner PR to bypass its history", () => {
+  const { state, config } = setup();
+  const saved = policy.reserve(state, request(), config, now);
+  const next = policy.finish(saved.state, saved.grant.id, { status: "blocked" }, now);
+  assert.throws(
+    () =>
+      policy.reserve(
+        next,
+        request({
+          phase: "review",
+          origin: "owner-pr",
+          pr: 30,
+          slot: "existing",
+          runId: "101",
+        }),
+        config,
+        now
+      ),
+    /origin|mode|owner/i
+  );
+});
 test("gate rejects absent, fake, stale and failed review evidence", () => {
   const { state, config } = setup();
   let a = policy.reserve(state, request(), config, now);

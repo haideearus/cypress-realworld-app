@@ -168,6 +168,16 @@ PR with its documented independent implementation review before adding this new
 required check. The later enable/demo step provides the first genuine Claude
 review. Explain this rollout order to the owner before making the check required.
 
+Implementation review clarification (2026-11-12): an all-PR gate must also be
+satisfiable by the documented owner maintenance/harness PR path. Provide an
+owner-only existing-PR review operation dispatched from main. It reserves the
+same daily ticket admission and lifetime review budget before work, holds the
+same active-ticket lock, binds the open issue and owner PR to the exact head and
+correlated CI run, and invokes only the independent read-only review role. It
+records zero coding invocations and never reclassifies an existing coding
+ticket. There is no automatic coding retry, publishing exception, or human-author
+gate bypass. It remains disabled during installation.
+
 For a failed CI or review finding, the controller may reserve the one additional
 coding attempt, within both coding and retry caps, followed by the remaining
 allowed fresh review. Exhaustion records blocked status rather than looping.

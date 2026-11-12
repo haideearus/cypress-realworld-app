@@ -147,3 +147,110 @@ test("orphaned publication branches are refused before another coding attempt is
   await assert.rejects(controller.admit(10), /branch|publication/i);
   assert.deepEqual((await ledger.read()).state.tickets, {});
 });
+test("GitHub credentials in coding evidence never reach a PR", async () => {
+  const { controller, fixture } = await setup();
+  const grant = await controller.admit(10);
+  const input = bundle(grant);
+  input.evidence = "ghs_" + "X".repeat(40);
+  await assert.rejects(controller.publish(grant.grantId, input), /artifact/i);
+  assert.equal(fixture.prs.length, 0);
+});
+test("CI waits for its correlated dispatch despite an older successful same-head run", async () => {
+  const { controller, fixture, api, ledger } = await setup();
+  const grant = await controller.admit(10);
+  await controller.publish(grant.grantId, bundle(grant));
+  await api.request(
+    "POST",
+    "/repos/haideearus/cypress-realworld-app/actions/workflows/factory-ci.yml/dispatches",
+    { ref: "agent/factory-10" }
+  );
+  fixture.hideNewRunPolls = 1;
+  const ci = await controller.ci(10);
+  assert.equal(ci.runId, 502);
+  const saved = (await ledger.read()).state.tickets["10"].ci;
+  assert.equal(saved.runId, 502);
+  assert.equal(fixture.runs.at(-1).display_title, `Factory CI / ${saved.requestId}`);
+});
+test("review admission refuses a different CI run even at the exact same head", async () => {
+  const { controller, api } = await setup();
+  const grant = await controller.admit(10);
+  await controller.publish(grant.grantId, bundle(grant));
+  await controller.ci(10);
+  await api.request(
+    "POST",
+    "/repos/haideearus/cypress-realworld-app/actions/workflows/factory-ci.yml/dispatches",
+    { ref: "agent/factory-10" }
+  );
+  await assert.rejects(
+    controller.reserveReview(10, 502, "cycle1"),
+    /CI.*(reservation|dispatch|run)/i
+  );
+});
+function existingPR(fixture) {
+  fixture.branchHeads.set("agent/owner-harness", "d".repeat(40));
+  fixture.prs.push({
+    number: 30,
+    branch: "agent/owner-harness",
+    state: "open",
+    user: { login: "haideearus" },
+  });
+}
+test("owner-authored harness PR obtains the same exact-head gate with a bounded review only", async () => {
+  const { controller, fixture, ledger } = await setup();
+  existingPR(fixture);
+  const grant = await controller.admitPR(10, 30);
+  assert.equal(grant.phase, "review");
+  assert.equal((await ledger.read()).state.tickets["10"].coding, 0);
+  const ci = await controller.ci(10);
+  const result = await controller.assessPR(
+    10,
+    { ci: "success", review: "success" },
+    ci.runId,
+    grant.grantId,
+    {
+      kind: "review",
+      grantId: grant.grantId,
+      base: grant.head,
+      result: { head: grant.head, verdict: "pass", summary: "No blocking findings", findings: [] },
+    }
+  );
+  assert.equal(result.reviewed, true);
+  assert.equal(fixture.checks.at(-1).conclusion, "success");
+  const state = (await ledger.read()).state;
+  assert.equal(state.active, null);
+  assert.equal(state.tickets["10"].reviews, 1);
+  assert.equal(state.tickets["10"].coding, 0);
+});
+test("existing PR review stays disabled and rejects PRs outside the owner maintenance path", async () => {
+  const disabled = await setup({ FACTORY_ENABLED: "false" });
+  assert.equal((await disabled.controller.admitPR(10, 30)).ready, false);
+  assert.deepEqual((await disabled.ledger.read()).state.tickets, {});
+  const { controller, fixture } = await setup();
+  existingPR(fixture);
+  fixture.prs[0].user.login = "outsider";
+  await assert.rejects(controller.admitPR(10, 30), /owner/i);
+});
+test("failed CI and stale PRs cannot produce owner review approval or an automatic coding retry", async () => {
+  const { controller, fixture, ledger } = await setup();
+  existingPR(fixture);
+  const grant = await controller.admitPR(10, 30);
+  fixture.ciConclusion = "failure";
+  const ci = await controller.ci(10);
+  const result = await controller.assessPR(
+    10,
+    { ci: "success", review: "skipped" },
+    ci.runId,
+    grant.grantId,
+    null
+  );
+  assert.equal(result.retry, false);
+  assert.equal((await ledger.read()).state.tickets["10"].reviews, 1);
+  assert.equal((await ledger.read()).state.active, null);
+  await controller.gate(30);
+  assert.equal(fixture.checks.at(-1).conclusion, "failure");
+  fixture.prHeadOverride = "e".repeat(40);
+  await assert.rejects(
+    controller.assessPR(10, { ci: "success", review: "success" }, ci.runId, grant.grantId, null),
+    /head/i
+  );
+});

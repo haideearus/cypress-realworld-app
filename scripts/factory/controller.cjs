@@ -1,5 +1,5 @@
 const fs = require("node:fs");
-const { createHash } = require("node:crypto");
+const { createHash, randomUUID } = require("node:crypto");
 const policy = require("./policy.cjs");
 const { GitHub, Ledger, ROOT } = require("./github.cjs");
 const { validateChanges, validateReview, secretLike } = require("./artifacts.cjs");
@@ -89,6 +89,46 @@ class Controller {
     const t = loaded.state.tickets[String(ticket)];
     if (!t) throw new Error("Ticket has no usage reservation");
     return { ...loaded, ticket: t };
+  }
+  async admitPR(ticket, prNumber) {
+    this.authorize();
+    if (!this.config.enabled)
+      return { ready: false, reason: "Factory disabled; no model invocation" };
+    if (!Number.isSafeInteger(prNumber) || prNumber < 1) throw new Error("Invalid owner PR");
+    const issue = await this.issue(ticket);
+    const pr = await this.api.request("GET", `${ROOT}/pulls/${prNumber}`);
+    if (
+      pr.state !== "open" ||
+      pr.user?.login !== policy.OWNER ||
+      pr.head?.repo?.full_name !== policy.REPOSITORY ||
+      pr.base?.ref !== "main" ||
+      !policy.SHA.test(pr.head?.sha || "") ||
+      !pr.head?.ref
+    )
+      throw new Error("Review needs an open owner-authored PR in this repository targeting main");
+    const saved = await this.ledger.update((state) => {
+      const previous = state.tickets[String(ticket)];
+      if (previous?.criteriaHash && previous.criteriaHash !== criteriaHash(issue))
+        throw new Error("Ticket criteria changed; owner must review a new ticket");
+      const result = policy.reserve(
+        state,
+        identity(this.context, {
+          ticket,
+          phase: "review",
+          slot: "existing",
+          origin: "owner-pr",
+          pr: prNumber,
+          head: pr.head.sha,
+        }),
+        this.config
+      );
+      const current = result.state.tickets[String(ticket)];
+      current.criteriaHash = criteriaHash(issue);
+      current.branch = pr.head.ref;
+      current.ci = null;
+      return result;
+    });
+    return this.result(saved.grant);
   }
   async matchingPR(t) {
     if (!t.pr) throw new Error("No published PR");
@@ -204,11 +244,28 @@ class Controller {
     });
     return { ready: true, pr: pr.number, head: commit.sha, ticket: grant.ticket };
   }
-  async validateCI(runId, head) {
+  activeRun(state, ticket) {
+    if (
+      !state.active ||
+      state.active.ticket !== ticket ||
+      state.active.runId !== this.context.runId ||
+      state.active.runAttempt !== this.context.runAttempt
+    )
+      throw new Error("Operation belongs to another active run");
+  }
+  async validateCI(runId, head, reservation) {
     if (!Number.isSafeInteger(runId) || runId < 1) throw new Error("Invalid CI run ID");
+    if (
+      !reservation ||
+      reservation.runId !== runId ||
+      reservation.head !== head ||
+      !/^[a-f0-9-]{36}$/.test(reservation.requestId || "")
+    )
+      throw new Error("CI run does not match its durable dispatch reservation");
     const run = await this.api.request("GET", `${ROOT}/actions/runs/${runId}`);
     if (
       run.head_sha !== head ||
+      run.display_title !== `Factory CI / ${reservation.requestId}` ||
       run.event !== "workflow_dispatch" ||
       run.path !== ".github/workflows/factory-ci.yml" ||
       run.status !== "completed"
@@ -228,21 +285,50 @@ class Controller {
   }
   async ci(ticket) {
     this.authorize();
+    if (!this.config.enabled) throw new Error("Factory disabled");
     const { ticket: t } = await this.currentTicket(ticket);
     await this.matchingPR(t);
+    const requestId = randomUUID();
+    await this.ledger.update((state) => {
+      this.activeRun(state, ticket);
+      const current = state.tickets[String(ticket)];
+      if (current.head !== t.head || current.ci?.head === t.head)
+        throw new Error("CI dispatch already reserved or head changed; owner recovery required");
+      current.ci = { requestId, head: t.head, runId: null };
+      return { state };
+    });
     await this.api.request("POST", `${ROOT}/actions/workflows/factory-ci.yml/dispatches`, {
-      ref: `agent/factory-${ticket}`,
+      ref: t.branch || `agent/factory-${ticket}`,
+      inputs: { factory_request_id: requestId },
     });
     for (let count = 0; count < this.maxPolls; count++) {
       const runs = await this.api.pages(
-        `${ROOT}/actions/workflows/factory-ci.yml/runs?event=workflow_dispatch&branch=${encodeURIComponent(`agent/factory-${ticket}`)}`,
+        `${ROOT}/actions/workflows/factory-ci.yml/runs?event=workflow_dispatch&branch=${encodeURIComponent(t.branch || `agent/factory-${ticket}`)}`,
         "workflow_runs"
       );
       const matching = runs
-        .filter((run) => run.head_sha === t.head && run.event === "workflow_dispatch")
+        .filter(
+          (run) =>
+            run.head_sha === t.head &&
+            run.event === "workflow_dispatch" &&
+            run.display_title === `Factory CI / ${requestId}`
+        )
         .sort((a, b) => b.id - a.id);
+      if (matching.length > 1) throw new Error("Ambiguous CI dispatch identity");
       const run = matching[0];
-      if (run?.status === "completed") return this.validateCI(run.id, t.head);
+      if (run?.status === "completed") {
+        const reservation = { requestId, head: t.head, runId: run.id };
+        const verified = await this.validateCI(run.id, t.head, reservation);
+        const saved = await this.ledger.update((state) => {
+          this.activeRun(state, ticket);
+          const current = state.tickets[String(ticket)];
+          if (current.head !== t.head || current.ci?.requestId !== requestId)
+            throw new Error("CI reservation changed during verification");
+          current.ci = { ...reservation, passed: verified.passed };
+          return { state, ci: current.ci };
+        });
+        return { ...verified, requestId: saved.ci.requestId };
+      }
       await this.sleep(10000);
     }
     throw new Error("Timed out waiting for the exact-head CI run");
@@ -251,12 +337,11 @@ class Controller {
     this.authorize();
     const { ticket: t } = await this.currentTicket(ticket);
     await this.matchingPR(t);
-    const ci = await this.validateCI(ciId, t.head);
+    const ci = await this.validateCI(ciId, t.head, t.ci);
     if (!ci.passed) throw new Error("CI failed; independent review not admitted");
     const result = await this.ledger.update((state) => {
       const current = state.tickets[String(ticket)];
       if (current.head !== t.head) throw new Error("Ledger head changed");
-      current.ci = { runId: ciId, head: t.head };
       return policy.reserve(
         state,
         identity(this.context, { ticket, phase: "review", slot, head: t.head }),
@@ -304,7 +389,7 @@ class Controller {
       );
     const { ticket: t } = await this.currentTicket(ticket);
     await this.matchingPR(t);
-    const ci = await this.validateCI(ciId, t.head);
+    const ci = await this.validateCI(ciId, t.head, t.ci);
     if (ci.passed) {
       if (results.review !== "success")
         return this.block(
@@ -408,6 +493,46 @@ class Controller {
     });
     return { canceled: true, ticket: active.ticket };
   }
+  async assessPR(ticket, results, ciId, grantId, bundle) {
+    this.authorize();
+    const { ticket: t } = await this.currentTicket(ticket);
+    if (t.origin !== "owner-pr") throw new Error("Not an owner PR review ticket");
+    await this.matchingPR(t);
+    if (results.ci !== "success" || results.review !== "success")
+      return this.block(
+        ticket,
+        "Owner PR CI or subscription review unavailable; no automatic retry"
+      );
+    const ci = await this.validateCI(ciId, t.head, t.ci);
+    if (!ci.passed) return this.block(ticket, "Owner PR CI failed; review cannot approve");
+    if (bundle?.kind !== "review" || bundle.grantId !== grantId || bundle.base !== t.head)
+      throw new Error("Invalid owner review artifact identity");
+    const review = validateReview(bundle.result, t.head);
+    await this.ledger.update((state) => {
+      policy.preflight(
+        state,
+        grantId,
+        identity(this.context, {
+          ticket,
+          phase: "review",
+          slot: "existing",
+          head: t.head,
+        }),
+        this.config
+      );
+      const next = policy.finish(state, grantId, {
+        status: review.verdict === "pass" ? "reviewed" : "blocked",
+        head: t.head,
+        pr: t.pr,
+        verdict: review.verdict,
+        evidence: `https://github.com/${policy.REPOSITORY}/actions/runs/${this.context.runId}`,
+      });
+      next.tickets[String(ticket)].feedback = JSON.stringify(review);
+      return { state: next };
+    });
+    await this.gate(t.pr);
+    return { retry: false, reviewed: review.verdict === "pass", pr: t.pr, head: t.head };
+  }
   async gate(prNumber) {
     if (!Number.isSafeInteger(prNumber) || prNumber < 1) throw new Error("Invalid PR number");
     const pr = await this.api.request("GET", `${ROOT}/pulls/${prNumber}`);
@@ -486,6 +611,9 @@ async function main(env = process.env) {
     case "admit":
       result = await controller.admit(ticket);
       break;
+    case "admit_pr":
+      result = await controller.admitPR(ticket, Number(inputs.pr));
+      break;
     case "publish":
       result = await controller.publish(inputs.grantId, readJson(env.FACTORY_BUNDLE_PATH));
       break;
@@ -509,6 +637,17 @@ async function main(env = process.env) {
       break;
     case "cancel":
       result = await controller.cancel();
+      break;
+    case "assess_pr":
+      result = await controller.assessPR(
+        ticket,
+        inputs.results,
+        Number(inputs.ciId),
+        inputs.grantId,
+        env.FACTORY_BUNDLE_PATH && fs.existsSync(env.FACTORY_BUNDLE_PATH)
+          ? readJson(env.FACTORY_BUNDLE_PATH)
+          : null
+      );
       break;
     case "gate":
       result = await controller.gate(Number(inputs.pr));

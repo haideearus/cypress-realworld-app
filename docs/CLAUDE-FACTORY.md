@@ -8,13 +8,16 @@ itself; the controller and worker preflight enforce them.
 ## What is added
 
 1. **Factory agents** is a manual, owner-only entry point on `main`. It can
-   initialize the usage ledger, run one open issue, or cancel active work.
+   initialize the usage ledger, run one open issue, review an existing owner PR,
+   or cancel active work.
 2. A controller reserves usage on the dedicated `factory/state` branch **before**
    an agent starts. Missing/corrupt state or a failed write refuses execution.
 3. A coding job checks out the reserved commit and runs one fresh Claude session.
    It has a read-only GitHub token, local disposable data, and no live secrets.
 4. A separate publisher validates the resulting text files and evidence, creates
    a ticket branch/PR, and explicitly dispatches `Factory CI` for that head.
+   Each dispatch has a unique ledger-backed request ID and exact run ID; an older
+   successful run at the same commit cannot satisfy the request.
 5. After `verify` passes, a separate read-only Claude session reviews the exact
    commit. A deterministic **Factory review gate** checks the saved proof.
 6. Only a failed CI result or a valid review requesting changes can reserve the
@@ -68,6 +71,12 @@ consumed even if a job is interrupted or refused before calling the model.
 Rerunning failed jobs cannot reuse a successful admission output: the new run
 attempt must match a new committed reservation. Recovery never refunds usage.
 
+An existing owner PR uses the same admission/day counter and lifetime review
+allowance. It reserves one review before CI, takes the same lock, and records
+zero coding invocations. Failed CI consumes that reservation without invoking
+Claude. It cannot turn a coding ticket into a new review-only ticket or refund
+usage by switching modes.
+
 Configuration is mandatory and typed. Increasing a limit above the approved
 ceiling, malformed values, a different timezone, or concurrency other than one
 refuses work. Lower limits may reduce work. Policy increases need a reviewed
@@ -103,6 +112,16 @@ harness change and an owner budget decision.
    application ticket is appropriate; ticket #6 itself changes the harness and
    is deliberately outside the normal agent patch allowlist.
 
+For a later owner-written application or harness PR, use **Factory agents** on
+`main`, operation **review**, with the open maintenance **ticket** and existing
+**pr** numbers. The PR must be authored by `haideearus`, reside in this fork, and
+target `main`. Trusted default-branch helpers dispatch exact-head CI, then run
+only the separate read-only review role and publish the same review gate. There
+is no coding/publishing job or automatic retry in this path. If changes are
+requested, update that PR and explicitly request another review within the two
+review lifetime cap. A head change invalidates prior approval. This operation is
+also disabled by `FACTORY_ENABLED=false`; it is not a human-author bypass.
+
 The GitHub integration used during setup could read main's protected flag and
 required `verify` check, but its detailed branch-protection endpoint returned 403. The owner created the rule in the UI. Do not claim every checkbox was
 independently verified through the integration.
@@ -122,7 +141,8 @@ Production URLs must not be used as targets for development/Cypress reset suites
 Normal agent patches are limited to regular text application/test files and
 README. They cannot modify workflows, factory scripts/tests, agent instruction
 files, dependencies/lockfiles, infrastructure, hidden configuration or secrets.
-Those require a separate reviewed maintenance PR. A forbidden patch consumes its
+Those require a separate owner maintenance PR using the bounded existing-PR
+review path above. A forbidden patch consumes its
 coding reservation but is not published. The publisher never runs artifact code.
 
 ## Audit and recovery

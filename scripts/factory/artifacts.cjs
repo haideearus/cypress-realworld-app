@@ -2,7 +2,7 @@ const { SHA } = require("./policy.cjs");
 const MAX_FILE = 200000;
 const MAX_TOTAL = 500000;
 function secretLike(text) {
-  return /sk-(?:ant-(?:api|oat|sid)\d*-|proj-)[A-Za-z0-9_-]{16,}|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|(?:postgres(?:ql)?):\/\/[^\s/:]+:[^\s@]+@(?!localhost[:/]|127\.0\.0\.1[:/])[^\s]+/i.test(
+  return /(?:gh[pousr]_|github_pat_)[A-Za-z0-9_]{20,}|sk-(?:ant-(?:api|oat|sid)\d*-|proj-)[A-Za-z0-9_-]{16,}|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|(?:postgres(?:ql)?):\/\/[^\s/:]+:[^\s@]+@(?!localhost[:/]|127\.0\.0\.1[:/])[^\s]+/i.test(
     text
   );
 }

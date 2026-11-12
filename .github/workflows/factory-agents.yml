@@ -3,13 +3,18 @@ on:
   workflow_dispatch:
     inputs:
       operation:
-        description: Initialize the ledger, run one ticket, or cancel active work
+        description: Initialize, code a ticket, review an owner PR, or cancel work
         required: true
         default: run
         type: choice
-        options: [initialize, run, cancel]
+        options: [initialize, run, review, cancel]
       ticket:
         description: Open issue number for run; ignored for initialize/cancel
+        required: false
+        default: ""
+        type: string
+      pr:
+        description: Existing owner-authored PR number, for operation review only
         required: false
         default: ""
         type: string
@@ -92,6 +97,48 @@ jobs:
       grantId: ${{ needs.admit.outputs.grantId }}
       head: ${{ needs.admit.outputs.head }}
       slot: cycle1
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+  admit_pr:
+    if: ${{ inputs.operation == 'review' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      issues: read
+      pull-requests: read
+    concurrency:
+      group: factory-ledger
+      cancel-in-progress: false
+    outputs:
+      ready: ${{ steps.control.outputs.ready }}
+      grantId: ${{ steps.control.outputs.grantId }}
+      head: ${{ steps.control.outputs.head }}
+      ticket: ${{ steps.control.outputs.ticket }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - id: control
+        uses: ./.github/actions/factory-control
+        with:
+          operation: admit_pr
+          parameters: ${{ toJSON(inputs) }}
+  review_existing:
+    needs: admit_pr
+    if: ${{ needs.admit_pr.outputs.ready == 'true' && vars.FACTORY_ENABLED == 'true' }}
+    permissions:
+      contents: write
+      issues: read
+      pull-requests: read
+      actions: write
+      checks: write
+    uses: ./.github/workflows/factory-pr-review.yml
+    with:
+      ticket: ${{ needs.admit_pr.outputs.ticket }}
+      grantId: ${{ needs.admit_pr.outputs.grantId }}
+      head: ${{ needs.admit_pr.outputs.head }}
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
   cycle2:

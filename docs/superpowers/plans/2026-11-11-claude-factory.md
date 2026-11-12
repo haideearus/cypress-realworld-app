@@ -40,6 +40,7 @@
 - .github/workflows/factory-cycle.yml: one coding/publication/CI/fresh-review cycle.
 - .github/workflows/factory-model.yml: least-privilege reusable coding/review job.
 - .github/workflows/factory-review-gate.yml: deterministic current-head gate, no model calls.
+- .github/workflows/factory-pr-review.yml: bounded owner maintenance PR review using the same ledger and read-only role.
 - .github/actions/factory-control/action.yml: trusted controller invocation shared by privileged jobs.
 - scripts/tests/factory-\*.test.cjs: real policy, mock HTTP GitHub, temporary Git repos, and workflow contract tests.
 - docs/CLAUDE-FACTORY.md: owner steps, limits, evidence, recovery, rollout boundaries.
@@ -86,7 +87,7 @@
 
 ### Task 5: Evidence, fresh review and PR
 
-- [ ] Document exact owner steps: merge bootstrap PR, initialize state while disabled, verify blocked runs, add review check in documented order, and defer enable/demo to a later owner decision.
-- [ ] Record RED/GREEN evidence, what was simulated, and outstanding GitHub permissions/real-model validation.
-- [ ] Run final checks and obtain a fresh-context whole-branch review, fixing significant findings with regression tests.
+- [x] Document exact owner steps: merge bootstrap PR, initialize state while disabled, verify blocked runs, add review check in documented order, and defer enable/demo to a later owner decision.
+- [x] Record RED/GREEN evidence, what was simulated, and outstanding GitHub permissions/real-model validation.
+- [x] Run final checks and obtain a fresh-context whole-branch review, fixing significant findings with regression tests.
 - [ ] Push only the feature branch and create the first implementation PR. Wait for required verify and report its real result; no merge/deploy/enable.

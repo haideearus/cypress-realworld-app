@@ -124,7 +124,7 @@ class FactoryFixture extends GitHubFixture {
           sha: this.prHeadOverride || this.branchHeads.get(p.branch),
           repo: { full_name: "haideearus/cypress-realworld-app" },
         },
-        base: { ref: "main", sha: head },
+        base: { ref: "main", sha: p.baseSha || head },
       });
       if (method === "GET" && path.startsWith("/issues/"))
         return respond(200, this.issues.get(Number(path.split("/")[2])) || { state: "closed" });
@@ -166,6 +166,7 @@ class FactoryFixture extends GitHubFixture {
         this.runs.push({
           id: 501 + this.runs.length,
           name: "Factory CI",
+          display_title: `Factory CI / ${body.inputs?.factory_request_id || "manual"}`,
           path: ".github/workflows/factory-ci.yml",
           event: "workflow_dispatch",
           head_sha: this.branchHeads.get(body.ref),
@@ -175,8 +176,11 @@ class FactoryFixture extends GitHubFixture {
         });
         return respond(204, null);
       }
-      if (method === "GET" && path === "/actions/workflows/factory-ci.yml/runs")
-        return respond(200, { workflow_runs: this.runs });
+      if (method === "GET" && path === "/actions/workflows/factory-ci.yml/runs") {
+        const hidden = this.hideNewRunPolls > 0;
+        if (hidden) this.hideNewRunPolls--;
+        return respond(200, { workflow_runs: hidden ? this.runs.slice(0, -1) : this.runs });
+      }
       if (method === "GET" && /^\/actions\/runs\/\d+\/jobs$/.test(path))
         return respond(200, {
           jobs: [{ name: "verify", status: "completed", conclusion: this.ciConclusion }],

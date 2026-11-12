@@ -69,7 +69,12 @@ async function prepare(api, config, context, { grantId, cwd, environment = proce
     feedback: ticket.feedback || "",
   };
   if (grant.phase === "review") {
-    if (!ticket.ci || ticket.ci.head !== grant.head)
+    if (
+      !ticket.ci ||
+      ticket.ci.head !== grant.head ||
+      ticket.ci.passed !== true ||
+      !Number.isSafeInteger(ticket.ci.runId)
+    )
       throw new Error("Review has no exact-head CI proof");
     const pr = await api.request("GET", `${ROOT}/pulls/${ticket.pr}`);
     if (

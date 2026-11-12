@@ -82,8 +82,11 @@ function validateState(state) {
       !ticket ||
       !SHA.test(ticket.head) ||
       !Number.isInteger(ticket.coding) ||
-      ticket.coding < 1 ||
+      ticket.coding < (ticket.origin === "owner-pr" ? 0 : 1) ||
       ticket.coding > 2 ||
+      ![undefined, "factory", "owner-pr"].includes(ticket.origin) ||
+      (ticket.origin === "owner-pr" &&
+        (ticket.coding !== 0 || !Number.isSafeInteger(ticket.pr) || ticket.pr < 1)) ||
       !Number.isInteger(ticket.reviews) ||
       ticket.reviews < 0 ||
       ticket.reviews > 2 ||
@@ -96,7 +99,7 @@ function validateState(state) {
     if (
       grants.filter((g) => g.phase === "code").length !== ticket.coding ||
       grants.filter((g) => g.phase === "review").length !== ticket.reviews ||
-      ticket.retries !== ticket.coding - 1 ||
+      ticket.retries !== Math.max(0, ticket.coding - 1) ||
       Object.values(state.days).filter((ids) => ids.includes(Number(id))).length !== 1 ||
       !["new", "coding", "reviewing", "awaiting_review", "retry", "blocked", "reviewed"].includes(
         ticket.status
@@ -182,6 +185,15 @@ function reserve(original, request, config, now = new Date()) {
   const state = structuredClone(original);
   const id = String(request.ticket);
   const existing = state.tickets[id];
+  const ownerReview = request.phase === "review" && request.origin === "owner-pr";
+  if (request.origin !== undefined && !ownerReview) deny("Invalid reservation origin");
+  if (ownerReview && (!Number.isSafeInteger(request.pr) || request.pr < 1))
+    deny("Invalid owner PR number");
+  if (
+    (ownerReview && existing && (existing.origin !== "owner-pr" || existing.pr !== request.pr)) ||
+    (existing?.origin === "owner-pr" && !ownerReview)
+  )
+    deny("Ticket origin cannot change between owner review and coding");
   if (
     state.active &&
     (state.active.ticket !== request.ticket ||
@@ -195,6 +207,7 @@ function reserve(original, request, config, now = new Date()) {
     deny("An unfinished reservation must be recovered before starting another");
   if (
     request.phase === "review" &&
+    !ownerReview &&
     (!existing ||
       !state.active ||
       existing.status !== "awaiting_review" ||
@@ -202,22 +215,23 @@ function reserve(original, request, config, now = new Date()) {
       !existing.pr)
   )
     deny("Review needs the matching active coding ticket");
+  if (!existing && (request.phase === "code" || ownerReview)) {
+    const day = dayKey(now, config.timezone);
+    const admitted = state.days[day] || [];
+    if (admitted.length >= config.daily) deny("Daily ticket limit reached");
+    state.days[day] = [...admitted, request.ticket];
+    state.tickets[id] = {
+      coding: 0,
+      origin: ownerReview ? "owner-pr" : "factory",
+      reviews: 0,
+      retries: 0,
+      head: request.head,
+      status: "new",
+      pr: ownerReview ? request.pr : null,
+      approval: null,
+    };
+  }
   if (request.phase === "code") {
-    if (!existing) {
-      const day = dayKey(now, config.timezone);
-      const admitted = state.days[day] || [];
-      if (admitted.length >= config.daily) deny("Daily ticket limit reached");
-      state.days[day] = [...admitted, request.ticket];
-      state.tickets[id] = {
-        coding: 0,
-        reviews: 0,
-        retries: 0,
-        head: request.head,
-        status: "new",
-        pr: null,
-        approval: null,
-      };
-    }
     const t = state.tickets[id];
     if (t.status === "reviewed") deny("Ticket already reviewed");
     if (t.coding >= config.coding) deny("Coding attempt limit reached");
@@ -230,9 +244,14 @@ function reserve(original, request, config, now = new Date()) {
     t.approval = null;
     t.status = "coding";
   } else {
-    if (existing.reviews >= config.reviews) deny("Independent review limit reached");
-    existing.reviews++;
-    existing.status = "reviewing";
+    const current = state.tickets[id];
+    if (current.reviews >= config.reviews) deny("Independent review limit reached");
+    if (ownerReview && current.status === "reviewed" && current.head === request.head)
+      deny("Owner PR head is already reviewed");
+    current.reviews++;
+    current.head = request.head;
+    current.approval = null;
+    current.status = "reviewing";
   }
   const grant = {
     id: randomUUID(),
@@ -359,7 +378,7 @@ function reviewGate(state, pr) {
       g.outcome === "reviewed" &&
       g.head === pr.head &&
       t.reviews > 0 &&
-      t.coding > 0
+      (t.coding > 0 || t.origin === "owner-pr")
     )
       return {
         ok: true,

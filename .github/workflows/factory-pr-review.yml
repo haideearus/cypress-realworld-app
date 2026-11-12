@@ -1,0 +1,86 @@
+name: Existing owner PR subscription review
+on:
+  workflow_call:
+    inputs:
+      ticket:
+        type: string
+        required: true
+      grantId:
+        type: string
+        required: true
+      head:
+        type: string
+        required: true
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN:
+        required: true
+permissions:
+  contents: read
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    permissions:
+      contents: write
+      actions: write
+      pull-requests: read
+    outputs:
+      runId: ${{ steps.control.outputs.runId }}
+      passed: ${{ steps.control.outputs.passed }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - id: control
+        uses: ./.github/actions/factory-control
+        with:
+          operation: ci
+          parameters: ${{ toJSON(inputs) }}
+  review:
+    needs: ci
+    if: ${{ needs.ci.outputs.passed == 'true' && vars.FACTORY_ENABLED == 'true' }}
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
+    uses: ./.github/workflows/factory-model.yml
+    with:
+      ticket: ${{ inputs.ticket }}
+      grantId: ${{ inputs.grantId }}
+      head: ${{ inputs.head }}
+      slot: existing
+      phase: review
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+  assess:
+    needs: [ci, review]
+    if: ${{ always() && !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: read
+      actions: read
+      checks: write
+    concurrency:
+      group: factory-ledger
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        if: ${{ needs.review.result == 'success' }}
+        with:
+          name: review-${{ inputs.grantId }}
+          path: ${{ runner.temp }}/factory-review
+      - uses: ./.github/actions/factory-control
+        with:
+          operation: assess_pr
+          bundle_path: ${{ runner.temp }}/factory-review/bundle.json
+          parameters: >-
+            {"ticket":"${{ inputs.ticket }}","ciId":"${{ needs.ci.outputs.runId }}",
+            "grantId":"${{ inputs.grantId }}",
+            "results":{"ci":"${{ needs.ci.result }}","review":"${{ needs.review.result }}"}}

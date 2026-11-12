@@ -1,10 +1,17 @@
 name: Factory CI
+run-name: ${{ format('Factory CI / {0}', inputs.factory_request_id || github.event.pull_request.number || github.ref_name) }}
 on:
   pull_request:
     branches: [main]
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      factory_request_id:
+        description: Correlation ID supplied by the trusted factory controller
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read

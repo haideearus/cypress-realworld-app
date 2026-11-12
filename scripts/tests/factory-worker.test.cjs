@@ -6,7 +6,7 @@ const path = require("node:path");
 const { execFileSync } = require("node:child_process");
 const { GitHub, Ledger } = require("../factory/github.cjs");
 const policy = require("../factory/policy.cjs");
-const { criteriaHash } = require("../factory/controller.cjs");
+const { criteriaHash, Controller } = require("../factory/controller.cjs");
 const { vars, context, FactoryFixture } = require("./helpers/factory-fixtures.cjs");
 let worker;
 try {
@@ -111,4 +111,35 @@ test("collector refuses forbidden or symlinked artifacts before returning a publ
     () => worker.collectCode({ cwd: app.cwd, grantId: "fixture", head: app.head }),
     /path|policy/i
   );
+});
+test("existing owner PR worker requires successful CI before preparing its readonly review", async (t) => {
+  const app = repo(t);
+  const fixture = new FactoryFixture();
+  fixture.branchHeads.set("agent/owner-harness", app.head);
+  fixture.prs.push({
+    number: 30,
+    branch: "agent/owner-harness",
+    baseSha: app.head,
+    state: "open",
+    user: { login: "haideearus" },
+  });
+  const api = new GitHub({ token: "fixture-only", fetch: fixture.fetch });
+  const ledger = new Ledger(api);
+  await ledger.initialize();
+  const config = policy.readConfig(vars);
+  const controller = new Controller(api, config, context, { sleep: async () => {}, maxPolls: 2 });
+  const grant = await controller.admitPR(10, 30);
+  const ctx = { ...context, phase: "review", slot: "existing", head: app.head };
+  const options = { grantId: grant.grantId, cwd: app.cwd, environment: {} };
+  await assert.rejects(worker.prepare(api, config, ctx, options), /CI proof/i);
+  await controller.ci(10);
+  const prepared = await worker.prepare(api, config, ctx, options);
+  assert.ok(prepared.claudeArgs.includes('--tools "Read,Glob,Grep"'));
+  const input = JSON.parse(
+    fs.readFileSync(path.join(app.cwd, ".factory-input/context.json"), "utf8")
+  );
+  assert.equal(input.head, app.head);
+  assert.match(input.ci, /\/actions\/runs\/501$/);
+  fixture.prHeadOverride = "e".repeat(40);
+  await assert.rejects(worker.prepare(api, config, ctx, options), /head/i);
 });

@@ -13,6 +13,7 @@ test("entry point admits only explicit manual operations and uses standard runne
   assert.deepEqual(flow.on.workflow_dispatch.inputs.operation.options, [
     "initialize",
     "run",
+    "review",
     "cancel",
   ]);
   assert.equal(flow.permissions.contents, "read");
@@ -67,6 +68,7 @@ test("third-party actions are immutable and model workflows contain no paid or p
     "factory-cycle.yml",
     "factory-model.yml",
     "factory-review-gate.yml",
+    "factory-pr-review.yml",
   ]) {
     const flow = load(name);
     for (const job of Object.values(flow.jobs))
@@ -75,6 +77,29 @@ test("third-party actions are immutable and model workflows contain no paid or p
         for (const secret of JSON.stringify(step).matchAll(/secrets\.([A-Z_]+)/g))
           assert.equal(secret[1], "CLAUDE_CODE_OAUTH_TOKEN");
       }
+  }
+});
+test("owner PR review is explicitly dispatched and reuses the restricted readonly review role", () => {
+  const entry = load("factory-agents.yml");
+  assert.ok(entry.jobs.admit_pr.if.includes("inputs.operation == 'review'"));
+  assert.ok(entry.jobs.review_existing.if.includes("FACTORY_ENABLED"));
+  const flow = load("factory-pr-review.yml");
+  assert.deepEqual(Object.keys(flow.on), ["workflow_call"]);
+  assert.equal(flow.jobs.review.with.phase, "review");
+  assert.equal(flow.jobs.review.permissions.contents, "read");
+  assert.ok(flow.jobs.review.if.includes("needs.ci.outputs.passed == 'true'"));
+  assert.equal(flow.jobs.publish, undefined);
+  assert.equal(flow.jobs.assess.steps.at(-1).with.operation, "assess_pr");
+});
+test("CI dispatch correlation is exposed without holding the cancellation queue while polling", () => {
+  const ci = load("factory-ci.yml");
+  assert.equal(ci.on.workflow_dispatch.inputs.factory_request_id.type, "string");
+  assert.ok(ci["run-name"].includes("inputs.factory_request_id"));
+  for (const name of ["factory-cycle.yml", "factory-pr-review.yml"]) {
+    const job = load(name).jobs.ci;
+    assert.equal(job.permissions.contents, "write");
+    assert.equal(job.permissions.actions, "write");
+    assert.equal(job.concurrency, undefined);
   }
 });
 test("gate runs from trusted default-branch source without a model credential or PR checkout", () => {
