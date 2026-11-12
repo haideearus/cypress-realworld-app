@@ -1,0 +1,111 @@
+name: Reserved Claude subscription invocation
+on:
+  workflow_call:
+    inputs:
+      ticket:
+        type: string
+        required: true
+      grantId:
+        type: string
+        required: true
+      head:
+        type: string
+        required: true
+      slot:
+        type: string
+        required: true
+      phase:
+        type: string
+        required: true
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN:
+        required: true
+permissions:
+  contents: read
+jobs:
+  agent:
+    if: ${{ vars.FACTORY_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ fromJSON(vars.FACTORY_RUN_TIMEOUT_MINUTES || '15') }}
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
+    services:
+      postgres:
+        image: ${{ inputs.phase == 'code' && 'postgres:17.6' || '' }}
+        env:
+          POSTGRES_USER: factory_test
+          POSTGRES_PASSWORD: disposable-ci-password
+          POSTGRES_DB: rwa_test
+        ports: [5432:5432]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql://factory_test:disposable-ci-password@127.0.0.1:5432/rwa_test
+      CYPRESS_INSTALL_BINARY: "0"
+      YARN_PRODUCTION: "false"
+      ANTHROPIC_API_KEY: ""
+      OPENAI_API_KEY: ""
+      ANTHROPIC_AUTH_TOKEN: ""
+      ANTHROPIC_BASE_URL: ""
+      ANTHROPIC_PROFILE: ""
+    steps:
+      - name: Check out trusted worker helpers
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.20.0
+      - name: Preserve trusted helpers outside the agent checkout
+        run: node -e "require('node:fs').cpSync('scripts/factory',process.env.RUNNER_TEMP+'/factory-control',{recursive:true})"
+      - name: Check out only the reserved commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ inputs.head }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install the locked application tools without model credentials
+        if: ${{ inputs.phase == 'code' }}
+        run: |
+          corepack enable && corepack prepare yarn@1.22.22 --activate
+          yarn install --frozen-lockfile --production=false
+          yarn predev:cognito:ci
+      - name: Verify the durable reservation and prepare the isolated role
+        id: prepare
+        run: node "$RUNNER_TEMP/factory-control/worker.cjs"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FACTORY_VARIABLES: ${{ toJSON(vars) }}
+          FACTORY_OPERATION: prepare
+          FACTORY_INPUTS: ${{ toJSON(inputs) }}
+      - name: Run the one reserved Claude subscription session
+        id: model
+        uses: anthropics/claude-code-action@4fa93a88de49bbef68b10eb15aabedf28ca0e1ed
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ github.token }}
+          prompt: ${{ fromJSON(steps.prepare.outputs.promptJson) }}
+          claude_args: ${{ steps.prepare.outputs.claudeArgs }}
+          settings: '{"disableAllHooks":true,"enableAllProjectMcpServers":false}'
+          display_report: "false"
+          show_full_output: "false"
+      - name: Validate and collect only the role output
+        run: node "$RUNNER_TEMP/factory-control/worker.cjs"
+        env:
+          FACTORY_VARIABLES: ${{ toJSON(vars) }}
+          FACTORY_OPERATION: collect
+          FACTORY_INPUTS: ${{ toJSON(inputs) }}
+          FACTORY_REVIEW_RESULT: ${{ steps.model.outputs.structured_output }}
+          FACTORY_ARTIFACT_DIR: ${{ runner.temp }}/factory-artifact
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ inputs.phase }}-${{ inputs.grantId }}
+          path: ${{ runner.temp }}/factory-artifact/bundle.json
+          if-no-files-found: error
+          retention-days: 7

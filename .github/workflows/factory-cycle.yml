@@ -1,0 +1,178 @@
+name: Factory coding and review cycle
+on:
+  workflow_call:
+    inputs:
+      ticket:
+        type: string
+        required: true
+      grantId:
+        type: string
+        required: true
+      head:
+        type: string
+        required: true
+      slot:
+        type: string
+        required: true
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN:
+        required: true
+    outputs:
+      retry:
+        value: ${{ jobs.assess.outputs.retry }}
+      grantId:
+        value: ${{ jobs.assess.outputs.grantId }}
+      head:
+        value: ${{ jobs.assess.outputs.head }}
+      ticket:
+        value: ${{ jobs.assess.outputs.ticket }}
+permissions:
+  contents: read
+jobs:
+  coding:
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
+    uses: ./.github/workflows/factory-model.yml
+    with:
+      ticket: ${{ inputs.ticket }}
+      grantId: ${{ inputs.grantId }}
+      head: ${{ inputs.head }}
+      slot: ${{ inputs.slot }}
+      phase: code
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+  publish:
+    needs: coding
+    if: ${{ needs.coding.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+    concurrency:
+      group: factory-ledger
+      cancel-in-progress: false
+    outputs:
+      ready: ${{ steps.control.outputs.ready }}
+      pr: ${{ steps.control.outputs.pr }}
+      head: ${{ steps.control.outputs.head }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: code-${{ inputs.grantId }}
+          path: ${{ runner.temp }}/factory-code
+      - id: control
+        uses: ./.github/actions/factory-control
+        with:
+          operation: publish
+          parameters: ${{ toJSON(inputs) }}
+          bundle_path: ${{ runner.temp }}/factory-code/bundle.json
+  ci:
+    needs: publish
+    if: ${{ needs.publish.outputs.ready == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    permissions:
+      contents: write
+      actions: write
+      pull-requests: read
+    outputs:
+      runId: ${{ steps.control.outputs.runId }}
+      passed: ${{ steps.control.outputs.passed }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - id: control
+        uses: ./.github/actions/factory-control
+        with:
+          operation: ci
+          parameters: ${{ toJSON(inputs) }}
+  reserve_review:
+    needs: [publish, ci]
+    if: ${{ needs.ci.outputs.passed == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      actions: read
+      pull-requests: read
+    concurrency:
+      group: factory-ledger
+      cancel-in-progress: false
+    outputs:
+      ready: ${{ steps.control.outputs.ready }}
+      grantId: ${{ steps.control.outputs.grantId }}
+      head: ${{ steps.control.outputs.head }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - id: control
+        uses: ./.github/actions/factory-control
+        with:
+          operation: review
+          parameters: >-
+            {"ticket":"${{ inputs.ticket }}","ciId":"${{ needs.ci.outputs.runId }}","slot":"${{ inputs.slot }}"}
+  review:
+    needs: reserve_review
+    if: ${{ needs.reserve_review.outputs.ready == 'true' }}
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
+    uses: ./.github/workflows/factory-model.yml
+    with:
+      ticket: ${{ inputs.ticket }}
+      grantId: ${{ needs.reserve_review.outputs.grantId }}
+      head: ${{ needs.reserve_review.outputs.head }}
+      slot: ${{ inputs.slot }}
+      phase: review
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+  assess:
+    needs: [coding, publish, ci, reserve_review, review]
+    if: ${{ always() && !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      actions: read
+      pull-requests: read
+      checks: write
+    concurrency:
+      group: factory-ledger
+      cancel-in-progress: false
+    outputs:
+      retry: ${{ steps.control.outputs.retry }}
+      grantId: ${{ steps.control.outputs.grantId }}
+      head: ${{ steps.control.outputs.head }}
+      ticket: ${{ steps.control.outputs.ticket }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        if: ${{ needs.review.result == 'success' }}
+        with:
+          name: review-${{ needs.reserve_review.outputs.grantId }}
+          path: ${{ runner.temp }}/factory-review
+      - id: control
+        uses: ./.github/actions/factory-control
+        with:
+          operation: assess
+          bundle_path: ${{ runner.temp }}/factory-review/bundle.json
+          parameters: >-
+            {"ticket":"${{ inputs.ticket }}","ciId":"${{ needs.ci.outputs.runId }}",
+            "reviewGrantId":"${{ needs.reserve_review.outputs.grantId }}","slot":"${{ inputs.slot }}",
+            "results":{"coding":"${{ needs.coding.result }}","publication":"${{ needs.publish.result }}",
+            "ci":"${{ needs.ci.result }}","review":"${{ needs.review.result }}"}}

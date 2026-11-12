@@ -43,6 +43,14 @@ again must add the `upstream` remote as shown below.
 
 ## Current setup status
 
+The [Claude factory guide](CLAUDE-FACTORY.md) describes the first agent-workflow
+implementation under ticket #6. Keep `FACTORY_ENABLED=false` through installation.
+It adds durable limits and separate coding/review roles; a real enabled ticket,
+the required review gate configuration, monitoring and production approval still
+need their documented owner steps. The application is already deployed at
+https://haide-software-factory.onrender.com with Neon persistence. The table below
+records the earlier foundation milestone, rather than the whole current rollout.
+
 This foundation change adds instructions, source provenance, and a PR evidence
 template. It does not itself enforce permissions or start agents.
 

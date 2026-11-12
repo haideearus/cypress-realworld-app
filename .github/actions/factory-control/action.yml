@@ -1,0 +1,54 @@
+name: Factory controller
+description: Run trusted metadata operations without executing an agent artifact
+inputs:
+  operation:
+    required: true
+    description: Controller operation
+  parameters:
+    required: false
+    default: "{}"
+    description: Structured operation arguments
+  bundle_path:
+    required: false
+    default: ""
+    description: Downloaded JSON artifact, validated before use
+outputs:
+  ready:
+    value: ${{ steps.run.outputs.ready }}
+    description: A durable reservation or publication is ready
+  grantId:
+    value: ${{ steps.run.outputs.grantId }}
+    description: Durable reservation identifier
+  head:
+    value: ${{ steps.run.outputs.head }}
+    description: Expected commit
+  ticket:
+    value: ${{ steps.run.outputs.ticket }}
+    description: Ticket number
+  pr:
+    value: ${{ steps.run.outputs.pr }}
+    description: Pull request number
+  runId:
+    value: ${{ steps.run.outputs.runId }}
+    description: Exact-head CI run
+  passed:
+    value: ${{ steps.run.outputs.passed }}
+    description: Required CI succeeded
+  retry:
+    value: ${{ steps.run.outputs.retry }}
+    description: Another coding attempt was reserved
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+      with:
+        node-version: 22.20.0
+    - id: run
+      shell: bash
+      run: node scripts/factory/controller.cjs
+      env:
+        GH_TOKEN: ${{ github.token }}
+        FACTORY_VARIABLES: ${{ toJSON(vars) }}
+        FACTORY_OPERATION: ${{ inputs.operation }}
+        FACTORY_INPUTS: ${{ inputs.parameters }}
+        FACTORY_BUNDLE_PATH: ${{ inputs.bundle_path }}
