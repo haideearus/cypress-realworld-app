@@ -71,6 +71,7 @@ jobs:
         uses: ./.github/actions/factory-control
         with:
           operation: publish
+          variables_json: ${{ toJSON(vars) }}
           parameters: ${{ toJSON(inputs) }}
           bundle_path: ${{ runner.temp }}/factory-code/bundle.json
   ci:
@@ -94,6 +95,7 @@ jobs:
         uses: ./.github/actions/factory-control
         with:
           operation: ci
+          variables_json: ${{ toJSON(vars) }}
           parameters: ${{ toJSON(inputs) }}
   reserve_review:
     needs: [publish, ci]
@@ -120,6 +122,7 @@ jobs:
         uses: ./.github/actions/factory-control
         with:
           operation: review
+          variables_json: ${{ toJSON(vars) }}
           parameters: >-
             {"ticket":"${{ inputs.ticket }}","ciId":"${{ needs.ci.outputs.runId }}","slot":"${{ inputs.slot }}"}
   review:
@@ -170,6 +173,7 @@ jobs:
         uses: ./.github/actions/factory-control
         with:
           operation: assess
+          variables_json: ${{ toJSON(vars) }}
           bundle_path: ${{ runner.temp }}/factory-review/bundle.json
           parameters: >-
             {"ticket":"${{ inputs.ticket }}","ciId":"${{ needs.ci.outputs.runId }}",

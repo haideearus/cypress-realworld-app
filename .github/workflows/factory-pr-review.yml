@@ -36,6 +36,7 @@ jobs:
         uses: ./.github/actions/factory-control
         with:
           operation: ci
+          variables_json: ${{ toJSON(vars) }}
           parameters: ${{ toJSON(inputs) }}
   review:
     needs: ci
@@ -79,6 +80,7 @@ jobs:
       - uses: ./.github/actions/factory-control
         with:
           operation: assess_pr
+          variables_json: ${{ toJSON(vars) }}
           bundle_path: ${{ runner.temp }}/factory-review/bundle.json
           parameters: >-
             {"ticket":"${{ inputs.ticket }}","ciId":"${{ needs.ci.outputs.runId }}",

@@ -27,5 +27,6 @@ jobs:
       - uses: ./.github/actions/factory-control
         with:
           operation: gate
+          variables_json: ${{ toJSON(vars) }}
           parameters: >-
             {"pr":"${{ github.event.pull_request.number || inputs.pr }}"}
