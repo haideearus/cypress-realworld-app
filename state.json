@@ -1,9 +1,51 @@
 {
   "version": 1,
   "repository": "haideearus/cypress-realworld-app",
-  "days": {},
-  "tickets": {},
-  "grants": {},
-  "active": null,
-  "audit": []
+  "days": {
+    "2026-11-12": [
+      11
+    ]
+  },
+  "tickets": {
+    "11": {
+      "coding": 1,
+      "origin": "factory",
+      "reviews": 0,
+      "retries": 0,
+      "head": "4f0eb6eca04cd603a5401439d0fdcd83d8c2c4d5",
+      "status": "coding",
+      "pr": null,
+      "approval": null,
+      "criteriaHash": "d295d714446efad9eaa6b3bd3c0c25706756dcc2d26160a191f0253438279387"
+    }
+  },
+  "grants": {
+    "503b7bc1-d82f-4bd2-84e8-fae30886f23a": {
+      "id": "503b7bc1-d82f-4bd2-84e8-fae30886f23a",
+      "ticket": 11,
+      "phase": "code",
+      "slot": "cycle1",
+      "runId": "43203237182",
+      "runAttempt": 1,
+      "head": "4f0eb6eca04cd603a5401439d0fdcd83d8c2c4d5",
+      "status": "reserved",
+      "at": "2026-11-12T10:46:10.463Z"
+    }
+  },
+  "active": {
+    "ticket": 11,
+    "runId": "43203237182",
+    "runAttempt": 1
+  },
+  "audit": [
+    {
+      "at": "2026-11-12T10:46:10.463Z",
+      "event": "reserved",
+      "ticket": 11,
+      "grant": "503b7bc1-d82f-4bd2-84e8-fae30886f23a",
+      "phase": "code",
+      "runId": "43203237182",
+      "runAttempt": 1
+    }
+  ]
 }
