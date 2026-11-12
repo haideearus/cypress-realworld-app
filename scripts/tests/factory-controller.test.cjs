@@ -257,7 +257,11 @@ test("failed CI and stale PRs cannot produce owner review approval or an automat
 test("configuration smoke operation needs no token, ledger, owner event or network", async () => {
   const result = await implementation.main({
     FACTORY_OPERATION: "validate",
-    FACTORY_VARIABLES: JSON.stringify({ ...vars, FACTORY_ENABLED: "false" }),
+    FACTORY_VARIABLES: JSON.stringify({
+      ...vars,
+      FACTORY_ENABLED: "false",
+      FACTORY_MAX_TURNS_PER_RUN: "50",
+    }),
   });
   assert.equal(result.validated, true);
   assert.equal(result.enabled, false);

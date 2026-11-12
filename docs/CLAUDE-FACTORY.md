@@ -58,7 +58,7 @@ already unattended ticket-to-production factory.
 | FACTORY_MAX_CONCURRENT_TICKETS         | 1                                           |
 | FACTORY_TIMEZONE                       | Europe/Bucharest                            |
 | FACTORY_RUN_TIMEOUT_MINUTES            | 15                                          |
-| FACTORY_MAX_TURNS_PER_RUN              | 20                                          |
+| FACTORY_MAX_TURNS_PER_RUN              | 50 after the reviewed policy change merges  |
 | FACTORY_APP_URL                        | https://haide-software-factory.onrender.com |
 
 The daily counter records distinct tickets when first admitted, using Bucharest
@@ -81,6 +81,25 @@ Configuration is mandatory and typed. Increasing a limit above the approved
 ceiling, malformed values, a different timezone, or concurrency other than one
 refuses work. Lower limits may reduce work. Policy increases need a reviewed
 harness change and an owner budget decision.
+
+The owner approved a ceiling of **50 turns per coding or review session** in
+ticket #14 after PR #13 merged. Lower values, including 20, remain valid; values
+above 50 are rejected. The existing 15-minute model-job timeout still applies,
+so a session can stop before using all 50 turns. More turns can consume more of
+the shared Claude Pro allowance; this is not a token or dollar budget.
+
+To roll out the ceiling from a main branch that still enforces 20:
+
+1. Keep `FACTORY_ENABLED=false` and `FACTORY_MAX_TURNS_PER_RUN=20` while
+   preparing the policy PR. A variable of 50 is rejected by the old policy.
+2. Obtain a separately authorized independent review of that PR using trusted
+   `main` and the 20-turn setting; restore the factory flag to false afterward.
+3. After the reviewed policy change merges, set
+   `FACTORY_MAX_TURNS_PER_RUN=50`. Keep `FACTORY_ENABLED=false` until another
+   run is explicitly authorized.
+
+Changing this ceiling does not authorize another model session or change tool
+permissions, authentication, the other work limits, or existing usage counters.
 
 ## Owner installation steps, one at a time
 
