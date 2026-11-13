@@ -77,7 +77,7 @@ function promptFor(phase, head) {
     "Inspect files with Read, Glob and Grep using repository-relative paths; do not use shell commands for inspection or git. " +
     "Run each listed yarn command as a separate bare Bash call: no cd, wrappers, extra flags, pipes, redirections, substitutions or chaining. " +
     "For local API regression evidence, the approved yarn test:production command runs scripts/tests/production-integration.test.cjs; build production first. " +
-    "Use yarn test:unit:ci for unit regressions. Trusted CI runs Cypress; do not start servers or invoke additional commands. " +
+    "Use yarn test:unit:ci for unit regressions. Approved test harnesses manage their own disposable servers. Trusted CI runs Cypress; do not invoke Cypress or launch dev servers through additional shell commands. " +
     "If a file-tool path is denied, correct it to a repository-relative path. If an approved action remains denied, record the blocker and stop; do not repeat it or seek a permission workaround. " +
     "Do not alter workflows, instructions, dependencies, factory tests, infrastructure, or secrets. " +
     "Do not commit or push. Save factual commands and RED/GREEN results to .factory-output/evidence.md. " +

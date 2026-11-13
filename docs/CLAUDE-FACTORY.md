@@ -156,6 +156,8 @@ Read/Glob/Grep calls, execute one bare approved command per call, and stop with
 honest evidence if an approved action remains blocked. It points API regression
 work at `scripts/tests/production-integration.test.cjs`, which is exercised by
 the approved production test command after a production build.
+The approved harness manages its own disposable server; the prompt restricts
+additional shell commands for launching dev servers or invoking Cypress.
 
 The read-only reviewer still receives Read/Glob/Grep and no shell commands.
 Native tool lists, preapproval/deny rules, restricted/safe mode and noninteractive
