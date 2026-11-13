@@ -273,10 +273,10 @@
     "29": {
       "coding": 1,
       "origin": "factory",
-      "reviews": 0,
+      "reviews": 1,
       "retries": 0,
       "head": "a690f156f94944aee4c4224583b21c4e41135a36",
-      "status": "awaiting_review",
+      "status": "reviewing",
       "pr": 30,
       "approval": null,
       "criteriaHash": "3cdfd3261477d392d7e867a4ce753455356255e0bfb8b7181fc392a001dac2b3",
@@ -501,6 +501,17 @@
       "status": "finished",
       "at": "2026-11-13T18:17:05.143Z",
       "outcome": "awaiting_review"
+    },
+    "4074bfe5-7300-4d18-9349-4d148fea8018": {
+      "id": "4074bfe5-7300-4d18-9349-4d148fea8018",
+      "ticket": 29,
+      "phase": "review",
+      "slot": "cycle1",
+      "runId": "43481055400",
+      "runAttempt": 1,
+      "head": "a690f156f94944aee4c4224583b21c4e41135a36",
+      "status": "reserved",
+      "at": "2026-11-13T18:29:29.147Z"
     }
   },
   "active": {
@@ -799,6 +810,15 @@
       "grant": "3b8fd895-a173-45a9-9e2a-1f97a08b4667",
       "status": "awaiting_review",
       "head": "a690f156f94944aee4c4224583b21c4e41135a36"
+    },
+    {
+      "at": "2026-11-13T18:29:29.147Z",
+      "event": "reserved",
+      "ticket": 29,
+      "grant": "4074bfe5-7300-4d18-9349-4d148fea8018",
+      "phase": "review",
+      "runId": "43481055400",
+      "runAttempt": 1
     }
   ]
 }
