@@ -51,13 +51,13 @@ test("disabled and absent enabled flag refuse a coding reservation", () => {
   }
 });
 test("invalid, missing and increased limits fail closed", () => {
-  for (const value of ["6", "999", "2x", "-1", "1.5", "", undefined])
+  for (const value of ["11", "999", "2x", "-1", "1.5", "", undefined])
     assert.throws(() => policy.readConfig({ ...vars, FACTORY_MAX_TICKETS_PER_DAY: value }));
   assert.throws(() => policy.readConfig({ ...vars, FACTORY_TIMEZONE: "UTC" }));
   assert.throws(() => policy.readConfig({ ...vars, FACTORY_MAX_CONCURRENT_TICKETS: "2" }));
 });
-test("turn budgets up to one hundred remain usable and preserve other approved caps", () => {
-  for (const value of ["1", "20", "50", "100"]) {
+test("turn budgets up to two hundred remain usable with lower configured limits", () => {
+  for (const value of ["1", "20", "50", "100", "200"]) {
     const { config, state } = setup({ FACTORY_MAX_TURNS_PER_RUN: value });
     assert.equal(config.turns, Number(value));
     assert.equal(config.minutes, 15);
@@ -71,8 +71,8 @@ test("turn budgets up to one hundred remain usable and preserve other approved c
     assert.equal(saved.state.tickets["10"].reviews, 0);
   }
 });
-test("turn budgets above one hundred or malformed budgets refuse configuration", () => {
-  for (const value of ["101", "999", "-1", "1.5", "100x", "", undefined])
+test("turn budgets above two hundred or malformed budgets refuse configuration", () => {
+  for (const value of ["201", "999", "-1", "1.5", "200x", "", undefined])
     assert.throws(
       () => policy.readConfig({ ...vars, FACTORY_MAX_TURNS_PER_RUN: value }),
       /Invalid FACTORY_MAX_TURNS_PER_RUN/

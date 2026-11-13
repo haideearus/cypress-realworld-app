@@ -89,7 +89,7 @@ const BANK_TRANSFER_TABLE = "banktransfers";
 
 const databaseFile = path.join(__dirname, "../data/database.json");
 const adapter =
-  process.env.NODE_ENV === "production"
+  process.env.NODE_ENV === "production" || process.env.VITEST === "true"
     ? new Memory<DbSchema>("")
     : new FileSync<DbSchema>(databaseFile);
 

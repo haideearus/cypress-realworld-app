@@ -8,6 +8,13 @@ const criteriaHash = (issue) =>
   createHash("sha256")
     .update(JSON.stringify([issue.title, issue.body || ""]))
     .digest("hex");
+function nextCycleSlot(slot) {
+  const match = typeof slot === "string" && /^cycle([1-9]\d*)$/.exec(slot);
+  const cycle = match ? Number(match[1]) : 0;
+  if (!Number.isSafeInteger(cycle) || cycle < 1 || cycle > policy.MAX_CODING_ATTEMPTS)
+    throw new Error("Invalid coding cycle slot");
+  return cycle === policy.MAX_CODING_ATTEMPTS ? null : `cycle${cycle + 1}`;
+}
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const identity = (ctx, extra = {}) => ({ ...ctx, ...extra });
 class Controller {
@@ -78,7 +85,10 @@ class Controller {
         ticket,
         phase: "code",
         slot: "cycle1",
-        head: recover ? main.commit.sha : existing?.head || main.commit.sha,
+        head:
+          recover || (existing?.status === "blocked" && !existing.pr)
+            ? main.commit.sha
+            : existing?.head || main.commit.sha,
         ...(recover ? { recovery: recovery.ID } : {}),
       });
       const result = policy.reserve(state, request, this.config);
@@ -441,11 +451,13 @@ class Controller {
         return { state };
       });
     }
+    const nextSlot = nextCycleSlot(slot);
+    if (nextSlot === null) return this.block(ticket, "Automatic retry pipeline limit reached");
     try {
       const reserved = await this.ledger.update((state) =>
         policy.reserve(
           state,
-          identity(this.context, { ticket, phase: "code", slot: "cycle2", head: t.head }),
+          identity(this.context, { ticket, phase: "code", slot: nextSlot, head: t.head }),
           this.config
         )
       );
@@ -678,4 +690,12 @@ if (require.main === module)
     );
     process.exitCode = 1;
   });
-module.exports = { Controller, criteriaHash, runtimeContext, readJson, output, main };
+module.exports = {
+  Controller,
+  criteriaHash,
+  nextCycleSlot,
+  runtimeContext,
+  readJson,
+  output,
+  main,
+};

@@ -188,6 +188,76 @@ test("collector refuses forbidden or symlinked artifacts before returning a publ
     /path|policy/i
   );
 });
+
+test("collector identifies a forbidden test database before trying to read its oversized content", (t) => {
+  const app = repo(t);
+  fs.mkdirSync(path.join(app.cwd, "data"));
+  fs.writeFileSync(path.join(app.cwd, "data/database.json"), "x".repeat(368209));
+  execFileSync("git", ["add", "data/database.json"], { cwd: app.cwd });
+  execFileSync(
+    "git",
+    [
+      "-c",
+      "core.hooksPath=/dev/null",
+      "commit",
+      "-qm",
+      "Synthetic tracked runtime database",
+      "--no-gpg-sign",
+    ],
+    { cwd: app.cwd }
+  );
+  const head = execFileSync("git", ["rev-parse", "HEAD"], {
+    cwd: app.cwd,
+    encoding: "utf8",
+  }).trim();
+  fs.appendFileSync(path.join(app.cwd, "data/database.json"), "\n");
+  fs.writeFileSync(path.join(app.cwd, "src/a.ts"), "export const fixed = true;\n");
+  assert.throws(
+    () => worker.collectCode({ cwd: app.cwd, grantId: "fixture", head }),
+    (error) => {
+      assert.match(error.message, /Forbidden artifact path.*data\/database.json/);
+      assert.ok(!error.message.includes(app.cwd));
+      return true;
+    }
+  );
+});
+
+test("collector identifies the relative file and byte limit for oversized code or evidence", (t) => {
+  for (const [name, bytes, limit] of [
+    ["src/a.ts", 200001, 200000],
+    [".factory-output/evidence.md", 20001, 20000],
+  ]) {
+    const app = repo(t);
+    fs.mkdirSync(path.join(app.cwd, ".factory-output"));
+    fs.writeFileSync(path.join(app.cwd, "src/a.ts"), "export const fixed = true;\n");
+    fs.writeFileSync(path.join(app.cwd, ".factory-output/evidence.md"), "RED then GREEN");
+    fs.writeFileSync(path.join(app.cwd, name), "x".repeat(bytes));
+    assert.throws(
+      () => worker.collectCode({ cwd: app.cwd, grantId: "fixture", head: app.head }),
+      (error) => {
+        assert.ok(error.message.includes(name));
+        assert.ok(error.message.includes(String(bytes)));
+        assert.ok(error.message.includes(String(limit)));
+        assert.ok(!error.message.includes(app.cwd));
+        return true;
+      }
+    );
+  }
+});
+
+test("collector diagnostics redact secret-like filenames", (t) => {
+  const app = repo(t);
+  const name = "src/ghp_" + "A".repeat(40) + ".ts";
+  fs.writeFileSync(path.join(app.cwd, name), "x".repeat(200001));
+  assert.throws(
+    () => worker.collectCode({ cwd: app.cwd, grantId: "fixture", head: app.head }),
+    (error) => {
+      assert.match(error.message, /redacted/);
+      assert.ok(!error.message.includes("ghp_"));
+      return true;
+    }
+  );
+});
 test("existing owner PR worker requires successful CI before preparing its readonly review", async (t) => {
   const app = repo(t);
   const fixture = new FactoryFixture();

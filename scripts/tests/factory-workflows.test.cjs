@@ -23,6 +23,30 @@ test("entry point admits only explicit manual operations and uses standard runne
   for (const job of Object.values(flow.jobs))
     if (job["runs-on"]) assert.equal(job["runs-on"], "ubuntu-latest");
 });
+
+test("five serial cycles execute only the preceding cycle's reserved retry", () => {
+  const flow = load("factory-agents.yml");
+  assert.deepEqual(
+    Object.keys(flow.jobs).filter((name) => /^cycle\d+$/.test(name)),
+    ["cycle1", "cycle2", "cycle3", "cycle4", "cycle5"]
+  );
+  for (let number = 2; number <= 5; number++) {
+    const name = `cycle${number}`;
+    const previous = `cycle${number - 1}`;
+    const job = flow.jobs[name];
+    assert.equal(job.needs, previous);
+    assert.equal(
+      job.if,
+      "${{ needs." + previous + ".outputs.retry == 'true' && vars.FACTORY_ENABLED == 'true' }}"
+    );
+    assert.equal(job.uses, "./.github/workflows/factory-cycle.yml");
+    assert.equal(job.with.slot, name);
+    for (const field of ["ticket", "grantId", "head"])
+      assert.equal(job.with[field], "${{ needs." + previous + ".outputs." + field + " }}");
+    assert.deepEqual(job.permissions, flow.jobs.cycle1.permissions);
+    assert.deepEqual(job.secrets, flow.jobs.cycle1.secrets);
+  }
+});
 test("model job token cannot publish and only the model step receives a subscription credential", () => {
   const flow = load("factory-model.yml");
   const job = flow.jobs.agent;

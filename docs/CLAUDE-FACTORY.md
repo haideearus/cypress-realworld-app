@@ -49,103 +49,66 @@ already unattended ticket-to-production factory.
 
 ## Limits and counter meanings
 
-| Variable                               | Approved installation value                 |
+Issue #21 raises the approved ceilings below. **Save these only after its reviewed
+PR is merged.** Until then the live values remain 100 turns / five daily tickets /
+two normal attempts / two reviews / one retry / 15 model-job minutes.
+
+| Variable                               | Post-merge value                            |
 | -------------------------------------- | ------------------------------------------- |
-| FACTORY_ENABLED                        | false                                       |
-| FACTORY_MAX_TICKETS_PER_DAY            | 5                                           |
-| FACTORY_MAX_CODING_ATTEMPTS_PER_TICKET | 2                                           |
-| FACTORY_MAX_REVIEWS_PER_TICKET         | 2                                           |
-| FACTORY_MAX_AUTOMATIC_RETRIES          | 1                                           |
+| FACTORY_ENABLED                        | false until ready                           |
+| FACTORY_MAX_TICKETS_PER_DAY            | 10                                          |
+| FACTORY_MAX_CODING_ATTEMPTS_PER_TICKET | 5                                           |
+| FACTORY_MAX_REVIEWS_PER_TICKET         | 5                                           |
+| FACTORY_MAX_AUTOMATIC_RETRIES          | 4                                           |
 | FACTORY_MAX_CONCURRENT_TICKETS         | 1                                           |
 | FACTORY_TIMEZONE                       | Europe/Bucharest                            |
-| FACTORY_RUN_TIMEOUT_MINUTES            | 15                                          |
-| FACTORY_MAX_TURNS_PER_RUN              | 100                                         |
+| FACTORY_RUN_TIMEOUT_MINUTES            | 30                                          |
+| FACTORY_MAX_TURNS_PER_RUN              | 200                                         |
 | FACTORY_APP_URL                        | https://haide-software-factory.onrender.com |
 
-The daily counter records distinct tickets when first admitted, using Bucharest
-calendar dates. It does not reset lifetime per-ticket counters at midnight.
-It includes owner PR review tickets and limits new ticket admissions, not total
-AI sessions. A ticket's coding and review sessions use its separate lifetime caps.
-Two coding attempts means the initial attempt plus one retry, not three attempts.
-Two reviews is a maximum across both attempts, not two reviews per attempt.
+The daily counter records distinct first admissions using Bucharest dates,
+including owner PR reviews. Per-ticket code/review counters are lifetime counts,
+not per-day counts. Five attempts means one initial attempt plus at most four
+retries; the separate five-review allowance spans those attempts. All reservations
+remain consumed even on failure/interruption, and a new run attempt cannot reuse
+an old grant. Historical counters and approvals are never refunded or reset.
 
-The active-ticket lock spans coding, CI and review. Every reservation remains
-consumed even if a job is interrupted or refused before calling the model.
-Rerunning failed jobs cannot reuse a successful admission output: the new run
-attempt must match a new committed reservation. Recovery never refunds usage.
+The coordinator retains one active-ticket lock across coding/CI/review. Existing
+owner PR review still reserves its own review before CI and uses zero coding
+calls. Missing/malformed/above-ceiling settings fail closed. Lower settings are
+valid, but stop pending work when the applicable current budget is exceeded.
 
-An existing owner PR uses the same admission/day counter and lifetime review
-allowance. It reserves one review before CI, takes the same lock, and records
-zero coding invocations. Failed CI consumes that reservation without invoking
-Claude. It cannot turn a coding ticket into a new review-only ticket or refund
-usage by switching modes.
+Five serial workflow cycles support the larger allowance. Each retry uses the
+preceding output and next slot; the terminal cycle never reserves a sixth job.
+Automatic retries follow only failed CI or valid changes-requested reviews;
+infrastructure/provider failures stop. Only subscription OAuth is configured;
+shared Pro quota exhaustion stops rather than purchasing paid API usage.
 
-Configuration is mandatory and typed. Increasing a limit above the approved
-ceiling, malformed values, a different timezone, or concurrency other than one
-refuses work. Lower limits may reduce work. Policy increases need a reviewed
-harness change and an owner budget decision.
+### Issue #11: consumed recovery and the next normal attempt
 
-Merged PR #15 established **50 turns per session** and **five new tickets per
-Bucharest calendar day**. The owner subsequently requested **100 turns per
-coding or review session** in ticket #16, implemented by merged PR #17.
-Lower values, including 20 and 50,
-remain valid; values above 100 turns or five daily tickets are rejected.
-The 15-minute model-job timeout remains in place, so a session can stop before
-using 100 turns. Higher limits can consume more of the shared Claude Pro
-allowance; this is not a token or dollar budget.
+Its first two attempts failed at 20/50 turns. PR #19 added one audited recovery,
+which was consumed in run 43418380398: Claude succeeded in 41 turns with zero denials,
+then collection failed. No bundle survived, so its patch cannot be reconstructed
+from retained artifacts. The failing filename was not logged.
 
-The current installation uses `FACTORY_MAX_TURNS_PER_RUN=100` and
-`FACTORY_MAX_TICKETS_PER_DAY=5`. Keep `FACTORY_ENABLED=false` during recovery
-preparation. The recovery change requires no additional limit variables or
-changes to the existing settings.
+The approved unit command was reproduced writing a tracked 368 KB JSON database,
+over the 200 KB file boundary. Vitest now uses in-memory LowDB, preserving ordinary
+development/Cypress and production modes. Collection validates paths before reads
+and identifies bounded relative file/type/size/limit failures; private-looking
+names are redacted. Evidence must be concise and below 20,000 UTF-8 bytes. Publication
+path, regular-file, UTF-8, secret and byte boundaries are unchanged.
 
-This ceiling change does not authorize another execution, widen tool
-permissions, or reset existing attempt and review counters.
+Keep issue #11's three old grants, retries=1 and the consumed recovery marker. Under
+the new budget, a fresh ordinary fourth/fifth attempt uses retries 2/3. Sixth and
+repeat recover refuse. Blocked retries without a published PR use current main
+so they receive this repair; published retries retain their existing PR head.
+Orphaned branches, changed criteria and stale contexts still refuse admission.
 
-The second issue #11 coding attempt in
-[run 43391969547](https://github.com/haideearus/cypress-realworld-app/actions/runs/43391969547)
-reached the configured 50-turn ceiling. Its retained sanitized diagnostic
-reported 11 permission denials: ten Bash and one Glob. Those labels do not
-identify the raw denied commands. Raising the turn ceiling does not grant
-permission for denied actions.
-
-Issue #11 is now blocked with **two coding attempts, one retry and zero
-reviews**, and no published PR. Its coding budget is exhausted across
-calendar days. Do not rerun it, reinitialize the ledger, reset its counters or
-use a replacement admission to bypass that budget. Any further execution needs
-a separately reviewed recovery decision; the recurring permission denials
-also need investigation. Keep the factory off during this preparation.
-
-### One owner-controlled recovery of issue #11
-
-The recovery in maintenance issue #18 is an explicit, single-use exception for
-the exact recorded history. The proposed `recover` operation becomes available
-only after its PR is independently reviewed and merged. Ordinary `run` remains
-exhausted for this ticket.
-
-- Eligibility is pinned to issue #11's criterion hash and the two specific
-  finished blocked grants. Changed criteria, another ticket, a PR already
-  published, active work or changed failed-grant history refuses recovery.
-- Admission records the third coding attempt plus a separate `recovery`
-  object containing the decision and consumed grant ID. Both failed grants,
-  the first daily admission and the existing normal retry count of one remain.
-- This one extra attempt is consumed at reservation, even after failure,
-  cancellation, a skipped job or unavailable subscription. A fourth code
-  attempt and repeat recovery are refused; cancellation cannot refund it.
-- The new attempt starts from current main and uses the existing publisher,
-  exact-head CI and independent reviewer. No tool permission or general
-  coding/retry quota increases.
-
-After genuine review and human merge, the owner may run one controlled workflow:
-
-1. Keep turns at `100`, daily tickets at `5`, and other settings unchanged.
-2. Enable the factory, then choose **Actions → Factory agents → Run workflow**.
-3. Select branch `main`, operation `recover`, ticket `11`, and leave PR empty.
-4. Start once and restore `FACTORY_ENABLED=false` after the whole workflow
-   finishes, including failure or cancellation. Preserve the ledger.
-
-Older workflow revisions cannot read the new recovered three-attempt state.
-Use newly merged main and new dispatches; old revisions fail closed.
+After merge/configuration use a **new Factory agents run** on **main**, operation
+**run**, ticket **11**, PR empty. Do not rerun the consumed recover job. Restore
+FACTORY_ENABLED=false after the whole workflow, regardless of outcome. See
+[operating details](factory/ARTIFACTS-AND-LIMITS.md). Older workflow revisions may
+fail closed on the higher counters; use fresh dispatches on newly merged main.
 
 ### Command guidance without permission expansion
 
@@ -242,9 +205,9 @@ from #20. The owner authorized one additional subscription review after the
 second #18 review requested changes for a scope mismatch. Keep #18's two consumed
 reviews and all verdicts intact. The additional review is recorded under the
 existing, previously unadmitted #20; it does not refund history or create another
-coding admission for #11. Standard limits remain 100 turns, 15 minutes, five daily
-tickets and two reviews per admitted ticket; the owner authorized only one
-additional run now. Restore the factory flag to false after the full review
+coding admission for #11. That historical rollout used 100 turns, 15 minutes, five daily
+tickets and two reviews per ticket; its owner authorized one additional run.
+Current post-merge ceilings are documented above under issue #21. Restore the factory flag to false after the full review
 workflow finishes, refresh only the native gate after an actual pass, and verify
 GitHub's merge decision before merging. No previous approval covers a new head.
 

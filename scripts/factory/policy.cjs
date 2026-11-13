@@ -5,14 +5,15 @@ const REPOSITORY = "haideearus/cypress-realworld-app";
 const OWNER = "haideearus";
 const SHA = /^[a-f0-9]{40}$/;
 const LIMITS = {
-  FACTORY_MAX_TICKETS_PER_DAY: ["daily", 5],
-  FACTORY_MAX_CODING_ATTEMPTS_PER_TICKET: ["coding", 2],
-  FACTORY_MAX_REVIEWS_PER_TICKET: ["reviews", 2],
-  FACTORY_MAX_AUTOMATIC_RETRIES: ["retries", 1],
+  FACTORY_MAX_TICKETS_PER_DAY: ["daily", 10],
+  FACTORY_MAX_CODING_ATTEMPTS_PER_TICKET: ["coding", 5],
+  FACTORY_MAX_REVIEWS_PER_TICKET: ["reviews", 5],
+  FACTORY_MAX_AUTOMATIC_RETRIES: ["retries", 4],
   FACTORY_MAX_CONCURRENT_TICKETS: ["concurrent", 1],
-  FACTORY_RUN_TIMEOUT_MINUTES: ["minutes", 15],
-  FACTORY_MAX_TURNS_PER_RUN: ["turns", 100],
+  FACTORY_RUN_TIMEOUT_MINUTES: ["minutes", 30],
+  FACTORY_MAX_TURNS_PER_RUN: ["turns", 200],
 };
+const MAX_CODING_ATTEMPTS = LIMITS.FACTORY_MAX_CODING_ATTEMPTS_PER_TICKET[1];
 function deny(reason) {
   throw new Error(reason);
 }
@@ -86,16 +87,16 @@ function validateState(state) {
       !SHA.test(ticket.head) ||
       !Number.isInteger(ticket.coding) ||
       ticket.coding < (ticket.origin === "owner-pr" ? 0 : 1) ||
-      ticket.coding > 2 + recoveryCount ||
+      ticket.coding > MAX_CODING_ATTEMPTS ||
       ![undefined, "factory", "owner-pr"].includes(ticket.origin) ||
       (ticket.origin === "owner-pr" &&
         (ticket.coding !== 0 || !Number.isSafeInteger(ticket.pr) || ticket.pr < 1)) ||
       !Number.isInteger(ticket.reviews) ||
       ticket.reviews < 0 ||
-      ticket.reviews > 2 ||
+      ticket.reviews > LIMITS.FACTORY_MAX_REVIEWS_PER_TICKET[1] ||
       !Number.isInteger(ticket.retries) ||
       ticket.retries < 0 ||
-      ticket.retries > 1
+      ticket.retries > LIMITS.FACTORY_MAX_AUTOMATIC_RETRIES[1]
     )
       deny("Invalid ledger ticket counters");
     const grants = Object.values(state.grants).filter((g) => g?.ticket === Number(id));
@@ -413,6 +414,7 @@ module.exports = {
   OWNER,
   SHA,
   LIMITS,
+  MAX_CODING_ATTEMPTS,
   readConfig,
   assertSubscriptionEnv,
   emptyState,
