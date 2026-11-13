@@ -19,7 +19,8 @@
       31
     ],
     "2026-11-14": [
-      33
+      33,
+      35
     ]
   },
   "tickets": {
@@ -370,6 +371,19 @@
         "passed": true
       },
       "feedback": "{\"head\":\"b3def7f07b3a6cd52e01938c81a6dc4ff0dfbc88\",\"verdict\":\"pass\",\"summary\":\"Reviewed the diff adding scheduled, non-AI production monitoring (monitor.cjs/monitor-probe.cjs/monitor-state.cjs/monitor-origin.cjs/monitor-proof.cjs plus the factory-monitor.yml workflow) and raising FACTORY_MAX_TICKETS_PER_DAY from 10 to 20 in policy.cjs. All acceptance criteria are met: probes are bounded (3 attempts, 30s timeouts, 30s cold-start pauses, 256KB body cap), read-only (no writes/secrets), and sanitize all output so no response body/headers/exceptions leak. The monitor and all three pre-existing factory switches (FACTORY_ENABLED, FACTORY_AUTOMATION_ENABLED, FACTORY_AUTOMERGE_ENABLED) default/stay false, with workflow_dispatch defaulting to a true read-only preview that performs no writes. Incident dedup is enforced via a single `active` incident, an intent-before-create durable write pattern (no retry of ambiguous POSTs), a 2/day creation cap, and a 180-incident bound, all validated by validateMonitorState invariants. Monitor-issue provenance (validateMonitorProof/verifyMonitorIssue) is cryptographically tied to a successful, first-attempt, main-branch factory-monitor.yml run and is re-verified independently at admission (both before and inside the ledger's CAS update) and again at merge (issue/criteria check plus frozen receipt comparison), while owner-created ticket behavior is preserved unchanged. The daily cap change is isolated to policy.cjs's LIMITS table and is covered by a dedicated boundary test (10→20 transition preserving history, admitting ticket 20, rejecting 21 until the next Bucharest day). Test coverage (scripts/tests/factory-monitor*.test.cjs, factory-monitor-integration.test.cjs, factory-limits.test.cjs) exercises probe failures/retries/redaction, dedup/rearm/recovery, forged/edited/foreign/failed-run receipts, and the safety-gate/daily-cap boundaries requested. Documentation (docs/factory/PRODUCTION-MONITORING.md) clearly lays out setup order, required manual steps, and recovery/retention limitations. No evidence in the diff of a Claude/API run, merge, or deployment being triggered by the implementation step itself, and no credentials or policy bypass were introduced.\",\"findings\":[]}"
+    },
+    "35": {
+      "coding": 0,
+      "origin": "owner-pr",
+      "reviews": 1,
+      "retries": 0,
+      "head": "4bc2ed6c5cbfd71f3367f7d6caa1c1629b565aa8",
+      "status": "reviewing",
+      "pr": 36,
+      "approval": null,
+      "criteriaHash": "d44115f7bd7ca6e2bca6677ab95076329fd38a4c5e122403f51846529a332e93",
+      "branch": "agent/isolated-monitor-recovery-drill",
+      "ci": null
     }
   },
   "grants": {
@@ -613,9 +627,24 @@
       "status": "finished",
       "at": "2026-11-13T22:10:52.265Z",
       "outcome": "reviewed"
+    },
+    "121e87bf-451b-473a-86b9-876ae52a1c4d": {
+      "id": "121e87bf-451b-473a-86b9-876ae52a1c4d",
+      "ticket": 35,
+      "phase": "review",
+      "slot": "existing",
+      "runId": "43530410474",
+      "runAttempt": 1,
+      "head": "4bc2ed6c5cbfd71f3367f7d6caa1c1629b565aa8",
+      "status": "reserved",
+      "at": "2026-11-13T23:53:45.041Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 35,
+    "runId": "43530410474",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -958,6 +987,15 @@
       "grant": "c8e93f8b-3368-4f87-a681-448f6b4e802d",
       "status": "reviewed",
       "head": "b3def7f07b3a6cd52e01938c81a6dc4ff0dfbc88"
+    },
+    {
+      "at": "2026-11-13T23:53:45.041Z",
+      "event": "reserved",
+      "ticket": 35,
+      "grant": "121e87bf-451b-473a-86b9-876ae52a1c4d",
+      "phase": "review",
+      "runId": "43530410474",
+      "runAttempt": 1
     }
   ]
 }
