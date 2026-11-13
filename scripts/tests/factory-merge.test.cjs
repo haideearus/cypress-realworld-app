@@ -693,3 +693,92 @@ test("ledger lock is held before PUT and released on confirmed merge", async () 
   assert.equal((await merger.merge(10)).merged, true);
   assert.equal((await ledger.read()).state.active, null);
 });
+
+async function unreviewedSetup(status, withPR) {
+  const s = await setup();
+  await s.ledger.update(() => {
+    const code = policy.reserve(policy.emptyState(policy.REPOSITORY), context, config);
+    let state = code.state;
+    Object.assign(state.tickets["10"], {
+      criteriaHash: criteriaHash(s.fixture.issue),
+      automatic: {
+        workflowRef,
+        workflowSha: "b".repeat(40),
+        runId: context.runId,
+        runAttempt: context.runAttempt,
+        appSlug: config.appSlug,
+      },
+    });
+    if (status !== "coding") {
+      state = policy.finish(state, code.grant.id, {
+        status: status === "reviewing" ? "awaiting_review" : status,
+        ...(withPR ? { pr: 20 } : {}),
+      });
+      if (status === "reviewing")
+        state = policy.reserve(state, { ...context, phase: "review" }, config).state;
+    }
+    return { state };
+  });
+  s.fixture.calls = [];
+  s.fixture.extraCalls = [];
+  return s;
+}
+
+for (const [status, withPR] of [
+  ["coding", false],
+  ["blocked", false],
+  ["blocked", true],
+  ["retry", true],
+  ["awaiting_review", true],
+  ["reviewing", true],
+])
+  test(`ordinary ${status} ticket with PR=${withPR} exits without a merge or false failure`, async () => {
+    const { merger, fixture, ledger } = await unreviewedSetup(status, withPR);
+    const before = await ledger.read();
+    const result = await merger.merge(10);
+    assert.equal(result.merged, false);
+    assert.match(result.reason, /not.*reviewed|not.*ready/i);
+    assert.deepEqual(await ledger.read(), before);
+    assert.deepEqual(fixture.mutations(), []);
+    assert.equal(
+      fixture.extraCalls.some((call) => /\/pulls\/|\/actions\//.test(call.path)),
+      false
+    );
+  });
+
+test("the unreviewed no-op still refuses absent or foreign automatic provenance", async () => {
+  for (const wrongApp of [false, true]) {
+    const { merger, fixture, ledger } = await unreviewedSetup("blocked", false);
+    await ledger.update((state) => {
+      if (wrongApp) state.tickets["10"].automatic.appSlug = "other-factory";
+      else delete state.tickets["10"].automatic;
+      return { state };
+    });
+    fixture.calls = [];
+    fixture.extraCalls = [];
+    await assert.rejects(merger.merge(10), /provenance/i);
+    assert.deepEqual(fixture.mutations(), []);
+  }
+});
+
+test("an unreviewed ticket with merge intent is refused instead of hiding an uncertain merge", async () => {
+  const { merger, fixture, ledger } = await unreviewedSetup("blocked", true);
+  await ledger.update((state) => {
+    state.tickets["10"].merge = {
+      status: "intent",
+      head,
+      pr: 20,
+      at: new Date().toISOString(),
+      runId: automaticContext.runId,
+      runAttempt: automaticContext.runAttempt,
+    };
+    state.active = { ticket: 10, runId: automaticContext.runId, runAttempt: 1 };
+    return { state };
+  });
+  const before = await ledger.read();
+  fixture.calls = [];
+  fixture.extraCalls = [];
+  await assert.rejects(merger.merge(10), /review|proof/i);
+  assert.deepEqual(await ledger.read(), before);
+  assert.deepEqual(fixture.mutations(), []);
+});

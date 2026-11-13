@@ -44,11 +44,8 @@ class AutomaticMerger {
       !Object.values(state.grants).some((grant) => grant.status === "reserved")
     );
   }
-  stateTicket(state, ticket, expected) {
-    this.authorize();
+  automaticTicket(state, ticket) {
     const t = state.tickets[String(ticket)];
-    if (state.active && !this.mergeLock(state, ticket, t?.merge))
-      throw new Error("An active ticket holds the factory lock");
     if (
       !t ||
       t.origin !== "factory" ||
@@ -58,10 +55,18 @@ class AutomaticMerger {
       t.automatic.workflowRef !== policy.AUTOMATIC_WORKFLOW_REF ||
       !policy.SHA.test(t.automatic.workflowSha || "") ||
       !/^[a-f0-9]{64}$/.test(t.criteriaHash || "") ||
-      !Number.isSafeInteger(t.pr) ||
-      t.pr < 1 ||
+      (t.pr !== null && t.pr !== undefined && (!Number.isSafeInteger(t.pr) || t.pr < 1)) ||
       (t.branch !== undefined && t.branch !== `agent/factory-${ticket}`)
     )
+      throw new Error("Ticket lacks matching automatic factory provenance");
+    return t;
+  }
+  stateTicket(state, ticket, expected) {
+    this.authorize();
+    const t = this.automaticTicket(state, ticket);
+    if (state.active && !this.mergeLock(state, ticket, t.merge))
+      throw new Error("An active ticket holds the factory lock");
+    if (!Number.isSafeInteger(t.pr) || t.pr < 1)
       throw new Error("Ticket lacks matching automatic factory provenance");
     const review = policy.reviewGate(state, { number: t.pr, head: t.head });
     if (!review.ok) throw new Error(review.reason);
@@ -303,7 +308,15 @@ class AutomaticMerger {
       throw new Error("Invalid automatic merge request");
     if (!dryRun && !this.enabled())
       return { ticket, merged: false, reason: "Automatic merge disabled" };
-    const t = await this.current(ticket);
+    const { state } = await this.ledger.read();
+    const candidate = this.automaticTicket(state, ticket);
+    if (candidate.status !== "reviewed" && candidate.merge === undefined)
+      return {
+        ticket,
+        merged: false,
+        reason: "Ticket is not independently reviewed; nothing is ready to merge",
+      };
+    const t = this.stateTicket(state, ticket);
     const pr = await this.pr(ticket, t);
     const terminal = await this.reconcile(ticket, t, pr, { dryRun });
     if (terminal) return terminal;
