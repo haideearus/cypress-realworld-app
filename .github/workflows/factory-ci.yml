@@ -52,7 +52,7 @@ jobs:
             "FACTORY_MAX_CODING_ATTEMPTS_PER_TICKET":"2","FACTORY_MAX_REVIEWS_PER_TICKET":"2",
             "FACTORY_MAX_AUTOMATIC_RETRIES":"1","FACTORY_MAX_CONCURRENT_TICKETS":"1",
             "FACTORY_TIMEZONE":"Europe/Bucharest","FACTORY_RUN_TIMEOUT_MINUTES":"15",
-            "FACTORY_MAX_TURNS_PER_RUN":"50","FACTORY_APP_URL":"https://haide-software-factory.onrender.com"}
+            "FACTORY_MAX_TURNS_PER_RUN":"100","FACTORY_APP_URL":"https://haide-software-factory.onrender.com"}
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version-file: .node-version
