@@ -21,12 +21,15 @@ itself; the controller and worker preflight enforce them.
 5. After `verify` passes, a separate read-only Claude session reviews the exact
    commit. A native pull-request job named **Factory review gate** checks the
    saved proof using trusted base-commit policy and read-only metadata.
-6. Only a failed CI result or a valid review requesting changes can reserve the
-   second coding attempt. Provider errors and interrupted model jobs stop work.
+6. Only a failed CI result or a valid review requesting changes can reserve a
+   remaining automatic retry, within the configured five-attempt ceiling.
+   Provider errors and interrupted model jobs stop work.
 
-The initial version has no cron, public mention triggers, automatic main merge,
-or production deployment. Those are later rollout steps. Do not call this an
-already unattended ticket-to-production factory.
+The initial version was manual. Ticket #26 adds a separately disabled scheduled
+entry and protected automatic merging using a repository-only GitHub App. Follow
+[the installation and trial guide](factory/AUTOMATIC-PICKUP.md); code preparation
+does not establish live unattended operation. Public mentions, incident monitoring
+and production deployment are outside this change.
 
 ## Subscription and spending
 
@@ -39,8 +42,12 @@ already unattended ticket-to-production factory.
 - The pinned official action installs Claude Code **2.1.322**. Its source commit
   is `4fa93a88de49bbef68b10eb15aabedf28ca0e1ed`. It uses its own pinned dependency
   lockfile, so this project does not add a second CLI installer/package manager.
-- `claude-sonnet-5` is the configured subscription model. Real account access and
-  the action/SDK invocation remain unproved until a later authorized real run.
+- `claude-sonnet-5` is the configured subscription model. Real subscription coding
+  and independent review were demonstrated for issue #11 in
+  [run 43433517715](https://github.com/haideearus/cypress-realworld-app/actions/runs/43433517715).
+  [PR #25](https://github.com/haideearus/cypress-realworld-app/pull/25) subsequently
+  added HTTP regression evidence and passed fresh review before merging. This does
+  not prove remaining account allowance or future unattended availability.
 - A Pro allowance is not unlimited and is shared with other Claude use. The
   counters below limit work, not exact tokens or a promised dollar allowance.
   Exhaustion must wait rather than buy usage.
@@ -49,9 +56,10 @@ already unattended ticket-to-production factory.
 
 ## Limits and counter meanings
 
-Issue #21 raises the approved ceilings below. **Save these only after its reviewed
-PR is merged.** Until then the live values remain 100 turns / five daily tickets /
-two normal attempts / two reviews / one retry / 15 model-job minutes.
+Issue #21's reviewed change is merged. The following numerical values were
+verified in the live repository on 2026-11-13, with `FACTORY_ENABLED=false`.
+Automatic pickup adds separate initially-false flags; it does not raise these
+limits or reset the existing history.
 
 | Variable                               | Post-merge value                            |
 | -------------------------------------- | ------------------------------------------- |
@@ -84,7 +92,7 @@ Automatic retries follow only failed CI or valid changes-requested reviews;
 infrastructure/provider failures stop. Only subscription OAuth is configured;
 shared Pro quota exhaustion stops rather than purchasing paid API usage.
 
-### Issue #11: consumed recovery and the next normal attempt
+### Issue #11: preserved recovery history and completed repair
 
 Its first two attempts failed at 20/50 turns. PR #19 added one audited recovery,
 which was consumed in run 43418380398: Claude succeeded in 41 turns with zero denials,
@@ -98,17 +106,16 @@ and identifies bounded relative file/type/size/limit failures; private-looking
 names are redacted. Evidence must be concise and below 20,000 UTF-8 bytes. Publication
 path, regular-file, UTF-8, secret and byte boundaries are unchanged.
 
-Keep issue #11's three old grants, retries=1 and the consumed recovery marker. Under
-the new budget, a fresh ordinary fourth/fifth attempt uses retries 2/3. Sixth and
-repeat recover refuse. Blocked retries without a published PR use current main
-so they receive this repair; published retries retain their existing PR head.
-Orphaned branches, changed criteria and stale contexts still refuse admission.
+The fourth ordinary coding attempt succeeded in run 43433517715, using retries=2
+and one independent review. The owner then requested a real HTTP regression to
+strengthen the initial helper-only proof. Owner-authored replacement PR #25 passed
+a fresh counted review under ticket #24 and merged. PR #23 is closed without
+merging, and all original grants/recovery provenance remain intact.
 
-After merge/configuration use a **new Factory agents run** on **main**, operation
-**run**, ticket **11**, PR empty. Do not rerun the consumed recover job. Restore
-FACTORY_ENABLED=false after the whole workflow, regardless of outcome. See
-[operating details](factory/ARTIFACTS-AND-LIMITS.md). Older workflow revisions may
-fail closed on the higher counters; use fresh dispatches on newly merged main.
+Do not redispatch the completed issue #11 or replay its consumed recovery. The
+old [operating details](factory/ARTIFACTS-AND-LIMITS.md) record that rollout; future
+automatic tickets use the separate queue and App guide. Older workflow revisions
+may fail closed on newer ledger metadata; use fresh dispatches on merged main.
 
 ### Command guidance without permission expansion
 
@@ -305,15 +312,17 @@ simulates model results and does not import an AI SDK or contact a model.
 Required `verify` also runs the existing app types, lint, unit, production and
 Cypress regression checks against disposable data.
 
-Real GitHub subscription authentication, actual Claude coding/review quality,
-the account's remaining allowance, an enabled live ticket, and cancellation of a
-real model job are deliberately not claimed by these simulations. Demonstrate
-them later with the owner's explicit enable decision.
+The simulations do not prove account allowance, future model quality, App setup,
+native App-created PR checks or cancellation of a real model job. Real owner-run
+coding/review evidence is recorded above; unattended installation needs its own
+controlled trial.
 
-Automatic backlog scheduling, monitoring, automatic merge policy, production
-environment approval/deploy hook, repository-wide secret scanning, and complete
-course hand-in evidence remain later work. The application stays deployed while
-the factory is disabled.
+Automatic backlog scheduling and protected merging are prepared under #26 and
+remain disabled until review, App installation and a successful controlled trial.
+Monitoring, production environment approval/deploy hook, generic stale-run
+recovery, repository-wide secret scanning and complete course hand-in evidence
+remain later work. The application stays deployed while the factory is disabled;
+merging an app repair does not deploy it while Render Auto-Deploy is off.
 
 Sources: [Claude GitHub Action](https://code.claude.com/docs/en/github-actions),
 [subscription tokens](https://code.claude.com/docs/en/authentication#generate-a-long-lived-token),

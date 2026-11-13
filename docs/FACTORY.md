@@ -43,11 +43,20 @@ again must add the `upstream` remote as shown below.
 
 ## Current setup status
 
+Update on 2026-11-13: the cloud coding, CI and independent Claude Pro review path
+was demonstrated for issue #11. Its public-feed repair, including a real HTTP
+regression, merged through [PR #25](https://github.com/haideearus/cypress-realworld-app/pull/25).
+The [automatic pickup and merge guide](factory/AUTOMATIC-PICKUP.md) describes
+ticket #26's next implementation and its required App installation/controlled
+trial. It stays disabled during preparation. Production approval/deployment,
+monitoring and generic unattended recovery remain separate unfinished stages.
+The foundation table below is historical evidence, not the current full status.
+
 The [Claude factory guide](CLAUDE-FACTORY.md) describes the first agent-workflow
 implementation under ticket #6. Keep `FACTORY_ENABLED=false` through installation.
-It adds durable limits and separate coding/review roles; a real enabled ticket,
-the required review gate configuration, monitoring and production approval still
-need their documented owner steps. The application is already deployed at
+It adds durable limits and separate coding/review roles. Required branch checks
+and a real owner-triggered ticket have since been verified; monitoring and the
+production approval workflow still need installation. The application is deployed at
 https://haide-software-factory.onrender.com with Neon persistence. The table below
 records the earlier foundation milestone, rather than the whole current rollout.
 

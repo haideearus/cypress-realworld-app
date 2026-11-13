@@ -59,13 +59,26 @@ class Controller {
   }
   async admit(ticket, { recover = false } = {}) {
     this.authorize();
+    const automatic = policy.isAutomaticContext(this.context);
     if (!this.config.enabled)
       return { ready: false, reason: "Factory disabled; no model invocation" };
+    if (automatic && !this.config.automatic)
+      return { ready: false, reason: "Automatic factory disabled; no model invocation" };
     if (typeof recover !== "boolean") throw new Error("Invalid recovery operation");
+    if (automatic && recover) throw new Error("Automatic admission cannot request recovery");
     const issue = await this.issue(ticket);
+    if (
+      automatic &&
+      (issue.user?.login !== policy.OWNER ||
+        !issue.labels?.some(
+          (label) => (typeof label === "string" ? label : label?.name) === "factory-ready"
+        ))
+    )
+      throw new Error("Automatic admission needs an owner-created factory-ready issue");
     const main = await this.api.request("GET", `${ROOT}/branches/main`);
     const snapshot = await this.ledger.read();
     const previous = snapshot.state.tickets[String(ticket)];
+    if (automatic && previous) throw new Error("Automatic ticket already admitted");
     if (previous?.pr) await this.matchingPR(previous);
     try {
       const ref = await this.api.request("GET", `${ROOT}/git/ref/heads/agent/factory-${ticket}`);
@@ -79,6 +92,19 @@ class Controller {
     }
     const saved = await this.ledger.update((state) => {
       const existing = state.tickets[String(ticket)];
+      if (automatic && existing) throw new Error("Automatic ticket already admitted");
+      if (
+        automatic &&
+        Object.entries(state.tickets).some(
+          ([id, other]) =>
+            id !== String(ticket) &&
+            other.automatic &&
+            other.origin === "factory" &&
+            other.status === "reviewed" &&
+            !["merged", "closed"].includes(other.merge?.status)
+        )
+      )
+        throw new Error("Pending automatic merge must be reconciled");
       if (existing?.criteriaHash && existing.criteriaHash !== criteriaHash(issue))
         throw new Error("Ticket criteria changed; owner must review a new ticket");
       const request = identity(this.context, {
@@ -93,6 +119,14 @@ class Controller {
       });
       const result = policy.reserve(state, request, this.config);
       result.state.tickets[String(ticket)].criteriaHash = criteriaHash(issue);
+      if (automatic)
+        result.state.tickets[String(ticket)].automatic = {
+          workflowRef: this.context.workflowRef,
+          workflowSha: this.context.workflowSha,
+          runId: this.context.runId,
+          runAttempt: this.context.runAttempt,
+          appSlug: this.config.appSlug,
+        };
       return result;
     });
     return this.result(saved.grant);
@@ -153,6 +187,12 @@ class Controller {
       pr.base?.ref !== "main"
     )
       throw new Error("Published PR head or repository changed");
+    if (
+      policy.isAutomaticContext(this.context) &&
+      (t.automatic?.appSlug !== this.config.appSlug ||
+        pr.user?.login !== `${this.config.appSlug}[bot]`)
+    )
+      throw new Error("Automatic publisher must be the configured GitHub App");
     return pr;
   }
   async publish(grantId, bundle) {
@@ -184,7 +224,7 @@ class Controller {
     validateChanges(bundle.files);
     const t = loaded.state.tickets[String(grant.ticket)];
     const branch = `agent/factory-${grant.ticket}`;
-    if (t.pr) await this.matchingPR(t);
+    const previousPR = t.pr ? await this.matchingPR(t) : null;
     let branchExists = false;
     try {
       const ref = await this.api.request("GET", `${ROOT}/git/ref/heads/${branch}`);
@@ -227,7 +267,7 @@ class Controller {
         sha: commit.sha,
       });
     const pr = t.pr
-      ? { number: t.pr }
+      ? previousPR
       : await this.api.request("POST", `${ROOT}/pulls`, {
           head: branch,
           base: "main",
@@ -235,6 +275,8 @@ class Controller {
           title: `Factory repair for #${grant.ticket}`,
           body: `Maintenance ticket: #${grant.ticket}\n\nAI coding evidence (untrusted until checked):\n\n${bundle.evidence}\n\nIndependent review and required CI are pending. This PR does not deploy production.`,
         });
+    if (policy.isAutomaticContext(this.context) && pr.user?.login !== `${this.config.appSlug}[bot]`)
+      throw new Error("Automatic publisher must be the configured GitHub App");
     await this.ledger.update((state) => {
       policy.preflight(
         state,
@@ -581,6 +623,8 @@ function runtimeContext(env = process.env) {
     triggeringActor: env.GITHUB_TRIGGERING_ACTOR || env.GITHUB_ACTOR,
     ref: env.GITHUB_REF,
     event: env.GITHUB_EVENT_NAME,
+    workflowRef: env.GITHUB_WORKFLOW_REF,
+    workflowSha: env.GITHUB_WORKFLOW_SHA,
     runId: env.GITHUB_RUN_ID,
     runAttempt: Number(env.GITHUB_RUN_ATTEMPT),
     ticket: 1,

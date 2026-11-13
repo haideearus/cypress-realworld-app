@@ -14,9 +14,15 @@ on:
       slot:
         type: string
         required: true
+      automatic:
+        type: boolean
+        required: false
+        default: false
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN:
         required: true
+      FACTORY_GITHUB_APP_PRIVATE_KEY:
+        required: false
     outputs:
       retry:
         value: ${{ jobs.assess.outputs.retry }}
@@ -67,6 +73,13 @@ jobs:
         with:
           name: code-${{ inputs.grantId }}
           path: ${{ runner.temp }}/factory-code
+      - id: app
+        if: ${{ inputs.automatic }}
+        uses: ./.github/actions/factory-app-token
+        with:
+          client-id: ${{ vars.FACTORY_GITHUB_APP_CLIENT_ID }}
+          private-key: ${{ secrets.FACTORY_GITHUB_APP_PRIVATE_KEY }}
+          expected-slug: ${{ vars.FACTORY_GITHUB_APP_SLUG }}
       - id: control
         uses: ./.github/actions/factory-control
         with:
@@ -74,6 +87,7 @@ jobs:
           variables_json: ${{ toJSON(vars) }}
           parameters: ${{ toJSON(inputs) }}
           bundle_path: ${{ runner.temp }}/factory-code/bundle.json
+          github_token: ${{ inputs.automatic == false && github.token || steps.app.outputs.token }}
   ci:
     needs: publish
     if: ${{ needs.publish.outputs.ready == 'true' }}

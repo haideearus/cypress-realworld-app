@@ -1,0 +1,69 @@
+name: Factory repository App token
+description: Mint and validate a job-scoped installation token for trusted control jobs
+inputs:
+  client-id:
+    required: true
+    description: Configured GitHub App client ID
+  private-key:
+    required: true
+    description: GitHub App private key supplied only to trusted control jobs
+  expected-slug:
+    required: true
+    description: Expected installed GitHub App slug
+outputs:
+  token:
+    value: ${{ steps.validate.outputs.token }}
+    description: Masked installation token for this repository only
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+      with:
+        node-version: 22.20.0
+    - id: credentials
+      shell: bash
+      env:
+        FACTORY_APP_CLIENT_ID: ${{ inputs.client-id }}
+        FACTORY_APP_PRIVATE_KEY: ${{ inputs.private-key }}
+        FACTORY_EXPECTED_APP_SLUG: ${{ inputs.expected-slug }}
+      run: |
+        node <<'NODE'
+        for (const name of ["FACTORY_APP_CLIENT_ID", "FACTORY_APP_PRIVATE_KEY", "FACTORY_EXPECTED_APP_SLUG"]) {
+          if (!process.env[name]?.trim()) {
+            console.error("Factory GitHub App configuration is required");
+            process.exit(1);
+          }
+        }
+        NODE
+    - id: mint
+      uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
+      with:
+        client-id: ${{ inputs.client-id }}
+        private-key: ${{ inputs.private-key }}
+        owner: haideearus
+        repositories: cypress-realworld-app
+        permission-contents: write
+        permission-pull-requests: write
+        permission-actions: write
+        permission-checks: read
+        permission-issues: read
+        skip-token-revoke: false
+    - id: validate
+      shell: bash
+      env:
+        FACTORY_APP_TOKEN: ${{ steps.mint.outputs.token }}
+        FACTORY_APP_SLUG: ${{ steps.mint.outputs.app-slug }}
+        FACTORY_EXPECTED_APP_SLUG: ${{ inputs.expected-slug }}
+      run: |
+        node <<'NODE'
+        const fs = require("node:fs");
+        const token = process.env.FACTORY_APP_TOKEN || "";
+        const actual = process.env.FACTORY_APP_SLUG || "";
+        const expected = process.env.FACTORY_EXPECTED_APP_SLUG || "";
+        if (!expected.trim() || actual !== expected || !token.trim() || /[\r\n]/.test(token)) {
+          console.error("Factory GitHub App installation token validation failed");
+          process.exit(1);
+        }
+        process.stdout.write(`::add-mask::${token}\n`);
+        fs.appendFileSync(process.env.GITHUB_OUTPUT, `token=${token}\n`);
+        NODE
