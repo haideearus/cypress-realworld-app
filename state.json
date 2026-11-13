@@ -253,7 +253,11 @@
       "approval": null,
       "criteriaHash": "51380579539422e9de23e0bc87f198aa01c58d7a9a7fc2c89cbb98266a6afb5c",
       "branch": "agent/26-scheduled-pickup-and-merge",
-      "ci": null
+      "ci": {
+        "requestId": "8fb5bbab-125d-4170-8a9e-db0b36eeed81",
+        "head": "d38633d647c24443e09dcb39f489931f790a6715",
+        "runId": null
+      }
     }
   },
   "grants": {
