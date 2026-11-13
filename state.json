@@ -61,7 +61,11 @@
       "approval": null,
       "criteriaHash": "1383fd99d694c44e2d1875942432d72328afb1d6e8cfd500a4c051e7622d0e5b",
       "branch": "agent/14-turn-limit-50",
-      "ci": null
+      "ci": {
+        "requestId": "27fdcbab-f29a-43ee-bc4c-54842a380e44",
+        "head": "e117eb47a992b5be679f1da0db858e6ede25fda6",
+        "runId": null
+      }
     }
   },
   "grants": {
