@@ -304,12 +304,13 @@
       },
       "feedback": "{\"head\":\"a690f156f94944aee4c4224583b21c4e41135a36\",\"verdict\":\"pass\",\"summary\":\"The fix correctly removes an accidental double-backslash escaping bug in phoneRegExp: the old literal had `\\\\\\\\+`/`\\\\\\\\(`/`\\\\\\\\)` (matching a literal backslash followed by a quantifier/paren) instead of the intended `\\\\+`/`\\\\(`/`\\\\)` escapes, which is why \\\"+1 615-555-1212\\\" and \\\"(615) 555-1212\\\" were rejected while a backslash-prefixed number was wrongly accepted. The new regex correctly accepts all four required formats (digits-only, hyphenated, +country-code, and parenthesized area code) and rejects backslash-prefixed, letter-only, and empty input, verified by manual regex-decomposition tracing. \\\"615-555-\\\" is correctly rejected because the trailing tail `[0-9]{3,4}?[ -]*[0-9]{3,4}?$` has no provision for a dangling separator before `$`, which also matches the pre-existing Cypress e2e assertion at cypress/tests/ui/user-settings.spec.ts:60-64 that already expects this exact case to fail — so no regression there. The added UserSettingsForm.test.tsx renders the real component and exercises the actual Yup validation schema (no regex duplication), covers accept/reject cases plus a submission test verifying updateUser is called with the typed phone number, and relies only on already-present devDependencies (vitest, @testing-library/react, jest-dom) and the existing vite.config.ts jsdom test setup — no new dependencies. The User fixture in the test matches the User interface exactly, so yarn types should be unaffected. Diff is scoped solely to the regex and new regression tests, consistent with the ticket's scope restrictions.\",\"findings\":[]}",
       "merge": {
-        "status": "intent",
+        "status": "merged",
         "head": "a690f156f94944aee4c4224583b21c4e41135a36",
         "pr": 30,
-        "at": "2026-11-13T18:34:53.144Z",
+        "at": "2026-11-13T18:35:04.285Z",
         "runId": "43481055400",
-        "runAttempt": 1
+        "runAttempt": 1,
+        "mergeCommit": "8948ab7c6f21205d356e9009596862553cdd8c31"
       }
     }
   },
@@ -532,11 +533,7 @@
       "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 29,
-    "runId": "43481055400",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
