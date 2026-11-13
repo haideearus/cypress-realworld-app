@@ -29,6 +29,8 @@ import {
   omit,
   map,
   drop,
+  slice,
+  concat,
 } from "lodash/fp";
 import { parseISO } from "date-fns";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
@@ -190,6 +192,10 @@ export const amountRangeValueTextLabel = (value: number) =>
 export const formatAmountRangeValues = (amountRangeValues: number[]) =>
   /* istanbul ignore next */
   flow(map(padAmountWithZeros), map(formatAmountSlider), join(" - "))(amountRangeValues);
+
+// Must be the same combined list on every page, or pagination offsets drift.
+export const getPublicTransactionsFeed = (contactsTransactions: any[], publicTransactions: any[]) =>
+  concat(slice(0, 5, contactsTransactions), publicTransactions);
 
 export const getPaginatedItems = (page: number, limit: number, items: any) => {
   const offset = (page - 1) * limit;

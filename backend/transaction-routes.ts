@@ -1,7 +1,7 @@
 ///<reference path="types.ts" />
 
 import express from "express";
-import { remove, isEmpty, slice, concat } from "lodash/fp";
+import { remove, isEmpty } from "lodash/fp";
 import {
   getTransactionsForUserContacts,
   createTransaction,
@@ -21,7 +21,7 @@ import {
   isTransactionPatchValidator,
   isTransactionPublicQSValidator,
 } from "./validators";
-import { getPaginatedItems } from "../src/utils/transactionUtils";
+import { getPaginatedItems, getPublicTransactionsFeed } from "../src/utils/transactionUtils";
 const router = express.Router();
 
 // Routes
@@ -96,8 +96,6 @@ router.get(
   ensureAuthenticated,
   validateMiddleware(isTransactionPublicQSValidator),
   (req, res) => {
-    const isFirstPage = (req.query.page as unknown as number) === 1;
-
     /* istanbul ignore next */
     let transactions = !isEmpty(req.query)
       ? getPublicTransactionsByQuery(req.user?.id!, req.query)
@@ -106,18 +104,15 @@ router.get(
 
     const { contactsTransactions, publicTransactions } = transactions;
 
-    let publicTransactionsWithContacts;
-
-    if (isFirstPage) {
-      const firstFiveContacts = slice(0, 5, contactsTransactions);
-
-      publicTransactionsWithContacts = concat(firstFiveContacts, publicTransactions);
-    }
+    const publicTransactionsWithContacts = getPublicTransactionsFeed(
+      contactsTransactions,
+      publicTransactions
+    );
 
     const { totalPages, data: paginatedItems } = getPaginatedItems(
       req.query.page as unknown as number,
       req.query.limit as unknown as number,
-      isFirstPage ? publicTransactionsWithContacts : publicTransactions
+      publicTransactionsWithContacts
     );
 
     res.status(200);
