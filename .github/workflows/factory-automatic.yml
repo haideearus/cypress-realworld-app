@@ -23,6 +23,7 @@ jobs:
       contents: write
       issues: read
       pull-requests: read
+      actions: read
     concurrency:
       group: factory-ledger
       cancel-in-progress: false

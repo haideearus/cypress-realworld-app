@@ -7,7 +7,7 @@ const { exhaustedState, recoveryContext, now } = require("./helpers/factory-reco
 
 const raisedVars = {
   ...vars,
-  FACTORY_MAX_TICKETS_PER_DAY: "10",
+  FACTORY_MAX_TICKETS_PER_DAY: "20",
   FACTORY_MAX_CODING_ATTEMPTS_PER_TICKET: "5",
   FACTORY_MAX_REVIEWS_PER_TICKET: "5",
   FACTORY_MAX_AUTOMATIC_RETRIES: "4",
@@ -42,10 +42,10 @@ test("approved higher ceilings accept configuration and reject each next value",
       config.minutes,
       config.turns,
     ],
-    [10, 5, 5, 4, 1, 30, 200]
+    [20, 5, 5, 4, 1, 30, 200]
   );
   for (const [key, value] of [
-    ["FACTORY_MAX_TICKETS_PER_DAY", "11"],
+    ["FACTORY_MAX_TICKETS_PER_DAY", "21"],
     ["FACTORY_MAX_CODING_ATTEMPTS_PER_TICKET", "6"],
     ["FACTORY_MAX_REVIEWS_PER_TICKET", "6"],
     ["FACTORY_MAX_AUTOMATIC_RETRIES", "5"],
@@ -224,40 +224,58 @@ test("five lifetime reviews remain bounded for coding tickets and owner PRs", ()
   }
 });
 
-test("ten new tickets include owner reviews and preserve the Bucharest midnight boundary", () => {
+test("raising ten admissions to twenty preserves history and refuses the twenty-first until Bucharest midnight", () => {
   const config = raisedConfig();
+  const previousConfig = raisedConfig({ FACTORY_MAX_TICKETS_PER_DAY: "10" });
   let state = policy.emptyState(policy.REPOSITORY);
-  for (const ticket of [10, 11, 12, 13, 14, 15, 16, 17, 18, 19]) {
+  let previousHistory;
+  for (let ticket = 10; ticket < 30; ticket++) {
     const input = {
       ...context,
       ticket,
-      ...(ticket === 19 ? { phase: "review", origin: "owner-pr", pr: 30, slot: "existing" } : {}),
+      runId: String(1000 + ticket),
+      ...(ticket === 29 ? { phase: "review", origin: "owner-pr", pr: 40, slot: "existing" } : {}),
     };
-    const saved = policy.reserve(state, input, config, now);
-    if (ticket === 15)
+    if (ticket === 20) {
+      previousHistory = structuredClone(state);
+      assert.throws(() => policy.reserve(state, input, previousConfig, now), /Daily ticket limit/);
+      assert.deepEqual(state, previousHistory);
+    }
+    const saved = policy.reserve(state, input, ticket < 20 ? previousConfig : config, now);
+    if (ticket === 20)
       assert.throws(
-        () =>
-          policy.preflight(
-            saved.state,
-            saved.grant.id,
-            input,
-            raisedConfig({ FACTORY_MAX_TICKETS_PER_DAY: "5" })
-          ),
+        () => policy.preflight(saved.state, saved.grant.id, input, previousConfig),
         /current limit/
       );
     state = policy.finish(saved.state, saved.grant.id, { status: "blocked" }, now);
   }
-  assert.deepEqual(state.days["2026-11-13"], [10, 11, 12, 13, 14, 15, 16, 17, 18, 19]);
+  assert.deepEqual(
+    state.days["2026-11-13"],
+    [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29]
+  );
+  assert.deepEqual(state.days["2026-11-13"].slice(0, 10), previousHistory.days["2026-11-13"]);
+  assert.deepEqual(state.audit.slice(0, previousHistory.audit.length), previousHistory.audit);
+  for (const [id, grant] of Object.entries(previousHistory.grants))
+    assert.deepEqual(state.grants[id], grant);
+  for (const [id, ticket] of Object.entries(previousHistory.tickets))
+    assert.deepEqual(state.tickets[id], ticket);
+  assert.equal(state.tickets["29"].origin, "owner-pr");
+  assert.equal(state.tickets["29"].coding, 0);
+  assert.equal(state.tickets["29"].reviews, 1);
+  assert.doesNotThrow(() => policy.validateState(state));
+  const exhausted = structuredClone(state);
   assert.throws(
     () =>
-      policy.reserve(state, { ...context, ticket: 20 }, config, new Date("2026-11-13T21:59:59Z")),
+      policy.reserve(state, { ...context, ticket: 30 }, config, new Date("2026-11-13T21:59:59Z")),
     /Daily ticket limit/
   );
+  assert.deepEqual(state, exhausted);
   const next = policy.reserve(
     state,
-    { ...context, ticket: 20 },
+    { ...context, ticket: 30 },
     config,
     new Date("2026-11-13T22:00:00Z")
   );
-  assert.deepEqual(next.state.days["2026-11-14"], [20]);
+  assert.deepEqual(next.state.days["2026-11-14"], [30]);
+  assert.deepEqual(next.state.days["2026-11-13"], exhausted.days["2026-11-13"]);
 });

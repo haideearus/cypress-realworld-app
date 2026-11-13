@@ -2,6 +2,7 @@ const policy = require("./policy.cjs");
 const { Controller, criteriaHash } = require("./controller.cjs");
 const { Ledger, ROOT } = require("./github.cjs");
 const { validPath } = require("./artifacts.cjs");
+const { verifyMonitorIssue } = require("./monitor-origin.cjs");
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const fingerprint = (ticket) => {
@@ -80,10 +81,13 @@ class AutomaticMerger {
   }
   async issue(ticket, t, { merged = false } = {}) {
     const issue = await this.api.request("GET", `${ROOT}/issues/${ticket}`);
+    const monitor = t.monitor
+      ? await verifyMonitorIssue(this.api, issue, { proof: t.monitor, requireActive: false })
+      : null;
     if (
       issue.number !== ticket ||
       issue.pull_request ||
-      issue.user?.login !== policy.OWNER ||
+      (t.monitor ? !monitor : issue.user?.login !== policy.OWNER) ||
       (issue.state !== "open" && !(merged && issue.state === "closed")) ||
       criteriaHash(issue) !== t.criteriaHash
     )

@@ -2,18 +2,18 @@ const policy = require("./policy.cjs");
 const { GitHub, Ledger, ROOT } = require("./github.cjs");
 const { Controller, runtimeContext, output } = require("./controller.cjs");
 const { secretLike } = require("./artifacts.cjs");
+const { verifyMonitorIssue } = require("./monitor-origin.cjs");
 
 const QUEUE_LABEL = "factory-ready";
 const MAX_QUEUE_PAGES = 5;
 
-function eligibleIssue(issue) {
+function queueIssue(issue) {
   return (
     issue &&
     Number.isSafeInteger(issue.number) &&
     issue.number > 0 &&
     issue.state === "open" &&
     !issue.pull_request &&
-    issue.user?.login === policy.OWNER &&
     Array.isArray(issue.labels) &&
     issue.labels.some((label) => label?.name === QUEUE_LABEL) &&
     typeof issue.title === "string" &&
@@ -24,6 +24,10 @@ function eligibleIssue(issue) {
     !secretLike(issue.title + "\n" + (issue.body || "")) &&
     Number.isFinite(Date.parse(issue.created_at))
   );
+}
+
+function eligibleIssue(issue) {
+  return queueIssue(issue) && issue.user?.login === policy.OWNER;
 }
 
 function assertAutomaticContext(context) {
@@ -50,12 +54,20 @@ class AutomaticCoordinator {
       if (!Array.isArray(rows) || rows.length > 100)
         throw new Error("Invalid bounded issue queue response");
       const candidates = rows
-        .filter((issue) => eligibleIssue(issue) && !state.tickets[String(issue.number)])
+        .filter((issue) => queueIssue(issue) && !state.tickets[String(issue.number)])
         .sort(
           (left, right) =>
             Date.parse(left.created_at) - Date.parse(right.created_at) || left.number - right.number
         );
-      if (candidates.length) return candidates[0];
+      for (const issue of candidates) {
+        if (eligibleIssue(issue)) return issue;
+        if (
+          issue.user?.login === "github-actions[bot]" &&
+          issue.user?.type === "Bot" &&
+          (await verifyMonitorIssue(this.api, issue))
+        )
+          return issue;
+      }
       if (rows.length < 100) return null;
     }
     return null;

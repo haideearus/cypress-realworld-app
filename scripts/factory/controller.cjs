@@ -4,6 +4,7 @@ const policy = require("./policy.cjs");
 const recovery = require("./recovery.cjs");
 const { GitHub, Ledger, ROOT } = require("./github.cjs");
 const { validateChanges, validateReview, secretLike } = require("./artifacts.cjs");
+const { verifyMonitorIssue } = require("./monitor-origin.cjs");
 const criteriaHash = (issue) =>
   createHash("sha256")
     .update(JSON.stringify([issue.title, issue.body || ""]))
@@ -67,14 +68,18 @@ class Controller {
     if (typeof recover !== "boolean") throw new Error("Invalid recovery operation");
     if (automatic && recover) throw new Error("Automatic admission cannot request recovery");
     const issue = await this.issue(ticket);
+    let monitor = null;
     if (
       automatic &&
-      (issue.user?.login !== policy.OWNER ||
-        !issue.labels?.some(
-          (label) => (typeof label === "string" ? label : label?.name) === "factory-ready"
-        ))
+      !issue.labels?.some(
+        (label) => (typeof label === "string" ? label : label?.name) === "factory-ready"
+      )
     )
-      throw new Error("Automatic admission needs an owner-created factory-ready issue");
+      throw new Error("Automatic admission needs a trusted factory-ready issue");
+    if (automatic && issue.user?.login !== policy.OWNER) {
+      monitor = await verifyMonitorIssue(this.api, issue);
+      if (!monitor) throw new Error("Automatic admission needs an owner or trusted monitor issue");
+    }
     const main = await this.api.request("GET", `${ROOT}/branches/main`);
     const snapshot = await this.ledger.read();
     const previous = snapshot.state.tickets[String(ticket)];
@@ -90,9 +95,14 @@ class Controller {
       if (error.status !== 404) throw error;
       if (previous?.pr) throw new Error("Published agent branch is missing");
     }
-    const saved = await this.ledger.update((state) => {
+    const saved = await this.ledger.update(async (state) => {
       const existing = state.tickets[String(ticket)];
       if (automatic && existing) throw new Error("Automatic ticket already admitted");
+      if (monitor) {
+        const current = await verifyMonitorIssue(this.api, issue, { proof: monitor });
+        if (!current || JSON.stringify(current) !== JSON.stringify(monitor))
+          throw new Error("Monitor receipt changed before automatic admission");
+      }
       if (
         automatic &&
         Object.entries(state.tickets).some(
@@ -127,6 +137,7 @@ class Controller {
           runAttempt: this.context.runAttempt,
           appSlug: this.config.appSlug,
         };
+      if (monitor) result.state.tickets[String(ticket)].monitor = monitor;
       return result;
     });
     return this.result(saved.grant);
