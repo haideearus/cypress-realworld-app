@@ -15,6 +15,10 @@ inputs:
     required: false
     default: ""
     description: Downloaded JSON artifact, validated before use
+  github_token:
+    required: false
+    default: ${{ github.token }}
+    description: Job-scoped token for trusted metadata operations
 outputs:
   ready:
     value: ${{ steps.run.outputs.ready }}
@@ -48,9 +52,14 @@ runs:
         node-version: 22.20.0
     - id: run
       shell: bash
-      run: node scripts/factory/controller.cjs
+      run: |
+        if [[ "$FACTORY_OPERATION" == auto_* ]]; then
+          node scripts/factory/automation.cjs
+        else
+          node scripts/factory/controller.cjs
+        fi
       env:
-        GH_TOKEN: ${{ github.token }}
+        GH_TOKEN: ${{ inputs.github_token }}
         FACTORY_VARIABLES: ${{ inputs.variables_json }}
         FACTORY_OPERATION: ${{ inputs.operation }}
         FACTORY_INPUTS: ${{ inputs.parameters }}

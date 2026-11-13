@@ -4,6 +4,8 @@ const recovery = require("./recovery.cjs");
 const REPOSITORY = "haideearus/cypress-realworld-app";
 const OWNER = "haideearus";
 const SHA = /^[a-f0-9]{40}$/;
+const AUTOMATIC_WORKFLOW_REF = `${REPOSITORY}/.github/workflows/factory-automatic.yml@refs/heads/main`;
+const APP_SLUG = /^[a-z0-9](?:[a-z0-9-]{0,98}[a-z0-9])?$/;
 const LIMITS = {
   FACTORY_MAX_TICKETS_PER_DAY: ["daily", 10],
   FACTORY_MAX_CODING_ATTEMPTS_PER_TICKET: ["coding", 5],
@@ -26,6 +28,26 @@ function integer(value, label, max = Number.MAX_SAFE_INTEGER) {
 function readConfig(vars) {
   const config = { enabled: vars.FACTORY_ENABLED === "true" };
   if (![undefined, "true", "false"].includes(vars.FACTORY_ENABLED)) deny("Invalid enabled setting");
+  for (const [key, name] of [
+    ["FACTORY_AUTOMATION_ENABLED", "automatic"],
+    ["FACTORY_AUTOMERGE_ENABLED", "autoMerge"],
+  ]) {
+    if (![undefined, "true", "false"].includes(vars[key])) deny(`Invalid automatic boolean ${key}`);
+    config[name] = vars[key] === "true";
+  }
+  config.appClientId = vars.FACTORY_GITHUB_APP_CLIENT_ID;
+  config.appSlug = vars.FACTORY_GITHUB_APP_SLUG;
+  if (
+    (config.appClientId !== undefined &&
+      (typeof config.appClientId !== "string" ||
+        !/^Iv(?:1\.[A-Za-z0-9]{1,96}|[A-Za-z0-9]{8,98})$/.test(config.appClientId))) ||
+    (config.appSlug !== undefined &&
+      (typeof config.appSlug !== "string" || !APP_SLUG.test(config.appSlug))) ||
+    (config.enabled &&
+      (config.automatic || config.autoMerge) &&
+      (!config.appClientId || !config.appSlug))
+  )
+    deny("Invalid or missing GitHub App identity");
   for (const [key, [name, max]] of Object.entries(LIMITS))
     config[name] = integer(vars[key], key, max);
   if (config.concurrent !== 1) deny("Invalid concurrency: must be one");
@@ -100,6 +122,59 @@ function validateState(state) {
     )
       deny("Invalid ledger ticket counters");
     const grants = Object.values(state.grants).filter((g) => g?.ticket === Number(id));
+    if (ticket.automatic !== undefined) {
+      const a = ticket.automatic;
+      const firstCode = grants.find((g) => g.phase === "code");
+      if (
+        !record(a) ||
+        Object.keys(a).sort().join(",") !== "appSlug,runAttempt,runId,workflowRef,workflowSha" ||
+        ticket.origin !== "factory" ||
+        a.workflowRef !== AUTOMATIC_WORKFLOW_REF ||
+        typeof a.workflowSha !== "string" ||
+        !SHA.test(a.workflowSha) ||
+        typeof a.runId !== "string" ||
+        !/^[1-9]\d*$/.test(a.runId) ||
+        !Number.isSafeInteger(a.runAttempt) ||
+        a.runAttempt < 1 ||
+        typeof a.appSlug !== "string" ||
+        !APP_SLUG.test(a.appSlug) ||
+        !firstCode ||
+        firstCode.runId !== a.runId ||
+        firstCode.runAttempt !== a.runAttempt
+      )
+        deny("Invalid automatic ticket provenance");
+    }
+    if (ticket.merge !== undefined) {
+      const m = ticket.merge;
+      const validTime =
+        typeof m?.at === "string" &&
+        Number.isFinite(Date.parse(m.at)) &&
+        new Date(m.at).toISOString() === m.at;
+      if (
+        !ticket.automatic ||
+        !record(m) ||
+        Object.keys(m).some(
+          (key) =>
+            !["status", "head", "pr", "at", "runId", "runAttempt", "mergeCommit"].includes(key)
+        ) ||
+        !["intent", "merged", "closed"].includes(m.status) ||
+        typeof m.head !== "string" ||
+        !SHA.test(m.head) ||
+        m.head !== ticket.head ||
+        !Number.isSafeInteger(m.pr) ||
+        m.pr < 1 ||
+        m.pr !== ticket.pr ||
+        !validTime ||
+        typeof m.runId !== "string" ||
+        !/^[1-9]\d*$/.test(m.runId) ||
+        !Number.isSafeInteger(m.runAttempt) ||
+        m.runAttempt < 1 ||
+        (m.status === "merged"
+          ? typeof m.mergeCommit !== "string" || !SHA.test(m.mergeCommit)
+          : m.mergeCommit !== undefined)
+      )
+        deny("Invalid automatic merge metadata");
+    }
     if (
       grants.filter((g) => g.phase === "code").length !== ticket.coding ||
       grants.filter((g) => g.phase === "review").length !== ticket.reviews ||
@@ -163,7 +238,8 @@ function authorize(request) {
     request.actor !== OWNER ||
     request.triggeringActor !== OWNER ||
     request.ref !== "refs/heads/main" ||
-    request.event !== "workflow_dispatch"
+    ((request.event !== "workflow_dispatch" || request.workflowRef === AUTOMATIC_WORKFLOW_REF) &&
+      !isAutomaticContext(request))
   )
     deny("Unauthorized factory invocation");
   if (
@@ -178,6 +254,30 @@ function authorize(request) {
   )
     deny("Invalid reservation request");
 }
+function isAutomaticContext(request) {
+  return Boolean(
+    request &&
+      request.repository === REPOSITORY &&
+      request.actor === OWNER &&
+      request.triggeringActor === OWNER &&
+      request.ref === "refs/heads/main" &&
+      ["schedule", "workflow_dispatch"].includes(request.event) &&
+      request.workflowRef === AUTOMATIC_WORKFLOW_REF &&
+      typeof request.workflowSha === "string" &&
+      SHA.test(request.workflowSha)
+  );
+}
+function matchesAutomaticRun(ticket, context, config) {
+  const a = ticket?.automatic;
+  return Boolean(
+    a &&
+      a.workflowRef === context.workflowRef &&
+      a.workflowSha === context.workflowSha &&
+      a.runId === context.runId &&
+      a.runAttempt === context.runAttempt &&
+      a.appSlug === config.appSlug
+  );
+}
 function audit(state, event, detail, now = new Date()) {
   state.audit.push({ at: now.toISOString(), event, ...detail });
   state.audit = state.audit.slice(-500);
@@ -186,11 +286,20 @@ function reserve(original, request, config, now = new Date()) {
   validateState(original);
   authorize(request);
   if (!config.enabled || !config.minutes || !config.turns) deny("Factory disabled");
+  const automatic = isAutomaticContext(request);
+  if (automatic && !config.automatic) deny("Automatic factory disabled");
   const recovering = request.recovery !== undefined;
   if (recovering) recovery.assertEligible(original, request, config);
   const state = structuredClone(original);
   const id = String(request.ticket);
   const existing = state.tickets[id];
+  if (
+    automatic &&
+    (request.recovery !== undefined ||
+      request.origin !== undefined ||
+      (existing && !matchesAutomaticRun(existing, request, config)))
+  )
+    deny("Invalid automatic reservation provenance");
   const ownerReview = request.phase === "review" && request.origin === "owner-pr";
   if (request.origin !== undefined && !ownerReview) deny("Invalid reservation origin");
   if (ownerReview && (!Number.isSafeInteger(request.pr) || request.pr < 1))
@@ -305,8 +414,12 @@ function preflight(state, grantId, context, config) {
   validateState(state);
   authorize(context);
   if (!config.enabled || !config.minutes || !config.turns) deny("Factory disabled");
+  const automatic = isAutomaticContext(context);
+  if (automatic && !config.automatic) deny("Automatic factory disabled");
   const grant = state.grants[grantId];
   const ticket = grant && state.tickets[String(grant.ticket)];
+  if (automatic && !matchesAutomaticRun(ticket, context, config))
+    deny("Invalid automatic reservation provenance");
   if (
     ticket &&
     (ticket.coding > config.coding + recovery.allowance(state, grant.ticket, config) ||
@@ -413,6 +526,7 @@ module.exports = {
   REPOSITORY,
   OWNER,
   SHA,
+  AUTOMATIC_WORKFLOW_REF,
   LIMITS,
   MAX_CODING_ATTEMPTS,
   readConfig,
@@ -420,6 +534,7 @@ module.exports = {
   emptyState,
   validateState,
   authorize,
+  isAutomaticContext,
   dayKey,
   reserve,
   preflight,

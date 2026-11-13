@@ -99,11 +99,18 @@ test("third-party actions are immutable and model workflows contain no paid or p
     "factory-review-status.yml",
   ]) {
     const flow = load(name);
-    for (const job of Object.values(flow.jobs))
+    for (const [jobName, job] of Object.entries(flow.jobs))
       for (const step of job.steps || []) {
         if (step.uses && !step.uses.startsWith("./")) assert.match(step.uses, /@[a-f0-9]{40}$/);
-        for (const secret of JSON.stringify(step).matchAll(/secrets\.([A-Z_]+)/g))
-          assert.equal(secret[1], "CLAUDE_CODE_OAUTH_TOKEN");
+        for (const secret of JSON.stringify(step).matchAll(/secrets\.([A-Z_]+)/g)) {
+          if (
+            name === "factory-cycle.yml" &&
+            jobName === "publish" &&
+            step.uses === "./.github/actions/factory-app-token"
+          )
+            assert.equal(secret[1], "FACTORY_GITHUB_APP_PRIVATE_KEY");
+          else assert.equal(secret[1], "CLAUDE_CODE_OAUTH_TOKEN");
+        }
       }
   }
 });

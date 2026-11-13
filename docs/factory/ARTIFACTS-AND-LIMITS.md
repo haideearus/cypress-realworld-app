@@ -1,5 +1,10 @@
 # Unit outputs and larger bounded budgets
 
+Historical rollout note: these ceilings are now merged and saved. Issue #11's
+fourth coding attempt succeeded, and its strengthened repair merged as PR #25.
+The next-run instructions below document that earlier rollout; do not redispatch
+the completed ticket. For new unattended work, see [Automatic pickup](AUTOMATIC-PICKUP.md).
+
 Implements [#21](https://github.com/haideearus/cypress-realworld-app/issues/21).
 
 ## Collection failure
