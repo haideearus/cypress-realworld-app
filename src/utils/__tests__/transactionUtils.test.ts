@@ -6,6 +6,8 @@ import {
   getQueryWithoutDateFields,
   getQueryWithoutAmountFields,
   getQueryWithoutFilterFields,
+  getPublicTransactionsFeed,
+  getPaginatedItems,
 } from "../transactionUtils";
 import { faker } from "@faker-js/faker";
 import {
@@ -148,5 +150,75 @@ describe("Transaction Utils", () => {
         status: TransactionStatus.incomplete,
       })
     ).toMatchObject({ status: "incomplete" });
+  });
+
+  describe("public transaction feed pagination (GET /transactions/public)", () => {
+    const makeIds = (prefix: string, count: number) =>
+      Array.from({ length: count }, (_, i) => `${prefix}${i + 1}`);
+
+    const paginateFeed = (
+      contactsTransactions: string[],
+      publicTransactions: string[],
+      page: number,
+      limit: number
+    ) =>
+      getPaginatedItems(
+        page,
+        limit,
+        getPublicTransactionsFeed(contactsTransactions, publicTransactions)
+      );
+
+    test("paginates the same ordered feed on every page, returning each of the 25 eligible records exactly once", () => {
+      const contactsTransactions = makeIds("C", 5);
+      const publicTransactions = makeIds("P", 20);
+      const limit = 10;
+
+      const page1 = paginateFeed(contactsTransactions, publicTransactions, 1, limit);
+      const page2 = paginateFeed(contactsTransactions, publicTransactions, 2, limit);
+      const page3 = paginateFeed(contactsTransactions, publicTransactions, 3, limit);
+
+      expect(page1.data).toEqual([...makeIds("C", 5), ...makeIds("P", 5)]);
+      expect(page2.data).toEqual(
+        Array.from({ length: 10 }, (_, i) => `P${i + 6}`) // P6-P15
+      );
+      expect(page3.data).toEqual(
+        Array.from({ length: 5 }, (_, i) => `P${i + 16}`) // P16-P20
+      );
+
+      expect(page1.totalPages).toBe(3);
+      expect(page2.totalPages).toBe(3);
+      expect(page3.totalPages).toBe(3);
+
+      const allReturned = [...page1.data, ...page2.data, ...page3.data];
+      expect(allReturned).toHaveLength(25);
+      expect(new Set(allReturned).size).toBe(25);
+    });
+
+    test("caps contacts' transactions at five regardless of how many a user has", () => {
+      const contactsTransactions = makeIds("C", 7);
+      const publicTransactions = makeIds("P", 3);
+
+      const feed = getPublicTransactionsFeed(contactsTransactions, publicTransactions);
+
+      expect(feed).toEqual([...makeIds("C", 5), ...makeIds("P", 3)]);
+    });
+
+    test("includes all contacts' transactions when there are fewer than five", () => {
+      const contactsTransactions = makeIds("C", 2);
+      const publicTransactions = makeIds("P", 3);
+
+      const feed = getPublicTransactionsFeed(contactsTransactions, publicTransactions);
+
+      expect(feed).toEqual([...makeIds("C", 2), ...makeIds("P", 3)]);
+    });
+
+    test("falls back to public transactions only when there are zero contacts' transactions", () => {
+      const contactsTransactions: string[] = [];
+      const publicTransactions = makeIds("P", 3);
+
+      const feed = getPublicTransactionsFeed(contactsTransactions, publicTransactions);
+
+      expect(feed).toEqual(makeIds("P", 3));
+    });
   });
 });
