@@ -213,7 +213,11 @@
       "approval": null,
       "criteriaHash": "d542f3ea1d881689255cd6d4eb182555cecb1ceab5e682d6d82f1f910b5ce741",
       "branch": "agent/11-public-feed-route-regression",
-      "ci": null
+      "ci": {
+        "requestId": "fd337235-3f72-41c3-ad2e-a6b343c4ad78",
+        "head": "1c8f79852e5633cf6720dc4c5aa31a7a3e32e78a",
+        "runId": null
+      }
     }
   },
   "grants": {
