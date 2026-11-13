@@ -355,7 +355,11 @@
       "approval": null,
       "criteriaHash": "b1766a7fa9d8c72664a0903561a84571d453cb7136b125c8f23ba680bd6cd4f5",
       "branch": "agent/monitoring-and-daily-budget",
-      "ci": null
+      "ci": {
+        "requestId": "3907df03-02d1-4f0d-8b98-13e3d1ce655e",
+        "head": "b3def7f07b3a6cd52e01938c81a6dc4ff0dfbc88",
+        "runId": null
+      }
     }
   },
   "grants": {
