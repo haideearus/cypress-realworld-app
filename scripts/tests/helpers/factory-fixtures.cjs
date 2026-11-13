@@ -129,7 +129,11 @@ class FactoryFixture extends GitHubFixture {
       if (method === "GET" && path.startsWith("/issues/"))
         return respond(200, this.issues.get(Number(path.split("/")[2])) || { state: "closed" });
       if (method === "GET" && path === "/branches/main")
-        return respond(200, { name: "main", commit: { sha: head }, protected: true });
+        return respond(200, {
+          name: "main",
+          commit: { sha: this.branchHeads.get("main") },
+          protected: true,
+        });
       if (method === "GET" && path.startsWith("/git/commits/"))
         return respond(
           200,

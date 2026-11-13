@@ -5,6 +5,30 @@ const policy = require("./policy.cjs");
 const { GitHub, Ledger, ROOT } = require("./github.cjs");
 const { criteriaHash, runtimeContext, readJson, output } = require("./controller.cjs");
 const { validateChanges, validateReview, REVIEW_SCHEMA, secretLike } = require("./artifacts.cjs");
+const CODE_COMMANDS = Object.freeze([
+  "yarn types",
+  "yarn lint",
+  "yarn test:unit:ci",
+  "yarn build:production",
+  "yarn test:production",
+]);
+function capabilitiesFor(phase) {
+  return {
+    fileTools:
+      phase === "review" ? ["Read", "Glob", "Grep"] : ["Read", "Glob", "Grep", "Edit", "Write"],
+    shellCommands: phase === "review" ? [] : [...CODE_COMMANDS],
+    paths: "Use repository-relative paths inside the current checkout.",
+    ...(phase === "code"
+      ? {
+          regressionTargets: {
+            unit: "src/__tests__/",
+            production: "scripts/tests/production-integration.test.cjs",
+            cypress: "cypress/tests/ (executed by trusted CI)",
+          },
+        }
+      : {}),
+  };
+}
 function git(cwd, args) {
   return execFileSync("git", ["-c", "core.fsmonitor=false", ...args], {
     cwd,
@@ -18,7 +42,8 @@ function buildArgs(config, phase) {
   const allowed =
     phase === "review"
       ? "Read,Glob,Grep"
-      : "Read,Glob,Grep,Edit,Write,Bash(yarn types),Bash(yarn lint),Bash(yarn test:unit:ci),Bash(yarn build:production),Bash(yarn test:production)";
+      : "Read,Glob,Grep,Edit,Write," +
+        CODE_COMMANDS.map((command) => "Bash(" + command + ")").join(",");
   const denied =
     phase === "review"
       ? "Agent,Task,TaskOutput,TaskStop,Bash,PowerShell,Edit,Write,NotebookEdit,mcp__*,WebFetch,WebSearch"
@@ -48,6 +73,12 @@ function promptFor(phase, head) {
     common +
     "Implement a minimal application repair. For a bug, first add a regression test, run it against the broken behavior, " +
     "record failure, implement the fix, and rerun it. Run relevant existing checks. Use only the available local tools. " +
+    "The context capabilities list the existing preapproved commands and regression test locations. " +
+    "Inspect files with Read, Glob and Grep using repository-relative paths; do not use shell commands for inspection or git. " +
+    "Run each listed yarn command as a separate bare Bash call: no cd, wrappers, extra flags, pipes, redirections, substitutions or chaining. " +
+    "For local API regression evidence, the approved yarn test:production command runs scripts/tests/production-integration.test.cjs; build production first. " +
+    "Use yarn test:unit:ci for unit regressions. Trusted CI runs Cypress; do not start servers or invoke additional commands. " +
+    "If a file-tool path is denied, correct it to a repository-relative path. If an approved action remains denied, record the blocker and stop; do not repeat it or seek a permission workaround. " +
     "Do not alter workflows, instructions, dependencies, factory tests, infrastructure, or secrets. " +
     "Do not commit or push. Save factual commands and RED/GREEN results to .factory-output/evidence.md. " +
     "If tools or limits prevent verification, report that honestly in the evidence and stop."
@@ -67,6 +98,7 @@ async function prepare(api, config, context, { grantId, cwd, environment = proce
     head: grant.head,
     ticket: { number: grant.ticket, title: issue.title, body: issue.body || "" },
     feedback: ticket.feedback || "",
+    capabilities: capabilitiesFor(grant.phase),
   };
   if (grant.phase === "review") {
     if (

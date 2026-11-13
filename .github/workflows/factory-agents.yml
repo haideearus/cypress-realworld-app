@@ -3,13 +3,13 @@ on:
   workflow_dispatch:
     inputs:
       operation:
-        description: Initialize, code a ticket, review an owner PR, or cancel work
+        description: Initialize, code, recover issue 11 once, review an owner PR, or cancel
         required: true
         default: run
         type: choice
-        options: [initialize, run, review, cancel]
+        options: [initialize, run, recover, review, cancel]
       ticket:
-        description: Open issue number for run; ignored for initialize/cancel
+        description: Open issue for run; issue 11 only for recover; ignored for initialize/cancel
         required: false
         default: ""
         type: string
@@ -59,7 +59,7 @@ jobs:
           operation: cancel
           variables_json: ${{ toJSON(vars) }}
   admit:
-    if: ${{ inputs.operation == 'run' }}
+    if: ${{ inputs.operation == 'run' || inputs.operation == 'recover' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:

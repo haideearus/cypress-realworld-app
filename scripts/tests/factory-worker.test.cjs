@@ -61,6 +61,20 @@ test("prepared worker is fresh, restricted and bound to a committed reservation"
   assert.equal(input.head, app.head);
   assert.equal(input.ticket.number, 10);
   assert.equal(input.token, undefined);
+  assert.deepEqual(input.capabilities.fileTools, ["Read", "Glob", "Grep", "Edit", "Write"]);
+  assert.deepEqual(input.capabilities.shellCommands, [
+    "yarn types",
+    "yarn lint",
+    "yarn test:unit:ci",
+    "yarn build:production",
+    "yarn test:production",
+  ]);
+  for (const command of input.capabilities.shellCommands)
+    assert.ok(prepared.claudeArgs.includes("Bash(" + command + ")"));
+  assert.equal(
+    input.capabilities.regressionTargets.production,
+    "scripts/tests/production-integration.test.cjs"
+  );
   fs.writeFileSync(path.join(app.cwd, "src/a.ts"), "export const fixed = true;\n");
   fs.writeFileSync(
     path.join(app.cwd, ".factory-output/evidence.md"),
@@ -109,6 +123,47 @@ test("both roles receive a validated hundred-turn ceiling without gaining tools"
   assert.ok(review.includes('--tools "Read,Glob,Grep"'));
   assert.ok(review.includes('--allowedTools "Read,Glob,Grep"'));
   assert.ok(review.includes("TaskStop,Bash,PowerShell,Edit,Write,NotebookEdit,mcp__*"));
+});
+
+test("the real worker prepares a current-main recovery grant with unchanged command scope", async (t) => {
+  const { exhaustedState, issue } = require("./helpers/factory-recovery-fixtures.cjs");
+  const app = repo(t),
+    fixture = new FactoryFixture();
+  fixture.issues.set(11, structuredClone(issue));
+  fixture.branchHeads.set("main", app.head);
+  const api = new GitHub({ token: "fixture-only", fetch: fixture.fetch }),
+    ledger = new Ledger(api);
+  await ledger.initialize();
+  await ledger.update(() => ({ state: exhaustedState() }));
+  const config = policy.readConfig({
+    ...vars,
+    FACTORY_MAX_TURNS_PER_RUN: "100",
+    FACTORY_MAX_TICKETS_PER_DAY: "5",
+  });
+  const ctx = { ...context, runId: "900" };
+  const controller = new Controller(api, config, ctx);
+  const grant = await controller.admit(11, { recover: true });
+  assert.equal(grant.head, app.head, "fixture main must match the real checkout");
+  const prepared = await worker.prepare(
+    api,
+    config,
+    { ...ctx, ticket: 11, phase: "code", slot: "cycle1", head: app.head },
+    { grantId: grant.grantId, cwd: app.cwd, environment: {} }
+  );
+  assert.match(prepared.claudeArgs, /(?:^| )--max-turns 100(?: |$)/);
+  const input = JSON.parse(
+    fs.readFileSync(path.join(app.cwd, ".factory-input/context.json"), "utf8")
+  );
+  assert.equal(input.head, app.head);
+  assert.equal(input.ticket.number, 11);
+  assert.deepEqual(input.capabilities.shellCommands, [
+    "yarn types",
+    "yarn lint",
+    "yarn test:unit:ci",
+    "yarn build:production",
+    "yarn test:production",
+  ]);
+  assert.equal((await ledger.read()).state.tickets["11"].coding, 3);
 });
 
 test("review invocation exposes only read tools and requires exact-head structured output", () => {
@@ -161,6 +216,8 @@ test("existing owner PR worker requires successful CI before preparing its reado
   );
   assert.equal(input.head, app.head);
   assert.match(input.ci, /\/actions\/runs\/501$/);
+  assert.deepEqual(input.capabilities.fileTools, ["Read", "Glob", "Grep"]);
+  assert.deepEqual(input.capabilities.shellCommands, []);
   fixture.prHeadOverride = "e".repeat(40);
   await assert.rejects(worker.prepare(api, config, ctx, options), /head/i);
 });

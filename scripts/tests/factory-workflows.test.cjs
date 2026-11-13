@@ -13,10 +13,13 @@ test("entry point admits only explicit manual operations and uses standard runne
   assert.deepEqual(flow.on.workflow_dispatch.inputs.operation.options, [
     "initialize",
     "run",
+    "recover",
     "review",
     "cancel",
   ]);
   assert.equal(flow.permissions.contents, "read");
+  assert.ok(flow.jobs.admit.if.includes("inputs.operation == 'recover'"));
+  assert.equal(flow.jobs.admit.steps.at(-1).with.operation, "admit");
   for (const job of Object.values(flow.jobs))
     if (job["runs-on"]) assert.equal(job["runs-on"], "ubuntu-latest");
 });

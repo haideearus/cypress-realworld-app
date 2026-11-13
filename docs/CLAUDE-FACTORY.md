@@ -58,7 +58,7 @@ already unattended ticket-to-production factory.
 | FACTORY_MAX_CONCURRENT_TICKETS         | 1                                           |
 | FACTORY_TIMEZONE                       | Europe/Bucharest                            |
 | FACTORY_RUN_TIMEOUT_MINUTES            | 15                                          |
-| FACTORY_MAX_TURNS_PER_RUN              | 100 after the reviewed policy change merges |
+| FACTORY_MAX_TURNS_PER_RUN              | 100                                         |
 | FACTORY_APP_URL                        | https://haide-software-factory.onrender.com |
 
 The daily counter records distinct tickets when first admitted, using Bucharest
@@ -86,21 +86,17 @@ harness change and an owner budget decision.
 
 Merged PR #15 established **50 turns per session** and **five new tickets per
 Bucharest calendar day**. The owner subsequently requested **100 turns per
-coding or review session** in ticket #16. Lower values, including 20 and 50,
+coding or review session** in ticket #16, implemented by merged PR #17.
+Lower values, including 20 and 50,
 remain valid; values above 100 turns or five daily tickets are rejected.
 The 15-minute model-job timeout remains in place, so a session can stop before
 using 100 turns. Higher limits can consume more of the shared Claude Pro
 allowance; this is not a token or dollar budget.
 
-To roll out the 100-turn ceiling from main's current 50-turn policy:
-
-1. Keep `FACTORY_ENABLED=false`, `FACTORY_MAX_TURNS_PER_RUN=50` and
-   `FACTORY_MAX_TICKETS_PER_DAY=5` while preparing the policy PR. Current main
-   rejects a variable of 100.
-2. Obtain a separately authorized independent review using trusted `main`
-   and the 50-turn setting; restore the factory flag to false afterward.
-3. After the reviewed policy change merges, set `FACTORY_MAX_TURNS_PER_RUN=100`.
-   Leave the daily setting at five and the factory disabled.
+The current installation uses `FACTORY_MAX_TURNS_PER_RUN=100` and
+`FACTORY_MAX_TICKETS_PER_DAY=5`. Keep `FACTORY_ENABLED=false` during recovery
+preparation. The recovery change requires no additional limit variables or
+changes to the existing settings.
 
 This ceiling change does not authorize another execution, widen tool
 permissions, or reset existing attempt and review counters.
@@ -118,6 +114,56 @@ calendar days. Do not rerun it, reinitialize the ledger, reset its counters or
 use a replacement admission to bypass that budget. Any further execution needs
 a separately reviewed recovery decision; the recurring permission denials
 also need investigation. Keep the factory off during this preparation.
+
+### One owner-controlled recovery of issue #11
+
+The recovery in maintenance issue #18 is an explicit, single-use exception for
+the exact recorded history. The proposed `recover` operation becomes available
+only after its PR is independently reviewed and merged. Ordinary `run` remains
+exhausted for this ticket.
+
+- Eligibility is pinned to issue #11's criterion hash and the two specific
+  finished blocked grants. Changed criteria, another ticket, a PR already
+  published, active work or changed failed-grant history refuses recovery.
+- Admission records the third coding attempt plus a separate `recovery`
+  object containing the decision and consumed grant ID. Both failed grants,
+  the first daily admission and the existing normal retry count of one remain.
+- This one extra attempt is consumed at reservation, even after failure,
+  cancellation, a skipped job or unavailable subscription. A fourth code
+  attempt and repeat recovery are refused; cancellation cannot refund it.
+- The new attempt starts from current main and uses the existing publisher,
+  exact-head CI and independent reviewer. No tool permission or general
+  coding/retry quota increases.
+
+After genuine review and human merge, the owner may run one controlled workflow:
+
+1. Keep turns at `100`, daily tickets at `5`, and other settings unchanged.
+2. Enable the factory, then choose **Actions → Factory agents → Run workflow**.
+3. Select branch `main`, operation `recover`, ticket `11`, and leave PR empty.
+4. Start once and restore `FACTORY_ENABLED=false` after the whole workflow
+   finishes, including failure or cancellation. Preserve the ledger.
+
+Older workflow revisions cannot read the new recovered three-attempt state.
+Use newly merged main and new dispatches; old revisions fail closed.
+
+### Command guidance without permission expansion
+
+The trusted worker prompt/context now names its existing preapproved commands:
+`yarn types`, `yarn lint`, `yarn test:unit:ci`,
+`yarn build:production`, and `yarn test:production`.
+The prompt directs the coding role to inspect files with repository-relative
+Read/Glob/Grep calls, execute one bare approved command per call, and stop with
+honest evidence if an approved action remains blocked. It points API regression
+work at `scripts/tests/production-integration.test.cjs`, which is exercised by
+the approved production test command after a production build.
+
+The read-only reviewer still receives Read/Glob/Grep and no shell commands.
+Native tool lists, preapproval/deny rules, restricted/safe mode and noninteractive
+permissions are unchanged. Claude's [permission documentation](https://code.claude.com/docs/en/permissions)
+explains that noninteractive mode denies calls that need approval and that
+compound commands have their own matching rules. This guidance closes a known
+instruction gap; it cannot establish which raw calls were denied historically
+or guarantee future model compliance without a separately authorized run.
 
 ## Owner installation steps, one at a time
 
