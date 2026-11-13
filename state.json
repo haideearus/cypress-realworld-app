@@ -14,7 +14,8 @@
       21,
       24,
       26,
-      28
+      28,
+      29
     ]
   },
   "tickets": {
@@ -268,6 +269,24 @@
         "passed": true
       },
       "feedback": "{\"head\":\"91407deb97d7432c5c786d55ba6a555a46106745\",\"verdict\":\"pass\",\"summary\":\"This ticket is a follow-up review of PR #27's automatic pickup/merge implementation after a prior independent review (feedback on head d38633d) requested one fix: AutomaticMerger.merge() threw (\\\"No genuine independent review covers this PR commit\\\") and failed the `merge` job with a red X whenever it ran against a just-admitted ticket that had not yet reached status \\\"reviewed\\\" in the same run (the common case). The new commit (91407de, \\\"Skip automatic merge cleanly until a ticket is reviewed\\\") addresses this directly in scripts/factory/merge.cjs: merge() now reads the candidate ticket after authorize()+automaticTicket() provenance checks and, if status !== \\\"reviewed\\\" && merge === undefined, returns a clean {merged:false, reason:...} without touching the ledger or calling any GitHub API, instead of falling through to stateTicket()'s reviewGate() throw. I verified: (1) the quick-return runs after automaticTicket() provenance validation, so absent/foreign automatic provenance is still rejected even for unreviewed tickets (scripts/tests/factory-merge.test.cjs \\\"the unreviewed no-op still refuses absent or foreign automatic provenance\\\"); (2) the fix does not create a way to silently swallow an inconsistent/dangerous state — if a ticket somehow has merge already defined while status isn't \\\"reviewed\\\" (e.g. an in-flight intent), the no-op condition correctly does not trigger and the original throwing path is preserved, with an explicit regression test (\\\"an unreviewed ticket with merge intent is refused instead of hiding an uncertain merge\\\"); (3) new parametrized tests cover coding/blocked(with & without PR)/retry/awaiting_review/reviewing statuses, confirming no ledger mutation and no outbound PR/Actions API calls occur; (4) automation.cjs's main() will now complete and exit 0 for this common case since merge() no longer throws, closing the misleading-CI-failure gap described in the feedback. I also re-examined the surrounding authorization/credential-isolation code (policy.cjs authorize/isAutomaticContext/reviewGate/validateState, controller.cjs admit/assess/gate, the factory-app-token action's pinned create-github-app-token SHA, repo-scoped least-privilege permissions, slug validation, and token revocation, and factory-automatic.yml's job conditions) and found it consistent with the ticket's criteria and with the prior reviewer's favorable findings there. No new critical or important issues were found; the single previously identified gap is correctly and narrowly fixed with matching regression coverage.\",\"findings\":[]}"
+    },
+    "29": {
+      "coding": 1,
+      "origin": "factory",
+      "reviews": 0,
+      "retries": 0,
+      "head": "421553c2c108dc2704ef6cec7864582b8c63ead6",
+      "status": "coding",
+      "pr": null,
+      "approval": null,
+      "criteriaHash": "3cdfd3261477d392d7e867a4ce753455356255e0bfb8b7181fc392a001dac2b3",
+      "automatic": {
+        "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-automatic.yml@refs/heads/main",
+        "workflowSha": "421553c2c108dc2704ef6cec7864582b8c63ead6",
+        "runId": "43481055400",
+        "runAttempt": 1,
+        "appSlug": "haideearus-software-factory"
+      }
     }
   },
   "grants": {
@@ -463,9 +482,24 @@
       "status": "finished",
       "at": "2026-11-13T15:37:40.110Z",
       "outcome": "reviewed"
+    },
+    "3b8fd895-a173-45a9-9e2a-1f97a08b4667": {
+      "id": "3b8fd895-a173-45a9-9e2a-1f97a08b4667",
+      "ticket": 29,
+      "phase": "code",
+      "slot": "cycle1",
+      "runId": "43481055400",
+      "runAttempt": 1,
+      "head": "421553c2c108dc2704ef6cec7864582b8c63ead6",
+      "status": "reserved",
+      "at": "2026-11-13T18:17:05.143Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 29,
+    "runId": "43481055400",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -740,6 +774,15 @@
       "grant": "5b02e932-483b-4f4a-b0a2-ceecbf987216",
       "status": "reviewed",
       "head": "91407deb97d7432c5c786d55ba6a555a46106745"
+    },
+    {
+      "at": "2026-11-13T18:17:05.143Z",
+      "event": "reserved",
+      "ticket": 29,
+      "grant": "3b8fd895-a173-45a9-9e2a-1f97a08b4667",
+      "phase": "code",
+      "runId": "43481055400",
+      "runAttempt": 1
     }
   ]
 }
