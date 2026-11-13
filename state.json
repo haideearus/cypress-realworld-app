@@ -89,7 +89,11 @@
       "approval": null,
       "criteriaHash": "f2a8a4f83de1cf68bd479ce4e0b216c3528c9843a887e1aa146a9513edd4d956",
       "branch": "agent/16-turn-limit-100",
-      "ci": null
+      "ci": {
+        "requestId": "a12b039b-fc45-406e-b7cd-605d9fbd8c49",
+        "head": "007e082825c56770966fd06ad1d16faeed9e2ebb",
+        "runId": null
+      }
     }
   },
   "grants": {
