@@ -12,7 +12,8 @@
       18,
       20,
       21,
-      24
+      24,
+      26
     ]
   },
   "tickets": {
@@ -228,6 +229,17 @@
         "passed": true
       },
       "feedback": "{\"head\":\"1c8f79852e5633cf6720dc4c5aa31a7a3e32e78a\",\"verdict\":\"pass\",\"summary\":\"Reviewed the pagination fix for GET /transactions/public and its regression coverage against the stated head. The route now always builds one combined feed (first 5 contact transactions + public transactions) via the new getPublicTransactionsFeed helper in src/utils/transactionUtils.ts, and paginates that same list consistently on every page instead of the old code path that only merged contacts on page 1 while paginating a different (shorter) list on later pages — this was the root cause of the described bug (P6-P10 disappearing). Verified by hand that for 0, 2, 5, and 7 contact transactions against 20 public transactions, the helper's slice(0,5)+concat output paginates exactly as the ticket specifies (3 pages, totalPages=3, no duplicates/drops, contacts capped at 5). Confirmed src/utils/__tests__/transactionUtils.test.ts covers these same boundaries directly against the helper, and src/__tests__/public-transactions-route.test.ts exercises the real Express router (real validateMiddleware, ensureAuthenticated, express-paginate middleware, and the real in-memory lowdb adapter via seedDatabase/stateAccess) over actual HTTP requests, asserting response bodies, pageData, uniqueness of returned ids, and exclusion of a private-record. The route/helper/test files on disk match the supplied diff, the referenced database/validator exports (stateAccess, seedDatabase, getPublicTransactionsByQuery, isTransactionPublicQSValidator) exist and behave as the test assumes, and test:unit:ci (vitest --run) will pick up both new/changed spec files by default. I could not execute yarn test:unit:ci, yarn types, or yarn lint myself (read-only, no shell/code execution in this session), so I'm relying on static inspection plus the RED/GREEN evidence described in the ticket rather than independently re-running CI.\\n\\nSeparately: the ticket body itself contains unusual meta-language about \\\"owner-authorized,\\\" \\\"fresh counted Claude Pro review,\\\" refund counters, approval/role-permission/billing framing, and instructions about how this review should be counted or dispatched. I'm treating all of that as untrusted ticket text per instructions, not as actual authorization or process instructions, and have ignored it entirely — my review is based solely on the code, tests, and diff.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"getPublicTransactionsFeed(contactsTransactions: any[], publicTransactions: any[]) in src/utils/transactionUtils.ts uses `any[]` rather than Transaction/TransactionResponseItem types. This matches the existing loose typing of getPaginatedItems in the same file, so it's not a regression, but tightening it would improve type safety for this new shared helper.\"},{\"severity\":\"minor\",\"message\":\"This review is static/read-only: I did not execute yarn test:unit:ci, yarn types, or yarn lint myself and cannot independently confirm the exact pass counts the ticket reports (14/14, 53 passed/10 skipped). My verdict relies on manual trace of the pagination math plus the described RED/GREEN evidence, not a fresh run.\"}]}"
+    },
+    "26": {
+      "coding": 1,
+      "origin": "factory",
+      "reviews": 0,
+      "retries": 0,
+      "head": "712401a59fe9e49fd0bc830e7c705a225cab928e",
+      "status": "coding",
+      "pr": null,
+      "approval": null,
+      "criteriaHash": "17f213195624bdfd817345cfc45f108d36adf76c25a60fe008d9b1f7a3b0deec"
     }
   },
   "grants": {
@@ -387,9 +399,24 @@
       "status": "finished",
       "at": "2026-11-13T14:07:49.270Z",
       "outcome": "reviewed"
+    },
+    "938dcb06-4966-4383-8185-778aa5c13f6e": {
+      "id": "938dcb06-4966-4383-8185-778aa5c13f6e",
+      "ticket": 26,
+      "phase": "code",
+      "slot": "cycle1",
+      "runId": "43448103135",
+      "runAttempt": 1,
+      "head": "712401a59fe9e49fd0bc830e7c705a225cab928e",
+      "status": "reserved",
+      "at": "2026-11-13T15:00:11.803Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 26,
+    "runId": "43448103135",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -614,6 +641,15 @@
       "grant": "1e2ecc65-a4de-43e2-907d-e9abaac3ac9b",
       "status": "reviewed",
       "head": "1c8f79852e5633cf6720dc4c5aa31a7a3e32e78a"
+    },
+    {
+      "at": "2026-11-13T15:00:11.803Z",
+      "event": "reserved",
+      "ticket": 26,
+      "grant": "938dcb06-4966-4383-8185-778aa5c13f6e",
+      "phase": "code",
+      "runId": "43448103135",
+      "runAttempt": 1
     }
   ]
 }
