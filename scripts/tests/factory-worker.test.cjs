@@ -90,6 +90,27 @@ test("worker cannot prepare from a stale run attempt or a different local commit
     /reservation/
   );
 });
+test("both roles receive a validated fifty-turn ceiling without gaining tools", () => {
+  const config = policy.readConfig({ ...vars, FACTORY_MAX_TURNS_PER_RUN: "50" });
+  const code = worker.buildArgs(config, "code");
+  const review = worker.buildArgs(config, "review");
+  for (const args of [code, review]) {
+    assert.match(args, /(?:^| )--max-turns 50(?: |$)/);
+    assert.ok(args.includes("--permission-mode dontAsk"));
+    assert.ok(args.includes("--safe-mode"));
+    assert.ok(args.includes("--strict-mcp-config"));
+  }
+  assert.ok(code.includes('--tools "Read,Glob,Grep,Edit,Write,Bash"'));
+  assert.ok(
+    code.includes(
+      '--allowedTools "Read,Glob,Grep,Edit,Write,Bash(yarn types),Bash(yarn lint),Bash(yarn test:unit:ci),Bash(yarn build:production),Bash(yarn test:production)"'
+    )
+  );
+  assert.ok(review.includes('--tools "Read,Glob,Grep"'));
+  assert.ok(review.includes('--allowedTools "Read,Glob,Grep"'));
+  assert.ok(review.includes("TaskStop,Bash,PowerShell,Edit,Write,NotebookEdit,mcp__*"));
+});
+
 test("review invocation exposes only read tools and requires exact-head structured output", () => {
   const args = worker.buildArgs(policy.readConfig(vars), "review");
   assert.ok(args.includes('--tools "Read,Glob,Grep"'));

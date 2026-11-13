@@ -4,13 +4,13 @@ const REPOSITORY = "haideearus/cypress-realworld-app";
 const OWNER = "haideearus";
 const SHA = /^[a-f0-9]{40}$/;
 const LIMITS = {
-  FACTORY_MAX_TICKETS_PER_DAY: ["daily", 2],
+  FACTORY_MAX_TICKETS_PER_DAY: ["daily", 5],
   FACTORY_MAX_CODING_ATTEMPTS_PER_TICKET: ["coding", 2],
   FACTORY_MAX_REVIEWS_PER_TICKET: ["reviews", 2],
   FACTORY_MAX_AUTOMATIC_RETRIES: ["retries", 1],
   FACTORY_MAX_CONCURRENT_TICKETS: ["concurrent", 1],
   FACTORY_RUN_TIMEOUT_MINUTES: ["minutes", 15],
-  FACTORY_MAX_TURNS_PER_RUN: ["turns", 20],
+  FACTORY_MAX_TURNS_PER_RUN: ["turns", 50],
 };
 function deny(reason) {
   throw new Error(reason);

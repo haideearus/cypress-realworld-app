@@ -257,7 +257,12 @@ test("failed CI and stale PRs cannot produce owner review approval or an automat
 test("configuration smoke operation needs no token, ledger, owner event or network", async () => {
   const result = await implementation.main({
     FACTORY_OPERATION: "validate",
-    FACTORY_VARIABLES: JSON.stringify({ ...vars, FACTORY_ENABLED: "false" }),
+    FACTORY_VARIABLES: JSON.stringify({
+      ...vars,
+      FACTORY_ENABLED: "false",
+      FACTORY_MAX_TURNS_PER_RUN: "50",
+      FACTORY_MAX_TICKETS_PER_DAY: "5",
+    }),
   });
   assert.equal(result.validated, true);
   assert.equal(result.enabled, false);
@@ -267,7 +272,7 @@ test("configuration smoke operation preserves strict limits and subscription-onl
   await assert.rejects(
     implementation.main({
       FACTORY_OPERATION: "validate",
-      FACTORY_VARIABLES: JSON.stringify({ ...vars, FACTORY_MAX_TICKETS_PER_DAY: "3" }),
+      FACTORY_VARIABLES: JSON.stringify({ ...vars, FACTORY_MAX_TICKETS_PER_DAY: "6" }),
     }),
     /approved limit/i
   );
