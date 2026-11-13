@@ -56,8 +56,8 @@ test("invalid, missing and increased limits fail closed", () => {
   assert.throws(() => policy.readConfig({ ...vars, FACTORY_TIMEZONE: "UTC" }));
   assert.throws(() => policy.readConfig({ ...vars, FACTORY_MAX_CONCURRENT_TICKETS: "2" }));
 });
-test("turn budgets up to fifty remain usable and preserve other approved caps", () => {
-  for (const value of ["1", "20", "50"]) {
+test("turn budgets up to one hundred remain usable and preserve other approved caps", () => {
+  for (const value of ["1", "20", "50", "100"]) {
     const { config, state } = setup({ FACTORY_MAX_TURNS_PER_RUN: value });
     assert.equal(config.turns, Number(value));
     assert.equal(config.minutes, 15);
@@ -71,16 +71,16 @@ test("turn budgets up to fifty remain usable and preserve other approved caps", 
     assert.equal(saved.state.tickets["10"].reviews, 0);
   }
 });
-test("turn budgets above fifty or malformed budgets refuse configuration", () => {
-  for (const value of ["51", "999", "-1", "1.5", "50x", "", undefined])
+test("turn budgets above one hundred or malformed budgets refuse configuration", () => {
+  for (const value of ["101", "999", "-1", "1.5", "100x", "", undefined])
     assert.throws(
       () => policy.readConfig({ ...vars, FACTORY_MAX_TURNS_PER_RUN: value }),
       /Invalid FACTORY_MAX_TURNS_PER_RUN/
     );
 });
-test("fifty-turn policy still refuses disabled work and a zero turn budget", () => {
+test("hundred-turn policy still refuses disabled work and a zero turn budget", () => {
   for (const overrides of [
-    { FACTORY_MAX_TURNS_PER_RUN: "50", FACTORY_ENABLED: "false" },
+    { FACTORY_MAX_TURNS_PER_RUN: "100", FACTORY_ENABLED: "false" },
     { FACTORY_MAX_TURNS_PER_RUN: "0" },
   ]) {
     const { config, state } = setup(overrides);

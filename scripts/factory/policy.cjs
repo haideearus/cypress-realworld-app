@@ -10,7 +10,7 @@ const LIMITS = {
   FACTORY_MAX_AUTOMATIC_RETRIES: ["retries", 1],
   FACTORY_MAX_CONCURRENT_TICKETS: ["concurrent", 1],
   FACTORY_RUN_TIMEOUT_MINUTES: ["minutes", 15],
-  FACTORY_MAX_TURNS_PER_RUN: ["turns", 50],
+  FACTORY_MAX_TURNS_PER_RUN: ["turns", 100],
 };
 function deny(reason) {
   throw new Error(reason);

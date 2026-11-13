@@ -260,7 +260,7 @@ test("configuration smoke operation needs no token, ledger, owner event or netwo
     FACTORY_VARIABLES: JSON.stringify({
       ...vars,
       FACTORY_ENABLED: "false",
-      FACTORY_MAX_TURNS_PER_RUN: "50",
+      FACTORY_MAX_TURNS_PER_RUN: "100",
       FACTORY_MAX_TICKETS_PER_DAY: "5",
     }),
   });

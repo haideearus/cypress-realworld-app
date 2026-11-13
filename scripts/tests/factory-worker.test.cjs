@@ -90,12 +90,12 @@ test("worker cannot prepare from a stale run attempt or a different local commit
     /reservation/
   );
 });
-test("both roles receive a validated fifty-turn ceiling without gaining tools", () => {
-  const config = policy.readConfig({ ...vars, FACTORY_MAX_TURNS_PER_RUN: "50" });
+test("both roles receive a validated hundred-turn ceiling without gaining tools", () => {
+  const config = policy.readConfig({ ...vars, FACTORY_MAX_TURNS_PER_RUN: "100" });
   const code = worker.buildArgs(config, "code");
   const review = worker.buildArgs(config, "review");
   for (const args of [code, review]) {
-    assert.match(args, /(?:^| )--max-turns 50(?: |$)/);
+    assert.match(args, /(?:^| )--max-turns 100(?: |$)/);
     assert.ok(args.includes("--permission-mode dontAsk"));
     assert.ok(args.includes("--safe-mode"));
     assert.ok(args.includes("--strict-mcp-config"));
