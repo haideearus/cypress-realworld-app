@@ -31,7 +31,12 @@
         "grant": "1036a5ae-1e5b-41ec-80c8-1dd61beba15c",
         "decision": "https://github.com/haideearus/cypress-realworld-app/issues/18"
       },
-      "branch": "agent/factory-11"
+      "branch": "agent/factory-11",
+      "ci": {
+        "requestId": "15fd8102-1e03-414d-94f4-2c9cb3c85dc7",
+        "head": "118c97133cffdf1b955fa89ead61750eb5e66534",
+        "runId": null
+      }
     },
     "12": {
       "coding": 0,
