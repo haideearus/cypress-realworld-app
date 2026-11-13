@@ -132,9 +132,17 @@
       "reviews": 1,
       "retries": 0,
       "head": "557e37cc8001674d07ad76dc2524e6e81120e6b0",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 19,
-      "approval": null,
+      "approval": {
+        "head": "557e37cc8001674d07ad76dc2524e6e81120e6b0",
+        "pr": 19,
+        "grant": "3a6aac2b-285b-4797-bd95-6c266ab52b62",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/43415786261"
+      },
       "criteriaHash": "1673d87534010d08233f3f2cc9458e1ee0ff7476c48c6f3a1dd889a1b073ca15",
       "branch": "agent/18-issue11-recovery",
       "ci": {
@@ -142,7 +150,8 @@
         "head": "557e37cc8001674d07ad76dc2524e6e81120e6b0",
         "runId": 43415867353,
         "passed": true
-      }
+      },
+      "feedback": "{\"head\":\"557e37cc8001674d07ad76dc2524e6e81120e6b0\",\"verdict\":\"pass\",\"summary\":\"Reviewed the combined PR (issue #11 recovery + review-status gate repair) against both parts of the ticket. Part A (recovery.cjs/policy.cjs): the issue #11 recovery is a strict, single-use, fail-closed mechanism hard-bound to ticket 11, the exact prior two finished/blocked grant IDs and run IDs, the frozen criteria hash, and exact config values (coding=2, retries=1, reviews=2, daily=5); any deviation (other ticket, wrong actor/ref/event, lowered budgets, disabled factory, tampered criteria/history, forged recovery record, orphaned publication branch) throws. Recovery starts from current trusted main (not the old failed checkout), preserves both prior grants/counters, and permits no 4th attempt. Part B (factory-review-status.yml): the new required job \\\"Factory review gate\\\" checks out the immutable base SHA (not PR head), runs a real executed stdin verifier (not just a function definition) that validates repository/PR state/head against the live ledger via read-only GitHub API calls, and fails closed on missing/stale/forged/fixture/corrupt proof or wrong repo/base/closed PR. The old informational check-run was renamed to \\\"Factory review evidence\\\" to avoid colliding with the new required check name, and the controller's gate() path still performs only reads plus one check-run POST (no Actions writes, no ledger mutation). No gate-report.cjs or rerun-failed-jobs call was added; the three pre-existing workflow files that weren't touched in this diff (factory-pr-review.yml, factory-cycle.yml, factory-review-gate.yml) retain contents/actions permissions matching main, confirmed both by direct inspection and by the new test suite. Test coverage (factory-recovery.test.cjs, factory-gate-status.test.cjs, factory-workflows.test.cjs) exercises essentially every scenario the ticket calls out: lower-budget refusal, stale/forged/corrupt approval, changed/closed/cross-repo PRs, disabled-factory read-only verification, no Actions calls from the controller's informational gate, and preserved counters/history across cancellation and repeated attempts. Documentation (CLAUDE-FACTORY.md, PR-19-REVIEW.md) describes the final no-extra-permission design rather than the removed automatic-rerun proposal. I did not find any code path that resets/refunds ledger counters, weakens branch protection, or grants write access beyond what main already had. Note: branch-protection configuration itself (marking the new check as required) and the day-to-day FACTORY_ENABLED toggle are operational/GitHub-settings concerns outside this repo's source and can't be verified from a static code review.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"docs/factory/PR-19-REVIEW.md verbatim reproduces the entire ticket body (including meta-review instructions like 'owner urgency is not grounds to waive findings') as committed documentation; this is harmless but is ticket/process narrative rather than durable technical documentation, and could be trimmed to just the final required behavior to avoid the doc drifting from the ledger-enforced reality over time.\"},{\"severity\":\"minor\",\"message\":\"Whether the new 'Factory review gate' job from factory-review-status.yml has actually been marked as a required status check in GitHub branch protection (as opposed to the old check-run from factory-review-gate.yml) cannot be verified from the repository source; this is an external GitHub settings action the owner must confirm separately from code review.\"}]}"
     }
   },
   "grants": {
@@ -238,15 +247,12 @@
       "runId": "43415786261",
       "runAttempt": 1,
       "head": "557e37cc8001674d07ad76dc2524e6e81120e6b0",
-      "status": "reserved",
-      "at": "2026-11-13T11:17:07.267Z"
+      "status": "finished",
+      "at": "2026-11-13T11:17:07.267Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 20,
-    "runId": "43415786261",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -371,6 +377,14 @@
       "phase": "review",
       "runId": "43415786261",
       "runAttempt": 1
+    },
+    {
+      "at": "2026-11-13T11:27:46.133Z",
+      "event": "finished",
+      "ticket": 20,
+      "grant": "3a6aac2b-285b-4797-bd95-6c266ab52b62",
+      "status": "reviewed",
+      "head": "557e37cc8001674d07ad76dc2524e6e81120e6b0"
     }
   ]
 }
