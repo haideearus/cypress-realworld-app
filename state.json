@@ -11,7 +11,8 @@
       16,
       18,
       20,
-      21
+      21,
+      24
     ]
   },
   "tickets": {
@@ -200,6 +201,19 @@
         "passed": true
       },
       "feedback": "{\"head\":\"8a1fc6a15a2061ed3204c2939f1d602d523989d5\",\"verdict\":\"pass\",\"summary\":\"The change correctly addresses both parts of the ticket. (1) Database isolation: backend/database.ts now selects the LowDB Memory adapter when process.env.VITEST === \\\"true\\\" (in addition to production), leaving normal dev/Cypress (NODE_ENV=development/test) and production persistence untouched; src/__tests__/database-isolation.test.ts is a real regression test that seeds/mutates via the backend API and asserts the tracked data/database.json bytes are unchanged. (2) Artifact collection fix + raised budgets: scripts/factory/worker.cjs's collectCode now calls validPath(name) before any fs.lstatSync/readFileSync of candidate content, so a forbidden oversized tracked file (reproducing the exact 368,209-byte data/database.json scenario from the ticket) is rejected by path before any bounded-size check runs; readText()'s error message reports only the sanitized relative path/type/byte-size/limit (never the absolute cwd), and secret-like filenames are redacted via artifactLabel. scripts/factory/policy.cjs raises the six limits to the exact approved values (daily=10, coding=5, reviews=5, retries=4, turns=200, minutes=30) while concurrency stays pinned at 1 and timezone/app URL are unchanged; validateState enforces retries=max(0,coding-1-recoveryCount) against the new absolute caps without refunding history. scripts/factory/recovery.cjs still anchors issue #11's one-time consumed grant to its original (lower, pre-raise) limits and leaves it unique/unreplayable, while ordinary attempts 4 and 5 become valid under the new coding cap and attempt 6 is still refused. scripts/factory/controller.cjs's nextCycleSlot bounds cycles to 1..MAX_CODING_ATTEMPTS and returns null at the terminal cycle, and .github/workflows/factory-agents.yml now wires cycle1..cycle5 serially, each gated on the previous cycle's retry output; the terminal cycle (5) blocks/releases the lock instead of reserving a nonexistent cycle 6 job. admit() correctly restarts a blocked, unpublished ticket from current main while preserving the existing head for a blocked ticket that already has a published PR, and still refuses orphaned agent branches. Regression coverage is strong and specific: scripts/tests/factory-worker.test.cjs directly reproduces the ticket's failure scenario (368,209-byte tracked database.json) and asserts the new \\\"Forbidden artifact path\\\" diagnostic fires before any oversized-content error, plus separate tests for the 200,000/20,000-byte diagnostics and secret-redaction; scripts/tests/factory-controller.test.cjs exercises all five coding/review cycles end-to-end, the terminal-cycle lock release, and CI/infrastructure-failure no-retry behavior; scripts/tests/factory-limits.test.cjs/factory-policy.test.cjs validate the raised ceilings, rejection of any higher value, and the recovery-aware retry formula across attempts 4 and 5. Workflow permissions, required checks, token isolation (only CLAUDE_CODE_OAUTH_TOKEN, no paid/API routes), and artifact filters are unchanged and covered by scripts/tests/factory-workflows.test.cjs. I could not verify the purely operational claim that FACTORY_ENABLED is toggled false/true around any controlled run, since that is a live settings action outside the diff's code/tests, but nothing in the code contradicts it.\",\"findings\":[]}"
+    },
+    "24": {
+      "coding": 0,
+      "origin": "owner-pr",
+      "reviews": 1,
+      "retries": 0,
+      "head": "1c8f79852e5633cf6720dc4c5aa31a7a3e32e78a",
+      "status": "reviewing",
+      "pr": 25,
+      "approval": null,
+      "criteriaHash": "d542f3ea1d881689255cd6d4eb182555cecb1ceab5e682d6d82f1f910b5ce741",
+      "branch": "agent/11-public-feed-route-regression",
+      "ci": null
     }
   },
   "grants": {
@@ -347,9 +361,24 @@
       "status": "finished",
       "at": "2026-11-13T13:39:28.830Z",
       "outcome": "reviewed"
+    },
+    "1e2ecc65-a4de-43e2-907d-e9abaac3ac9b": {
+      "id": "1e2ecc65-a4de-43e2-907d-e9abaac3ac9b",
+      "ticket": 24,
+      "phase": "review",
+      "slot": "existing",
+      "runId": "43439771462",
+      "runAttempt": 1,
+      "head": "1c8f79852e5633cf6720dc4c5aa31a7a3e32e78a",
+      "status": "reserved",
+      "at": "2026-11-13T14:07:49.270Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 24,
+    "runId": "43439771462",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -557,6 +586,15 @@
       "grant": "5aa1c6cc-a2dc-4f9e-97d2-3a09e8851f58",
       "status": "reviewed",
       "head": "118c97133cffdf1b955fa89ead61750eb5e66534"
+    },
+    {
+      "at": "2026-11-13T14:07:49.270Z",
+      "event": "reserved",
+      "ticket": 24,
+      "grant": "1e2ecc65-a4de-43e2-907d-e9abaac3ac9b",
+      "phase": "review",
+      "runId": "43439771462",
+      "runAttempt": 1
     }
   ]
 }
