@@ -245,20 +245,15 @@
     "28": {
       "coding": 0,
       "origin": "owner-pr",
-      "reviews": 1,
+      "reviews": 2,
       "retries": 0,
-      "head": "d38633d647c24443e09dcb39f489931f790a6715",
-      "status": "blocked",
+      "head": "91407deb97d7432c5c786d55ba6a555a46106745",
+      "status": "reviewing",
       "pr": 27,
       "approval": null,
       "criteriaHash": "51380579539422e9de23e0bc87f198aa01c58d7a9a7fc2c89cbb98266a6afb5c",
       "branch": "agent/26-scheduled-pickup-and-merge",
-      "ci": {
-        "requestId": "8fb5bbab-125d-4170-8a9e-db0b36eeed81",
-        "head": "d38633d647c24443e09dcb39f489931f790a6715",
-        "runId": 43450294348,
-        "passed": true
-      },
+      "ci": null,
       "feedback": "{\"findings\":[{\"severity\":\"important\",\"message\":\"In .github/workflows/factory-automatic.yml, the `merge` job always runs whenever needs.pick.outputs.ticket is non-empty, including the common case where pick() just admitted a brand-new ticket for coding (kind:\\\"ticket\\\", ready:true). If that ticket does not reach status \\\"reviewed\\\" by the end of the same run (CI failure, review changes_requested with retries exhausted, any blocked outcome), AutomaticMerger.merge() -> current() -> stateTicket() calls policy.reviewGate() which returns ok:false and immediately throws (\\\"No genuine independent review covers this PR commit\\\"). automation.cjs's top-level catch then sets process.exitCode = 1, so the `merge` job fails with a red X on every normal 'nothing to merge yet' outcome rather than exiting cleanly. This is not a security or data-corruption issue (ledger state stays consistent, no reservation/merge is corrupted), but it is a real behavioral gap: it will produce misleading failure signals on the majority of real-world admissions (since many tickets won't pass review/CI on the first attempt), and no test in factory-merge.test.cjs or factory-automatic-pickup.test.cjs exercises invoking auto_merge against a ticket whose status is \\\"blocked\\\"/\\\"retry\\\"/\\\"coding\\\" (i.e. admitted-but-not-yet-reviewed) to confirm it no-ops instead of throwing. Given the ticket's own evidence requirements ask for meaningful RED/GREEN coverage of this exact lifecycle, this gap should be closed (e.g. merge() should recognize a non-reviewed ticket and return a quiet {merged:false, reason:...} instead of throwing) before this is considered complete.\"}],\"head\":\"d38633d647c24443e09dcb39f489931f790a6715\",\"summary\":\"Reviewed the automatic pickup/merge implementation (factory-automatic.yml, automation.cjs, merge.cjs, policy.cjs, controller.cjs changes, factory-app-token/factory-control actions, factory-cycle.yml, and the new/updated tests and docs) against the ticket's criteria. Authorization/identity checks (repository, main-only, owner actor/triggering-actor, pinned trusted workflow ref+SHA), the global/automation/automerge kill switches, GitHub App credential isolation (App private key and write token confined to trusted control jobs, never reaching coding/review/PR-checkout jobs, pinned create-github-app-token commit, job-end revocation, masked output), bounded owner-labelled queue selection, CAS/optimistic-concurrency reservation and merge-intent handling, expected-head squash merge, native check validation tied to the real GitHub Actions app id/run/job/PR identity (with the dispatched correlated CI run explicitly prevented from substituting for native PR CI), and auto-merge file-path restriction to factory application code are all implemented carefully and are consistent with the stated criteria, with solid matching unit-test coverage for each of these areas. Documentation for App registration, controlled rollout, cancellation, and quota/SLA caveats is present. One real behavioral gap was found in the merge job's handling of a just-admitted ticket that fails to reach \\\\\\\"reviewed\\\\\\\" status within the same run (see finding). No critical issues were found; this finding is operational/correctness rather than a security defect, so it alone does not undermine the soundness of the authorization/credential/merge-safety design, but it should be fixed.\",\"verdict\":\"changes_requested\"}"
     }
   },
@@ -443,9 +438,24 @@
       "status": "finished",
       "at": "2026-11-13T15:12:22.899Z",
       "outcome": "blocked"
+    },
+    "5b02e932-483b-4f4a-b0a2-ceecbf987216": {
+      "id": "5b02e932-483b-4f4a-b0a2-ceecbf987216",
+      "ticket": 28,
+      "phase": "review",
+      "slot": "existing",
+      "runId": "43454466173",
+      "runAttempt": 1,
+      "head": "91407deb97d7432c5c786d55ba6a555a46106745",
+      "status": "reserved",
+      "at": "2026-11-13T15:37:40.110Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 28,
+    "runId": "43454466173",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -703,6 +713,15 @@
       "grant": "22ec0afa-c84b-42e2-9d29-40b442e5bd3b",
       "status": "blocked",
       "head": "d38633d647c24443e09dcb39f489931f790a6715"
+    },
+    {
+      "at": "2026-11-13T15:37:40.110Z",
+      "event": "reserved",
+      "ticket": 28,
+      "grant": "5b02e932-483b-4f4a-b0a2-ceecbf987216",
+      "phase": "review",
+      "runId": "43454466173",
+      "runAttempt": 1
     }
   ]
 }
