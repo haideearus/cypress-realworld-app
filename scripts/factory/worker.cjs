@@ -4,7 +4,13 @@ const { execFileSync } = require("node:child_process");
 const policy = require("./policy.cjs");
 const { GitHub, Ledger, ROOT } = require("./github.cjs");
 const { criteriaHash, runtimeContext, readJson, output } = require("./controller.cjs");
-const { validateChanges, validateReview, REVIEW_SCHEMA, secretLike } = require("./artifacts.cjs");
+const {
+  validPath,
+  validateChanges,
+  validateReview,
+  REVIEW_SCHEMA,
+  secretLike,
+} = require("./artifacts.cjs");
 const CODE_COMMANDS = Object.freeze([
   "yarn types",
   "yarn lint",
@@ -81,6 +87,7 @@ function promptFor(phase, head) {
     "If a file-tool path is denied, correct it to a repository-relative path. If an approved action remains denied, record the blocker and stop; do not repeat it or seek a permission workaround. " +
     "Do not alter workflows, instructions, dependencies, factory tests, infrastructure, or secrets. " +
     "Do not commit or push. Save factual commands and RED/GREEN results to .factory-output/evidence.md. " +
+    "Keep evidence below 20,000 UTF-8 bytes: concise command/result summaries, not full test logs. " +
     "If tools or limits prevent verification, report that honestly in the evidence and stop."
   );
 }
@@ -147,10 +154,22 @@ async function prepare(api, config, context, { grantId, cwd, environment = proce
     head: grant.head,
   };
 }
-function readText(file, max) {
-  const stat = fs.lstatSync(file);
+function artifactLabel(name) {
+  return typeof name === "string" && /^[A-Za-z0-9_./-]{1,240}$/.test(name) && !secretLike(name)
+    ? name
+    : "redacted";
+}
+function readText(file, max, name) {
+  let stat;
+  try {
+    stat = fs.lstatSync(file);
+  } catch {
+    throw new Error(`Artifact missing or unreadable (${artifactLabel(name)})`);
+  }
   if (!stat.isFile() || stat.isSymbolicLink() || stat.size > max)
-    throw new Error("Artifact must be a bounded regular file");
+    throw new Error(
+      `Artifact must be a bounded regular file (${artifactLabel(name)}; type=${stat.isSymbolicLink() ? "symlink" : stat.isFile() ? "file" : "other"}; bytes=${stat.size}; limit=${max})`
+    );
   return fs.readFileSync(file, "utf8");
 }
 function collectCode({ cwd, grantId, head }) {
@@ -176,17 +195,22 @@ function collectCode({ cwd, grantId, head }) {
         !name.startsWith(".claude/")
     );
   const files = [...new Set([...tracked, ...untracked])].map((name) => {
+    if (!validPath(name)) throw new Error(`Forbidden artifact path (${artifactLabel(name)})`);
     const target = path.join(cwd, name);
     if (!fs.existsSync(target)) return { path: name, deleted: true };
     const stat = fs.lstatSync(target);
     return {
       path: name,
       mode: stat.isFile() && !stat.isSymbolicLink() && !(stat.mode & 0o111) ? "100644" : "120000",
-      content: readText(target, 200000),
+      content: readText(target, 200000, name),
     };
   });
   validateChanges(files);
-  const evidence = readText(path.join(cwd, ".factory-output/evidence.md"), 20000);
+  const evidence = readText(
+    path.join(cwd, ".factory-output/evidence.md"),
+    20000,
+    ".factory-output/evidence.md"
+  );
   if (!evidence.trim() || secretLike(evidence))
     throw new Error("Coding evidence is empty or contains secret-like content");
   return { kind: "code", grantId, base: head, files, evidence };

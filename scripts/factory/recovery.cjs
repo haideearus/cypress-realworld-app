@@ -41,8 +41,8 @@ function validateState(state) {
     g = tagged[0];
   if (
     !matchesTicket(t) ||
-    t.coding !== 3 ||
-    t.retries !== 1 ||
+    t.coding < 3 ||
+    t.retries !== t.coding - 2 ||
     !r ||
     typeof r !== "object" ||
     Array.isArray(r) ||

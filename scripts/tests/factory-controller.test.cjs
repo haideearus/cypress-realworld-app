@@ -147,6 +147,118 @@ test("orphaned publication branches are refused before another coding attempt is
   await assert.rejects(controller.admit(10), /branch|publication/i);
   assert.deepEqual((await ledger.read()).state.tickets, {});
 });
+
+test("a blocked unpublished ticket restarts from current main without changing its old grant", async () => {
+  const { controller, fixture, ledger, api } = await setup();
+  const first = await controller.admit(10);
+  await controller.block(10, "Synthetic collection failure");
+  const old = structuredClone((await ledger.read()).state.grants[first.grantId]);
+  fixture.branchHeads.set("main", "e".repeat(40));
+  const next = new implementation.Controller(api, readConfig(vars), { ...context, runId: "101" });
+  const admitted = await next.admit(10);
+  assert.equal(admitted.head, "e".repeat(40));
+  assert.deepEqual((await ledger.read()).state.grants[first.grantId], old);
+});
+
+test("a blocked published ticket retains its existing PR head when main advances", async () => {
+  const { controller, fixture, api } = await setup();
+  const first = await controller.admit(10);
+  const published = await controller.publish(first.grantId, bundle(first));
+  await controller.block(10, "Synthetic CI interruption");
+  fixture.branchHeads.set("main", "e".repeat(40));
+  const next = new implementation.Controller(api, readConfig(vars), { ...context, runId: "101" });
+  assert.equal((await next.admit(10)).head, published.head);
+});
+
+test("coding slots advance through five cycles and refuse invalid or unsupported slots", () => {
+  assert.equal(typeof implementation.nextCycleSlot, "function", "missing bounded cycle mapping");
+  for (let cycle = 1; cycle < 5; cycle++)
+    assert.equal(implementation.nextCycleSlot(`cycle${cycle}`), `cycle${cycle + 1}`);
+  assert.equal(implementation.nextCycleSlot("cycle5"), null);
+  for (const slot of [undefined, null, "existing", "cycle0", "cycle01", "cycle6", "cycle-1"])
+    assert.throws(() => implementation.nextCycleSlot(slot), /cycle/i);
+});
+
+test("all five failed review cycles consume only bounded reservations and release the final lock", async () => {
+  const { controller, ledger } = await setup({
+    FACTORY_MAX_TICKETS_PER_DAY: "10",
+    FACTORY_MAX_CODING_ATTEMPTS_PER_TICKET: "5",
+    FACTORY_MAX_REVIEWS_PER_TICKET: "5",
+    FACTORY_MAX_AUTOMATIC_RETRIES: "4",
+    FACTORY_MAX_TURNS_PER_RUN: "200",
+    FACTORY_RUN_TIMEOUT_MINUTES: "30",
+  });
+  let coding = await controller.admit(10);
+  for (let cycle = 1; cycle <= 5; cycle++) {
+    const slot = `cycle${cycle}`;
+    const published = await controller.publish(coding.grantId, bundle(coding));
+    const ci = await controller.ci(10);
+    const review = await controller.reserveReview(10, ci.runId, slot);
+    const result = await controller.assess(
+      10,
+      { coding: "success", publication: "success", ci: "success", review: "success" },
+      ci.runId,
+      review.grantId,
+      {
+        kind: "review",
+        grantId: review.grantId,
+        base: published.head,
+        result: {
+          head: published.head,
+          verdict: "changes_requested",
+          summary: "Synthetic change required",
+          findings: [],
+        },
+      },
+      slot
+    );
+    assert.equal(result.retry, cycle < 5);
+    if (cycle < 5) {
+      assert.equal(result.slot, `cycle${cycle + 1}`);
+      coding = result;
+    }
+  }
+  const state = (await ledger.read()).state;
+  assert.equal(state.tickets["10"].coding, 5);
+  assert.equal(state.tickets["10"].reviews, 5);
+  assert.equal(state.tickets["10"].retries, 4);
+  assert.equal(state.active, null);
+  assert.equal(Object.values(state.grants).filter((g) => g.status === "reserved").length, 0);
+});
+
+test("a terminal cycle never reserves a grant without a following job even if allowance remains", async () => {
+  const { controller, ledger } = await setup();
+  const coding = await controller.admit(10);
+  const published = await controller.publish(coding.grantId, bundle(coding));
+  const ci = await controller.ci(10);
+  const review = await controller.reserveReview(10, ci.runId, "cycle5");
+  const result = await controller.assess(
+    10,
+    { coding: "success", publication: "success", ci: "success", review: "success" },
+    ci.runId,
+    review.grantId,
+    {
+      kind: "review",
+      grantId: review.grantId,
+      base: published.head,
+      result: {
+        head: published.head,
+        verdict: "changes_requested",
+        summary: "Synthetic change required",
+        findings: [],
+      },
+    },
+    "cycle5"
+  );
+  assert.equal(result.retry, false);
+  const state = (await ledger.read()).state;
+  assert.equal(state.active, null);
+  assert.equal(state.tickets["10"].coding, 1);
+  assert.equal(
+    Object.values(state.grants).some((g) => g.status === "reserved"),
+    false
+  );
+});
 test("GitHub credentials in coding evidence never reach a PR", async () => {
   const { controller, fixture } = await setup();
   const grant = await controller.admit(10);
@@ -272,7 +384,7 @@ test("configuration smoke operation preserves strict limits and subscription-onl
   await assert.rejects(
     implementation.main({
       FACTORY_OPERATION: "validate",
-      FACTORY_VARIABLES: JSON.stringify({ ...vars, FACTORY_MAX_TICKETS_PER_DAY: "6" }),
+      FACTORY_VARIABLES: JSON.stringify({ ...vars, FACTORY_MAX_TICKETS_PER_DAY: "11" }),
     }),
     /approved limit/i
   );
