@@ -9,7 +9,8 @@
     "2026-11-13": [
       14,
       16,
-      18
+      18,
+      20
     ]
   },
   "tickets": {
@@ -124,6 +125,19 @@
         "passed": true
       },
       "feedback": "{\"head\":\"b883586f30756fbc80c82193a0244e6f67b5bb5c\",\"verdict\":\"changes_requested\",\"summary\":\"The branch correctly implements ticket #18's single-use, owner-only `recover` operation for issue #11 (scripts/factory/recovery.cjs, policy.cjs/controller.cjs integration, factory-recovery.test.cjs, worker command-guidance docs): eligibility and ledger validation are pinned to the exact criteria hash and the two historical blocked grant IDs, only the coding-attempt ceiling is bypassed for one extra reservation, old grants/admission/retry counters are preserved, the new attempt starts from current main, and tool permissions/`--allowedTools` strings are unchanged. That part matches the previously-passed review at 40eb635 and its two carried-over minor gaps remain unresolved. However, the head commit (b883586, \\\"Report the required review gate through a real pull request job\\\") adds a large, entirely unrelated feature set for a different ticket (#20 / PR #19 \\\"gate-reporting\\\" bootstrap): a new `factory-review-status.yml` workflow, `scripts/factory/gate-report.cjs` (which calls the mutating `rerun-failed-jobs` Actions API), a `GitHub.request` behavior change, controller changes to the review-gate check name/refresh flow, and `actions: write` permission grants added to three existing workflows (factory-cycle.yml, factory-pr-review.yml, factory-review-gate.yml). None of this is described, required, or even mentioned by ticket #18's text, and the accompanying plan doc explicitly frames it as repairing issue #20 inside PR #19 with its own unfinished checklist. This is out-of-scope work bundled into the ticket-18 branch/PR, including a real permission escalation across multiple workflows, and should not be approved as part of this ticket's review.\",\"findings\":[{\"severity\":\"critical\",\"message\":\"The diff for this PR/branch bundles a second, unrelated feature (ticket #20 / PR #19 'gate reporting' bootstrap: new .github/workflows/factory-review-status.yml, scripts/factory/gate-report.cjs, controller.cjs gate-refresh wiring, github.cjs response-parsing change, and docs/superpowers plan+spec files) on top of the issue-11 recovery work. Ticket #18's body says nothing about gate reporting, PR #19, or issue #20, and the task instructions require working only on the ticket's own criteria. Mixing an unrelated, separately-scoped change into this PR means it has not gone through its own authorized review/ticket process and should be split out, not merged under ticket #18's review.\"},{\"severity\":\"important\",\"message\":\"As part of the unrelated gate-reporting bundle, commit b883586 grants `actions: write` permission to three existing workflows (factory-cycle.yml, factory-pr-review.yml, factory-review-gate.yml) that previously had only `actions: read`, and adds scripts/factory/gate-report.cjs which performs a mutating `POST /actions/runs/{id}/rerun-failed-jobs` call. This is a real permission/policy expansion of the automation's capabilities that is not justified by, or in scope of, ticket #18's recovery requirements and was not reviewed as such.\"},{\"severity\":\"minor\",\"message\":\"Carried over from the prior review of 40eb635 (unchanged in this diff): recovery.cjs's assertEligible/allowance only check config.reviews >= 1 / config.daily >= 1 rather than pinning to the exact deployed values (2 and 5) the way config.coding and config.retries are pinned. Currently harmless since deployed vars keep reviews=2/daily=5, but it's an asymmetry versus the ticket's 'fail closed for lower configured budgets' requirement.\"},{\"severity\":\"minor\",\"message\":\"Carried over from the prior review: the hardcoded CRITERIA hash and the two PRIOR grant IDs/run IDs in scripts/factory/recovery.cjs were computed against a frozen local fixture and have not been verified here against the live ledger/issue #11 body. A mismatch would just cause a safe refusal, but this should be confirmed once before any real owner recovery dispatch.\"}]}"
+    },
+    "20": {
+      "coding": 0,
+      "origin": "owner-pr",
+      "reviews": 1,
+      "retries": 0,
+      "head": "557e37cc8001674d07ad76dc2524e6e81120e6b0",
+      "status": "reviewing",
+      "pr": 19,
+      "approval": null,
+      "criteriaHash": "1673d87534010d08233f3f2cc9458e1ee0ff7476c48c6f3a1dd889a1b073ca15",
+      "branch": "agent/18-issue11-recovery",
+      "ci": null
     }
   },
   "grants": {
@@ -210,9 +224,24 @@
       "status": "finished",
       "at": "2026-11-13T10:43:33.201Z",
       "outcome": "blocked"
+    },
+    "3a6aac2b-285b-4797-bd95-6c266ab52b62": {
+      "id": "3a6aac2b-285b-4797-bd95-6c266ab52b62",
+      "ticket": 20,
+      "phase": "review",
+      "slot": "existing",
+      "runId": "43415786261",
+      "runAttempt": 1,
+      "head": "557e37cc8001674d07ad76dc2524e6e81120e6b0",
+      "status": "reserved",
+      "at": "2026-11-13T11:17:07.267Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 20,
+    "runId": "43415786261",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -328,6 +357,15 @@
       "grant": "749adc58-848d-4aaa-a786-5e000ffbfa29",
       "status": "blocked",
       "head": "b883586f30756fbc80c82193a0244e6f67b5bb5c"
+    },
+    {
+      "at": "2026-11-13T11:17:07.267Z",
+      "event": "reserved",
+      "ticket": 20,
+      "grant": "3a6aac2b-285b-4797-bd95-6c266ab52b62",
+      "phase": "review",
+      "runId": "43415786261",
+      "runAttempt": 1
     }
   ]
 }
