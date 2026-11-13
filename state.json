@@ -17,6 +17,9 @@
       28,
       29,
       31
+    ],
+    "2026-11-14": [
+      33
     ]
   },
   "tickets": {
@@ -340,6 +343,19 @@
         "passed": true
       },
       "feedback": "{\"findings\":[],\"head\":\"aef4f1be7054e855fa4a362029cec7e0b7c1c7e9\",\"summary\":\"Reviewed .github/workflows/factory-deploy.yml, scripts/factory/deploy.cjs, scripts/factory/deploy-render.cjs, their test suites, and supporting docs at HEAD aef4f1b. The new workflow triggers only on workflow_run(Factory CI, branches:[main], completed) or an owner-restricted workflow_dispatch with a CI run ID, and gates deployment behind the \\\"production\\\" GitHub environment. Candidate validation (prepareCandidate) strictly checks repository, ref, workflow identity, run_attempt==1, CI run status/conclusion/event/branch/repos, the real \\\"verify\\\" job's success and head_sha, and that the CI head_sha matches current main — rejecting PR, fork, failed, skipped, wrong-workflow, and stale-main cases (covered by explicit tests). Human approval is required via the GitHub deployment-approvals API, restricted to a named User-typed approval from the configured owner on the \\\"production\\\" environment, with re-validation of the candidate after approval to close the TOCTOU window; a second approval row, wrong approver, wrong environment, or rejected state all fail closed. The Render hook URL is only exposed as a secret to the production-gated deploy job (verified absent from the prepare job and from evidence/logs), is strictly validated (host/path/query canonicalization) before use, and only the ref parameter is overwritten with the approved full SHA. Exactly one POST is attempted per run (no retry on ambiguous failure), and a failed-job rerun is blocked via run_attempt enforcement rather than relying on workflow-level dedup alone. Live verification polls only the fixed public health/ready/frontend endpoints with bounded time/size/redirect handling and never logs secrets, hook URLs, or raw response bodies. No references to AI/model providers, no changes to the three factory enablement flags, no new hosting service, and no rollback/data-mutation logic were introduced; the deploy code is fully decoupled from controller.cjs/worker.cjs/policy.cjs. Unit tests (scripts/tests/factory-deploy.test.cjs, factory-deploy-render.test.cjs) are fully mocked/simulated with no real network calls, matching the \\\"prove negative cases without real deployment requests\\\" criterion, and are wired into yarn test:factory / Factory CI. Documentation (docs/factory/APPROVED-DEPLOYMENT.md) accurately describes the setup, approval flow, and recovery semantics. No critical or important issues found.\",\"verdict\":\"pass\"}"
+    },
+    "33": {
+      "coding": 0,
+      "origin": "owner-pr",
+      "reviews": 1,
+      "retries": 0,
+      "head": "b3def7f07b3a6cd52e01938c81a6dc4ff0dfbc88",
+      "status": "reviewing",
+      "pr": 34,
+      "approval": null,
+      "criteriaHash": "b1766a7fa9d8c72664a0903561a84571d453cb7136b125c8f23ba680bd6cd4f5",
+      "branch": "agent/monitoring-and-daily-budget",
+      "ci": null
     }
   },
   "grants": {
@@ -571,9 +587,24 @@
       "status": "finished",
       "at": "2026-11-13T19:16:24.208Z",
       "outcome": "reviewed"
+    },
+    "c8e93f8b-3368-4f87-a681-448f6b4e802d": {
+      "id": "c8e93f8b-3368-4f87-a681-448f6b4e802d",
+      "ticket": 33,
+      "phase": "review",
+      "slot": "existing",
+      "runId": "43517085435",
+      "runAttempt": 1,
+      "head": "b3def7f07b3a6cd52e01938c81a6dc4ff0dfbc88",
+      "status": "reserved",
+      "at": "2026-11-13T22:10:52.265Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 33,
+    "runId": "43517085435",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -899,6 +930,15 @@
       "grant": "3e93e95c-ddb8-41f6-9d42-d25ad84f6f05",
       "status": "reviewed",
       "head": "aef4f1be7054e855fa4a362029cec7e0b7c1c7e9"
+    },
+    {
+      "at": "2026-11-13T22:10:52.265Z",
+      "event": "reserved",
+      "ticket": 33,
+      "grant": "c8e93f8b-3368-4f87-a681-448f6b4e802d",
+      "phase": "review",
+      "runId": "43517085435",
+      "runAttempt": 1
     }
   ]
 }
