@@ -47,9 +47,13 @@ Update on 2026-11-13: the cloud coding, CI and independent Claude Pro review pat
 was demonstrated for issue #11. Its public-feed repair, including a real HTTP
 regression, merged through [PR #25](https://github.com/haideearus/cypress-realworld-app/pull/25).
 The [automatic pickup and merge guide](factory/AUTOMATIC-PICKUP.md) describes
-ticket #26's next implementation and its required App installation/controlled
-trial. It stays disabled during preparation. Production approval/deployment,
-monitoring and generic unattended recovery remain separate unfinished stages.
+ticket #26's implementation. The App-backed automatic trial for issue #29 passed
+coding, CI, independent review and merge in
+[run #7](https://github.com/haideearus/cypress-realworld-app/actions/runs/43481055400),
+producing merged PR #30. All three factory switches were restored to false.
+The [approved deployment guide](factory/APPROVED-DEPLOYMENT.md) covers ticket #31's
+next stage; its workflow still needs review and a controlled live deployment.
+Monitoring and generic unattended recovery remain separate unfinished stages.
 The foundation table below is historical evidence, not the current full status.
 
 The [Claude factory guide](CLAUDE-FACTORY.md) describes the first agent-workflow

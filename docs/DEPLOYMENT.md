@@ -1,5 +1,11 @@
 # Free cloud deployment guide
 
+For the current Claude Pro factory's human-approved Render workflow, follow
+[Approved deployment](factory/APPROVED-DEPLOYMENT.md). The provider installation
+steps below include historical Codex setup decisions and proposed limits; the
+current Claude harness and its enforced limits are in
+[CLAUDE-FACTORY.md](CLAUDE-FACTORY.md).
+
 ## Decisions and current status
 
 The target is a cloud deployment that works while the owner's laptop is off,
