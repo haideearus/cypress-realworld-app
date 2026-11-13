@@ -4,7 +4,7 @@ const REPOSITORY = "haideearus/cypress-realworld-app";
 const OWNER = "haideearus";
 const SHA = /^[a-f0-9]{40}$/;
 const LIMITS = {
-  FACTORY_MAX_TICKETS_PER_DAY: ["daily", 2],
+  FACTORY_MAX_TICKETS_PER_DAY: ["daily", 5],
   FACTORY_MAX_CODING_ATTEMPTS_PER_TICKET: ["coding", 2],
   FACTORY_MAX_REVIEWS_PER_TICKET: ["reviews", 2],
   FACTORY_MAX_AUTOMATIC_RETRIES: ["retries", 1],

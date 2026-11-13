@@ -51,7 +51,7 @@ already unattended ticket-to-production factory.
 | Variable                               | Approved installation value                 |
 | -------------------------------------- | ------------------------------------------- |
 | FACTORY_ENABLED                        | false                                       |
-| FACTORY_MAX_TICKETS_PER_DAY            | 2                                           |
+| FACTORY_MAX_TICKETS_PER_DAY            | 5 after the reviewed policy change merges   |
 | FACTORY_MAX_CODING_ATTEMPTS_PER_TICKET | 2                                           |
 | FACTORY_MAX_REVIEWS_PER_TICKET         | 2                                           |
 | FACTORY_MAX_AUTOMATIC_RETRIES          | 1                                           |
@@ -63,6 +63,8 @@ already unattended ticket-to-production factory.
 
 The daily counter records distinct tickets when first admitted, using Bucharest
 calendar dates. It does not reset lifetime per-ticket counters at midnight.
+It includes owner PR review tickets and limits new ticket admissions, not total
+AI sessions. A ticket's coding and review sessions use its separate lifetime caps.
 Two coding attempts means the initial attempt plus one retry, not three attempts.
 Two reviews is a maximum across both attempts, not two reviews per attempt.
 
@@ -82,24 +84,40 @@ ceiling, malformed values, a different timezone, or concurrency other than one
 refuses work. Lower limits may reduce work. Policy increases need a reviewed
 harness change and an owner budget decision.
 
-The owner approved a ceiling of **50 turns per coding or review session** in
-ticket #14 after PR #13 merged. Lower values, including 20, remain valid; values
-above 50 are rejected. The existing 15-minute model-job timeout still applies,
-so a session can stop before using all 50 turns. More turns can consume more of
+The owner approved **50 turns per coding or review session** and **five new
+tickets per Bucharest calendar day** in ticket #14 and the same PR #15 after
+PR #13 merged. Lower settings, including 20 turns and two daily tickets, remain
+valid; values above 50 turns or five daily tickets are rejected.
+The existing 15-minute model-job timeout still applies,
+so a session can stop before using all 50 turns. Higher limits can consume more of
 the shared Claude Pro allowance; this is not a token or dollar budget.
 
 To roll out the ceiling from a main branch that still enforces 20:
 
-1. Keep `FACTORY_ENABLED=false` and `FACTORY_MAX_TURNS_PER_RUN=20` while
-   preparing the policy PR. A variable of 50 is rejected by the old policy.
+1. Keep `FACTORY_ENABLED=false`, `FACTORY_MAX_TURNS_PER_RUN=20` and
+   `FACTORY_MAX_TICKETS_PER_DAY=2` while preparing the policy PR. The old
+   policy rejects the larger settings.
 2. Obtain a separately authorized independent review of that PR using trusted
    `main` and the 20-turn setting; restore the factory flag to false afterward.
-3. After the reviewed policy change merges, set
-   `FACTORY_MAX_TURNS_PER_RUN=50`. Keep `FACTORY_ENABLED=false` until another
-   run is explicitly authorized.
+3. After the reviewed policy change merges, set `FACTORY_MAX_TURNS_PER_RUN=50`
+   and `FACTORY_MAX_TICKETS_PER_DAY=5`. Keep `FACTORY_ENABLED=false` until the
+   controlled test is ready.
 
-Changing this ceiling does not authorize another model session or change tool
-permissions, authentication, the other work limits, or existing usage counters.
+Changing these ceilings does not change tool permissions, authentication, the
+other work limits, or existing usage counters.
+
+For the owner's requested controlled retry of issue #11, first complete that
+rollout and verify there is no active ticket. Use a new **Factory agents**
+dispatch on `main`, operation `run`, ticket `11`, leaving PR empty.
+Enable the factory for that controlled workflow and restore it to false after
+the whole workflow finishes, whether successful or failed. Do not rerun the
+old failed workflow or reset the ledger.
+
+Issue #11 has one recorded coding attempt. Its next coding reservation uses
+the second and final attempt and its one retry allowance; a later calendar day
+does not reset those counters. The earlier failure hit the turn ceiling and
+also recorded two permission denials. More turns may allow completion; the new
+diagnostics provide evidence if a future model step fails again.
 
 ## Owner installation steps, one at a time
 

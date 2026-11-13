@@ -261,6 +261,7 @@ test("configuration smoke operation needs no token, ledger, owner event or netwo
       ...vars,
       FACTORY_ENABLED: "false",
       FACTORY_MAX_TURNS_PER_RUN: "50",
+      FACTORY_MAX_TICKETS_PER_DAY: "5",
     }),
   });
   assert.equal(result.validated, true);
@@ -271,7 +272,7 @@ test("configuration smoke operation preserves strict limits and subscription-onl
   await assert.rejects(
     implementation.main({
       FACTORY_OPERATION: "validate",
-      FACTORY_VARIABLES: JSON.stringify({ ...vars, FACTORY_MAX_TICKETS_PER_DAY: "3" }),
+      FACTORY_VARIABLES: JSON.stringify({ ...vars, FACTORY_MAX_TICKETS_PER_DAY: "6" }),
     }),
     /approved limit/i
   );

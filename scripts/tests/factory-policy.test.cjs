@@ -51,7 +51,7 @@ test("disabled and absent enabled flag refuse a coding reservation", () => {
   }
 });
 test("invalid, missing and increased limits fail closed", () => {
-  for (const value of ["3", "2x", "-1", "1.5", "", undefined])
+  for (const value of ["6", "999", "2x", "-1", "1.5", "", undefined])
     assert.throws(() => policy.readConfig({ ...vars, FACTORY_MAX_TICKETS_PER_DAY: value }));
   assert.throws(() => policy.readConfig({ ...vars, FACTORY_TIMEZONE: "UTC" }));
   assert.throws(() => policy.readConfig({ ...vars, FACTORY_MAX_CONCURRENT_TICKETS: "2" }));
@@ -169,6 +169,54 @@ test("third new ticket is blocked on the same day but can start after Bucharest 
   );
   assert.deepEqual(next.state.days["2026-11-12"], [12]);
 });
+test("five daily tickets include owner reviews and the sixth waits for Bucharest midnight", () => {
+  const { config } = setup({ FACTORY_MAX_TICKETS_PER_DAY: "5", FACTORY_MAX_TURNS_PER_RUN: "50" });
+  let state = policy.emptyState("haideearus/cypress-realworld-app");
+  for (const ticket of [10, 11, 12, 13, 14]) {
+    const input =
+      ticket === 14
+        ? request({ ticket, phase: "review", origin: "owner-pr", pr: 30, slot: "existing" })
+        : request({ ticket });
+    const saved = policy.reserve(state, input, config, now);
+    state = policy.finish(saved.state, saved.grant.id, { status: "blocked" }, now);
+  }
+  assert.deepEqual(state.days["2026-11-11"], [10, 11, 12, 13, 14]);
+  assert.equal(state.tickets["14"].coding, 0);
+  assert.equal(state.tickets["14"].reviews, 1);
+  assert.throws(
+    () => policy.reserve(state, request({ ticket: 15 }), config, new Date("2026-11-11T21:59:59Z")),
+    /daily/i
+  );
+  const next = policy.reserve(
+    state,
+    request({ ticket: 15 }),
+    config,
+    new Date("2026-11-11T22:00:00Z")
+  );
+  assert.deepEqual(next.state.days["2026-11-12"], [15]);
+  assert.deepEqual(next.state.days["2026-11-11"], [10, 11, 12, 13, 14]);
+});
+
+test("retrying an admitted ticket at the five-ticket cap preserves lifetime usage", () => {
+  const { config } = setup({ FACTORY_MAX_TICKETS_PER_DAY: "5", FACTORY_MAX_TURNS_PER_RUN: "50" });
+  let state = policy.emptyState("haideearus/cypress-realworld-app");
+  for (const ticket of [10, 11, 12, 13, 14]) {
+    const saved = policy.reserve(state, request({ ticket }), config, now);
+    state = policy.finish(saved.state, saved.grant.id, { status: "blocked" }, now);
+  }
+  const retry = policy.reserve(state, request({ runId: "101" }), config, now);
+  assert.deepEqual(retry.state.days["2026-11-11"], [10, 11, 12, 13, 14]);
+  assert.equal(retry.state.tickets["10"].coding, 2);
+  assert.equal(retry.state.tickets["10"].retries, 1);
+  assert.equal(retry.state.tickets["10"].reviews, 0);
+  state = policy.finish(retry.state, retry.grant.id, { status: "blocked" }, now);
+  assert.throws(
+    () =>
+      policy.reserve(state, request({ runId: "102" }), config, new Date("2026-11-12T12:00:00Z")),
+    /coding/i
+  );
+});
+
 test("two coding attempts include one retry and persist across days", () => {
   const { config, state } = setup();
   let a = policy.reserve(state, request(), config, now);

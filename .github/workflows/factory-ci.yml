@@ -48,7 +48,7 @@ jobs:
         with:
           operation: validate
           variables_json: >-
-            {"FACTORY_ENABLED":"false","FACTORY_MAX_TICKETS_PER_DAY":"2",
+            {"FACTORY_ENABLED":"false","FACTORY_MAX_TICKETS_PER_DAY":"5",
             "FACTORY_MAX_CODING_ATTEMPTS_PER_TICKET":"2","FACTORY_MAX_REVIEWS_PER_TICKET":"2",
             "FACTORY_MAX_AUTOMATIC_RETRIES":"1","FACTORY_MAX_CONCURRENT_TICKETS":"1",
             "FACTORY_TIMEZONE":"Europe/Bucharest","FACTORY_RUN_TIMEOUT_MINUTES":"15",
