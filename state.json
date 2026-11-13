@@ -383,7 +383,11 @@
       "approval": null,
       "criteriaHash": "d44115f7bd7ca6e2bca6677ab95076329fd38a4c5e122403f51846529a332e93",
       "branch": "agent/isolated-monitor-recovery-drill",
-      "ci": null
+      "ci": {
+        "requestId": "0f973f53-63b2-4bea-890b-08839e99c645",
+        "head": "4bc2ed6c5cbfd71f3367f7d6caa1c1629b565aa8",
+        "runId": null
+      }
     }
   },
   "grants": {
