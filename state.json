@@ -21,11 +21,19 @@
       "reviews": 1,
       "retries": 2,
       "head": "118c97133cffdf1b955fa89ead61750eb5e66534",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 23,
-      "approval": null,
+      "approval": {
+        "head": "118c97133cffdf1b955fa89ead61750eb5e66534",
+        "pr": 23,
+        "grant": "5aa1c6cc-a2dc-4f9e-97d2-3a09e8851f58",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/43433517715"
+      },
       "criteriaHash": "d295d714446efad9eaa6b3bd3c0c25706756dcc2d26160a191f0253438279387",
-      "feedback": "Agent, publication, or CI infrastructure failed; no automatic model retry",
+      "feedback": "{\"head\":\"118c97133cffdf1b955fa89ead61750eb5e66534\",\"verdict\":\"pass\",\"summary\":\"The fix extracts the public-feed combination logic into `getPublicTransactionsFeed` (src/utils/transactionUtils.ts) and applies it unconditionally in `backend/transaction-routes.ts`, replacing the old `isFirstPage`-gated branch that caused the skip bug. Manually tracing the ticket's repro (5 contacts + 20 public, limit 10) against the new code confirms page1=C1-C5+P1-P5, page2=P6-P15, page3=P16-P20, with totalPages=3 on every page, matching the expected behavior exactly. Priority/cap of 5 contacts' transactions is preserved via `slice(0,5,...)`, and database-level ordering/filters/visibility are untouched (only the route-level combination logic changed). Unused `isFirstPage`/`slice`/`concat` imports were cleanly removed from transaction-routes.ts. New unit tests cover zero, fewer-than-five, and more-than-five contacts' transactions, plus the exact 25-record reproduction scenario across all three pages with no duplicates/omissions.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"The added regression tests (src/utils/__tests__/transactionUtils.test.ts) call the extracted `getPublicTransactionsFeed`/`getPaginatedItems` helpers directly rather than issuing an actual HTTP request against the `/transactions/public` route (e.g. via supertest or the existing Cypress `cypress/tests/api/api-transactions.spec.ts` suite). Since these two helpers are the entirety of the route's pagination logic and the repo has no backend integration-test harness, this is a reasonable proxy, but it's a looser interpretation of the acceptance criterion 'regression test exercising the public-route behavior' than a literal route-level test would be.\"},{\"severity\":\"minor\",\"message\":\"This review session is read-only (no shell access), so `yarn test:unit:ci`, `yarn types`, and `yarn lint` could not be independently executed to confirm they pass. Static review found no type or lint issues (the new `any[]` parameters are fine since `@typescript-eslint/no-explicit-any` is disabled in eslint.config.mjs), but actual CI results should still be checked before merge.\"}]}",
       "recovery": {
         "id": "issue-11-once-2026-11-13",
         "grant": "1036a5ae-1e5b-41ec-80c8-1dd61beba15c",
@@ -336,15 +344,12 @@
       "runId": "43433517715",
       "runAttempt": 1,
       "head": "118c97133cffdf1b955fa89ead61750eb5e66534",
-      "status": "reserved",
-      "at": "2026-11-13T13:39:28.830Z"
+      "status": "finished",
+      "at": "2026-11-13T13:39:28.830Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 11,
-    "runId": "43433517715",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -544,6 +549,14 @@
       "phase": "review",
       "runId": "43433517715",
       "runAttempt": 1
+    },
+    {
+      "at": "2026-11-13T13:42:48.489Z",
+      "event": "finished",
+      "ticket": 11,
+      "grant": "5aa1c6cc-a2dc-4f9e-97d2-3a09e8851f58",
+      "status": "reviewed",
+      "head": "118c97133cffdf1b955fa89ead61750eb5e66534"
     }
   ]
 }
