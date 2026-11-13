@@ -56,15 +56,20 @@ and production deployment are outside this change.
 
 ## Limits and counter meanings
 
-Issue #21's reviewed change is merged. The following numerical values were
-verified in the live repository on 2026-11-13, with `FACTORY_ENABLED=false`.
-Automatic pickup adds separate initially-false flags; it does not raise these
-limits or reset the existing history.
+Issue #21's reviewed change is merged. Its live daily setting was 10 on
+2026-11-13. Issue [#33](https://github.com/haideearus/cypress-realworld-app/issues/33)
+raises only the approved daily ceiling to 20. The table gives the intended
+settings **after that PR merges and the owner saves the daily variable**; a code
+change does not update GitHub variables. Keep all three factory switches false
+during this rollout. Per-ticket limits, concurrency and subscription-only
+authentication remain unchanged.
 
 | Variable                               | Post-merge value                            |
 | -------------------------------------- | ------------------------------------------- |
 | FACTORY_ENABLED                        | false until ready                           |
-| FACTORY_MAX_TICKETS_PER_DAY            | 10                                          |
+| FACTORY_AUTOMATION_ENABLED             | false until ready                           |
+| FACTORY_AUTOMERGE_ENABLED              | false until ready                           |
+| FACTORY_MAX_TICKETS_PER_DAY            | 20                                          |
 | FACTORY_MAX_CODING_ATTEMPTS_PER_TICKET | 5                                           |
 | FACTORY_MAX_REVIEWS_PER_TICKET         | 5                                           |
 | FACTORY_MAX_AUTOMATIC_RETRIES          | 4                                           |
@@ -80,6 +85,17 @@ not per-day counts. Five attempts means one initial attempt plus at most four
 retries; the separate five-review allowance spans those attempts. All reservations
 remain consumed even on failure/interruption, and a new run attempt cannot reuse
 an old grant. Historical counters and approvals are never refunded or reset.
+
+The cap-increase PR itself is reviewed by the existing policy on `main`, which
+still has a ceiling of 10 until that PR merges. If ten tickets have already been
+admitted today, wait for the next Bucharest calendar day before admitting its
+review ticket. Do not set the variable to 20 early, reset the ledger, or reuse an
+unrelated review ticket to bypass that limit. After the reviewed PR merges, save
+`FACTORY_MAX_TICKETS_PER_DAY=20`; the same day's existing admissions still count
+toward the new limit. The twenty-first distinct ticket is refused until the next
+day. Lower configured limits remain valid. More daily tickets can consume more
+of the shared Claude Pro allowance; this does not enable paid API usage or add
+subscription capacity.
 
 The coordinator retains one active-ticket lock across coding/CI/review. Existing
 owner PR review still reserves its own review before CI and uses zero coding
@@ -214,7 +230,7 @@ reviews and all verdicts intact. The additional review is recorded under the
 existing, previously unadmitted #20; it does not refund history or create another
 coding admission for #11. That historical rollout used 100 turns, 15 minutes, five daily
 tickets and two reviews per ticket; its owner authorized one additional run.
-Current post-merge ceilings are documented above under issue #21. Restore the factory flag to false after the full review
+Current post-merge ceilings are documented above under issues #21 and #33. Restore the factory flag to false after the full review
 workflow finishes, refresh only the native gate after an actual pass, and verify
 GitHub's merge decision before merging. No previous approval covers a new head.
 

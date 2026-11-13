@@ -1,0 +1,44 @@
+name: Production monitor
+on:
+  schedule:
+    - cron: "7,37 * * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Check public endpoints without creating tickets or writing monitor state
+        type: boolean
+        required: true
+        default: true
+permissions:
+  contents: read
+concurrency:
+  group: factory-production-monitor
+  cancel-in-progress: false
+jobs:
+  monitor:
+    if: >-
+      ${{ github.repository == 'haideearus/cypress-realworld-app' &&
+          github.ref == 'refs/heads/main' && github.run_attempt == 1 &&
+          github.actor == 'haideearus' &&
+          ((github.event_name == 'workflow_dispatch' && inputs.dry_run) ||
+           vars.FACTORY_MONITOR_ENABLED == 'true') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: write
+      issues: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+          sparse-checkout: scripts/factory
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22.20.0"
+      - name: Observe production and publish incident
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          FACTORY_MONITOR_ENABLED: ${{ vars.FACTORY_MONITOR_ENABLED }}
+          MONITOR_DRY_RUN: ${{ toJSON(inputs.dry_run) }}
+        run: node scripts/factory/monitor.cjs

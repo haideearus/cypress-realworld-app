@@ -384,7 +384,7 @@ test("configuration smoke operation preserves strict limits and subscription-onl
   await assert.rejects(
     implementation.main({
       FACTORY_OPERATION: "validate",
-      FACTORY_VARIABLES: JSON.stringify({ ...vars, FACTORY_MAX_TICKETS_PER_DAY: "11" }),
+      FACTORY_VARIABLES: JSON.stringify({ ...vars, FACTORY_MAX_TICKETS_PER_DAY: "21" }),
     }),
     /approved limit/i
   );

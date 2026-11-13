@@ -51,16 +51,22 @@ ticket #26's implementation. The App-backed automatic trial for issue #29 passed
 coding, CI, independent review and merge in
 [run #7](https://github.com/haideearus/cypress-realworld-app/actions/runs/43481055400),
 producing merged PR #30. All three factory switches were restored to false.
-The [approved deployment guide](factory/APPROVED-DEPLOYMENT.md) covers ticket #31's
-next stage; its workflow still needs review and a controlled live deployment.
-Monitoring and generic unattended recovery remain separate unfinished stages.
+The [approved deployment guide](factory/APPROVED-DEPLOYMENT.md) covers ticket #31.
+PR #32 merged and [production run 43493762007](https://github.com/haideearus/cypress-realworld-app/actions/runs/43493762007)
+passed after human approval, deploying main commit
+`54525bc837a1be222ea0c1bdc115d38b1e5889e0`; live health, readiness and frontend
+checks passed. All three factory switches remained false.
+The [monitoring guide](factory/PRODUCTION-MONITORING.md) describes ticket #33's
+default-disabled monitoring and trusted incident tickets, plus the approved
+daily ceiling increase from 10 to 20. Its live rollout is still pending review,
+merge and preview. Generic unattended recovery remains unfinished.
 The foundation table below is historical evidence, not the current full status.
 
 The [Claude factory guide](CLAUDE-FACTORY.md) describes the first agent-workflow
 implementation under ticket #6. Keep `FACTORY_ENABLED=false` through installation.
 It adds durable limits and separate coding/review roles. Required branch checks
-and a real owner-triggered ticket have since been verified; monitoring and the
-production approval workflow still need installation. The application is deployed at
+and a real owner-triggered ticket have since been verified, along with the
+production approval workflow. Monitoring still needs rollout. The application is deployed at
 https://haide-software-factory.onrender.com with Neon persistence. The table below
 records the earlier foundation milestone, rather than the whole current rollout.
 

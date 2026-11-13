@@ -1,5 +1,6 @@
 const { randomUUID } = require("node:crypto");
 const recovery = require("./recovery.cjs");
+const { validateMonitorProof } = require("./monitor-proof.cjs");
 
 const REPOSITORY = "haideearus/cypress-realworld-app";
 const OWNER = "haideearus";
@@ -7,7 +8,7 @@ const SHA = /^[a-f0-9]{40}$/;
 const AUTOMATIC_WORKFLOW_REF = `${REPOSITORY}/.github/workflows/factory-automatic.yml@refs/heads/main`;
 const APP_SLUG = /^[a-z0-9](?:[a-z0-9-]{0,98}[a-z0-9])?$/;
 const LIMITS = {
-  FACTORY_MAX_TICKETS_PER_DAY: ["daily", 10],
+  FACTORY_MAX_TICKETS_PER_DAY: ["daily", 20],
   FACTORY_MAX_CODING_ATTEMPTS_PER_TICKET: ["coding", 5],
   FACTORY_MAX_REVIEWS_PER_TICKET: ["reviews", 5],
   FACTORY_MAX_AUTOMATIC_RETRIES: ["retries", 4],
@@ -144,6 +145,14 @@ function validateState(state) {
       )
         deny("Invalid automatic ticket provenance");
     }
+    if (
+      ticket.monitor !== undefined &&
+      (!ticket.automatic ||
+        !validateMonitorProof(ticket.monitor) ||
+        ticket.monitor.issue !== Number(id) ||
+        ticket.monitor.criteriaHash !== ticket.criteriaHash)
+    )
+      deny("Invalid monitor ticket provenance");
     if (ticket.merge !== undefined) {
       const m = ticket.merge;
       const validTime =

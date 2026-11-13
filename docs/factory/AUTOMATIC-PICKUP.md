@@ -4,11 +4,11 @@ Implements maintenance [#26](https://github.com/haideearus/cypress-realworld-app
 
 ## What changes for you
 
-After installation, create an application-maintenance issue with clear acceptance criteria and add `factory-ready`. GitHub checks the queue every 30 minutes, selects one eligible owner-created issue, runs coding, tests and a fresh independent Claude review, then merges only the reviewed commit after both native required checks pass. Your PC can be off.
+After installation, create an application-maintenance issue with clear acceptance criteria and add `factory-ready`. GitHub checks the queue every 30 minutes, selects one eligible owner-created issue (or a verified production-monitor receipt under ticket #33), runs coding, tests and a fresh independent Claude review, then merges only the reviewed commit after both native required checks pass. Your PC can be off.
 
 Owner maintenance/harness PRs, public mentions, issues created by strangers, and previously admitted/blocked/exhausted tickets do not automatically enter this queue. Automatically reviewed PRs pending merge are handled before newer work. Provider or infrastructure failures stop; this change does not introduce an unlimited repair loop.
 
-Deployment remains separate: Render Auto-Deploy is off, and the course's human production approval is still required. This feature does not implement incident monitoring or a generic stale-run recovery controller.
+Deployment remains separate: Render Auto-Deploy is off, and the course's human production approval is still required. [Production monitoring](PRODUCTION-MONITORING.md) adds authenticated incident tickets behind its own disabled switch. Generic stale-run recovery remains a later stage.
 
 ## Why a repository-only GitHub App
 
@@ -90,7 +90,7 @@ Only after this trial is observed should the owner leave the flags enabled for o
 - Merge records intent before the expected-head merge call. A durable active-ticket lock prevents concurrent model admission during an uncertain merge. Later ticks observe GitHub first and reconcile a completed prior attempt rather than blindly repeating a merge.
 - A blocked/exhausted ticket does not restart on a later day and its history is never refunded. Owner recovery is a separate decision.
 - For a stop, save all three flags false and cancel the active Actions run. GitHub can snapshot variables, so a flag edit alone is not an instant cancellation. The existing owner-only `Factory agents → cancel` operation can help stop model work. For an uncertain merge, first inspect the real PR: cancellation cannot undo a merge already accepted by GitHub. Do not reset or hand-edit ledger counters.
-- Generic stale-run recovery and incident-to-ticket monitoring remain later stages.
+- Generic stale-run recovery remains a later stage. Monitor-created tickets require their immutable receipt and actual successful main source run at pickup, admission and merge; bot authorship or labels alone do not qualify.
 
 Schedules are best-effort, can be delayed, and public-repository schedules may disable after 60 days without repository activity. Pro quota/authentication or free hosting/database quotas can also stop work. No local computer is needed, but this is not an availability guarantee.
 

@@ -51,7 +51,7 @@ test("disabled and absent enabled flag refuse a coding reservation", () => {
   }
 });
 test("invalid, missing and increased limits fail closed", () => {
-  for (const value of ["11", "999", "2x", "-1", "1.5", "", undefined])
+  for (const value of ["21", "999", "2x", "-1", "1.5", "", undefined])
     assert.throws(() => policy.readConfig({ ...vars, FACTORY_MAX_TICKETS_PER_DAY: value }));
   assert.throws(() => policy.readConfig({ ...vars, FACTORY_TIMEZONE: "UTC" }));
   assert.throws(() => policy.readConfig({ ...vars, FACTORY_MAX_CONCURRENT_TICKETS: "2" }));
