@@ -109,28 +109,15 @@
     "18": {
       "coding": 0,
       "origin": "owner-pr",
-      "reviews": 1,
+      "reviews": 2,
       "retries": 0,
-      "head": "40eb635f5dbe2e51837d87fa6a67d8c2622aa141",
-      "status": "reviewed",
+      "head": "b883586f30756fbc80c82193a0244e6f67b5bb5c",
+      "status": "reviewing",
       "pr": 19,
-      "approval": {
-        "head": "40eb635f5dbe2e51837d87fa6a67d8c2622aa141",
-        "pr": 19,
-        "grant": "2e49cdf8-32bd-409f-af5e-8a5bfe3319e2",
-        "verdict": "pass",
-        "source": "claude-subscription",
-        "fixture": false,
-        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/43404407504"
-      },
+      "approval": null,
       "criteriaHash": "4d95a09a9f2a25d4bdf401b71d39d62cae25b0881bbefab249ab8258c6801c1f",
       "branch": "agent/18-issue11-recovery",
-      "ci": {
-        "requestId": "8845f8ad-3a49-41ec-b1dd-53dc626775d6",
-        "head": "40eb635f5dbe2e51837d87fa6a67d8c2622aa141",
-        "runId": 43404466484,
-        "passed": true
-      },
+      "ci": null,
       "feedback": "{\"verdict\":\"pass\",\"head\":\"40eb635f5dbe2e51837d87fa6a67d8c2622aa141\",\"summary\":\"The diff adds a single-use, owner-only `recover` operation scoped exactly to issue #11's current criterion hash and its two specific finished/blocked grant IDs, implemented in a new `scripts/factory/recovery.cjs` module that `policy.cjs` and `controller.cjs` consult. It correctly bypasses only the coding-attempt ceiling (not the retry counter, review cap, daily cap, or any permission/tool scope) for exactly one extra reservation, records it as a separately tagged, non-refundable grant, preserves both old failed grants and the original admission/day entry, and starts the new attempt from current main rather than the old failed head. Eligibility and ledger-shape validation (`assertEligible`, `priorFailures`, `validateState`) fail closed for wrong ticket/phase/slot/actor/dispatch-source, forged or replayed recovery markers, active/pending work, lowered budgets, and a second recovery or fourth coding attempt — confirmed by tracing the logic through `reserve`/`preflight`/`finish`/`cancel` and by the accompanying `factory-recovery.test.cjs` suite, which exercises the real policy/controller/worker code against synthetic GitHub fixtures (not mocks) and covers tamper, replay, lowered-budget, cancellation-no-refund, and full review-cycle paths. The worker/prompt changes only document the five already-preapproved `Bash(...)` commands via a shared `CODE_COMMANDS` array; `buildArgs`'s resulting `--allowedTools` string is unchanged byte-for-byte from before, and the review role still gets no shell access. Docs (`docs/CLAUDE-FACTORY.md`) accurately describe the unchanged limits, the consumed-on-reservation semantics, and explicitly avoid overclaiming that historical raw denials are known or that guidance guarantees compliance. No ledger, workflow dispatch, model session, or merge is executed by this change; it only prepares code, tests, and docs, consistent with the ticket's \\\"preparation only\\\" scope.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"recovery.assertEligible only requires config.reviews >= 1 and config.daily >= 1 (not the exact values 2 and 5 that config.coding === 2 and config.retries === 1 are pinned to). In practice the deployed vars keep reviews=2/daily=5, so this doesn't currently weaken anything, but it's an asymmetry worth tightening to an exact-match check for consistency with the ticket's 'lower configured budgets' fail-closed requirement.\"},{\"severity\":\"minor\",\"message\":\"The hardcoded CRITERIA hash and the two PRIOR grant IDs/run IDs in scripts/factory/recovery.cjs were computed against a frozen local fixture, not verified here against the live factory/state ledger or the current live issue #11 body. If they don't byte-for-byte match the real ledger/issue content at actual dispatch time, recovery will simply refuse (safe failure mode), but this should be confirmed once before the owner's real recovery dispatch.\"}]}"
     }
   },
@@ -206,9 +193,24 @@
       "status": "finished",
       "at": "2026-11-13T09:49:12.930Z",
       "outcome": "reviewed"
+    },
+    "749adc58-848d-4aaa-a786-5e000ffbfa29": {
+      "id": "749adc58-848d-4aaa-a786-5e000ffbfa29",
+      "ticket": 18,
+      "phase": "review",
+      "slot": "existing",
+      "runId": "43411264363",
+      "runAttempt": 1,
+      "head": "b883586f30756fbc80c82193a0244e6f67b5bb5c",
+      "status": "reserved",
+      "at": "2026-11-13T10:43:33.201Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 18,
+    "runId": "43411264363",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -307,6 +309,15 @@
       "grant": "2e49cdf8-32bd-409f-af5e-8a5bfe3319e2",
       "status": "reviewed",
       "head": "40eb635f5dbe2e51837d87fa6a67d8c2622aa141"
+    },
+    {
+      "at": "2026-11-13T10:43:33.201Z",
+      "event": "reserved",
+      "ticket": 18,
+      "grant": "749adc58-848d-4aaa-a786-5e000ffbfa29",
+      "phase": "review",
+      "runId": "43411264363",
+      "runAttempt": 1
     }
   ]
 }
