@@ -15,7 +15,8 @@
       24,
       26,
       28,
-      29
+      29,
+      31
     ]
   },
   "tickets": {
@@ -312,6 +313,19 @@
         "runAttempt": 1,
         "mergeCommit": "8948ab7c6f21205d356e9009596862553cdd8c31"
       }
+    },
+    "31": {
+      "coding": 0,
+      "origin": "owner-pr",
+      "reviews": 1,
+      "retries": 0,
+      "head": "aef4f1be7054e855fa4a362029cec7e0b7c1c7e9",
+      "status": "reviewing",
+      "pr": 32,
+      "approval": null,
+      "criteriaHash": "dc3e431885a64b4e2e385a8c038e9555a9e6b15ed5a8e26979c64c5f13cf63c8",
+      "branch": "agent/approved-render-deployment",
+      "ci": null
     }
   },
   "grants": {
@@ -531,9 +545,24 @@
       "status": "finished",
       "at": "2026-11-13T18:29:29.147Z",
       "outcome": "reviewed"
+    },
+    "3e93e95c-ddb8-41f6-9d42-d25ad84f6f05": {
+      "id": "3e93e95c-ddb8-41f6-9d42-d25ad84f6f05",
+      "ticket": 31,
+      "phase": "review",
+      "slot": "existing",
+      "runId": "43490579160",
+      "runAttempt": 1,
+      "head": "aef4f1be7054e855fa4a362029cec7e0b7c1c7e9",
+      "status": "reserved",
+      "at": "2026-11-13T19:16:24.208Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 31,
+    "runId": "43490579160",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -842,6 +871,15 @@
       "grant": "4074bfe5-7300-4d18-9349-4d148fea8018",
       "status": "reviewed",
       "head": "a690f156f94944aee4c4224583b21c4e41135a36"
+    },
+    {
+      "at": "2026-11-13T19:16:24.208Z",
+      "event": "reserved",
+      "ticket": 31,
+      "grant": "3e93e95c-ddb8-41f6-9d42-d25ad84f6f05",
+      "phase": "review",
+      "runId": "43490579160",
+      "runAttempt": 1
     }
   ]
 }
