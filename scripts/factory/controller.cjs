@@ -2,6 +2,7 @@ const fs = require("node:fs");
 const { createHash, randomUUID } = require("node:crypto");
 const policy = require("./policy.cjs");
 const recovery = require("./recovery.cjs");
+const { refreshGate } = require("./gate-report.cjs");
 const { GitHub, Ledger, ROOT } = require("./github.cjs");
 const { validateChanges, validateReview, secretLike } = require("./artifacts.cjs");
 const criteriaHash = (issue) =>
@@ -550,7 +551,7 @@ class Controller {
     if (pr.base?.ref !== "main" || pr.head.repo?.full_name !== policy.REPOSITORY)
       result = { ok: false, reason: "PR has no admitted factory review" };
     await this.api.request("POST", `${ROOT}/check-runs`, {
-      name: "Factory review gate",
+      name: "Factory review evidence",
       head_sha: pr.head.sha,
       status: "completed",
       conclusion: result.ok ? "success" : "failure",
@@ -559,7 +560,8 @@ class Controller {
         summary: result.reason,
       },
     });
-    return result;
+    const refresh = result.ok ? await refreshGate(this.api, pr) : { refreshed: false };
+    return { ...result, gateRefreshed: refresh.refreshed, gateRunId: refresh.runId || "" };
   }
 }
 function runtimeContext(env = process.env) {

@@ -72,6 +72,7 @@ test("third-party actions are immutable and model workflows contain no paid or p
     "factory-model.yml",
     "factory-review-gate.yml",
     "factory-pr-review.yml",
+    "factory-review-status.yml",
   ]) {
     const flow = load(name);
     for (const job of Object.values(flow.jobs))

@@ -1,0 +1,58 @@
+name: Factory review status
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+permissions:
+  contents: read
+concurrency:
+  group: factory-review-status-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  gate:
+    name: Factory review gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.20.0
+      - id: verify
+        name: Verify current-head independent proof without a model or state write
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FACTORY_PR: ${{ github.event.pull_request.number }}
+          FACTORY_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          node <<'NODE'
+          const policy = require('./scripts/factory/policy.cjs');
+          const { GitHub, Ledger, ROOT } = require('./scripts/factory/github.cjs');
+          async function verify(env = process.env, api = new GitHub({ token: env.GH_TOKEN })) {
+            if (env.GITHUB_REPOSITORY !== policy.REPOSITORY) throw new Error('Invalid gate repository');
+            const number = Number(env.FACTORY_PR);
+            if (!Number.isSafeInteger(number) || number < 1 || !policy.SHA.test(env.FACTORY_HEAD || ''))
+              throw new Error('Invalid PR identity');
+            const pr = await api.request('GET', `${ROOT}/pulls/${number}`);
+            if (pr.state !== 'open' || pr.base?.ref !== 'main' ||
+                pr.head?.repo?.full_name !== policy.REPOSITORY || pr.head?.sha !== env.FACTORY_HEAD)
+              throw new Error('PR head or repository changed');
+            const { state } = await new Ledger(api).read();
+            const result = policy.reviewGate(state, { number, head: pr.head.sha });
+            if (!result.ok) throw new Error(result.reason);
+            return result;
+          }
+          if (require.main === module || module.id === '[stdin]') verify().then(result => {
+            console.log(result.reason);
+          }).catch(() => {
+            console.error('Independent review is missing, stale, or unavailable for this PR head');
+            process.exitCode = 1;
+          });
+          module.exports = { verify };
+          NODE

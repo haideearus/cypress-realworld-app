@@ -30,7 +30,9 @@ class GitHub {
       error.status = response.status;
       throw error;
     }
-    return response.status === 204 ? null : response.json();
+    if (response.status === 204) return null;
+    const text = await response.text();
+    return text ? JSON.parse(text) : null;
   }
   async pages(path, key) {
     const all = [];

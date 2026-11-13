@@ -19,7 +19,8 @@ itself; the controller and worker preflight enforce them.
    Each dispatch has a unique ledger-backed request ID and exact run ID; an older
    successful run at the same commit cannot satisfy the request.
 5. After `verify` passes, a separate read-only Claude session reviews the exact
-   commit. A deterministic **Factory review gate** checks the saved proof.
+   commit. A native pull-request job named **Factory review gate** checks the
+   saved proof using trusted base-commit policy and read-only metadata.
 6. Only a failed CI result or a valid review requesting changes can reserve the
    second coding attempt. Provider errors and interrupted model jobs stop work.
 
@@ -181,9 +182,12 @@ or guarantee future model compliance without a separately authorized run.
 3. Run operation `run` with an issue number while the flag is still false. The
    admission job must say disabled; both coding/review cycles must be skipped.
    No usage reservation or provider request should be created. Inspect the run.
-4. To register/check the merge gate, run **Factory independent review gate** for
-   an open PR number. With no genuine review record it must post a **failing**
-   `Factory review gate` check. This is an expected refusal, not a real AI review.
+4. Open a PR to register/check the merge gate. **Factory review status** runs a
+   native pull-request job named **Factory review gate**. Without genuine proof
+   for that exact head it must fail, including while the factory is disabled.
+   This metadata check is not a model session. **Factory independent review gate**
+   remains a trusted metadata refresh entry; its custom API report is named
+   **Factory review evidence** and is informational, not the required job.
 5. Add **Factory review gate** alongside **verify** in main's required checks,
    selecting GitHub Actions as the source. Keep the branch protected for everyone.
    Afterward, unreviewed PRs, including owner PRs, cannot merge while disabled.
@@ -201,11 +205,45 @@ For a later owner-written application or harness PR, use **Factory agents** on
 `main`, operation **review**, with the open maintenance **ticket** and existing
 **pr** numbers. The PR must be authored by `haideearus`, reside in this fork, and
 target `main`. Trusted default-branch helpers dispatch exact-head CI, then run
-only the separate read-only review role and publish the same review gate. There
+only the separate read-only review role and refresh the native review gate. There
 is no coding/publishing job or automatic retry in this path. If changes are
 requested, update that PR and explicitly request another review within the two
 review lifetime cap. A head change invalidates prior approval. This operation is
 also disabled by `FACTORY_ENABLED=false`; it is not a human-author bypass.
+
+### Review status reporting and PR #19 bootstrap
+
+Ticket [#20](https://github.com/haideearus/cypress-realworld-app/issues/20) repairs
+custom API checks that report success while GitHub still shows the required
+status as Expected. A green API record alone does not establish merge readiness.
+Check the actual PR merge status and the native required job.
+
+**Factory review status** runs only on pull-request events. It checks out the
+immutable base SHA, reads the current PR and durable ledger, and refuses missing,
+stale, fixture, failed or unavailable proof. It does not check out PR code, run
+an agent, install application dependencies, reserve usage, write the ledger or
+receive a model credential. Its repository token is read-only. The actual stdin
+entry is tested both with and without synthetic current-head approval.
+
+After genuine approval, the trusted controller can rerun the matching failed
+native gate once, using that gate's original eligible pull-request event. It
+matches the fixed workflow path, repository, head repository, PR and SHA, rechecks
+the current PR before writing, and never restarts a cancelled run or a second
+attempt. It cannot rerun Factory agents or dispatch another model. Only trusted
+assessment/refresh jobs request the necessary Actions write permission; model
+permissions and all usage limits stay unchanged. The informational custom check
+uses a different name to avoid competing with the required native job.
+
+For **PR #19 only**, the trusted controller on main predates this repair. The
+changed head invalidates its old review. Keep the factory false until a fresh
+review is separately authorized. After that review, restore the flag to false,
+open the failed **Factory review status** run for the new head and select
+**Re-run failed jobs**. This reruns only the metadata gate, not Factory agents.
+After merge the new controller performs this bounded refresh automatically.
+Do not remove a required check or transfer the old approval to the new head.
+
+GitHub documents that workflow trigger/source affects required-check evaluation:
+[troubleshooting required status checks](https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/troubleshooting-required-status-checks#checks-from-some-workflow-jobs-are-not-evaluated).
 
 The GitHub integration used during setup could read main's protected flag and
 required `verify` check, but its detailed branch-protection endpoint returned 403. The owner created the rule in the UI. Do not claim every checkbox was
