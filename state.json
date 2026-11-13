@@ -8,7 +8,8 @@
     ],
     "2026-11-13": [
       14,
-      16
+      16,
+      18
     ]
   },
   "tickets": {
@@ -104,6 +105,19 @@
         "passed": true
       },
       "feedback": "{\"head\":\"007e082825c56770966fd06ad1d16faeed9e2ebb\",\"verdict\":\"pass\",\"summary\":\"The diff raises the FACTORY_MAX_TURNS_PER_RUN policy cap in scripts/factory/policy.cjs from 50 to 100, with accompanying test updates in factory-policy.test.cjs (accepts 1/20/50/100, rejects 101/999/-1/1.5/\\\"100x\\\"/empty/undefined), factory-worker.test.cjs (confirms both code and review buildArgs receive --max-turns 100 without any tool/permission changes), and factory-controller.test.cjs (disabled 100-turn/5-ticket validate-only smoke test). The CI workflow's disabled validation fixture and docs were updated to exercise/describe the new ceiling. Crucially, no live GitHub Actions repository variable is touched by this diff — all operational workflows (factory-agents.yml, factory-cycle.yml) read FACTORY_* values from `vars.*` context, not from committed code, so the actual deployed turn ceiling remains governed by the repo variable the owner controls, consistent with the ticket's requirement to keep the live setting at 50 and FACTORY_ENABLED=false until independent review and merge. The docs (CLAUDE-FACTORY.md) correctly state current main's live value stays 50 pending review, and preserve all other limits (daily=5, coding=2, reviews=2, retries=1, concurrency=1, timeout=15m, OAuth-only auth). The new plan file and docs explicitly reiterate that issue #11 remains blocked/exhausted (coding=2, retries=1, reviews=0, no PR) and must not be re-dispatched, reset, or given a replacement admission — matching the ticket's explicit prohibition. No tool permissions, authentication mechanism, or other durable counters were altered.\",\"findings\":[]}"
+    },
+    "18": {
+      "coding": 0,
+      "origin": "owner-pr",
+      "reviews": 1,
+      "retries": 0,
+      "head": "40eb635f5dbe2e51837d87fa6a67d8c2622aa141",
+      "status": "reviewing",
+      "pr": 19,
+      "approval": null,
+      "criteriaHash": "4d95a09a9f2a25d4bdf401b71d39d62cae25b0881bbefab249ab8258c6801c1f",
+      "branch": "agent/18-issue11-recovery",
+      "ci": null
     }
   },
   "grants": {
@@ -166,9 +180,24 @@
       "status": "finished",
       "at": "2026-11-13T08:49:37.451Z",
       "outcome": "reviewed"
+    },
+    "2e49cdf8-32bd-409f-af5e-8a5bfe3319e2": {
+      "id": "2e49cdf8-32bd-409f-af5e-8a5bfe3319e2",
+      "ticket": 18,
+      "phase": "review",
+      "slot": "existing",
+      "runId": "43404407504",
+      "runAttempt": 1,
+      "head": "40eb635f5dbe2e51837d87fa6a67d8c2622aa141",
+      "status": "reserved",
+      "at": "2026-11-13T09:49:12.930Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 18,
+    "runId": "43404407504",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -250,6 +279,15 @@
       "grant": "8dab7b9b-a092-459b-83ef-9933e56be868",
       "status": "reviewed",
       "head": "007e082825c56770966fd06ad1d16faeed9e2ebb"
+    },
+    {
+      "at": "2026-11-13T09:49:12.930Z",
+      "event": "reserved",
+      "ticket": 18,
+      "grant": "2e49cdf8-32bd-409f-af5e-8a5bfe3319e2",
+      "phase": "review",
+      "runId": "43404407504",
+      "runAttempt": 1
     }
   ]
 }
