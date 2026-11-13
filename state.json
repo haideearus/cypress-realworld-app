@@ -35,7 +35,8 @@
       "ci": {
         "requestId": "15fd8102-1e03-414d-94f4-2c9cb3c85dc7",
         "head": "118c97133cffdf1b955fa89ead61750eb5e66534",
-        "runId": null
+        "runId": 43434592056,
+        "passed": true
       }
     },
     "12": {
