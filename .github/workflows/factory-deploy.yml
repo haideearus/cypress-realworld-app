@@ -1,0 +1,88 @@
+name: Approved production deployment
+run-name: Production deployment / CI ${{ github.event.workflow_run.id || inputs.ci_run_id }}
+on:
+  workflow_run:
+    workflows: [Factory CI]
+    branches: [main]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      ci_run_id:
+        description: Successful Factory CI push run ID for the current main commit
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+jobs:
+  prepare:
+    if: >-
+      ${{ github.repository == 'haideearus/cypress-realworld-app' &&
+          github.ref == 'refs/heads/main' && github.run_attempt == 1 &&
+          ((github.event_name == 'workflow_dispatch' && github.actor == 'haideearus') ||
+           (github.event_name == 'workflow_run' && github.event.workflow_run.event == 'push' &&
+            github.event.workflow_run.conclusion == 'success')) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      sha: ${{ steps.candidate.outputs.sha }}
+      ci_attempt: ${{ steps.candidate.outputs.ci_attempt }}
+      ci_run_id: ${{ steps.candidate.outputs.ci_run_id }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+          sparse-checkout: scripts/factory
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22.20.0"
+      - name: Validate tested commit without deployment credentials
+        id: candidate
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          CI_RUN_ID: ${{ github.event.workflow_run.id || inputs.ci_run_id }}
+        run: node scripts/factory/deploy.cjs prepare
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: deployment-preparation-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/factory-deployment/evidence.json
+          if-no-files-found: warn
+          retention-days: 30
+  deploy:
+    name: Deploy tested commit ${{ needs.prepare.outputs.sha }}
+    needs: prepare
+    if: ${{ needs.prepare.result == 'success' && github.run_attempt == 1 }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    concurrency:
+      group: factory-production-deploy
+      cancel-in-progress: false
+    environment:
+      name: production
+      url: https://haide-software-factory.onrender.com
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+          sparse-checkout: scripts/factory
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22.20.0"
+      - name: Revalidate human approval, deploy once, and verify the live release
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          CI_RUN_ID: ${{ needs.prepare.outputs.ci_run_id }}
+          DEPLOY_EXPECTED_SHA: ${{ needs.prepare.outputs.sha }}
+          DEPLOY_EXPECTED_CI_ATTEMPT: ${{ needs.prepare.outputs.ci_attempt }}
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: node scripts/factory/deploy.cjs deploy
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: deployment-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/factory-deployment/evidence.json
+          if-no-files-found: warn
+          retention-days: 30
