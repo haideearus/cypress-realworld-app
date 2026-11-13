@@ -5,6 +5,9 @@
     "2026-11-12": [
       11,
       12
+    ],
+    "2026-11-13": [
+      14
     ]
   },
   "tickets": {
@@ -46,6 +49,19 @@
         "passed": true
       },
       "feedback": "{\"head\":\"717eb58ec018a4c6f09a07e9d52e8920706d618b\",\"verdict\":\"pass\",\"summary\":\"The change adds a Node-only, read-only reporter (scripts/factory/diagnostics.cjs) invoked only on a failed Claude model step, which builds a bounded, allowlist-only JSON report (fixed tool names, fixed command categories/forms, counts, stop reason) from the pinned action's temporary execution file and uploads it under a separate \\\"diagnostic-<phase>-<grantId>\\\" artifact name with 7-day retention. Verified against the current source: the reporter is copied into $RUNNER_TEMP/factory-control before the untrusted ticket head is checked out (same trust boundary already used for worker.cjs), so it cannot be tampered with by ticket/repo content. It correctly distinguishes \\\"denials array present but empty\\\" (status=available, denialCount=0) from \\\"denials missing/invalid\\\" (status=unavailable, denialCount=null, explicit reason) — never fabricating a zero. File reads are bounded (8 MiB, re-checked after fstat to avoid TOCTOU growth), symlinks/directories are rejected via lstat+O_NOFOLLOW, and the output file is written with O_EXCL so a pre-existing file is refused rather than overwritten. Only three fixed-shape fields (tool, commandCategory, commandForm) ever leave the reporter per denial; raw commands/paths/prompts/IDs/errors are never included, verified by tests that smuggle a synthetic secret through every untrusted field and assert it never appears in the report, stdout, or stderr. The new workflow steps use `continue-on-error: true` and `if: failure() && steps.model.outcome == 'failure'`, so they only fire on an actual model-step failure, can't themselves flip the job back to success, and are skipped for preflight failures or cancellations — confirmed against factory-cycle.yml/factory-pr-review.yml, which gate on job `.result` unaffected by this addition. No other file (policy.cjs, worker.cjs, controller.cjs, permissions blocks, FACTORY_ENABLED gate, turn-ceiling logic) was touched. The new test file is automatically picked up by the existing `yarn test:factory` glob already run in CI, so no CI wiring changes were needed. Regression coverage is strong: missing/oversized/malformed/symlinked/directory inputs, truncation at 100 denials, PowerShell command classification, exact-vs-with-arguments vs compound/dynamic command forms, and non-overwrite of an existing output file are all exercised.\",\"findings\":[]}"
+    },
+    "14": {
+      "coding": 0,
+      "origin": "owner-pr",
+      "reviews": 1,
+      "retries": 0,
+      "head": "e117eb47a992b5be679f1da0db858e6ede25fda6",
+      "status": "reviewing",
+      "pr": 15,
+      "approval": null,
+      "criteriaHash": "1383fd99d694c44e2d1875942432d72328afb1d6e8cfd500a4c051e7622d0e5b",
+      "branch": "agent/14-turn-limit-50",
+      "ci": null
     }
   },
   "grants": {
@@ -72,9 +88,24 @@
       "status": "finished",
       "at": "2026-11-12T11:42:00.351Z",
       "outcome": "reviewed"
+    },
+    "53e70746-5eb5-4705-9941-b0be71b8569f": {
+      "id": "53e70746-5eb5-4705-9941-b0be71b8569f",
+      "ticket": 14,
+      "phase": "review",
+      "slot": "existing",
+      "runId": "43388829243",
+      "runAttempt": 1,
+      "head": "e117eb47a992b5be679f1da0db858e6ede25fda6",
+      "status": "reserved",
+      "at": "2026-11-13T07:52:20.684Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 14,
+    "runId": "43388829243",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -107,6 +138,15 @@
       "grant": "1f81633d-863a-4257-ab45-6696d3f05d1a",
       "status": "reviewed",
       "head": "717eb58ec018a4c6f09a07e9d52e8920706d618b"
+    },
+    {
+      "at": "2026-11-13T07:52:20.684Z",
+      "event": "reserved",
+      "ticket": 14,
+      "grant": "53e70746-5eb5-4705-9941-b0be71b8569f",
+      "phase": "review",
+      "runId": "43388829243",
+      "runAttempt": 1
     }
   ]
 }
