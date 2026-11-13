@@ -276,9 +276,17 @@
       "reviews": 1,
       "retries": 0,
       "head": "a690f156f94944aee4c4224583b21c4e41135a36",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 30,
-      "approval": null,
+      "approval": {
+        "head": "a690f156f94944aee4c4224583b21c4e41135a36",
+        "pr": 30,
+        "grant": "4074bfe5-7300-4d18-9349-4d148fea8018",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/43481055400"
+      },
       "criteriaHash": "3cdfd3261477d392d7e867a4ce753455356255e0bfb8b7181fc392a001dac2b3",
       "automatic": {
         "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-automatic.yml@refs/heads/main",
@@ -293,7 +301,8 @@
         "head": "a690f156f94944aee4c4224583b21c4e41135a36",
         "runId": 43482249610,
         "passed": true
-      }
+      },
+      "feedback": "{\"head\":\"a690f156f94944aee4c4224583b21c4e41135a36\",\"verdict\":\"pass\",\"summary\":\"The fix correctly removes an accidental double-backslash escaping bug in phoneRegExp: the old literal had `\\\\\\\\+`/`\\\\\\\\(`/`\\\\\\\\)` (matching a literal backslash followed by a quantifier/paren) instead of the intended `\\\\+`/`\\\\(`/`\\\\)` escapes, which is why \\\"+1 615-555-1212\\\" and \\\"(615) 555-1212\\\" were rejected while a backslash-prefixed number was wrongly accepted. The new regex correctly accepts all four required formats (digits-only, hyphenated, +country-code, and parenthesized area code) and rejects backslash-prefixed, letter-only, and empty input, verified by manual regex-decomposition tracing. \\\"615-555-\\\" is correctly rejected because the trailing tail `[0-9]{3,4}?[ -]*[0-9]{3,4}?$` has no provision for a dangling separator before `$`, which also matches the pre-existing Cypress e2e assertion at cypress/tests/ui/user-settings.spec.ts:60-64 that already expects this exact case to fail — so no regression there. The added UserSettingsForm.test.tsx renders the real component and exercises the actual Yup validation schema (no regex duplication), covers accept/reject cases plus a submission test verifying updateUser is called with the typed phone number, and relies only on already-present devDependencies (vitest, @testing-library/react, jest-dom) and the existing vite.config.ts jsdom test setup — no new dependencies. The User fixture in the test matches the User interface exactly, so yarn types should be unaffected. Diff is scoped solely to the regex and new regression tests, consistent with the ticket's scope restrictions.\",\"findings\":[]}"
     }
   },
   "grants": {
@@ -510,15 +519,12 @@
       "runId": "43481055400",
       "runAttempt": 1,
       "head": "a690f156f94944aee4c4224583b21c4e41135a36",
-      "status": "reserved",
-      "at": "2026-11-13T18:29:29.147Z"
+      "status": "finished",
+      "at": "2026-11-13T18:29:29.147Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 29,
-    "runId": "43481055400",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -819,6 +825,14 @@
       "phase": "review",
       "runId": "43481055400",
       "runAttempt": 1
+    },
+    {
+      "at": "2026-11-13T18:34:03.276Z",
+      "event": "finished",
+      "ticket": 29,
+      "grant": "4074bfe5-7300-4d18-9349-4d148fea8018",
+      "status": "reviewed",
+      "head": "a690f156f94944aee4c4224583b21c4e41135a36"
     }
   ]
 }
