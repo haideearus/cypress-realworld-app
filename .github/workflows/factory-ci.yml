@@ -61,6 +61,10 @@ jobs:
       - run: yarn predev:cognito:ci
       - name: Factory policy and simulated agent checks without model calls
         run: yarn test:factory
+      - name: Exercise the credential-free drill sandbox without AI or GitHub writes
+        run: node --test scripts/tests/factory-drill-sandbox.test.cjs
+        env:
+          FACTORY_DRILL_DOCKER_TEST: "true"
       - run: yarn types && yarn lint && yarn test:unit:ci
       - run: yarn build:production && yarn test:production
       - run: yarn test:production:browser

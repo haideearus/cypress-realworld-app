@@ -76,6 +76,12 @@ trial must still be observed before claiming unattended end-to-end operation.
 
 ## Limits, costs and operator recovery
 
+For a controlled cloud demonstration without breaking Render, use the separately
+reviewed [monitor repair rehearsal](MONITOR-REPAIR-REHEARSAL.md). Its temporary
+fixture, ticket origin and registry are isolated; drill recovery never supplies
+production admission or approval evidence. A live rehearsal must be demonstrated
+before claiming it passed.
+
 The higher daily ceiling permits 20 **new tickets**, not 20 model calls. Existing
 ceilings remain: five coding sessions, five review sessions, four automatic
 retries, 200 turns per session, 30 minutes and one simultaneous ticket. A larger

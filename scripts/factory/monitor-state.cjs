@@ -49,13 +49,16 @@ function validateMonitorState(state) {
   return state;
 }
 class MonitorStore {
-  constructor(api) {
+  #branch;
+  constructor(api, namespace = "production") {
+    if (!["production", "drill"].includes(namespace)) throw new Error("Invalid monitor namespace");
     this.api = api;
+    this.#branch = namespace === "production" ? "factory/monitor" : "factory/monitor-drill";
   }
   async read() {
     let ref;
     try {
-      ref = await this.api.request("GET", `${ROOT}/git/ref/heads/factory/monitor`);
+      ref = await this.api.request("GET", `${ROOT}/git/ref/heads/${this.#branch}`);
     } catch (error) {
       if (error.status === 404) return { state: emptyMonitorState(), commit: null };
       throw error;
@@ -92,18 +95,21 @@ class MonitorStore {
       tree: [{ path: "monitor.json", mode: "100644", type: "blob", sha: blob.sha }],
     });
     const commit = await this.api.request("POST", `${ROOT}/git/commits`, {
-      message: "Record production monitor incident",
+      message:
+        this.#branch === "factory/monitor"
+          ? "Record production monitor incident"
+          : "Record drill monitor incident",
       tree: tree.sha,
       parents: parent ? [parent] : [],
     });
     if (!SHA.test(commit.sha || "")) throw new Error("Invalid monitor write response");
     const saved = parent
-      ? await this.api.request("PATCH", `${ROOT}/git/refs/heads/factory/monitor`, {
+      ? await this.api.request("PATCH", `${ROOT}/git/refs/heads/${this.#branch}`, {
           sha: commit.sha,
           force: false,
         })
       : await this.api.request("POST", `${ROOT}/git/refs`, {
-          ref: "refs/heads/factory/monitor",
+          ref: `refs/heads/${this.#branch}`,
           sha: commit.sha,
         });
     if (saved.object?.sha !== commit.sha) throw new Error("Monitor write was not acknowledged");

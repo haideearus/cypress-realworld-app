@@ -1,0 +1,190 @@
+name: Monitor repair rehearsal
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Preview prerequisites without mutations or Claude usage
+        type: boolean
+        required: true
+        default: true
+permissions:
+  contents: read
+concurrency:
+  group: factory-monitor-rehearsal
+  cancel-in-progress: false
+jobs:
+  window:
+    name: Preview or PC shutdown window
+    if: >-
+      ${{ github.repository == 'haideearus/cypress-realworld-app' &&
+          github.ref == 'refs/heads/main' && github.run_attempt == 1 &&
+          github.actor == 'haideearus' && github.triggering_actor == 'haideearus' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      ready: ${{ steps.window.outputs.ready }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+          sparse-checkout: scripts/factory
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22.20.0"
+      - name: Check prerequisites without changing state
+        id: window
+        run: node scripts/factory/monitor-drill.cjs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          FACTORY_VARIABLES: ${{ toJSON(vars) }}
+          FACTORY_DRILL_OPERATION: ${{ inputs.dry_run && 'preview' || 'window' }}
+      - name: Allow 90 seconds for the owner to shut down their PC
+        if: ${{ steps.window.outputs.ready == 'true' }}
+        run: sleep 90
+  prepare:
+    name: Publish isolated incident and reserve one attempt
+    needs: window
+    if: ${{ needs.window.outputs.ready == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      issues: write
+    concurrency:
+      group: factory-ledger
+      cancel-in-progress: false
+    outputs:
+      ready: ${{ steps.prepare.outputs.ready }}
+      ticket: ${{ steps.prepare.outputs.ticket }}
+      grantId: ${{ steps.prepare.outputs.grantId }}
+      head: ${{ steps.prepare.outputs.head }}
+      prepared: ${{ steps.prepare.outputs.prepared }}
+      identity: ${{ steps.prepare.outputs.identity }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+          sparse-checkout: scripts/factory
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22.20.0"
+      - name: Recheck admission and publish the measured drill incident
+        id: prepare
+        run: node scripts/factory/monitor-drill.cjs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          FACTORY_VARIABLES: ${{ toJSON(vars) }}
+          FACTORY_DRILL_OPERATION: prepare
+          FACTORY_DRILL_EVIDENCE: ${{ runner.temp }}/drill-preparation.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: drill-preparation
+          path: ${{ runner.temp }}/drill-preparation.json
+          if-no-files-found: error
+          retention-days: 14
+  coding:
+    needs: prepare
+    if: ${{ needs.prepare.outputs.ready == 'true' }}
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
+    uses: ./.github/workflows/factory-model.yml
+    with:
+      ticket: ${{ needs.prepare.outputs.ticket }}
+      grantId: ${{ needs.prepare.outputs.grantId }}
+      head: ${{ needs.prepare.outputs.head }}
+      slot: drill
+      phase: code
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+  verify:
+    name: Verify isolated recovery
+    needs: [prepare, coding]
+    if: ${{ needs.coding.result == 'success' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+          sparse-checkout: scripts/factory
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22.20.0"
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: code-${{ needs.prepare.outputs.grantId }}
+          path: ${{ runner.temp }}/drill-code
+      - name: Write the reserved verification identity
+        run: node -e "require('node:fs').writeFileSync(process.env.FACTORY_DRILL_INPUT,process.env.FACTORY_DRILL_IDENTITY)"
+        env:
+          FACTORY_DRILL_INPUT: ${{ runner.temp }}/drill-input.json
+          FACTORY_DRILL_IDENTITY: ${{ needs.prepare.outputs.identity }}
+      - name: Measure baseline and candidate in the isolated sandbox
+        run: node scripts/factory/drill-verify.cjs verify
+        env:
+          FACTORY_DRILL_INPUT: ${{ runner.temp }}/drill-input.json
+          FACTORY_DRILL_BUNDLE: ${{ runner.temp }}/drill-code/bundle.json
+          FACTORY_DRILL_REPORT: ${{ runner.temp }}/drill-verification.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: ${{ always() && !cancelled() }}
+        with:
+          name: drill-verification-${{ needs.prepare.outputs.grantId }}
+          path: ${{ runner.temp }}/drill-verification.json
+          if-no-files-found: warn
+          retention-days: 14
+  finalize:
+    name: Record measured recovery and retire the attempt
+    needs: [prepare, coding, verify]
+    if: ${{ always() && !cancelled() && needs.prepare.outputs.ready == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    concurrency:
+      group: factory-ledger
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      issues: write
+      actions: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+          sparse-checkout: scripts/factory
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22.20.0"
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        if: ${{ needs.verify.result == 'success' }}
+        with:
+          name: code-${{ needs.prepare.outputs.grantId }}
+          path: ${{ runner.temp }}/drill-code
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        if: ${{ needs.verify.result == 'success' }}
+        with:
+          name: drill-verification-${{ needs.prepare.outputs.grantId }}
+          path: ${{ runner.temp }}/drill-verified
+      - name: Validate the run and preserve its terminal evidence
+        run: node scripts/factory/monitor-drill.cjs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          FACTORY_VARIABLES: ${{ toJSON(vars) }}
+          FACTORY_DRILL_OPERATION: finalize
+          FACTORY_DRILL_PREPARED: ${{ needs.prepare.outputs.prepared }}
+          FACTORY_DRILL_BUNDLE: ${{ runner.temp }}/drill-code/bundle.json
+          FACTORY_DRILL_REPORT: ${{ runner.temp }}/drill-verified/drill-verification.json
+          FACTORY_DRILL_EVIDENCE: ${{ runner.temp }}/drill-result.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: ${{ always() && !cancelled() }}
+        with:
+          name: drill-result
+          path: ${{ runner.temp }}/drill-result.json
+          if-no-files-found: warn
+          retention-days: 14

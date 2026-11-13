@@ -62,6 +62,18 @@ async function monitor({
   if (!enabled && !dryRun) return { outcome: "disabled" };
   const observation = validateObservation(await probe());
   if (dryRun) return { outcome: "preview", observation };
+  return observeIncident({ api, context, store, observation, now });
+}
+async function observeIncident({
+  api,
+  context,
+  store,
+  observation,
+  now = () => new Date().toISOString(),
+  issueText: renderIssueText = issueText,
+  labels = ["factory-ready"],
+}) {
+  observation = validateObservation(observation);
   const at = now();
   if (
     typeof at !== "string" ||
@@ -114,7 +126,7 @@ async function monitor({
     criteriaHash: "",
     issue: null,
   };
-  const text = issueText(incident, observation);
+  const text = renderIssueText(incident, observation);
   incident.criteriaHash = createHash("sha256")
     .update(JSON.stringify([text.title, text.body]))
     .digest("hex");
@@ -125,7 +137,7 @@ async function monitor({
   const intentCommit = await store.save(state, commit);
   const created = await api.request("POST", `${ROOT}/issues`, {
     ...text,
-    labels: ["factory-ready"],
+    labels,
   });
   if (
     !Number.isSafeInteger(created.number) ||
@@ -185,4 +197,11 @@ if (require.main === module)
     console.error("Could not write sanitized monitor summary");
     process.exitCode = 1;
   });
-module.exports = { assertMonitorContext, validateObservation, issueText, monitor, main };
+module.exports = {
+  assertMonitorContext,
+  validateObservation,
+  issueText,
+  observeIncident,
+  monitor,
+  main,
+};

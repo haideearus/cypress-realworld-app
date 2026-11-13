@@ -1,6 +1,6 @@
 # Isolated cloud monitor and Claude repair rehearsal
 
-Status: proposed design, not installed or executed.
+Status: owner-approved on 2026-11-14; implementation prepared, not installed or executed.
 Implementation ticket: [#35](https://github.com/haideearus/cypress-realworld-app/issues/35).
 
 ## Purpose
@@ -40,7 +40,8 @@ fixture architecture is the proposed implementation of that choice.
 3. A preparation job validates the real workflow identity, the current limits,
    an empty active ledger slot, and available daily/coding allowance. It provides
    a 90-second window to shut down the PC before performing the rehearsal work.
-   Revalidate mutable switches and available allowance after that window.
+   Revalidate job configuration and available allowance after that window.
+   GitHub may snapshot variables; cancellation remains the immediate stop control.
 4. The job creates one `factory/drill-<run-id>` branch from the trusted workflow
    revision, containing a small broken HTTP response fixture and its regression
    test. Neither file is added to `main`. Record the actual seed commit SHA.
