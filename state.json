@@ -15,16 +15,21 @@
   },
   "tickets": {
     "11": {
-      "coding": 2,
+      "coding": 3,
       "origin": "factory",
       "reviews": 0,
       "retries": 1,
-      "head": "4f0eb6eca04cd603a5401439d0fdcd83d8c2c4d5",
-      "status": "blocked",
+      "head": "f5f1e576d032b0e7f1621ed8db3e0d4f9c05f90e",
+      "status": "coding",
       "pr": null,
       "approval": null,
       "criteriaHash": "d295d714446efad9eaa6b3bd3c0c25706756dcc2d26160a191f0253438279387",
-      "feedback": "Agent, publication, or CI infrastructure failed; no automatic model retry"
+      "feedback": "Agent, publication, or CI infrastructure failed; no automatic model retry",
+      "recovery": {
+        "id": "issue-11-once-2026-11-13",
+        "grant": "1036a5ae-1e5b-41ec-80c8-1dd61beba15c",
+        "decision": "https://github.com/haideearus/cypress-realworld-app/issues/18"
+      }
     },
     "12": {
       "coding": 0,
@@ -250,9 +255,25 @@
       "status": "finished",
       "at": "2026-11-13T11:17:07.267Z",
       "outcome": "reviewed"
+    },
+    "1036a5ae-1e5b-41ec-80c8-1dd61beba15c": {
+      "id": "1036a5ae-1e5b-41ec-80c8-1dd61beba15c",
+      "ticket": 11,
+      "phase": "code",
+      "slot": "cycle1",
+      "runId": "43418380398",
+      "runAttempt": 2,
+      "head": "f5f1e576d032b0e7f1621ed8db3e0d4f9c05f90e",
+      "status": "reserved",
+      "at": "2026-11-13T11:36:56.576Z",
+      "recovery": "issue-11-once-2026-11-13"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 11,
+    "runId": "43418380398",
+    "runAttempt": 2
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -385,6 +406,24 @@
       "grant": "3a6aac2b-285b-4797-bd95-6c266ab52b62",
       "status": "reviewed",
       "head": "557e37cc8001674d07ad76dc2524e6e81120e6b0"
+    },
+    {
+      "at": "2026-11-13T11:36:56.576Z",
+      "event": "recovery_reserved",
+      "ticket": 11,
+      "grant": "1036a5ae-1e5b-41ec-80c8-1dd61beba15c",
+      "recovery": "issue-11-once-2026-11-13",
+      "actor": "haideearus",
+      "runId": "43418380398"
+    },
+    {
+      "at": "2026-11-13T11:36:56.576Z",
+      "event": "reserved",
+      "ticket": 11,
+      "grant": "1036a5ae-1e5b-41ec-80c8-1dd61beba15c",
+      "phase": "code",
+      "runId": "43418380398",
+      "runAttempt": 2
     }
   ]
 }
