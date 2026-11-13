@@ -80,8 +80,8 @@ function assertEligible(state, request, config) {
     state.active ||
     config.coding !== 2 ||
     config.retries !== 1 ||
-    config.reviews < 1 ||
-    config.daily < 1 ||
+    config.reviews !== 2 ||
+    config.daily !== 5 ||
     Object.values(state.grants).some((g) => g.status === "reserved") ||
     Object.values(state.grants).filter((g) => g.ticket === 11 && g.phase === "code").length !== 2
   )
@@ -96,8 +96,8 @@ function allowance(state, ticket, config) {
   return state.tickets[String(ticket)]?.recovery &&
     config.coding === 2 &&
     config.retries === 1 &&
-    config.reviews > 0 &&
-    config.daily > 0
+    config.reviews === 2 &&
+    config.daily === 5
     ? 1
     : 0;
 }

@@ -1,48 +1,40 @@
-# Gate Reporting Implementation Plan
+# Gate Reporting Resolution Record
 
-> **For agentic workers:** Use superpowers:executing-plans inline. The owner forbids another Claude run; independent review waits for separate authorization.
+**Goal:** Finish the native required gate in existing PR #19 with the full owner
+authorized scope and no additional workflow permission grants.
 
-**Goal:** Replace the unrecognized required report with a genuine fail-closed PR job in PR #19.
+**Architecture:** The native read-only pull-request job evaluates trusted base
+policy and current ledger proof. The controller publishes informational evidence
+only. The owner/authorized repository manager explicitly refreshes the native
+gate after a genuine review. No rerun API helper remains in the source.
 
-**Architecture:** A read-only native job loads trusted base policy and verifies
-current-head ledger proof. The controller retains an informational API report
-and requests one bounded refresh of only the failed native gate after approval.
+**Spec:** [Final design](../specs/2026-11-13-gate-reporting-design.md).
+**Review scope:** [Complete brief](../../factory/PR-19-REVIEW.md), issue #20.
 
-**Tech Stack:** Node 22.20.0, existing CommonJS policy/ledger, GitHub Actions.
+## Resolution
 
-**Spec:** [Design](../specs/2026-11-13-gate-reporting-design.md).
+- Preserve the native job and executable stdin verifier with missing/stale/fake
+  proof, unavailable ledger, wrong/closed/changed PR and disabled-read-only tests.
+- Restore the three metadata jobs' exact original Actions permissions, remove
+  the automatic rerun helper/controller wiring, and restore GitHub client behavior.
+- Test that controller gate reporting makes no Actions request or usage write.
+- Require exact recovery reviews=2/daily=5 alongside coding=2/retries=1, testing
+  that positive reductions (reviews=1/day=4) refuse recovery and its preflight.
+- Record the owner's one additional review allowance under existing #20, whose
+  criteria cover the entire final PR. Preserve #18's two historical reviews and
+  issue #11's failed coding history. No counter or approval is reset.
 
-## Constraints and review focus
+## Evidence and finalization
 
-- Keep the factory false, protection/limits intact, model and deployment idle.
-- Never carry the old approval to the new commit.
-- Test unavailable/forged/stale proof and changed/closed/outside PRs.
-- Test wrong workflow/event/head/PR/repository, cancellation, attempts and API failure.
-- Confirm refresh does not mutate counters or launch CI/model workflows.
+The prior revision had 109 factory tests, including automatic-rerun tests. That
+feature is removed rather than retained with unreviewed permissions. The resolution
+first reproduced two failures: Actions write instead of read, and positive lower
+budgets not refusing recovery. Final local suite after removal: 103 passed,
+zero failed, one existing Windows symlink skip (104 tests). The actual stdin
+success/failure regression remains. Final formatting, lint, workflow validation,
+CI and separately authorized review evidence are recorded in PR #19.
 
-## Task 1: Native required gate and bounded refresh
-
-- [x] Record baseline `yarn test:factory`.
-- [x] Add failing tests in `scripts/tests/factory-gate-status.test.cjs` for the
-      real inline verifier and refresh controller using existing GitHub fixtures.
-- [x] Run the suite and preserve RED evidence.
-- [x] Add `.github/workflows/factory-review-status.yml`,
-      `scripts/factory/gate-report.cjs`, controller integration and fixed-workflow
-      fixture routes. Accept empty successful refresh responses in the existing
-      GitHub client. Limit privileged permission changes to gate refresh callers.
-- [x] Run `yarn test:factory`; expected all tests pass apart from the known
-      Windows symlink skip. Run lint, targeted formatting and workflow validation.
-- [ ] Update the operating guide and PR evidence, commit and push the same branch.
-- [ ] Observe live native gate failure for the newly unreviewed head and ordinary
-      verify success. Confirm factory false, unchanged protection and live ledger.
-- [ ] Stop before fresh independent review, merge, recovery or deployment.
-
-## Local evidence
-
-Baseline: 95 passed, zero failed, one Windows symlink skip (96 tests). The first
-repair suite had eight expected failures (107 tests). Additional execution tests
-reproduced the stdin entry not running and empty HTTP 201 being parsed as JSON;
-each failed before its fix. Final suite: 108 passed, zero failed, one existing
-Windows symlink skip (109 tests). Lint, targeted formatting, all seven workflows
-under actionlint 1.7.12, and whitespace checks passed. Both roles retain identical
-Claude CLI arguments. No live ledger write or provider request was involved.
+The factory remains disabled during preparation. After CI, only one additional
+Claude Pro subscription review is authorized; then restore the flag, refresh the
+native status only after a pass, and confirm actual merge eligibility. Any further
+work must preserve the genuine review gate and historical counters.

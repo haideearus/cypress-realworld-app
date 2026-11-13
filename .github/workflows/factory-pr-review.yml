@@ -62,7 +62,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: read
-      actions: write
+      actions: read
       checks: write
     concurrency:
       group: factory-ledger

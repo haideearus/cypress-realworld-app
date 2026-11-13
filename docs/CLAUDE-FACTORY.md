@@ -186,7 +186,7 @@ or guarantee future model compliance without a separately authorized run.
    native pull-request job named **Factory review gate**. Without genuine proof
    for that exact head it must fail, including while the factory is disabled.
    This metadata check is not a model session. **Factory independent review gate**
-   remains a trusted metadata refresh entry; its custom API report is named
+   remains an informational proof-report entry; its custom API report is named
    **Factory review evidence** and is informational, not the required job.
 5. Add **Factory review gate** alongside **verify** in main's required checks,
    selecting GitHub Actions as the source. Keep the branch protected for everyone.
@@ -205,7 +205,7 @@ For a later owner-written application or harness PR, use **Factory agents** on
 `main`, operation **review**, with the open maintenance **ticket** and existing
 **pr** numbers. The PR must be authored by `haideearus`, reside in this fork, and
 target `main`. Trusted default-branch helpers dispatch exact-head CI, then run
-only the separate read-only review role and refresh the native review gate. There
+only the separate read-only review role and publish the review proof. There
 is no coding/publishing job or automatic retry in this path. If changes are
 requested, update that PR and explicitly request another review within the two
 review lifetime cap. A head change invalidates prior approval. This operation is
@@ -225,22 +225,28 @@ an agent, install application dependencies, reserve usage, write the ledger or
 receive a model credential. Its repository token is read-only. The actual stdin
 entry is tested both with and without synthetic current-head approval.
 
-After genuine approval, the trusted controller can rerun the matching failed
-native gate once, using that gate's original eligible pull-request event. It
-matches the fixed workflow path, repository, head repository, PR and SHA, rechecks
-the current PR before writing, and never restarts a cancelled run or a second
-attempt. It cannot rerun Factory agents or dispatch another model. Only trusted
-assessment/refresh jobs request the necessary Actions write permission; model
-permissions and all usage limits stay unchanged. The informational custom check
-uses a different name to avoid competing with the required native job.
+After genuine current-head approval, open the matching **Factory review status**
+run and select **Re-run failed jobs**. This reruns only its read-only metadata
+gate, using the original pull-request event; it does not invoke Claude and can
+run while FACTORY_ENABLED=false. The owner or an explicitly authorized repository
+management action performs that refresh. Automatic gate refresh is not part of
+this rollout: the proposed rerun helper and its added Actions write grants were
+removed. Existing CI dispatch permissions stay unchanged; no metadata or model
+job gains an extra permission. The informational custom check uses a different
+name to avoid competing with the native required job.
 
-For **PR #19 only**, the trusted controller on main predates this repair. The
-changed head invalidates its old review. Keep the factory false until a fresh
-review is separately authorized. After that review, restore the flag to false,
-open the failed **Factory review status** run for the new head and select
-**Re-run failed jobs**. This reruns only the metadata gate, not Factory agents.
-After merge the new controller performs this bounded refresh automatically.
-Do not remove a required check or transfer the old approval to the new head.
+For PR #19, both parts of the owner-authorized change are reviewed against the
+complete [combined brief](factory/PR-19-REVIEW.md), also saved as issue #20 before
+its first admission. This includes the recovery from #18 and reporting repair
+from #20. The owner authorized one additional subscription review after the
+second #18 review requested changes for a scope mismatch. Keep #18's two consumed
+reviews and all verdicts intact. The additional review is recorded under the
+existing, previously unadmitted #20; it does not refund history or create another
+coding admission for #11. Standard limits remain 100 turns, 15 minutes, five daily
+tickets and two reviews per admitted ticket; the owner authorized only one
+additional run now. Restore the factory flag to false after the full review
+workflow finishes, refresh only the native gate after an actual pass, and verify
+GitHub's merge decision before merging. No previous approval covers a new head.
 
 GitHub documents that workflow trigger/source affects required-check evaluation:
 [troubleshooting required status checks](https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/troubleshooting-required-status-checks#checks-from-some-workflow-jobs-are-not-evaluated).

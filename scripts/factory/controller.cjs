@@ -2,7 +2,6 @@ const fs = require("node:fs");
 const { createHash, randomUUID } = require("node:crypto");
 const policy = require("./policy.cjs");
 const recovery = require("./recovery.cjs");
-const { refreshGate } = require("./gate-report.cjs");
 const { GitHub, Ledger, ROOT } = require("./github.cjs");
 const { validateChanges, validateReview, secretLike } = require("./artifacts.cjs");
 const criteriaHash = (issue) =>
@@ -560,8 +559,7 @@ class Controller {
         summary: result.reason,
       },
     });
-    const refresh = result.ok ? await refreshGate(this.api, pr) : { refreshed: false };
-    return { ...result, gateRefreshed: refresh.refreshed, gateRunId: refresh.runId || "" };
+    return result;
   }
 }
 function runtimeContext(env = process.env) {

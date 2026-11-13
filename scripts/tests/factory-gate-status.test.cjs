@@ -34,8 +34,7 @@ function verifier() {
 class GateFixture extends FactoryFixture {
   constructor() {
     super();
-    this.gateRuns = [];
-    this.refreshes = [];
+    this.actionsCalls = [];
     const baseFetch = this.fetch;
     this.fetch = async (url, options = {}) => {
       const u = new URL(url);
@@ -46,43 +45,13 @@ class GateFixture extends FactoryFixture {
           status,
           headers: { "content-type": "application/json" },
         });
-      if (method === "GET" && route === "/actions/workflows/factory-review-status.yml/runs") {
-        this.onGateList?.();
-        this.calls.push({ url: String(url), method });
-        return respond(200, { workflow_runs: this.gateRuns });
-      }
-      if (method === "POST" && /^\/actions\/runs\/\d+\/rerun-failed-jobs$/.test(route)) {
-        if (this.refuseRefresh) return respond(403, { message: "fixture refusal" });
-        const id = Number(route.split("/")[3]);
-        const run = this.gateRuns.find((r) => r.id === id);
-        if (!run) return respond(404, {});
-        this.refreshes.push({ id, method, route });
-        run.status = "queued";
-        run.run_attempt++;
-        return respond(201, this.emptyRefreshResponse ? null : {});
-      }
+      if (route.startsWith("/actions/")) this.actionsCalls.push({ method, route });
       const response = await baseFetch(url, options);
       if (this.patchPR && method === "GET" && route === "/pulls/30")
         return respond(200, this.patchPR(await response.json()));
       return response;
     };
   }
-}
-function run(overrides = {}) {
-  return {
-    id: 901,
-    name: "Factory review status",
-    path: ".github/workflows/factory-review-status.yml",
-    event: "pull_request",
-    head_sha: "d".repeat(40),
-    status: "completed",
-    conclusion: "failure",
-    run_attempt: 1,
-    repository: { full_name: REPOSITORY },
-    head_repository: { full_name: REPOSITORY },
-    pull_requests: [{ number: 30 }],
-    ...overrides,
-  };
 }
 async function setup(approved = true) {
   const fixture = new GateFixture();
@@ -226,91 +195,25 @@ test("native verifier refuses changed heads, closed PRs and events outside this 
   s.fixture.prs[0].state = "closed";
   await assert.rejects(verify(s.env, s.api), /PR/i);
 });
-test("controller publishes informational evidence and refreshes only the native failed gate without usage changes", async () => {
+test("controller reports review evidence without Actions calls or usage changes", async () => {
   const s = await setup();
-  s.fixture.gateRuns.push(run());
   const before = s.fixture.head;
+  const actionsBefore = s.fixture.actionsCalls.length;
   const result = await s.controller.gate(30);
   assert.equal(result.ok, true);
   assert.equal(s.fixture.checks.at(-1).name, "Factory review evidence");
-  assert.deepEqual(
-    s.fixture.refreshes.map((r) => r.id),
-    [901]
-  );
   assert.equal(s.fixture.head, before);
-  assert.equal(
-    s.fixture.runs.length,
-    1,
-    "only the fixture's existing CI run exists; refresh must not dispatch CI or agents"
-  );
-  await s.controller.gate(30);
-  assert.equal(s.fixture.refreshes.length, 1, "a queued refresh must not be repeated");
+  assert.equal(s.fixture.actionsCalls.length, actionsBefore);
+  assert.equal(s.fixture.runs.length, 1);
 });
-test("no native gate refresh is possible without current-head genuine approval", async () => {
-  const s = await setup(false);
-  s.fixture.gateRuns.push(run());
-  assert.equal((await s.controller.gate(30)).ok, false);
-  assert.deepEqual(s.fixture.refreshes, []);
-});
-test("an accepted gate refresh may return an empty HTTP 201 body", async () => {
-  const s = await setup();
-  s.fixture.gateRuns.push(run());
-  s.fixture.emptyRefreshResponse = true;
-  assert.equal((await s.controller.gate(30)).gateRefreshed, true);
-  assert.deepEqual(
-    s.fixture.refreshes.map((r) => r.id),
-    [901]
-  );
-});
-test("refresh refuses wrong workflow, trigger, repository, head, PR, cancellation and repeated attempts", async () => {
-  for (const change of [
-    { path: ".github/workflows/factory-agents.yml" },
-    { event: "workflow_dispatch" },
-    { head_sha: "e".repeat(40) },
-    { pull_requests: [{ number: 31 }] },
-    { pull_requests: [] },
-    { repository: { full_name: "other/repo" } },
-    { head_repository: { full_name: "other/repo" } },
-    { status: "in_progress" },
-    { conclusion: "cancelled" },
-    { conclusion: "success" },
-    { run_attempt: 2 },
-    { id: "901" },
-  ]) {
-    const s = await setup();
-    s.fixture.gateRuns.push(run(change));
-    await s.controller.gate(30);
-    assert.deepEqual(s.fixture.refreshes, [], JSON.stringify(change));
-  }
-});
-test("refresh never revives an older failed run after a newer matching run passed", async () => {
-  const s = await setup();
-  s.fixture.gateRuns.push(run(), run({ id: 902, conclusion: "success" }));
-  await s.controller.gate(30);
-  assert.deepEqual(s.fixture.refreshes, []);
-});
-test("refresh rechecks PR identity before the fixed write and does not hide API refusal", async () => {
-  const changed = await setup();
-  changed.fixture.gateRuns.push(run());
-  changed.fixture.onGateList = () => {
-    changed.fixture.prHeadOverride = "e".repeat(40);
-  };
-  await assert.rejects(changed.controller.gate(30), /head|PR/i);
-  assert.deepEqual(changed.fixture.refreshes, []);
-  const denied = await setup();
-  denied.fixture.gateRuns.push(run());
-  denied.fixture.refuseRefresh = true;
-  await assert.rejects(denied.controller.gate(30), /403/);
-  assert.deepEqual(denied.fixture.refreshes, []);
-});
-test("only trusted metadata jobs can request the deterministic native refresh", () => {
+test("metadata jobs retain their original permissions without new Actions write grants", () => {
   for (const file of ["factory-pr-review.yml", "factory-cycle.yml"]) {
     const flow = yaml.load(fs.readFileSync(path.join(root, ".github/workflows", file), "utf8"));
-    assert.equal(flow.jobs.assess.permissions.actions, "write");
+    assert.equal(flow.jobs.assess.permissions.actions, "read");
     assert.equal(flow.jobs.review.permissions.contents, "read");
   }
   const wrapper = yaml.load(
     fs.readFileSync(path.join(root, ".github/workflows/factory-review-gate.yml"), "utf8")
   );
-  assert.equal(wrapper.jobs.gate.permissions.actions, "write");
+  assert.equal(wrapper.jobs.gate.permissions.actions, undefined);
 });

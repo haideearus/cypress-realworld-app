@@ -98,7 +98,9 @@ test("disabled or lowered work budgets cannot receive or prepare a recovery", ()
     { FACTORY_MAX_AUTOMATIC_RETRIES: "0" },
     { FACTORY_MAX_TURNS_PER_RUN: "0" },
     { FACTORY_MAX_TICKETS_PER_DAY: "0" },
+    { FACTORY_MAX_TICKETS_PER_DAY: "4" },
     { FACTORY_MAX_REVIEWS_PER_TICKET: "0" },
+    { FACTORY_MAX_REVIEWS_PER_TICKET: "1" },
     { FACTORY_RUN_TIMEOUT_MINUTES: "0" },
   ]) {
     const lowered = policy.readConfig({
