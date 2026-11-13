@@ -236,7 +236,7 @@
       "reviews": 0,
       "retries": 0,
       "head": "712401a59fe9e49fd0bc830e7c705a225cab928e",
-      "status": "coding",
+      "status": "blocked",
       "pr": null,
       "approval": null,
       "criteriaHash": "17f213195624bdfd817345cfc45f108d36adf76c25a60fe008d9b1f7a3b0deec"
@@ -408,15 +408,12 @@
       "runId": "43448103135",
       "runAttempt": 1,
       "head": "712401a59fe9e49fd0bc830e7c705a225cab928e",
-      "status": "reserved",
-      "at": "2026-11-13T15:00:11.803Z"
+      "status": "finished",
+      "at": "2026-11-13T15:00:11.803Z",
+      "outcome": "blocked"
     }
   },
-  "active": {
-    "ticket": 26,
-    "runId": "43448103135",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -650,6 +647,13 @@
       "phase": "code",
       "runId": "43448103135",
       "runAttempt": 1
+    },
+    {
+      "at": "2026-11-13T15:07:06.552Z",
+      "event": "owner-canceled",
+      "ticket": 26,
+      "actor": "haideearus",
+      "runId": "43448103135"
     }
   ]
 }
