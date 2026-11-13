@@ -13,7 +13,8 @@
       20,
       21,
       24,
-      26
+      26,
+      28
     ]
   },
   "tickets": {
@@ -240,6 +241,19 @@
       "pr": null,
       "approval": null,
       "criteriaHash": "17f213195624bdfd817345cfc45f108d36adf76c25a60fe008d9b1f7a3b0deec"
+    },
+    "28": {
+      "coding": 0,
+      "origin": "owner-pr",
+      "reviews": 1,
+      "retries": 0,
+      "head": "d38633d647c24443e09dcb39f489931f790a6715",
+      "status": "reviewing",
+      "pr": 27,
+      "approval": null,
+      "criteriaHash": "51380579539422e9de23e0bc87f198aa01c58d7a9a7fc2c89cbb98266a6afb5c",
+      "branch": "agent/26-scheduled-pickup-and-merge",
+      "ci": null
     }
   },
   "grants": {
@@ -411,9 +425,24 @@
       "status": "finished",
       "at": "2026-11-13T15:00:11.803Z",
       "outcome": "blocked"
+    },
+    "22ec0afa-c84b-42e2-9d29-40b442e5bd3b": {
+      "id": "22ec0afa-c84b-42e2-9d29-40b442e5bd3b",
+      "ticket": 28,
+      "phase": "review",
+      "slot": "existing",
+      "runId": "43450187294",
+      "runAttempt": 1,
+      "head": "d38633d647c24443e09dcb39f489931f790a6715",
+      "status": "reserved",
+      "at": "2026-11-13T15:12:22.899Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 28,
+    "runId": "43450187294",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -654,6 +683,15 @@
       "ticket": 26,
       "actor": "haideearus",
       "runId": "43448103135"
+    },
+    {
+      "at": "2026-11-13T15:12:22.899Z",
+      "event": "reserved",
+      "ticket": 28,
+      "grant": "22ec0afa-c84b-42e2-9d29-40b442e5bd3b",
+      "phase": "review",
+      "runId": "43450187294",
+      "runAttempt": 1
     }
   ]
 }
