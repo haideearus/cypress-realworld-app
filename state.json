@@ -20,9 +20,9 @@
       "origin": "factory",
       "reviews": 0,
       "retries": 2,
-      "head": "5b2d15d87d7633c99cb7759fb9eb39725c578201",
-      "status": "coding",
-      "pr": null,
+      "head": "118c97133cffdf1b955fa89ead61750eb5e66534",
+      "status": "awaiting_review",
+      "pr": 23,
       "approval": null,
       "criteriaHash": "d295d714446efad9eaa6b3bd3c0c25706756dcc2d26160a191f0253438279387",
       "feedback": "Agent, publication, or CI infrastructure failed; no automatic model retry",
@@ -30,7 +30,8 @@
         "id": "issue-11-once-2026-11-13",
         "grant": "1036a5ae-1e5b-41ec-80c8-1dd61beba15c",
         "decision": "https://github.com/haideearus/cypress-realworld-app/issues/18"
-      }
+      },
+      "branch": "agent/factory-11"
     },
     "12": {
       "coding": 0,
@@ -317,8 +318,9 @@
       "runId": "43433517715",
       "runAttempt": 1,
       "head": "5b2d15d87d7633c99cb7759fb9eb39725c578201",
-      "status": "reserved",
-      "at": "2026-11-13T13:25:41.731Z"
+      "status": "finished",
+      "at": "2026-11-13T13:25:41.731Z",
+      "outcome": "awaiting_review"
     }
   },
   "active": {
@@ -508,6 +510,14 @@
       "phase": "code",
       "runId": "43433517715",
       "runAttempt": 1
+    },
+    {
+      "at": "2026-11-13T13:32:37.116Z",
+      "event": "finished",
+      "ticket": 11,
+      "grant": "d0dc1a75-43a5-4c6a-8339-bee2e29e4564",
+      "status": "awaiting_review",
+      "head": "118c97133cffdf1b955fa89ead61750eb5e66534"
     }
   ]
 }
