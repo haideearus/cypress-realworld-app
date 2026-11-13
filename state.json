@@ -7,7 +7,8 @@
       12
     ],
     "2026-11-13": [
-      14
+      14,
+      16
     ]
   },
   "tickets": {
@@ -76,6 +77,19 @@
         "passed": true
       },
       "feedback": "{\"head\":\"e117eb47a992b5be679f1da0db858e6ede25fda6\",\"verdict\":\"pass\",\"summary\":\"The diff raises FACTORY_MAX_TURNS_PER_RUN's ceiling to 50 and FACTORY_MAX_TICKETS_PER_DAY's ceiling to 5 in scripts/factory/policy.cjs's LIMITS table, with matching bound checks via the existing integer()/readConfig() validation (rejects 51/6 and malformed/missing values, same as before for the old ceilings of 20/2). New tests cover: turn budgets up to 50 remaining usable while preserving other caps; values above 50 or malformed being rejected; disabled/zero-turn budgets still blocking work; five admissions in one Bucharest day including an owner-PR review ticket, with a sixth ticket refused until midnight; and retrying an already-admitted ticket not re-admitting it or refunding its lifetime coding/retry counters. factory-worker.test.cjs confirms both coding and review CLI invocations carry --max-turns 50 without gaining extra tools. factory-controller.test.cjs's disabled validate-only smoke test and factory-ci.yml's CI fixture both exercise 50/5 with FACTORY_ENABLED=false, no token, no state writes, and no inference, matching the \\\"ordinary CI without inference or real credentials\\\" criterion. docs/CLAUDE-FACTORY.md documents the rollout sequence (stay at 20/2 until the policy PR is reviewed on trusted main, then move to 50/5 with the factory still disabled) and the follow-on issue #11 controlled-retry plan, without actually triggering any model session, merge, or live ledger change. All other policy invariants (15-minute timeout, 2 coding attempts/1 retry, 2 reviews, 1 concurrent ticket, OAuth-only subscription auth, review gate, PR #13 diagnostics) are untouched in the reviewed code. I did not find any violation of policy boundaries, scope creep beyond the two ceilings, or evidence that live credentials/state were touched.\",\"findings\":[]}"
+    },
+    "16": {
+      "coding": 0,
+      "origin": "owner-pr",
+      "reviews": 1,
+      "retries": 0,
+      "head": "007e082825c56770966fd06ad1d16faeed9e2ebb",
+      "status": "reviewing",
+      "pr": 17,
+      "approval": null,
+      "criteriaHash": "f2a8a4f83de1cf68bd479ce4e0b216c3528c9843a887e1aa146a9513edd4d956",
+      "branch": "agent/16-turn-limit-100",
+      "ci": null
     }
   },
   "grants": {
@@ -126,9 +140,24 @@
       "status": "finished",
       "at": "2026-11-13T08:17:03.723Z",
       "outcome": "blocked"
+    },
+    "8dab7b9b-a092-459b-83ef-9933e56be868": {
+      "id": "8dab7b9b-a092-459b-83ef-9933e56be868",
+      "ticket": 16,
+      "phase": "review",
+      "slot": "existing",
+      "runId": "43396239049",
+      "runAttempt": 1,
+      "head": "007e082825c56770966fd06ad1d16faeed9e2ebb",
+      "status": "reserved",
+      "at": "2026-11-13T08:49:37.451Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 16,
+    "runId": "43396239049",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -193,6 +222,15 @@
       "event": "blocked",
       "ticket": 11,
       "reason": "Agent, publication, or CI infrastructure failed; no automatic model retry"
+    },
+    {
+      "at": "2026-11-13T08:49:37.451Z",
+      "event": "reserved",
+      "ticket": 16,
+      "grant": "8dab7b9b-a092-459b-83ef-9933e56be868",
+      "phase": "review",
+      "runId": "43396239049",
+      "runAttempt": 1
     }
   ]
 }
