@@ -1,6 +1,7 @@
 const fs = require("node:fs");
 const { createHash, randomUUID } = require("node:crypto");
 const policy = require("./policy.cjs");
+const recovery = require("./recovery.cjs");
 const { GitHub, Ledger, ROOT } = require("./github.cjs");
 const { validateChanges, validateReview, secretLike } = require("./artifacts.cjs");
 const criteriaHash = (issue) =>
@@ -49,10 +50,11 @@ class Controller {
       slot: grant.slot,
     };
   }
-  async admit(ticket) {
+  async admit(ticket, { recover = false } = {}) {
     this.authorize();
     if (!this.config.enabled)
       return { ready: false, reason: "Factory disabled; no model invocation" };
+    if (typeof recover !== "boolean") throw new Error("Invalid recovery operation");
     const issue = await this.issue(ticket);
     const main = await this.api.request("GET", `${ROOT}/branches/main`);
     const snapshot = await this.ledger.read();
@@ -76,7 +78,8 @@ class Controller {
         ticket,
         phase: "code",
         slot: "cycle1",
-        head: existing?.head || main.commit.sha,
+        head: recover ? main.commit.sha : existing?.head || main.commit.sha,
+        ...(recover ? { recovery: recovery.ID } : {}),
       });
       const result = policy.reserve(state, request, this.config);
       result.state.tickets[String(ticket)].criteriaHash = criteriaHash(issue);
@@ -547,7 +550,7 @@ class Controller {
     if (pr.base?.ref !== "main" || pr.head.repo?.full_name !== policy.REPOSITORY)
       result = { ok: false, reason: "PR has no admitted factory review" };
     await this.api.request("POST", `${ROOT}/check-runs`, {
-      name: "Factory review gate",
+      name: "Factory review evidence",
       head_sha: pr.head.sha,
       status: "completed",
       conclusion: result.ok ? "success" : "failure",
@@ -619,7 +622,7 @@ async function main(env = process.env) {
       result = { initialized: true };
       break;
     case "admit":
-      result = await controller.admit(ticket);
+      result = await controller.admit(ticket, { recover: inputs.operation === "recover" });
       break;
     case "admit_pr":
       result = await controller.admitPR(ticket, Number(inputs.pr));

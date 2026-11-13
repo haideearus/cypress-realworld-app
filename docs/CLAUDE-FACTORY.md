@@ -19,7 +19,8 @@ itself; the controller and worker preflight enforce them.
    Each dispatch has a unique ledger-backed request ID and exact run ID; an older
    successful run at the same commit cannot satisfy the request.
 5. After `verify` passes, a separate read-only Claude session reviews the exact
-   commit. A deterministic **Factory review gate** checks the saved proof.
+   commit. A native pull-request job named **Factory review gate** checks the
+   saved proof using trusted base-commit policy and read-only metadata.
 6. Only a failed CI result or a valid review requesting changes can reserve the
    second coding attempt. Provider errors and interrupted model jobs stop work.
 
@@ -58,7 +59,7 @@ already unattended ticket-to-production factory.
 | FACTORY_MAX_CONCURRENT_TICKETS         | 1                                           |
 | FACTORY_TIMEZONE                       | Europe/Bucharest                            |
 | FACTORY_RUN_TIMEOUT_MINUTES            | 15                                          |
-| FACTORY_MAX_TURNS_PER_RUN              | 100 after the reviewed policy change merges |
+| FACTORY_MAX_TURNS_PER_RUN              | 100                                         |
 | FACTORY_APP_URL                        | https://haide-software-factory.onrender.com |
 
 The daily counter records distinct tickets when first admitted, using Bucharest
@@ -86,21 +87,17 @@ harness change and an owner budget decision.
 
 Merged PR #15 established **50 turns per session** and **five new tickets per
 Bucharest calendar day**. The owner subsequently requested **100 turns per
-coding or review session** in ticket #16. Lower values, including 20 and 50,
+coding or review session** in ticket #16, implemented by merged PR #17.
+Lower values, including 20 and 50,
 remain valid; values above 100 turns or five daily tickets are rejected.
 The 15-minute model-job timeout remains in place, so a session can stop before
 using 100 turns. Higher limits can consume more of the shared Claude Pro
 allowance; this is not a token or dollar budget.
 
-To roll out the 100-turn ceiling from main's current 50-turn policy:
-
-1. Keep `FACTORY_ENABLED=false`, `FACTORY_MAX_TURNS_PER_RUN=50` and
-   `FACTORY_MAX_TICKETS_PER_DAY=5` while preparing the policy PR. Current main
-   rejects a variable of 100.
-2. Obtain a separately authorized independent review using trusted `main`
-   and the 50-turn setting; restore the factory flag to false afterward.
-3. After the reviewed policy change merges, set `FACTORY_MAX_TURNS_PER_RUN=100`.
-   Leave the daily setting at five and the factory disabled.
+The current installation uses `FACTORY_MAX_TURNS_PER_RUN=100` and
+`FACTORY_MAX_TICKETS_PER_DAY=5`. Keep `FACTORY_ENABLED=false` during recovery
+preparation. The recovery change requires no additional limit variables or
+changes to the existing settings.
 
 This ceiling change does not authorize another execution, widen tool
 permissions, or reset existing attempt and review counters.
@@ -119,6 +116,58 @@ use a replacement admission to bypass that budget. Any further execution needs
 a separately reviewed recovery decision; the recurring permission denials
 also need investigation. Keep the factory off during this preparation.
 
+### One owner-controlled recovery of issue #11
+
+The recovery in maintenance issue #18 is an explicit, single-use exception for
+the exact recorded history. The proposed `recover` operation becomes available
+only after its PR is independently reviewed and merged. Ordinary `run` remains
+exhausted for this ticket.
+
+- Eligibility is pinned to issue #11's criterion hash and the two specific
+  finished blocked grants. Changed criteria, another ticket, a PR already
+  published, active work or changed failed-grant history refuses recovery.
+- Admission records the third coding attempt plus a separate `recovery`
+  object containing the decision and consumed grant ID. Both failed grants,
+  the first daily admission and the existing normal retry count of one remain.
+- This one extra attempt is consumed at reservation, even after failure,
+  cancellation, a skipped job or unavailable subscription. A fourth code
+  attempt and repeat recovery are refused; cancellation cannot refund it.
+- The new attempt starts from current main and uses the existing publisher,
+  exact-head CI and independent reviewer. No tool permission or general
+  coding/retry quota increases.
+
+After genuine review and human merge, the owner may run one controlled workflow:
+
+1. Keep turns at `100`, daily tickets at `5`, and other settings unchanged.
+2. Enable the factory, then choose **Actions → Factory agents → Run workflow**.
+3. Select branch `main`, operation `recover`, ticket `11`, and leave PR empty.
+4. Start once and restore `FACTORY_ENABLED=false` after the whole workflow
+   finishes, including failure or cancellation. Preserve the ledger.
+
+Older workflow revisions cannot read the new recovered three-attempt state.
+Use newly merged main and new dispatches; old revisions fail closed.
+
+### Command guidance without permission expansion
+
+The trusted worker prompt/context now names its existing preapproved commands:
+`yarn types`, `yarn lint`, `yarn test:unit:ci`,
+`yarn build:production`, and `yarn test:production`.
+The prompt directs the coding role to inspect files with repository-relative
+Read/Glob/Grep calls, execute one bare approved command per call, and stop with
+honest evidence if an approved action remains blocked. It points API regression
+work at `scripts/tests/production-integration.test.cjs`, which is exercised by
+the approved production test command after a production build.
+The approved harness manages its own disposable server; the prompt restricts
+additional shell commands for launching dev servers or invoking Cypress.
+
+The read-only reviewer still receives Read/Glob/Grep and no shell commands.
+Native tool lists, preapproval/deny rules, restricted/safe mode and noninteractive
+permissions are unchanged. Claude's [permission documentation](https://code.claude.com/docs/en/permissions)
+explains that noninteractive mode denies calls that need approval and that
+compound commands have their own matching rules. This guidance closes a known
+instruction gap; it cannot establish which raw calls were denied historically
+or guarantee future model compliance without a separately authorized run.
+
 ## Owner installation steps, one at a time
 
 1. **Review and merge the installation PR only after `verify` is green and its
@@ -133,9 +182,12 @@ also need investigation. Keep the factory off during this preparation.
 3. Run operation `run` with an issue number while the flag is still false. The
    admission job must say disabled; both coding/review cycles must be skipped.
    No usage reservation or provider request should be created. Inspect the run.
-4. To register/check the merge gate, run **Factory independent review gate** for
-   an open PR number. With no genuine review record it must post a **failing**
-   `Factory review gate` check. This is an expected refusal, not a real AI review.
+4. Open a PR to register/check the merge gate. **Factory review status** runs a
+   native pull-request job named **Factory review gate**. Without genuine proof
+   for that exact head it must fail, including while the factory is disabled.
+   This metadata check is not a model session. **Factory independent review gate**
+   remains an informational proof-report entry; its custom API report is named
+   **Factory review evidence** and is informational, not the required job.
 5. Add **Factory review gate** alongside **verify** in main's required checks,
    selecting GitHub Actions as the source. Keep the branch protected for everyone.
    Afterward, unreviewed PRs, including owner PRs, cannot merge while disabled.
@@ -153,11 +205,51 @@ For a later owner-written application or harness PR, use **Factory agents** on
 `main`, operation **review**, with the open maintenance **ticket** and existing
 **pr** numbers. The PR must be authored by `haideearus`, reside in this fork, and
 target `main`. Trusted default-branch helpers dispatch exact-head CI, then run
-only the separate read-only review role and publish the same review gate. There
+only the separate read-only review role and publish the review proof. There
 is no coding/publishing job or automatic retry in this path. If changes are
 requested, update that PR and explicitly request another review within the two
 review lifetime cap. A head change invalidates prior approval. This operation is
 also disabled by `FACTORY_ENABLED=false`; it is not a human-author bypass.
+
+### Review status reporting and PR #19 bootstrap
+
+Ticket [#20](https://github.com/haideearus/cypress-realworld-app/issues/20) repairs
+custom API checks that report success while GitHub still shows the required
+status as Expected. A green API record alone does not establish merge readiness.
+Check the actual PR merge status and the native required job.
+
+**Factory review status** runs only on pull-request events. It checks out the
+immutable base SHA, reads the current PR and durable ledger, and refuses missing,
+stale, fixture, failed or unavailable proof. It does not check out PR code, run
+an agent, install application dependencies, reserve usage, write the ledger or
+receive a model credential. Its repository token is read-only. The actual stdin
+entry is tested both with and without synthetic current-head approval.
+
+After genuine current-head approval, open the matching **Factory review status**
+run and select **Re-run failed jobs**. This reruns only its read-only metadata
+gate, using the original pull-request event; it does not invoke Claude and can
+run while FACTORY_ENABLED=false. The owner or an explicitly authorized repository
+management action performs that refresh. Automatic gate refresh is not part of
+this rollout: the proposed rerun helper and its added Actions write grants were
+removed. Existing CI dispatch permissions stay unchanged; no metadata or model
+job gains an extra permission. The informational custom check uses a different
+name to avoid competing with the native required job.
+
+For PR #19, both parts of the owner-authorized change are reviewed against the
+complete [combined brief](factory/PR-19-REVIEW.md), also saved as issue #20 before
+its first admission. This includes the recovery from #18 and reporting repair
+from #20. The owner authorized one additional subscription review after the
+second #18 review requested changes for a scope mismatch. Keep #18's two consumed
+reviews and all verdicts intact. The additional review is recorded under the
+existing, previously unadmitted #20; it does not refund history or create another
+coding admission for #11. Standard limits remain 100 turns, 15 minutes, five daily
+tickets and two reviews per admitted ticket; the owner authorized only one
+additional run now. Restore the factory flag to false after the full review
+workflow finishes, refresh only the native gate after an actual pass, and verify
+GitHub's merge decision before merging. No previous approval covers a new head.
+
+GitHub documents that workflow trigger/source affects required-check evaluation:
+[troubleshooting required status checks](https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/troubleshooting-required-status-checks#checks-from-some-workflow-jobs-are-not-evaluated).
 
 The GitHub integration used during setup could read main's protected flag and
 required `verify` check, but its detailed branch-protection endpoint returned 403. The owner created the rule in the UI. Do not claim every checkbox was

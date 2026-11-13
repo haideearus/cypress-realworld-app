@@ -1,4 +1,5 @@
 const { randomUUID } = require("node:crypto");
+const recovery = require("./recovery.cjs");
 
 const REPOSITORY = "haideearus/cypress-realworld-app";
 const OWNER = "haideearus";
@@ -76,14 +77,16 @@ function validateState(state) {
     )
       deny("Invalid ledger day");
   }
+  const recovered = recovery.validateState(state);
   for (const [id, ticket] of Object.entries(state.tickets)) {
+    const recoveryCount = recovered.has(id) ? 1 : 0;
     if (
       !/^[1-9]\d*$/.test(id) ||
       !ticket ||
       !SHA.test(ticket.head) ||
       !Number.isInteger(ticket.coding) ||
       ticket.coding < (ticket.origin === "owner-pr" ? 0 : 1) ||
-      ticket.coding > 2 ||
+      ticket.coding > 2 + recoveryCount ||
       ![undefined, "factory", "owner-pr"].includes(ticket.origin) ||
       (ticket.origin === "owner-pr" &&
         (ticket.coding !== 0 || !Number.isSafeInteger(ticket.pr) || ticket.pr < 1)) ||
@@ -99,7 +102,7 @@ function validateState(state) {
     if (
       grants.filter((g) => g.phase === "code").length !== ticket.coding ||
       grants.filter((g) => g.phase === "review").length !== ticket.reviews ||
-      ticket.retries !== Math.max(0, ticket.coding - 1) ||
+      ticket.retries !== Math.max(0, ticket.coding - 1 - recoveryCount) ||
       Object.values(state.days).filter((ids) => ids.includes(Number(id))).length !== 1 ||
       !["new", "coding", "reviewing", "awaiting_review", "retry", "blocked", "reviewed"].includes(
         ticket.status
@@ -182,6 +185,8 @@ function reserve(original, request, config, now = new Date()) {
   validateState(original);
   authorize(request);
   if (!config.enabled || !config.minutes || !config.turns) deny("Factory disabled");
+  const recovering = request.recovery !== undefined;
+  if (recovering) recovery.assertEligible(original, request, config);
   const state = structuredClone(original);
   const id = String(request.ticket);
   const existing = state.tickets[id];
@@ -234,8 +239,8 @@ function reserve(original, request, config, now = new Date()) {
   if (request.phase === "code") {
     const t = state.tickets[id];
     if (t.status === "reviewed") deny("Ticket already reviewed");
-    if (t.coding >= config.coding) deny("Coding attempt limit reached");
-    if (t.coding > 0) {
+    if (!recovering && t.coding >= config.coding) deny("Coding attempt limit reached");
+    if (!recovering && t.coding > 0) {
       if (t.retries >= config.retries) deny("Automatic retry limit reached");
       t.retries++;
     }
@@ -265,6 +270,21 @@ function reserve(original, request, config, now = new Date()) {
     at: now.toISOString(),
   };
   state.grants[grant.id] = grant;
+  if (recovering) {
+    recovery.record(state, grant);
+    audit(
+      state,
+      "recovery_reserved",
+      {
+        ticket: request.ticket,
+        grant: grant.id,
+        recovery: recovery.ID,
+        actor: request.actor,
+        runId: request.runId,
+      },
+      now
+    );
+  }
   state.active = { ticket: request.ticket, runId: request.runId, runAttempt: request.runAttempt };
   audit(
     state,
@@ -288,7 +308,7 @@ function preflight(state, grantId, context, config) {
   const ticket = grant && state.tickets[String(grant.ticket)];
   if (
     ticket &&
-    (ticket.coding > config.coding ||
+    (ticket.coding > config.coding + recovery.allowance(state, grant.ticket, config) ||
       ticket.reviews > config.reviews ||
       ticket.retries > config.retries ||
       (state.days[dayKey(new Date(grant.at), config.timezone)] || []).length > config.daily)
