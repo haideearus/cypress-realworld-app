@@ -17,7 +17,7 @@
       "reviews": 0,
       "retries": 1,
       "head": "4f0eb6eca04cd603a5401439d0fdcd83d8c2c4d5",
-      "status": "coding",
+      "status": "blocked",
       "pr": null,
       "approval": null,
       "criteriaHash": "d295d714446efad9eaa6b3bd3c0c25706756dcc2d26160a191f0253438279387",
@@ -123,15 +123,12 @@
       "runId": "43391969547",
       "runAttempt": 1,
       "head": "4f0eb6eca04cd603a5401439d0fdcd83d8c2c4d5",
-      "status": "reserved",
-      "at": "2026-11-13T08:17:03.723Z"
+      "status": "finished",
+      "at": "2026-11-13T08:17:03.723Z",
+      "outcome": "blocked"
     }
   },
-  "active": {
-    "ticket": 11,
-    "runId": "43391969547",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -190,6 +187,12 @@
       "phase": "code",
       "runId": "43391969547",
       "runAttempt": 1
+    },
+    {
+      "at": "2026-11-13T08:25:09.177Z",
+      "event": "blocked",
+      "ticket": 11,
+      "reason": "Agent, publication, or CI infrastructure failed; no automatic model retry"
     }
   ]
 }
