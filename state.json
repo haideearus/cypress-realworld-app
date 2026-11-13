@@ -117,7 +117,11 @@
       "approval": null,
       "criteriaHash": "4d95a09a9f2a25d4bdf401b71d39d62cae25b0881bbefab249ab8258c6801c1f",
       "branch": "agent/18-issue11-recovery",
-      "ci": null
+      "ci": {
+        "requestId": "8845f8ad-3a49-41ec-b1dd-53dc626775d6",
+        "head": "40eb635f5dbe2e51837d87fa6a67d8c2622aa141",
+        "runId": null
+      }
     }
   },
   "grants": {
