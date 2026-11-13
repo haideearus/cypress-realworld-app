@@ -112,7 +112,7 @@
       "reviews": 2,
       "retries": 0,
       "head": "b883586f30756fbc80c82193a0244e6f67b5bb5c",
-      "status": "reviewing",
+      "status": "blocked",
       "pr": 19,
       "approval": null,
       "criteriaHash": "4d95a09a9f2a25d4bdf401b71d39d62cae25b0881bbefab249ab8258c6801c1f",
@@ -123,7 +123,7 @@
         "runId": 43411337953,
         "passed": true
       },
-      "feedback": "{\"verdict\":\"pass\",\"head\":\"40eb635f5dbe2e51837d87fa6a67d8c2622aa141\",\"summary\":\"The diff adds a single-use, owner-only `recover` operation scoped exactly to issue #11's current criterion hash and its two specific finished/blocked grant IDs, implemented in a new `scripts/factory/recovery.cjs` module that `policy.cjs` and `controller.cjs` consult. It correctly bypasses only the coding-attempt ceiling (not the retry counter, review cap, daily cap, or any permission/tool scope) for exactly one extra reservation, records it as a separately tagged, non-refundable grant, preserves both old failed grants and the original admission/day entry, and starts the new attempt from current main rather than the old failed head. Eligibility and ledger-shape validation (`assertEligible`, `priorFailures`, `validateState`) fail closed for wrong ticket/phase/slot/actor/dispatch-source, forged or replayed recovery markers, active/pending work, lowered budgets, and a second recovery or fourth coding attempt — confirmed by tracing the logic through `reserve`/`preflight`/`finish`/`cancel` and by the accompanying `factory-recovery.test.cjs` suite, which exercises the real policy/controller/worker code against synthetic GitHub fixtures (not mocks) and covers tamper, replay, lowered-budget, cancellation-no-refund, and full review-cycle paths. The worker/prompt changes only document the five already-preapproved `Bash(...)` commands via a shared `CODE_COMMANDS` array; `buildArgs`'s resulting `--allowedTools` string is unchanged byte-for-byte from before, and the review role still gets no shell access. Docs (`docs/CLAUDE-FACTORY.md`) accurately describe the unchanged limits, the consumed-on-reservation semantics, and explicitly avoid overclaiming that historical raw denials are known or that guidance guarantees compliance. No ledger, workflow dispatch, model session, or merge is executed by this change; it only prepares code, tests, and docs, consistent with the ticket's \\\"preparation only\\\" scope.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"recovery.assertEligible only requires config.reviews >= 1 and config.daily >= 1 (not the exact values 2 and 5 that config.coding === 2 and config.retries === 1 are pinned to). In practice the deployed vars keep reviews=2/daily=5, so this doesn't currently weaken anything, but it's an asymmetry worth tightening to an exact-match check for consistency with the ticket's 'lower configured budgets' fail-closed requirement.\"},{\"severity\":\"minor\",\"message\":\"The hardcoded CRITERIA hash and the two PRIOR grant IDs/run IDs in scripts/factory/recovery.cjs were computed against a frozen local fixture, not verified here against the live factory/state ledger or the current live issue #11 body. If they don't byte-for-byte match the real ledger/issue content at actual dispatch time, recovery will simply refuse (safe failure mode), but this should be confirmed once before the owner's real recovery dispatch.\"}]}"
+      "feedback": "{\"head\":\"b883586f30756fbc80c82193a0244e6f67b5bb5c\",\"verdict\":\"changes_requested\",\"summary\":\"The branch correctly implements ticket #18's single-use, owner-only `recover` operation for issue #11 (scripts/factory/recovery.cjs, policy.cjs/controller.cjs integration, factory-recovery.test.cjs, worker command-guidance docs): eligibility and ledger validation are pinned to the exact criteria hash and the two historical blocked grant IDs, only the coding-attempt ceiling is bypassed for one extra reservation, old grants/admission/retry counters are preserved, the new attempt starts from current main, and tool permissions/`--allowedTools` strings are unchanged. That part matches the previously-passed review at 40eb635 and its two carried-over minor gaps remain unresolved. However, the head commit (b883586, \\\"Report the required review gate through a real pull request job\\\") adds a large, entirely unrelated feature set for a different ticket (#20 / PR #19 \\\"gate-reporting\\\" bootstrap): a new `factory-review-status.yml` workflow, `scripts/factory/gate-report.cjs` (which calls the mutating `rerun-failed-jobs` Actions API), a `GitHub.request` behavior change, controller changes to the review-gate check name/refresh flow, and `actions: write` permission grants added to three existing workflows (factory-cycle.yml, factory-pr-review.yml, factory-review-gate.yml). None of this is described, required, or even mentioned by ticket #18's text, and the accompanying plan doc explicitly frames it as repairing issue #20 inside PR #19 with its own unfinished checklist. This is out-of-scope work bundled into the ticket-18 branch/PR, including a real permission escalation across multiple workflows, and should not be approved as part of this ticket's review.\",\"findings\":[{\"severity\":\"critical\",\"message\":\"The diff for this PR/branch bundles a second, unrelated feature (ticket #20 / PR #19 'gate reporting' bootstrap: new .github/workflows/factory-review-status.yml, scripts/factory/gate-report.cjs, controller.cjs gate-refresh wiring, github.cjs response-parsing change, and docs/superpowers plan+spec files) on top of the issue-11 recovery work. Ticket #18's body says nothing about gate reporting, PR #19, or issue #20, and the task instructions require working only on the ticket's own criteria. Mixing an unrelated, separately-scoped change into this PR means it has not gone through its own authorized review/ticket process and should be split out, not merged under ticket #18's review.\"},{\"severity\":\"important\",\"message\":\"As part of the unrelated gate-reporting bundle, commit b883586 grants `actions: write` permission to three existing workflows (factory-cycle.yml, factory-pr-review.yml, factory-review-gate.yml) that previously had only `actions: read`, and adds scripts/factory/gate-report.cjs which performs a mutating `POST /actions/runs/{id}/rerun-failed-jobs` call. This is a real permission/policy expansion of the automation's capabilities that is not justified by, or in scope of, ticket #18's recovery requirements and was not reviewed as such.\"},{\"severity\":\"minor\",\"message\":\"Carried over from the prior review of 40eb635 (unchanged in this diff): recovery.cjs's assertEligible/allowance only check config.reviews >= 1 / config.daily >= 1 rather than pinning to the exact deployed values (2 and 5) the way config.coding and config.retries are pinned. Currently harmless since deployed vars keep reviews=2/daily=5, but it's an asymmetry versus the ticket's 'fail closed for lower configured budgets' requirement.\"},{\"severity\":\"minor\",\"message\":\"Carried over from the prior review: the hardcoded CRITERIA hash and the two PRIOR grant IDs/run IDs in scripts/factory/recovery.cjs were computed against a frozen local fixture and have not been verified here against the live ledger/issue #11 body. A mismatch would just cause a safe refusal, but this should be confirmed once before any real owner recovery dispatch.\"}]}"
     }
   },
   "grants": {
@@ -207,15 +207,12 @@
       "runId": "43411264363",
       "runAttempt": 1,
       "head": "b883586f30756fbc80c82193a0244e6f67b5bb5c",
-      "status": "reserved",
-      "at": "2026-11-13T10:43:33.201Z"
+      "status": "finished",
+      "at": "2026-11-13T10:43:33.201Z",
+      "outcome": "blocked"
     }
   },
-  "active": {
-    "ticket": 18,
-    "runId": "43411264363",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -323,6 +320,14 @@
       "phase": "review",
       "runId": "43411264363",
       "runAttempt": 1
+    },
+    {
+      "at": "2026-11-13T10:52:31.264Z",
+      "event": "finished",
+      "ticket": 18,
+      "grant": "749adc58-848d-4aaa-a786-5e000ffbfa29",
+      "status": "blocked",
+      "head": "b883586f30756fbc80c82193a0244e6f67b5bb5c"
     }
   ]
 }
