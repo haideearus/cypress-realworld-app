@@ -432,7 +432,11 @@
       "approval": null,
       "criteriaHash": "889659d17d1d23eb1f359f9645c8751a7d4f29afdc4a48e5f43af17435f2f492",
       "branch": "agent/security-scanner-stop-control",
-      "ci": null
+      "ci": {
+        "requestId": "d00701cf-1e85-4c3f-bfe1-b8d8531b9dd0",
+        "head": "4275b2f3336a12ffa5aad1a5efa7377d7bf7dd42",
+        "runId": null
+      }
     }
   },
   "grants": {
