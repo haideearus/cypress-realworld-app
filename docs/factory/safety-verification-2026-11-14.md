@@ -1,6 +1,7 @@
 # Scanner and direct-stop implementation evidence
 
 Ticket: [#39](https://github.com/haideearus/cypress-realworld-app/issues/39).
+Current combined acceptance scope: [#41](https://github.com/haideearus/cypress-realworld-app/issues/41).
 Base: `487a11c03d980f35557c462cb75c68b60e39fe78`.
 Branch: `agent/security-scanner-stop-control`.
 
@@ -93,7 +94,7 @@ neither rewrites that verdict nor substitutes a human or local-agent approval.
 Another independent subscription review must be explicitly authorized and must
 produce a consistent result for the final revision before protected merge.
 
-## Second authorized review and the next review brief
+## Second authorized review and historical review brief
 
 [Review run 43637028532](https://github.com/haideearus/cypress-realworld-app/actions/runs/43637028532/job/132577486043)
 completed its real subscription session in 41 turns with no permission denials.
@@ -104,16 +105,16 @@ requested merge check, that text was found insufficient to explain an actual
 independent assessment; PR #40 remained draft and the required native review gate
 was not refreshed. No merge, replacement approval or counter reset was performed.
 
-The [current review brief](PR-40-REVIEW.md) now makes the ticket's assessment scope
-and report expectations explicit in the candidate diff. It does not change the
-trusted worker, validator, tool permissions or limits. The new documentation
-revision requires a new independent review; the normal admission path refuses a
-repeat owner review of an unchanged head already marked reviewed. Issue #39's
-description and saved criteria hash are preserved. Two reviews remain consumed;
-another run must use the existing allowance and cannot inherit old approval.
+At that stage a repository review brief was added to describe report expectations.
+It changed no worker, validator or tool permissions. The third review subsequently
+flagged its meta-instructions as inappropriate; the brief is now removed rather
+than being used to establish scope or steer a verdict. The normal admission path
+refuses an unchanged head already marked reviewed. Issue #39's description and
+saved criteria hash were preserved, along with the two consumed reviews at that
+point. Subsequent outcomes are recorded below.
 
 The owner restored `FACTORY_ENABLED=false`; pickup and merging remain false,
-monitoring remains true. No third review is started by preparing this brief.
+monitoring remained true. Preparing that historical brief started no model run.
 
 ## Owner-authorized ten-review ceiling in the same PR
 
@@ -139,9 +140,39 @@ replace the required Claude Pro review of the final combined revision.
 
 The live GitHub variable remains five. The cap-change review itself must use
 trusted current main and that current limit. After protected merge, the owner may
-save `FACTORY_MAX_REVIEWS_PER_TICKET=10`; previous usage still counts. The two used
-reviews under #39 leave eight after that change. This creates no automatic model
+save `FACTORY_MAX_REVIEWS_PER_TICKET=10`; previous usage for each ticket still
+counts toward that ticket's lifetime ceiling. This creates no automatic model
 retry, additional coding cycle, provider capacity or paid API fallback.
+
+## Third review and owner-approved combined acceptance ticket
+
+[Review run 43640454121](https://github.com/haideearus/cypress-realworld-app/actions/runs/43640454121/job/132588531976)
+completed exact-head CI and a 55-turn Claude Pro session with no permission
+denials for `bbaf55d11a8c32b4c4c18db68af5c534e58b8e9b`. It produced a substantive,
+consistent `changes_requested` report. The main blocking finding was the mismatch
+between #39's frozen promise to preserve caps and the later ten-review change.
+The reviewer also flagged meta-instructions in the repository review brief.
+
+The owner had authorized the cap increase in chat, but that did not amend the
+frozen review ticket. On completion the ledger correctly blocked #39 with three
+consumed reviews and no approval. No merge or native gate refresh was performed.
+The owner restored FACTORY_ENABLED=false and explicitly chose to retain ten
+reviews in PR #40 while preparing a new combined-scope acceptance ticket.
+
+[Issue #41](https://github.com/haideearus/cypress-realworld-app/issues/41), created
+by `haideearus`, now contains that combined scope, including the ten-review
+ceiling, preservation of all other controls, and removal of the repository
+review brief. The brief is deleted. No model/tool/validator change is made by
+this cleanup, and no repository document is treated as authorization or approval.
+
+Issue #39's frozen body, criteria hash and three consumed grants remain intact.
+It was not exhausted; the replacement is for the changed acceptance scope, not
+additional quota. No counters, audit, grants or verdicts are moved or reset.
+Issue #41 is not admitted by preparation and has its own normal daily admission
+and lifetime counter when the owner later dispatches it. No factory-ready label
+is applied and no new Claude session, stop/resume, deployment or live limit change
+is started. The same PR #40 still needs fresh exact-head CI and genuine review
+against the combined acceptance scope before protected merge.
 
 ## Preserved live settings
 

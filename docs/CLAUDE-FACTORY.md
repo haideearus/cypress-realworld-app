@@ -90,12 +90,21 @@ PR #40 itself is reviewed by trusted `main` using the current five-review
 setting. Keep `FACTORY_MAX_REVIEWS_PER_TICKET=5` until the protected merge; current
 main rejects ten. After merge, save `FACTORY_MAX_REVIEWS_PER_TICKET=10` while
 `FACTORY_ENABLED`, automatic pickup and automatic merging remain false. Already
-consumed reviews still count: two used reviews leave eight, rather than ten new
-ones. The eleventh lifetime review is refused, including on later days. Lower
+consumed reviews still count toward each ticket's ten total, rather than granting
+ten additional sessions. The eleventh lifetime review is refused, including on later days. Lower
 configured settings remain valid and still block excess reservations/preflight.
 Do not reset the ledger or switch tickets to refund attempts. More reviews can
 consume shared Claude Pro allowance sooner; this enables no paid API, extra
 usage purchase or additional subscription capacity.
+
+The current combined acceptance ticket for PR #40 is
+[#41](https://github.com/haideearus/cypress-realworld-app/issues/41). The owner
+selected it after #39's frozen preservation-of-caps criterion conflicted with the
+later requested ten-review ceiling. For a later authorized review use
+`main`, operation `review`, ticket `41`, PR `40`. Keep #39's three used reviews
+and blocked outcome intact. #41 has its own ordinary admission/lifetime counter;
+no existing grant, counter, audit or verdict is reset or transferred. Neither
+ticket is queued for automatic pickup by this change.
 
 The daily counter still admits at most 20 distinct tickets using Bucharest dates.
 Existing admissions count toward that ceiling; the twenty-first is refused until
