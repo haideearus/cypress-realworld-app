@@ -513,7 +513,8 @@
       "ci": {
         "requestId": "3d76316a-4572-4e77-a893-8f223aca0047",
         "head": "bcdc66a3ac6bf8bd049fa3f51ac7a251a44c44bb",
-        "runId": null
+        "runId": 43654325621,
+        "passed": true
       }
     }
   },
