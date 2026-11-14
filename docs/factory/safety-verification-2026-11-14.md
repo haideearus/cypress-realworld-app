@@ -93,6 +93,28 @@ neither rewrites that verdict nor substitutes a human or local-agent approval.
 Another independent subscription review must be explicitly authorized and must
 produce a consistent result for the final revision before protected merge.
 
+## Second authorized review and the next review brief
+
+[Review run 43637028532](https://github.com/haideearus/cypress-realworld-app/actions/runs/43637028532/job/132577486043)
+completed its real subscription session in 41 turns with no permission denials.
+Its structured result for `96ed7c36fa86d4ded3ddb84ed9ac736f880652cd` contained a
+passing verdict but only a generic test summary and test finding. The existing
+shape validator accepted it and the ledger recorded approval. During the owner's
+requested merge check, that text was found insufficient to explain an actual
+independent assessment; PR #40 remained draft and the required native review gate
+was not refreshed. No merge, replacement approval or counter reset was performed.
+
+The [current review brief](PR-40-REVIEW.md) now makes the ticket's assessment scope
+and report expectations explicit in the candidate diff. It does not change the
+trusted worker, validator, tool permissions or limits. The new documentation
+revision requires a new independent review; the normal admission path refuses a
+repeat owner review of an unchanged head already marked reviewed. Issue #39's
+description and saved criteria hash are preserved. Two reviews remain consumed;
+another run must use the existing allowance and cannot inherit old approval.
+
+The owner restored `FACTORY_ENABLED=false`; pickup and merging remain false,
+monitoring remains true. No third review is started by preparing this brief.
+
 ## Preserved live settings
 
 Read-only checks during preparation observed:
