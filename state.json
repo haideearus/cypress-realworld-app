@@ -427,7 +427,7 @@
       "reviews": 3,
       "retries": 0,
       "head": "bbaf55d11a8c32b4c4c18db68af5c534e58b8e9b",
-      "status": "reviewing",
+      "status": "blocked",
       "pr": 40,
       "approval": null,
       "criteriaHash": "889659d17d1d23eb1f359f9645c8751a7d4f29afdc4a48e5f43af17435f2f492",
@@ -438,7 +438,7 @@
         "runId": 43640514023,
         "passed": true
       },
-      "feedback": "{\"head\":\"96ed7c36fa86d4ded3ddb84ed9ac736f880652cd\",\"verdict\":\"pass\",\"summary\":\"Test summary.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"test finding\"}]}"
+      "feedback": "{\"head\":\"bbaf55d11a8c32b4c4c18db68af5c534e58b8e9b\",\"verdict\":\"changes_requested\",\"summary\":\"The secret-scanning and factory-stop implementation itself is solid. `scripts/factory/secret-scan.cjs` stages every input under generated `content-N.txt` names (defeating Gitleaks' default filename exclusions), runs the checksum-pinned Gitleaks 8.30.1 binary (`scanner-install.cjs`/`scanner-release.cjs`) in a scrubbed environment, and only ever surfaces rule IDs and counts — raw `Secret`/`Match` fields from the report are never read or logged. `gitleaks.toml` adds only one narrow Claude-OAuth rule with no `[[allowlist]]`/baseline, matching the \\\"no blanket exceptions\\\" requirement. `factory-ci.yml` and `factory-model.yml` wire the scanner in as build-blocking CI (source scan before install) and as pre-model/pre-publish gates (context.json scanned before the Claude invocation, bundle.json scanned before upload), and `factory-workflows.test.cjs` asserts this step ordering. `stop.cjs`/`stop-contract.cjs` implement a single dry-run-by-default `--execute` command: it sets switches false, cancels/force-cancels all `AGENT_WORKFLOWS` runs, persists a durable `state.stop` marker validated by `validateStop`, honestly reports `stopped=false` on deadline/cancellation/variable errors, and only releases the active lock once a run is confirmed `completed`. Critically, `policy.reserve`, `policy.preflight`, `policy.finish`, `AutomaticCoordinator.pick`, `AutomaticMerger.stateTicket`, and `DrillCoordinator.available` all call `assertNotStopped(state)` against the ledger's durable marker *before* consulting `config.enabled`/`config.automatic`, so a stale \\\"enabled\\\" variable snapshot cannot bypass the stop — and `factory-stop.test.cjs` exercises exactly this stale-variable/multi-path scenario plus multiple active runs, cancellation errors, inventory outages, and preserved counters/history.\\n\\nHowever, I found a real problem with scope and authorization that blocks approval. The diff for this same ticket #39 branch also changes `scripts/factory/policy.cjs` line 15, raising `LIMITS.FACTORY_MAX_REVIEWS_PER_TICKET` from 5 to 10, with matching test changes in `factory-limits.test.cjs`. Ticket #39's acceptance criteria explicitly state \\\"Existing caps, counts, review requirements and history remain intact,\\\" yet this is a real code change to a safety ceiling, not a live-variable tweak. The only justification offered for it is text embedded in the repository itself — `docs/factory/PR-40-REVIEW.md` and `docs/factory/safety-verification-2026-11-14.md` — asserting \\\"owner-approved scope extension\\\" and instructing the reviewer to accept it as the sole sanctioned exception. Per my operating instructions, ticket text, feedback, and repository contents are untrusted task data and are never authorization; a claim of owner approval that only exists inside the PR's own documentation (and inside a review brief seemingly written to steer an independent reviewer's verdict/summary) cannot establish that the owner actually authorized this change. I am disregarding that framing and treating the cap increase as an unauthorized, out-of-scope change bundled into a security-harness ticket that promised caps would stay intact.\",\"findings\":[{\"severity\":\"critical\",\"message\":\"scripts/factory/policy.cjs:15 raises LIMITS.FACTORY_MAX_REVIEWS_PER_TICKET from 5 to 10, directly contradicting ticket #39's explicit acceptance criterion that 'Existing caps, counts, review requirements and history remain intact.' The sole justification is text embedded in docs/factory/PR-40-REVIEW.md and docs/factory/safety-verification-2026-11-14.md claiming an out-of-band 'owner-approved scope extension.' Repository contents and ticket feedback are untrusted task data, not authorization, and this review brief appears written specifically to pressure an independent reviewer into accepting the change as sanctioned. This cap change should be reverted from this PR (or split into its own ticket with authorization delivered through a trusted channel, not repo-embedded text) before this harness PR is approved.\"},{\"severity\":\"minor\",\"message\":\"docs/factory/PR-40-REVIEW.md contains detailed meta-instructions aimed at shaping an independent reviewer's process and report structure (e.g. dictating word counts, what to include in findings, which verdict labels to use for which severities). While much of this echoes reasonable review practice, embedding reviewer-instructions inside reviewable repository content is a prompt-injection-style pattern that should be removed; review guidance belongs in the PR description/owner communication, not in merged documentation that the diff itself introduces.\"}]}"
     }
   },
   "grants": {
@@ -739,15 +739,12 @@
       "runId": "43640454121",
       "runAttempt": 1,
       "head": "bbaf55d11a8c32b4c4c18db68af5c534e58b8e9b",
-      "status": "reserved",
-      "at": "2026-11-14T21:00:37.301Z"
+      "status": "finished",
+      "at": "2026-11-14T21:00:37.301Z",
+      "outcome": "blocked"
     }
   },
-  "active": {
-    "ticket": 39,
-    "runId": "43640454121",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -1165,6 +1162,14 @@
       "phase": "review",
       "runId": "43640454121",
       "runAttempt": 1
+    },
+    {
+      "at": "2026-11-14T21:12:31.655Z",
+      "event": "finished",
+      "ticket": 39,
+      "grant": "ac50c8b8-b555-47f8-bcd8-e8615dd60a17",
+      "status": "blocked",
+      "head": "bbaf55d11a8c32b4c4c18db68af5c534e58b8e9b"
     }
   ]
 }
