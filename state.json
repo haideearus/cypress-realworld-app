@@ -424,28 +424,15 @@
     "39": {
       "coding": 0,
       "origin": "owner-pr",
-      "reviews": 2,
+      "reviews": 3,
       "retries": 0,
-      "head": "96ed7c36fa86d4ded3ddb84ed9ac736f880652cd",
-      "status": "reviewed",
+      "head": "bbaf55d11a8c32b4c4c18db68af5c534e58b8e9b",
+      "status": "reviewing",
       "pr": 40,
-      "approval": {
-        "head": "96ed7c36fa86d4ded3ddb84ed9ac736f880652cd",
-        "pr": 40,
-        "grant": "c9dd836a-14ef-49ac-a6d7-98301a0764ac",
-        "verdict": "pass",
-        "source": "claude-subscription",
-        "fixture": false,
-        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/43637028532"
-      },
+      "approval": null,
       "criteriaHash": "889659d17d1d23eb1f359f9645c8751a7d4f29afdc4a48e5f43af17435f2f492",
       "branch": "agent/security-scanner-stop-control",
-      "ci": {
-        "requestId": "e5b87605-cc24-47dc-ba51-034559284e01",
-        "head": "96ed7c36fa86d4ded3ddb84ed9ac736f880652cd",
-        "runId": 43637072958,
-        "passed": true
-      },
+      "ci": null,
       "feedback": "{\"head\":\"96ed7c36fa86d4ded3ddb84ed9ac736f880652cd\",\"verdict\":\"pass\",\"summary\":\"Test summary.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"test finding\"}]}"
     }
   },
@@ -738,9 +725,24 @@
       "status": "finished",
       "at": "2026-11-14T20:21:20.064Z",
       "outcome": "reviewed"
+    },
+    "ac50c8b8-b555-47f8-bcd8-e8615dd60a17": {
+      "id": "ac50c8b8-b555-47f8-bcd8-e8615dd60a17",
+      "ticket": 39,
+      "phase": "review",
+      "slot": "existing",
+      "runId": "43640454121",
+      "runAttempt": 1,
+      "head": "bbaf55d11a8c32b4c4c18db68af5c534e58b8e9b",
+      "status": "reserved",
+      "at": "2026-11-14T21:00:37.301Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 39,
+    "runId": "43640454121",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -1149,6 +1151,15 @@
       "grant": "c9dd836a-14ef-49ac-a6d7-98301a0764ac",
       "status": "reviewed",
       "head": "96ed7c36fa86d4ded3ddb84ed9ac736f880652cd"
+    },
+    {
+      "at": "2026-11-14T21:00:37.301Z",
+      "event": "reserved",
+      "ticket": 39,
+      "grant": "ac50c8b8-b555-47f8-bcd8-e8615dd60a17",
+      "phase": "review",
+      "runId": "43640454121",
+      "runAttempt": 1
     }
   ]
 }
