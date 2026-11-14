@@ -435,7 +435,8 @@
       "ci": {
         "requestId": "e5b87605-cc24-47dc-ba51-034559284e01",
         "head": "96ed7c36fa86d4ded3ddb84ed9ac736f880652cd",
-        "runId": null
+        "runId": 43637072958,
+        "passed": true
       },
       "feedback": "Owner PR CI or subscription review unavailable; no automatic retry"
     }
