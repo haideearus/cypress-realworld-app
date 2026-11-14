@@ -378,9 +378,17 @@
       "reviews": 1,
       "retries": 0,
       "head": "4bc2ed6c5cbfd71f3367f7d6caa1c1629b565aa8",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 36,
-      "approval": null,
+      "approval": {
+        "head": "4bc2ed6c5cbfd71f3367f7d6caa1c1629b565aa8",
+        "pr": 36,
+        "grant": "121e87bf-451b-473a-86b9-876ae52a1c4d",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/43530410474"
+      },
       "criteriaHash": "d44115f7bd7ca6e2bca6677ab95076329fd38a4c5e122403f51846529a332e93",
       "branch": "agent/isolated-monitor-recovery-drill",
       "ci": {
@@ -388,7 +396,8 @@
         "head": "4bc2ed6c5cbfd71f3367f7d6caa1c1629b565aa8",
         "runId": 43530470220,
         "passed": true
-      }
+      },
+      "feedback": "{\"head\":\"4bc2ed6c5cbfd71f3367f7d6caa1c1629b565aa8\",\"verdict\":\"pass\",\"summary\":\"Reviewed the isolated monitor-to-Claude repair rehearsal feature (ticket #35) added at this commit: the new factory-monitor-drill.yml workflow, DrillCoordinator (scripts/factory/monitor-drill.cjs), the pure drill-contract/drill-fixture modules, the Docker-isolated sandbox (drill-sandbox.cjs) and independent oracle (drill/oracle.cjs, drill/validation.cjs), the drill-aware changes to policy.cjs (ledger reserve/preflight/finish/validateState), controller.cjs (rejectDrillIssue, drill exclusion from admit/admitPR/publish/reviewGate), and worker.cjs (file-tools-only capability profile for drill coding, no Bash/shell commands, restricted edit path). Cross-checked against the ticket's extensive constraints: workflow_dispatch-only trigger with default-true preview, owner/main/first-attempt/exact-workflow guards, bounded job timeouts, a real 90s shutdown-window step, shared factory-ledger concurrency group so it can't race the production pipeline, one capped coding attempt with zero retries/reviews, subscription-only token enforcement (assertSubscriptionEnv forbids API-key/Bedrock/Vertex/Foundry env vars), label/namespace isolation (factory-drill label and factory/monitor-drill branch, separate from production factory-ready/factory/monitor), deduplication of repeated incident creation, and exclusion of drill tickets/issues from ordinary admission, CI-gated publication, independent review gating, and merge paths. The sandbox runs the untrusted candidate in a locked-down, network-less, read-only, non-root Docker container with a pinned image digest and a separate root-run oracle that measures baseline(RED)/candidate(GREEN) independently of any model self-report; the verification report's identity (grantId/head/seedSha/runId/workflowSha/bundleSha256) is strictly bound to the ledger grant in finalize(), and a dedicated regression test (\\\"finalizer binds reports to the ledger, not self-consistent caller supplied identity\\\") exercises exactly the cross-run report-substitution bug the authors' own verification log says they found and fixed. No application code under backend/factory-drill or the regression test exists on main (confirmed via glob) — the fixture is synthesized only onto a disposable factory/drill-<runId> branch via the GitHub API, consistent with \\\"keep the intentional fault off main.\\\" Test coverage (scripts/tests/factory-drill-*.test.cjs, factory-monitor-drill.test.cjs) is extensive and specifically targets adversarial cases: forged identities, ambiguous/failed issue publication without retry, still-running reservation protection, edited issue/report digest rejection, and Docker sandbox boundary checks (no network, no inherited credentials, process/signal isolation, malicious stdout handling). No secrets, production credentials, repository variable/switch changes, or scheduled triggers were introduced; everything stays gated behind existing FACTORY_ENABLED/automatic/autoMerge switches and the existing daily/attempt ledger. I did not execute any code or tools beyond the allowed Read/Glob/Grep, per the read-only reviewer constraints.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"The live rehearsal's core safety property (that the PC was actually powered off during the 90s+coding+verification window) is enforced only by operator diligence and post-hoc timestamp comparison by a human reading the run summary (docs/factory/MONITOR-REPAIR-REHEARSAL.md step 3 explicitly says 'GitHub cannot independently prove the physical PC was powered off'). This is an acknowledged, documented limitation rather than a code defect, but it means the 'PC-shutdown' framing is more of a convention than a verified guarantee — worth keeping in mind when evidence is reviewed after a live run.\"},{\"severity\":\"minor\",\"message\":\"docs/superpowers/plans and docs/superpowers/specs for this feature (2026-11-14-cloud-monitor-repair-drill*) were not deeply cross-diffed line-by-line against the final implementation; I only skimmed related docs (MONITOR-REPAIR-REHEARSAL.md, rehearsal-verification doc, PRODUCTION-MONITORING.md) for consistency. If those planning docs are expected to stay in exact sync with the shipped code, a final pass to confirm no stale/contradictory statements remain would be prudent before merge.\"}]}"
     }
   },
   "grants": {
@@ -641,15 +650,12 @@
       "runId": "43530410474",
       "runAttempt": 1,
       "head": "4bc2ed6c5cbfd71f3367f7d6caa1c1629b565aa8",
-      "status": "reserved",
-      "at": "2026-11-13T23:53:45.041Z"
+      "status": "finished",
+      "at": "2026-11-13T23:53:45.041Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 35,
-    "runId": "43530410474",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -1001,6 +1007,14 @@
       "phase": "review",
       "runId": "43530410474",
       "runAttempt": 1
+    },
+    {
+      "at": "2026-11-14T00:06:04.035Z",
+      "event": "finished",
+      "ticket": 35,
+      "grant": "121e87bf-451b-473a-86b9-876ae52a1c4d",
+      "status": "reviewed",
+      "head": "4bc2ed6c5cbfd71f3367f7d6caa1c1629b565aa8"
     }
   ]
 }
