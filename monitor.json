@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "repository": "haideearus/cypress-realworld-app",
+  "active": "19278615-0033-4146-a5a4-46b9296c1c5f",
+  "incidents": {
+    "19278615-0033-4146-a5a4-46b9296c1c5f": {
+      "id": "19278615-0033-4146-a5a4-46b9296c1c5f",
+      "at": "2026-11-14T09:43:17.010Z",
+      "day": "2026-11-14",
+      "phase": "pending",
+      "recovered": false,
+      "source": {
+        "runId": "43581712040",
+        "runAttempt": 1,
+        "workflowSha": "487a11c03d980f35557c462cb75c68b60e39fe78"
+      },
+      "criteriaHash": "bb5da512fde05c7fa19921e542a8df811239ebe22141562abf08195ef1b35c76",
+      "issue": null
+    }
+  }
+}
