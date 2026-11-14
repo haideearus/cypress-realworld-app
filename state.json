@@ -427,7 +427,7 @@
       "reviews": 1,
       "retries": 0,
       "head": "4275b2f3336a12ffa5aad1a5efa7377d7bf7dd42",
-      "status": "reviewing",
+      "status": "blocked",
       "pr": 40,
       "approval": null,
       "criteriaHash": "889659d17d1d23eb1f359f9645c8751a7d4f29afdc4a48e5f43af17435f2f492",
@@ -437,7 +437,8 @@
         "head": "4275b2f3336a12ffa5aad1a5efa7377d7bf7dd42",
         "runId": 43634775016,
         "passed": true
-      }
+      },
+      "feedback": "Owner PR CI or subscription review unavailable; no automatic retry"
     }
   },
   "grants": {
@@ -714,15 +715,12 @@
       "runId": "43634724304",
       "runAttempt": 1,
       "head": "4275b2f3336a12ffa5aad1a5efa7377d7bf7dd42",
-      "status": "reserved",
-      "at": "2026-11-14T19:55:57.030Z"
+      "status": "finished",
+      "at": "2026-11-14T19:55:57.030Z",
+      "outcome": "blocked"
     }
   },
-  "active": {
-    "ticket": 39,
-    "runId": "43634724304",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -1108,6 +1106,12 @@
       "phase": "review",
       "runId": "43634724304",
       "runAttempt": 1
+    },
+    {
+      "at": "2026-11-14T20:08:12.620Z",
+      "event": "blocked",
+      "ticket": 39,
+      "reason": "Owner PR CI or subscription review unavailable; no automatic retry"
     }
   ]
 }
