@@ -1,0 +1,9 @@
+title = "Software factory secret rules"
+[extend]
+useDefault = true
+
+[[rules]]
+id = "factory-claude-oauth"
+description = "Claude subscription tokens must never enter source, prompts or artifacts"
+regex = '''sk-ant-(?:oat|sid)[0-9]+-[A-Za-z0-9_-]{16,}'''
+keywords = ["sk-ant-"]

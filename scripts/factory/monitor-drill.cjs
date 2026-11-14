@@ -113,6 +113,7 @@ class DrillCoordinator {
     };
   }
   available(state, at) {
+    policy.assertNotStopped(state);
     if (
       state.active ||
       !this.config.coding ||

@@ -302,7 +302,12 @@ cannot be recovered from its retained logs/artifacts. This feature records futur
 failures only. No agent rerun, permission change, quota increase or deployment is
 authorized by preparing or installing it.
 
-For a stop:
+The direct owner stop and build-blocking scanner are prepared under #39. See the
+[safety runbook](factory/SAFETY-CONTROLS.md) for preview, the one-command stop,
+explicit resume, limitations and the still-pending live timed demonstration.
+They require the reviewed implementation to be installed on `main`.
+
+The older workflow-based cancellation path remains available:
 
 1. Set `FACTORY_ENABLED=false` to stop new runs. GitHub may snapshot variables for
    an already queued/running workflow: do not treat changing this variable as an
