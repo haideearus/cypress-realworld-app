@@ -447,9 +447,17 @@
       "reviews": 1,
       "retries": 0,
       "head": "fc4d2e13c52d28acb5b0e2b253f5bcb8d592afeb",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 40,
-      "approval": null,
+      "approval": {
+        "head": "fc4d2e13c52d28acb5b0e2b253f5bcb8d592afeb",
+        "pr": 40,
+        "grant": "5d3c9460-f6e3-4c4c-91f7-db6db51c8cc8",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/43642585016"
+      },
       "criteriaHash": "ef0745a78b2f7b228c142e55ceff2b3dec7f87314a4fe4266af081267a1aeb21",
       "branch": "agent/security-scanner-stop-control",
       "ci": {
@@ -457,7 +465,8 @@
         "head": "fc4d2e13c52d28acb5b0e2b253f5bcb8d592afeb",
         "runId": 43642629619,
         "passed": true
-      }
+      },
+      "feedback": "{\"head\":\"fc4d2e13c52d28acb5b0e2b253f5bcb8d592afeb\",\"verdict\":\"pass\",\"summary\":\"Reviewed the current source at fc4d2e1 against ticket #41's combined scope (secret scanning, direct stop/resume, 10-review ceiling). The secret scanner (scripts/factory/secret-scan.cjs, scanner-install.cjs, scanner-release.cjs, gitleaks.toml) pins Gitleaks 8.30.1 with SHA-256 checks for both archive and binary on linux-x64/win32-x64, fails closed on scanner errors, redacts findings to rule IDs only, defeats filename-based exclusions via generated staging names, and adds no baseline/allowlist exemption. factory-ci.yml scans the complete tracked snapshot before dependency install (build-blocking), and factory-model.yml scans source/prepared context before model invocation and the role bundle/sanitized diagnostics before upload, matching the ticket's required boundaries; this wiring is also directly asserted by scripts/tests/factory-workflows.test.cjs rather than just visually inspected. The stop/resume contract (scripts/factory/stop.cjs, stop-contract.cjs) persists a durable marker, flips all three switches, attempts cancel/force-cancel without waiting on its own runner under a 55s deadline, tolerates variable-service outages without skipping cancellation, and retains locks on uncertain termination; resume requires terminal runs and an idle ledger and restores only the recorded switches. policy.cjs propagates the stop check through reserve/preflight/finish, and automation.cjs/merge.cjs/monitor-drill.cjs/controller.cjs all correctly refuse action while stopped, confirmed by scripts/tests/factory-stop.test.cjs. The review-cap change raises only FACTORY_MAX_REVIEWS_PER_TICKET from 5 to 10 in policy.cjs, with scripts/tests/factory-limits.test.cjs exercising acceptance of 10, rejection of 11, preserved history/audit/day admissions across the 5→10 transition, and continued enforcement of lower configured ceilings at preflight — while all other limits (daily=20, coding=5, retries=4, concurrent=1, turns=200, timeout=30m, timezone) are unchanged. docs/factory/PR-40-REVIEW.md (the file ticket #41 required removed) is confirmed absent with no dangling references, and safety-verification-2026-11-14.md explicitly states no repository document is treated as authorization or review approval. Documentation (SAFETY-CONTROLS.md, CLAUDE-FACTORY.md) honestly discloses scanner/OCR/encoding limitations and correctly instructs keeping the live FACTORY_MAX_REVIEWS_PER_TICKET variable at 5 and the three agent-enable switches false until after protected merge. I could not execute code or reach the network in this read-only review, so I cannot independently verify the pinned Gitleaks hashes against the real upstream release artifacts or run the test suite myself; this is a disclosed limitation of static review, not an identified defect.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"The pinned Gitleaks archive/binary SHA-256 hashes in scripts/factory/scanner-release.cjs are well-formed but could not be cross-checked against the actual published v8.30.1 release artifacts in this network-less, read-only review session; a future review with network access should confirm them against GitHub's release page.\"},{\"severity\":\"minor\",\"message\":\"docs/factory/safety-verification-2026-11-14.md's 'Preserved live settings' snapshot shows FACTORY_ENABLED=true as an observed historical value, while earlier narrative in the same file says the owner restored it to false after each review; the doc would be clearer if it labeled this snapshot's timestamp/context explicitly to avoid appearing to contradict the 'false during preparation' requirement.\"}]}"
     }
   },
   "grants": {
@@ -770,15 +779,12 @@
       "runId": "43642585016",
       "runAttempt": 1,
       "head": "fc4d2e13c52d28acb5b0e2b253f5bcb8d592afeb",
-      "status": "reserved",
-      "at": "2026-11-14T21:23:55.580Z"
+      "status": "finished",
+      "at": "2026-11-14T21:23:55.580Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 41,
-    "runId": "43642585016",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -1213,6 +1219,14 @@
       "phase": "review",
       "runId": "43642585016",
       "runAttempt": 1
+    },
+    {
+      "at": "2026-11-14T21:34:17.671Z",
+      "event": "finished",
+      "ticket": 41,
+      "grant": "5d3c9460-f6e3-4c4c-91f7-db6db51c8cc8",
+      "status": "reviewed",
+      "head": "fc4d2e13c52d28acb5b0e2b253f5bcb8d592afeb"
     }
   ]
 }
