@@ -1,6 +1,7 @@
 const { randomUUID } = require("node:crypto");
 const recovery = require("./recovery.cjs");
 const { validateMonitorProof } = require("./monitor-proof.cjs");
+const { DRILL_WORKFLOW_REF, isDrillContext, validateDrillProof } = require("./drill-contract.cjs");
 
 const REPOSITORY = "haideearus/cypress-realworld-app";
 const OWNER = "haideearus";
@@ -102,6 +103,8 @@ function validateState(state) {
       deny("Invalid ledger day");
   }
   const recovered = recovery.validateState(state);
+  const drillRuns = new Set();
+  const drillIncidents = new Set();
   for (const [id, ticket] of Object.entries(state.tickets)) {
     const recoveryCount = recovered.has(id) ? 1 : 0;
     if (
@@ -111,7 +114,7 @@ function validateState(state) {
       !Number.isInteger(ticket.coding) ||
       ticket.coding < (ticket.origin === "owner-pr" ? 0 : 1) ||
       ticket.coding > MAX_CODING_ATTEMPTS ||
-      ![undefined, "factory", "owner-pr"].includes(ticket.origin) ||
+      ![undefined, "factory", "owner-pr", "drill"].includes(ticket.origin) ||
       (ticket.origin === "owner-pr" &&
         (ticket.coding !== 0 || !Number.isSafeInteger(ticket.pr) || ticket.pr < 1)) ||
       !Number.isInteger(ticket.reviews) ||
@@ -123,6 +126,40 @@ function validateState(state) {
     )
       deny("Invalid ledger ticket counters");
     const grants = Object.values(state.grants).filter((g) => g?.ticket === Number(id));
+    if (ticket.origin === "drill") {
+      const d = ticket.drill;
+      const g = grants[0];
+      if (
+        !validateDrillProof(d) ||
+        ticket.coding !== 1 ||
+        ticket.reviews !== 0 ||
+        ticket.retries !== 0 ||
+        ticket.pr !== null ||
+        ticket.approval !== null ||
+        ticket.head !== d.seedSha ||
+        ["automatic", "monitor", "merge", "recovery"].some((key) => ticket[key] !== undefined) ||
+        grants.length !== 1 ||
+        !g ||
+        g.phase !== "code" ||
+        g.slot !== "drill" ||
+        g.head !== d.seedSha ||
+        g.runId !== d.runId ||
+        g.runAttempt !== 1 ||
+        !["coding", "blocked", "drill_complete"].includes(ticket.status) ||
+        (ticket.status === "coding"
+          ? g.status !== "reserved"
+          : g.status !== "finished" ||
+            g.outcome !== ticket.status ||
+            state.active?.ticket === Number(id)) ||
+        drillRuns.has(d.runId) ||
+        drillIncidents.has(d.incidentId)
+      )
+        deny("Invalid drill ticket provenance or reservation");
+      drillRuns.add(d.runId);
+      drillIncidents.add(d.incidentId);
+    } else if (ticket.drill !== undefined || ticket.status === "drill_complete") {
+      deny("Invalid drill ticket origin");
+    }
     if (ticket.automatic !== undefined) {
       const a = ticket.automatic;
       const firstCode = grants.find((g) => g.phase === "code");
@@ -189,9 +226,16 @@ function validateState(state) {
       grants.filter((g) => g.phase === "review").length !== ticket.reviews ||
       ticket.retries !== Math.max(0, ticket.coding - 1 - recoveryCount) ||
       Object.values(state.days).filter((ids) => ids.includes(Number(id))).length !== 1 ||
-      !["new", "coding", "reviewing", "awaiting_review", "retry", "blocked", "reviewed"].includes(
-        ticket.status
-      )
+      ![
+        "new",
+        "coding",
+        "reviewing",
+        "awaiting_review",
+        "retry",
+        "blocked",
+        "reviewed",
+        "drill_complete",
+      ].includes(ticket.status)
     )
       deny("Invalid ledger history or admission counters");
   }
@@ -247,6 +291,7 @@ function authorize(request) {
     request.actor !== OWNER ||
     request.triggeringActor !== OWNER ||
     request.ref !== "refs/heads/main" ||
+    (request.workflowRef === DRILL_WORKFLOW_REF && !isDrillContext(request)) ||
     ((request.event !== "workflow_dispatch" || request.workflowRef === AUTOMATIC_WORKFLOW_REF) &&
       !isAutomaticContext(request))
   )
@@ -302,6 +347,37 @@ function reserve(original, request, config, now = new Date()) {
   const state = structuredClone(original);
   const id = String(request.ticket);
   const existing = state.tickets[id];
+  const drill = request.origin === "drill";
+  if (existing?.origin === "drill") deny("Drill reservation cannot be repeated or reclassified");
+  if (drill) {
+    if (
+      !isDrillContext(request) ||
+      !validateDrillProof(request.drill) ||
+      config.automatic ||
+      config.autoMerge ||
+      existing ||
+      request.phase !== "code" ||
+      request.slot !== "drill" ||
+      request.head !== request.drill.seedSha ||
+      request.pr !== undefined ||
+      request.recovery !== undefined ||
+      ["runId", "runAttempt", "workflowRef", "workflowSha"].some(
+        (key) => request.drill[key] !== request[key]
+      ) ||
+      Object.values(state.tickets).some(
+        (t) =>
+          t.drill &&
+          (t.drill.runId === request.runId || t.drill.incidentId === request.drill.incidentId)
+      )
+    )
+      deny("Invalid or repeated drill reservation");
+  } else if (
+    request.drill !== undefined ||
+    request.workflowRef === DRILL_WORKFLOW_REF ||
+    request.slot === "drill"
+  ) {
+    deny("Invalid drill reservation origin");
+  }
   if (
     automatic &&
     (request.recovery !== undefined ||
@@ -310,7 +386,7 @@ function reserve(original, request, config, now = new Date()) {
   )
     deny("Invalid automatic reservation provenance");
   const ownerReview = request.phase === "review" && request.origin === "owner-pr";
-  if (request.origin !== undefined && !ownerReview) deny("Invalid reservation origin");
+  if (request.origin !== undefined && !ownerReview && !drill) deny("Invalid reservation origin");
   if (ownerReview && (!Number.isSafeInteger(request.pr) || request.pr < 1))
     deny("Invalid owner PR number");
   if (
@@ -346,13 +422,14 @@ function reserve(original, request, config, now = new Date()) {
     state.days[day] = [...admitted, request.ticket];
     state.tickets[id] = {
       coding: 0,
-      origin: ownerReview ? "owner-pr" : "factory",
+      origin: drill ? "drill" : ownerReview ? "owner-pr" : "factory",
       reviews: 0,
       retries: 0,
       head: request.head,
       status: "new",
       pr: ownerReview ? request.pr : null,
       approval: null,
+      ...(drill ? { drill: structuredClone(request.drill) } : {}),
     };
   }
   if (request.phase === "code") {
@@ -427,6 +504,20 @@ function preflight(state, grantId, context, config) {
   if (automatic && !config.automatic) deny("Automatic factory disabled");
   const grant = state.grants[grantId];
   const ticket = grant && state.tickets[String(grant.ticket)];
+  if (ticket?.origin === "drill") {
+    if (
+      !isDrillContext(context) ||
+      config.automatic ||
+      config.autoMerge ||
+      ["runId", "runAttempt", "workflowRef", "workflowSha"].some(
+        (key) => ticket.drill[key] !== context[key]
+      ) ||
+      context.head !== ticket.drill.seedSha
+    )
+      deny("Invalid drill reservation context");
+  } else if (context.workflowRef === DRILL_WORKFLOW_REF) {
+    deny("Drill workflow requires a drill reservation");
+  }
   if (automatic && !matchesAutomaticRun(ticket, context, config))
     deny("Invalid automatic reservation provenance");
   if (
@@ -457,9 +548,23 @@ function finish(original, grantId, outcome, now = new Date()) {
   const g = state.grants[grantId];
   if (!g || g.status !== "reserved" || !state.active || state.active.ticket !== g.ticket)
     deny("Invalid finished reservation");
-  if (!["blocked", "retry", "awaiting_review", "reviewed"].includes(outcome.status))
+  if (
+    !["blocked", "retry", "awaiting_review", "reviewed", "drill_complete"].includes(outcome.status)
+  )
     deny("Invalid invocation outcome");
   const t = state.tickets[String(g.ticket)];
+  if (t.origin === "drill") {
+    if (
+      !["blocked", "drill_complete"].includes(outcome.status) ||
+      g.phase !== "code" ||
+      (outcome.head !== undefined && outcome.head !== t.drill.seedSha) ||
+      (outcome.pr !== undefined && outcome.pr !== null) ||
+      Object.keys(outcome).some((key) => !["status", "head", "pr"].includes(key))
+    )
+      deny("Invalid drill invocation outcome");
+  } else if (outcome.status === "drill_complete") {
+    deny("Drill completion requires a drill reservation");
+  }
   if (outcome.head && !SHA.test(outcome.head)) deny("Invalid outcome head");
   if (outcome.pr && (!Number.isSafeInteger(outcome.pr) || outcome.pr < 1))
     deny("Invalid outcome PR");
@@ -489,7 +594,7 @@ function finish(original, grantId, outcome, now = new Date()) {
   t.pr = outcome.pr || t.pr;
   t.status = outcome.status;
   if (outcome.status !== "reviewed") t.approval = null;
-  if (["blocked", "reviewed"].includes(outcome.status)) state.active = null;
+  if (["blocked", "reviewed", "drill_complete"].includes(outcome.status)) state.active = null;
   audit(
     state,
     "finished",
@@ -508,6 +613,7 @@ function reviewGate(state, pr) {
     const a = t.approval;
     const g = a && state.grants[a.grant];
     if (
+      t.origin !== "drill" &&
       t.pr === pr.number &&
       t.head === pr.head &&
       t.status === "reviewed" &&

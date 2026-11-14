@@ -5,6 +5,7 @@ const recovery = require("./recovery.cjs");
 const { GitHub, Ledger, ROOT } = require("./github.cjs");
 const { validateChanges, validateReview, secretLike } = require("./artifacts.cjs");
 const { verifyMonitorIssue } = require("./monitor-origin.cjs");
+const { MonitorStore } = require("./monitor-state.cjs");
 const criteriaHash = (issue) =>
   createHash("sha256")
     .update(JSON.stringify([issue.title, issue.body || ""]))
@@ -48,6 +49,19 @@ class Controller {
       throw new Error("Ticket is not an eligible open issue");
     return issue;
   }
+  async rejectDrillIssue(issue) {
+    if (
+      /\[DRILL\]/i.test(issue.title) ||
+      issue.labels?.some(
+        (label) => (typeof label === "string" ? label : label?.name) === "factory-drill"
+      )
+    )
+      throw new Error("Drill issues cannot enter ordinary factory work");
+    const { state } = await new MonitorStore(this.api, "drill").read();
+    // The durable receipt remains authoritative after labels or ticket text are edited.
+    if (Object.values(state.incidents).some((incident) => incident.issue === issue.number))
+      throw new Error("Drill receipt cannot enter ordinary factory work");
+  }
   result(grant) {
     return {
       ready: true,
@@ -68,6 +82,7 @@ class Controller {
     if (typeof recover !== "boolean") throw new Error("Invalid recovery operation");
     if (automatic && recover) throw new Error("Automatic admission cannot request recovery");
     const issue = await this.issue(ticket);
+    await this.rejectDrillIssue(issue);
     let monitor = null;
     if (
       automatic &&
@@ -146,6 +161,7 @@ class Controller {
     const loaded = await this.ledger.read();
     const t = loaded.state.tickets[String(ticket)];
     if (!t) throw new Error("Ticket has no usage reservation");
+    if (t.origin === "drill") throw new Error("Drill tickets cannot enter ordinary factory work");
     return { ...loaded, ticket: t };
   }
   async admitPR(ticket, prNumber) {
@@ -154,6 +170,7 @@ class Controller {
       return { ready: false, reason: "Factory disabled; no model invocation" };
     if (!Number.isSafeInteger(prNumber) || prNumber < 1) throw new Error("Invalid owner PR");
     const issue = await this.issue(ticket);
+    await this.rejectDrillIssue(issue);
     const pr = await this.api.request("GET", `${ROOT}/pulls/${prNumber}`);
     if (
       pr.state !== "open" ||
@@ -211,6 +228,8 @@ class Controller {
     const loaded = await this.ledger.read();
     const grant = loaded.state.grants[grantId];
     if (!grant) throw new Error("Missing coding reservation");
+    if (loaded.state.tickets[String(grant.ticket)]?.origin === "drill")
+      throw new Error("Drill artifacts cannot be published");
     policy.preflight(
       loaded.state,
       grantId,
