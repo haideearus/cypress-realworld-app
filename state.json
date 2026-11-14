@@ -26,7 +26,8 @@
       41
     ],
     "2026-11-15": [
-      42
+      42,
+      44
     ]
   },
   "tickets": {
@@ -497,6 +498,19 @@
         "passed": true
       },
       "feedback": "{\"head\":\"1bbae9ee648845f65a5a3a9585818752f975715f\",\"verdict\":\"pass\",\"summary\":\"Reviewed the ticket #42 quarantine feature (scripts/factory/quarantine-contract.cjs, quarantine.cjs, policy.cjs authorize() hook, stop.cjs integration, new/updated tests, docs) against the full diff and the live source tree. The exception is a hardcoded, single-run contract (CASE) that is never driven by any config variable, ticket text, or network-controlled input; it requires an exact match on every provider-observed identity field (run/attempt/workflow/path/head_sha/branch/event/check-suite/timestamps/actor/referenced_workflows), zero jobs/checks/artifacts/pending-deployments live at check time, and the presence of the one specific, already-persisted ledger ticket/grant (#38) whose archived legacy policy.cjs snapshot is proven offline (credential-free, network-blocked Node subprocess with a stripped env) to reject it. denyRetiredRun() is wired into policy.authorize(), which both reserve() and preflight() call, so the retired run ID is independently denied at current admission/preflight regardless of quarantine state. stop.cjs/resumeFactory re-run this full check at preview, during the cancellation loop, and again just before the durable ledger commit, reverting to ordinary cancellation (or leaving the stop incomplete) the moment any fact changes; the quarantined run is never passed to cancel/force-cancel, never marked terminal, and is reported separately (quarantinedRunIds/quarantinedRuns, status \\\"queued\\\") from terminalRunIds/pendingRunIds in both preview and executed results, with no claim of cancellation. New tests in factory-quarantine.test.cjs and factory-stop.test.cjs exercise pinned-eligibility, every identity/evidence mutation, outage/missing-API cases, removed/altered containment history, admission/preflight denial across run attempts, the offline legacy-policy refusal, and stop/resume behavior when containment is lost mid-flight or before resume settles. No code path touches FACTORY_ENABLED/AUTOMATION/AUTOMERGE, credentials, production, or another AI/provider, and nothing here required executing untrusted code to verify — the ticket's body text is just evidence data consumed as frozen constants, not live authorization logic.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"Pre-existing (not introduced by this diff) resume race: resumeFactory() PATCHes FACTORY_ENABLED/AUTOMATION/AUTOMERGE back to their pre-stop values before the final ledger.update() re-verification (which now also re-checks quarantine/pending agents). If that late re-check throws, the GitHub variables have already been flipped back to 'enabled' while the durable stop marker and ledger still show the factory stopped. This is masked at the application layer because policy.reserve()/preflight() independently call assertNotStopped(state) and still refuse admission, and the added test only asserts the ledger stop marker survives (not that the GitHub variables were left in a consistent state) — so the inconsistency isn't actually exercised by a test. Not a regression from this ticket, but worth a follow-up to re-order the switch PATCH after the final durable check succeeds, or to add a test that asserts switches are visibly consistent with the stop marker after a failed resume.\"},{\"severity\":\"minor\",\"message\":\"The containment proof depends on five pinned SHA-256 hashes in quarantine-contract.cjs/evidence.json that this review could not independently recompute (no code execution). The accompanying test (factory-quarantine.test.cjs) does recompute and compare them against the archived .txt sources at test time, which is the right mechanism, but a reviewer relying only on static inspection cannot fully confirm the archived snapshot is byte-identical to the historical commit without running that test.\"}]}"
+    },
+    "44": {
+      "coding": 0,
+      "origin": "owner-pr",
+      "reviews": 1,
+      "retries": 0,
+      "head": "bcdc66a3ac6bf8bd049fa3f51ac7a251a44c44bb",
+      "status": "reviewing",
+      "pr": 45,
+      "approval": null,
+      "criteriaHash": "d42165f81ef371f37ff5ce9369620a6678d504c71d5b5c5e45425ceda1749044",
+      "branch": "test/emergency-stop-2026-11-15",
+      "ci": null
     }
   },
   "grants": {
@@ -824,9 +838,24 @@
       "status": "finished",
       "at": "2026-11-14T22:54:28.251Z",
       "outcome": "reviewed"
+    },
+    "b235ffc3-39b5-4656-8d16-9e43ee2ed8f9": {
+      "id": "b235ffc3-39b5-4656-8d16-9e43ee2ed8f9",
+      "ticket": 44,
+      "phase": "review",
+      "slot": "existing",
+      "runId": "43654287550",
+      "runAttempt": 1,
+      "head": "bcdc66a3ac6bf8bd049fa3f51ac7a251a44c44bb",
+      "status": "reserved",
+      "at": "2026-11-14T23:39:11.546Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 44,
+    "runId": "43654287550",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -1286,6 +1315,15 @@
       "grant": "13ab0205-0add-4b70-b038-889adaddd658",
       "status": "reviewed",
       "head": "1bbae9ee648845f65a5a3a9585818752f975715f"
+    },
+    {
+      "at": "2026-11-14T23:39:11.546Z",
+      "event": "reserved",
+      "ticket": 44,
+      "grant": "b235ffc3-39b5-4656-8d16-9e43ee2ed8f9",
+      "phase": "review",
+      "runId": "43654287550",
+      "runAttempt": 1
     }
   ]
 }
