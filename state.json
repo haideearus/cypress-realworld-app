@@ -406,7 +406,7 @@
       "reviews": 0,
       "retries": 0,
       "head": "63ce8d08c28977125333fc0ba4d0f0b879dd71f6",
-      "status": "coding",
+      "status": "drill_complete",
       "pr": null,
       "approval": null,
       "drill": {
@@ -417,7 +417,8 @@
         "seedSha": "63ce8d08c28977125333fc0ba4d0f0b879dd71f6",
         "incidentId": "19278615-0033-4146-a5a4-46b9296c1c5f"
       },
-      "criteriaHash": "bb5da512fde05c7fa19921e542a8df811239ebe22141562abf08195ef1b35c76"
+      "criteriaHash": "bb5da512fde05c7fa19921e542a8df811239ebe22141562abf08195ef1b35c76",
+      "feedback": "Isolated drill verified; no production approval, PR or deployment."
     }
   },
   "grants": {
@@ -682,15 +683,12 @@
       "runId": "43581712040",
       "runAttempt": 1,
       "head": "63ce8d08c28977125333fc0ba4d0f0b879dd71f6",
-      "status": "reserved",
-      "at": "2026-11-14T09:43:21.724Z"
+      "status": "finished",
+      "at": "2026-11-14T09:43:21.724Z",
+      "outcome": "drill_complete"
     }
   },
-  "active": {
-    "ticket": 38,
-    "runId": "43581712040",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -1059,6 +1057,14 @@
       "phase": "code",
       "runId": "43581712040",
       "runAttempt": 1
+    },
+    {
+      "at": "2026-11-14T09:46:10.644Z",
+      "event": "finished",
+      "ticket": 38,
+      "grant": "2e9200c0-e2b6-4684-ae37-80ddd128504a",
+      "status": "drill_complete",
+      "head": "63ce8d08c28977125333fc0ba4d0f0b879dd71f6"
     }
   ]
 }
