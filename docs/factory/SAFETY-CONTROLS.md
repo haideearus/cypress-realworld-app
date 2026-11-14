@@ -1,8 +1,10 @@
 # Secret scanning and owner stop control
 
 Implementation ticket: [#39](https://github.com/haideearus/cypress-realworld-app/issues/39).
-These controls are prepared for review. Their presence on a feature branch does
-not establish installation or a successful live one-minute cancellation test.
+The scanner and owner stop were merged in PR #40. The guarded stale-record
+exception below is prepared under [#42](https://github.com/haideearus/cypress-realworld-app/issues/42).
+A feature branch does not establish installation or a successful live one-minute
+cancellation test.
 
 ## Build-blocking scanner
 
@@ -86,22 +88,54 @@ cancelled. `FACTORY_MONITOR_ENABLED` is preserved.
 The command uses a 55-second overall deadline, including authentication, leaving
 margin against the course's one-minute target. An exit-zero result with
 `stopped=true` and `withinMinute=true` means switch shutdown was acknowledged,
-agent inventory completed, all found agent parents were confirmed terminal and
-the result was persisted. Terminal confirmation includes the recorded active run
-attempt. The command never refunds sessions or clears usage counts. It marks only
+agent inventory completed, every executable agent parent was confirmed terminal
+and the result was persisted. The sole conditional pre-job quarantine described
+below is reported separately, with its actual queued state. Terminal confirmation
+includes the recorded active run attempt. The command never refunds sessions or clears usage counts. It marks only
 confirmed terminal reservations blocked and preserves existing reviewed evidence.
 
 `stopped=false`, a nonzero exit or an authentication error is **not a successful
 timed stop**. The marker and uncertain locks remain; output must not be used as
 proof of cancellation. GitHub API/queue outages can prevent its platform from
-stopping a job. In particular, the read-only development preview still found old
-queued automatic run `43467058965`; earlier cancellation attempts returned 409.
-Do not erase that history or claim a guaranteed GitHub cancellation SLA. Inspect
-the run, use the GitHub cancellation control and, for an active model emergency,
+stopping a job. Do not erase history or claim a guaranteed GitHub cancellation
+SLA. Inspect the run, use GitHub cancellation and, for an active model emergency,
 revoke its Claude subscription token. Restore only after resolving the incident.
 
 Repeated `--execute` retains the original stop marker and previous switch values.
 It may attempt cancellation again, but does not reset budgets or retries.
+
+## One contained pre-job record
+
+Run [43467058965](https://github.com/haideearus/cypress-realworld-app/actions/runs/43467058965)
+is still **queued**, with zero jobs, check runs, artifacts and pending deployments.
+GitHub rejected ordinary and force cancellation with 409 and the single guarded
+rerun with 403, "This workflow is already running." No new attempt was created.
+The owner selected quarantine after that failed recovery; deletion, status
+fabrication and counter resets are excluded.
+
+Protected code pins this one repository/run/attempt, source SHA, workflow,
+check suite, actor and timestamps. Every reliance checks live provider evidence
+and the validated ledger. The completed drill ticket #38 and its finished grant
+must remain intact, and this stale run must have no grant or active reservation.
+The frozen old controller reads and validates the current ledger before admission;
+its actual policy rejects the retained `drill` origin. A credential-free offline
+test executes that hash-pinned policy and proves the refusal. It does not depend
+on the current switches remaining false. Current policy additionally denies this
+run ID at admission and worker preflight, for every attempt.
+
+Stop preview/result and resume report `quarantinedRunIds` and `quarantinedRuns`
+separately from terminal and pending runs, including the actual `queued` state,
+source and containment ticket. Executed stop/resume records that reliance in the
+ledger audit. The exception never releases a lock or changes GitHub's record.
+There is no configurable ignore list. See the
+[preserved evidence and limitations](evidence/stale-run-43467058965/README.md).
+
+Any changed attempt/source/identity, job, check, deployment, artifact, grant,
+containment history or unavailable evidence **revokes quarantine**. The run then
+receives ordinary cancellation handling, or blocks stop/resume if unresolved.
+Checks repeat while stopping and before resume removes the marker. This handles a
+contained pre-job record; it is not evidence that GitHub cancelled it, and it does
+not replace the pending live one-minute agent cancellation demonstration.
 
 ## Explicit resume
 
@@ -117,7 +151,8 @@ After owner authorization and resolution of every agent run/active lock:
 node scripts/factory/stop.cjs --resume --execute
 ```
 
-Resume refuses outstanding agent runs or reservations. It restores exactly the
+Resume refuses outstanding executable agent runs or reservations and revalidates
+any claimed quarantine. It restores exactly the
 three values recorded by the stop and removes the marker only after GitHub
 acknowledges them. It does not enable a previously disabled mode, alter monitoring
 or limits, refund allowance, reset attempts or restart a blocked ticket. Changing

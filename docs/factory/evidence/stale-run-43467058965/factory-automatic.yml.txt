@@ -1,0 +1,175 @@
+name: Automatic factory
+on:
+  schedule:
+    - cron: "17,47 * * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Preview the queue without reservations, model calls or merges
+        type: boolean
+        required: true
+        default: true
+permissions:
+  contents: read
+concurrency:
+  group: factory-automatic
+  cancel-in-progress: false
+jobs:
+  pick:
+    if: ${{ github.ref == 'refs/heads/main' && ((github.event_name == 'workflow_dispatch' && inputs.dry_run) || (vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true')) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      issues: read
+      pull-requests: read
+    concurrency:
+      group: factory-ledger
+      cancel-in-progress: false
+    outputs:
+      ready: ${{ steps.control.outputs.ready }}
+      grantId: ${{ steps.control.outputs.grantId }}
+      head: ${{ steps.control.outputs.head }}
+      ticket: ${{ steps.control.outputs.ticket }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - id: app
+        if: ${{ github.event_name != 'workflow_dispatch' || !inputs.dry_run }}
+        uses: ./.github/actions/factory-app-token
+        with:
+          client-id: ${{ vars.FACTORY_GITHUB_APP_CLIENT_ID }}
+          expected-slug: ${{ vars.FACTORY_GITHUB_APP_SLUG }}
+          private-key: ${{ secrets.FACTORY_GITHUB_APP_PRIVATE_KEY }}
+      - id: control
+        uses: ./.github/actions/factory-control
+        with:
+          operation: auto_pick
+          github_token: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && github.token || steps.app.outputs.token }}
+          variables_json: ${{ toJSON(vars) }}
+          parameters: ${{ toJSON(inputs) }}
+  cycle1:
+    needs: pick
+    if: ${{ needs.pick.outputs.ready == 'true' && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' }}
+    permissions:
+      contents: write
+      issues: read
+      pull-requests: write
+      actions: write
+      checks: write
+    uses: ./.github/workflows/factory-cycle.yml
+    with:
+      ticket: ${{ needs.pick.outputs.ticket }}
+      grantId: ${{ needs.pick.outputs.grantId }}
+      head: ${{ needs.pick.outputs.head }}
+      slot: cycle1
+      automatic: true
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+      FACTORY_GITHUB_APP_PRIVATE_KEY: ${{ secrets.FACTORY_GITHUB_APP_PRIVATE_KEY }}
+  cycle2:
+    needs: cycle1
+    if: ${{ needs.cycle1.outputs.retry == 'true' && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' }}
+    permissions:
+      contents: write
+      issues: read
+      pull-requests: write
+      actions: write
+      checks: write
+    uses: ./.github/workflows/factory-cycle.yml
+    with:
+      ticket: ${{ needs.cycle1.outputs.ticket }}
+      grantId: ${{ needs.cycle1.outputs.grantId }}
+      head: ${{ needs.cycle1.outputs.head }}
+      slot: cycle2
+      automatic: true
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+      FACTORY_GITHUB_APP_PRIVATE_KEY: ${{ secrets.FACTORY_GITHUB_APP_PRIVATE_KEY }}
+  cycle3:
+    needs: cycle2
+    if: ${{ needs.cycle2.outputs.retry == 'true' && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' }}
+    permissions:
+      contents: write
+      issues: read
+      pull-requests: write
+      actions: write
+      checks: write
+    uses: ./.github/workflows/factory-cycle.yml
+    with:
+      ticket: ${{ needs.cycle2.outputs.ticket }}
+      grantId: ${{ needs.cycle2.outputs.grantId }}
+      head: ${{ needs.cycle2.outputs.head }}
+      slot: cycle3
+      automatic: true
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+      FACTORY_GITHUB_APP_PRIVATE_KEY: ${{ secrets.FACTORY_GITHUB_APP_PRIVATE_KEY }}
+  cycle4:
+    needs: cycle3
+    if: ${{ needs.cycle3.outputs.retry == 'true' && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' }}
+    permissions:
+      contents: write
+      issues: read
+      pull-requests: write
+      actions: write
+      checks: write
+    uses: ./.github/workflows/factory-cycle.yml
+    with:
+      ticket: ${{ needs.cycle3.outputs.ticket }}
+      grantId: ${{ needs.cycle3.outputs.grantId }}
+      head: ${{ needs.cycle3.outputs.head }}
+      slot: cycle4
+      automatic: true
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+      FACTORY_GITHUB_APP_PRIVATE_KEY: ${{ secrets.FACTORY_GITHUB_APP_PRIVATE_KEY }}
+  cycle5:
+    needs: cycle4
+    if: ${{ needs.cycle4.outputs.retry == 'true' && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' }}
+    permissions:
+      contents: write
+      issues: read
+      pull-requests: write
+      actions: write
+      checks: write
+    uses: ./.github/workflows/factory-cycle.yml
+    with:
+      ticket: ${{ needs.cycle4.outputs.ticket }}
+      grantId: ${{ needs.cycle4.outputs.grantId }}
+      head: ${{ needs.cycle4.outputs.head }}
+      slot: cycle5
+      automatic: true
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+      FACTORY_GITHUB_APP_PRIVATE_KEY: ${{ secrets.FACTORY_GITHUB_APP_PRIVATE_KEY }}
+  merge:
+    needs: [pick, cycle1, cycle2, cycle3, cycle4, cycle5]
+    if: ${{ always() && !cancelled() && needs.pick.outputs.ticket != '' && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' && vars.FACTORY_AUTOMERGE_ENABLED == 'true' && !(github.event_name == 'workflow_dispatch' && inputs.dry_run) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    concurrency:
+      group: factory-auto-merge
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - id: app
+        uses: ./.github/actions/factory-app-token
+        with:
+          client-id: ${{ vars.FACTORY_GITHUB_APP_CLIENT_ID }}
+          expected-slug: ${{ vars.FACTORY_GITHUB_APP_SLUG }}
+          private-key: ${{ secrets.FACTORY_GITHUB_APP_PRIVATE_KEY }}
+      - uses: ./.github/actions/factory-control
+        with:
+          operation: auto_merge
+          github_token: ${{ steps.app.outputs.token }}
+          variables_json: ${{ toJSON(vars) }}
+          parameters: >-
+            {"ticket":"${{ needs.pick.outputs.ticket }}","dry_run":false}

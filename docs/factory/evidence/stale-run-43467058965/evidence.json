@@ -1,0 +1,119 @@
+{
+  "observedAt": "2026-11-14T22:26:22.958Z",
+  "ownerDecision": "https://github.com/haideearus/cypress-realworld-app/issues/42",
+  "run": {
+    "id": 43467058965,
+    "repository": "haideearus/cypress-realworld-app",
+    "workflow_id": 417450610,
+    "path": ".github/workflows/factory-automatic.yml",
+    "head_sha": "421553c2c108dc2704ef6cec7864582b8c63ead6",
+    "head_branch": "main",
+    "run_attempt": 1,
+    "status": "queued",
+    "conclusion": null,
+    "created_at": "2026-11-13T16:52:25Z",
+    "updated_at": "2026-11-13T16:52:25Z",
+    "run_started_at": "2026-11-13T16:52:25Z",
+    "check_suite_id": 117701182775,
+    "event": "workflow_dispatch",
+    "actor": "haideearus",
+    "triggering_actor": "haideearus",
+    "referenced_workflows": [
+      {
+        "path": "haideearus/cypress-realworld-app/.github/workflows/factory-cycle.yml@421553c2c108dc2704ef6cec7864582b8c63ead6",
+        "sha": "421553c2c108dc2704ef6cec7864582b8c63ead6",
+        "ref": "refs/heads/main"
+      },
+      {
+        "path": "haideearus/cypress-realworld-app/.github/workflows/factory-model.yml@421553c2c108dc2704ef6cec7864582b8c63ead6",
+        "sha": "421553c2c108dc2704ef6cec7864582b8c63ead6",
+        "ref": "refs/heads/main"
+      }
+    ]
+  },
+  "jobs": {
+    "total_count": 0,
+    "jobs": []
+  },
+  "checkSuite": {
+    "id": 117701182775,
+    "head_branch": "main",
+    "head_sha": "421553c2c108dc2704ef6cec7864582b8c63ead6",
+    "status": "queued",
+    "conclusion": null,
+    "created_at": "2026-11-13T16:52:25Z",
+    "updated_at": "2026-11-13T16:52:25Z",
+    "latest_check_runs_count": 0,
+    "app": {
+      "id": 15368
+    },
+    "repository": {
+      "full_name": "haideearus/cypress-realworld-app"
+    }
+  },
+  "checkRuns": {
+    "total_count": 0,
+    "check_runs": []
+  },
+  "artifacts": {
+    "total_count": 0,
+    "artifacts": []
+  },
+  "pendingDeployments": [],
+  "recovery": [
+    {
+      "operation": "rerun",
+      "status": 403,
+      "message": "This workflow is already running",
+      "requestId": "E7A5:17DCB2:97811EC:E5B294A:6AF8E010"
+    }
+  ],
+  "sourceSha256": {
+    "scripts/factory/policy.cjs": "d830c05c0e2ed507f57707d7bb98f8797b5195abea83c972e2008148687688b0",
+    "scripts/factory/recovery.cjs": "52ae5020f37b79d0f0ab0e0f8a668e51c69cffb9c1269c048ed9d52da708a646",
+    "scripts/factory/automation.cjs": "adb2ac07d34f85ef7f8d26b5c463300cbd8de8acd9e802e4741a208446f0ef9e",
+    "scripts/factory/github.cjs": "2eb90167a5ddb8ae632e750885a45ca30c1e3a3418784e671e775469f58dc4ce",
+    ".github/workflows/factory-automatic.yml": "208801d0a3ddf3d19e3f523e3e8cecc8ac591dc56dc995599a810ad5413e7991"
+  },
+  "offlineProof": {
+    "stateBlocked": true,
+    "configBlocked": true,
+    "credentialsPresent": false
+  },
+  "sentinel": {
+    "ticket": {
+      "coding": 1,
+      "origin": "drill",
+      "reviews": 0,
+      "retries": 0,
+      "head": "63ce8d08c28977125333fc0ba4d0f0b879dd71f6",
+      "status": "drill_complete",
+      "pr": null,
+      "approval": null,
+      "drill": {
+        "runId": "43581712040",
+        "runAttempt": 1,
+        "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-monitor-drill.yml@refs/heads/main",
+        "workflowSha": "487a11c03d980f35557c462cb75c68b60e39fe78",
+        "seedSha": "63ce8d08c28977125333fc0ba4d0f0b879dd71f6",
+        "incidentId": "19278615-0033-4146-a5a4-46b9296c1c5f"
+      },
+      "criteriaHash": "bb5da512fde05c7fa19921e542a8df811239ebe22141562abf08195ef1b35c76",
+      "feedback": "Isolated drill verified; no production approval, PR or deployment."
+    },
+    "grants": {
+      "2e9200c0-e2b6-4684-ae37-80ddd128504a": {
+        "id": "2e9200c0-e2b6-4684-ae37-80ddd128504a",
+        "ticket": 38,
+        "phase": "code",
+        "slot": "drill",
+        "runId": "43581712040",
+        "runAttempt": 1,
+        "head": "63ce8d08c28977125333fc0ba4d0f0b879dd71f6",
+        "status": "finished",
+        "at": "2026-11-14T09:43:21.724Z",
+        "outcome": "drill_complete"
+      }
+    }
+  }
+}

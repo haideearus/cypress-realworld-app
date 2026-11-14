@@ -3,6 +3,7 @@ const recovery = require("./recovery.cjs");
 const { validateMonitorProof } = require("./monitor-proof.cjs");
 const { DRILL_WORKFLOW_REF, isDrillContext, validateDrillProof } = require("./drill-contract.cjs");
 const { validateStop } = require("./stop-contract.cjs");
+const { denyRetiredRun } = require("./quarantine-contract.cjs");
 
 const REPOSITORY = "haideearus/cypress-realworld-app";
 const OWNER = "haideearus";
@@ -288,6 +289,7 @@ function dayKey(date, timezone) {
   return `${part("year")}-${part("month")}-${part("day")}`;
 }
 function authorize(request) {
+  denyRetiredRun(request.runId);
   if (
     request.repository !== REPOSITORY ||
     request.actor !== OWNER ||

@@ -3,6 +3,7 @@ const { execFileSync } = require("node:child_process");
 const policy = require("./policy.cjs");
 const { GitHub, Ledger, ROOT } = require("./github.cjs");
 const { SWITCHES, validateStop } = require("./stop-contract.cjs");
+const { hasContainment, inspectQuarantine, partitionRuns } = require("./quarantine.cjs");
 const AGENT_WORKFLOWS = Object.freeze(
   [
     "factory-agents.yml",
@@ -99,13 +100,17 @@ async function stopFactory({
   const deadline = started + 55000;
   const { state: original } = await ledger.read();
   const previous = original.stop?.previous || (await settings(api));
-  if (!execute)
+  if (!execute) {
+    const inventory = await partitionRuns(api, original, await runs(api));
     return {
       preview: true,
-      runIds: (await runs(api)).map((run) => run.id),
+      runIds: inventory.pending.map((run) => run.id),
+      quarantinedRunIds: inventory.quarantinedRunIds,
+      quarantinedRuns: inventory.quarantined,
       switches: previous,
       stopped: !!original.stop,
     };
+  }
   if (clock() >= deadline) throw new Error("Stop deadline reached before mutation");
   let stop = original.stop;
   if (!stop) {
@@ -133,6 +138,7 @@ async function stopFactory({
     });
   }
   let pending = [];
+  let quarantined = new Map();
   const terminalIds = new Set();
   const requested = new Set();
   const forced = new Set();
@@ -163,7 +169,9 @@ async function stopFactory({
       } catch {
         errorCount++;
       }
-      const byId = new Map([...pending, ...current].map((run) => [run.id, run]));
+      const byId = new Map(
+        [...pending, ...quarantined.values(), ...current].map((run) => [run.id, run])
+      );
       const loaded = await ledger.read();
       if (loaded.state.stop?.id !== stop.id) throw new Error("Durable stop marker changed");
       if (loaded.state.active) {
@@ -176,6 +184,7 @@ async function stopFactory({
         }
       }
       pending = [];
+      quarantined = new Map();
       for (const id of byId.keys()) {
         if (clock() >= deadline) {
           pending.push({ id });
@@ -197,6 +206,11 @@ async function stopFactory({
                 throw new Error("Active reservation attempt is not confirmed terminal");
             }
             terminalIds.add(id);
+            continue;
+          }
+          const proof = await inspectQuarantine(api, loaded.state, run);
+          if (proof) {
+            quarantined.set(id, proof);
             continue;
           }
           pending.push(run);
@@ -222,11 +236,18 @@ async function stopFactory({
     if (clock() < deadline) {
       await ledger.update((state) => {
         if (state.stop?.id !== stop.id) throw new Error("Durable stop marker changed");
+        if (quarantined.size && !hasContainment(state)) {
+          pending.push(...quarantined.values());
+          quarantined.clear();
+          throw new Error("Quarantine containment changed");
+        }
         const next = cleanup(state, terminalIds);
         policy.audit(next, "factory-stop-result", {
           actor,
           commandId: stop.id,
           terminalRunIds: [...terminalIds],
+          quarantinedRunIds: [...quarantined.keys()],
+          quarantinedRuns: [...quarantined.values()],
           pendingRunIds: pending.map((run) => run.id),
           elapsedMs: Math.ceil(clock() - started),
         });
@@ -248,9 +269,13 @@ async function stopFactory({
     commandId: stop.id,
     pendingRunIds: pending.map((run) => run.id),
     terminalRunIds: [...terminalIds],
+    quarantinedRunIds: [...quarantined.keys()],
+    quarantinedRuns: [...quarantined.values()],
     errorCount,
     reason: stopped
-      ? "All agent parents are terminal; durable stop remains active"
+      ? quarantined.size
+        ? "Executable agent parents are terminal; independently contained queued record retained; durable stop active"
+        : "All agent parents are terminal; durable stop remains active"
       : "Stop incomplete; durable marker and unresolved locks are retained",
   };
 }
@@ -260,10 +285,16 @@ async function resumeFactory({ api, actor, execute = false, ledger = new Ledger(
   const { state } = await ledger.read();
   if (!state.stop) throw new Error("Factory has no durable stop marker to resume");
   validateStop(state.stop);
-  const pending = await runs(api);
-  if (state.active || pending.length)
+  let inventory = await partitionRuns(api, state, await runs(api));
+  if (state.active || inventory.pending.length)
     throw new Error("Active or running agents must be terminal before resume");
-  if (!execute) return { preview: true, restore: state.stop.previous };
+  if (!execute)
+    return {
+      preview: true,
+      restore: state.stop.previous,
+      quarantinedRunIds: inventory.quarantinedRunIds,
+      quarantinedRuns: inventory.quarantined,
+    };
   await Promise.all(
     SWITCHES.map((name) =>
       api.request("PATCH", `${ROOT}/actions/variables/${name}`, {
@@ -275,19 +306,29 @@ async function resumeFactory({ api, actor, execute = false, ledger = new Ledger(
   const actual = await settings(api);
   if (SWITCHES.some((name) => actual[name] !== state.stop.previous[name]))
     throw new Error("Resume switches were not acknowledged; durable stop retained");
-  await ledger.update((current) => {
+  await ledger.update(async (current) => {
     if (current.stop?.id !== state.stop.id || current.active)
       throw new Error("Factory state changed before resume");
+    inventory = await partitionRuns(api, current, await runs(api));
+    if (inventory.pending.length) throw new Error("Running agents changed before resume");
     const next = structuredClone(current);
     delete next.stop;
     policy.audit(next, "factory-resumed", {
       actor,
       commandId: state.stop.id,
       restored: state.stop.previous,
+      quarantinedRunIds: inventory.quarantinedRunIds,
+      quarantinedRuns: inventory.quarantined,
     });
     return { state: next };
   });
-  return { preview: false, resumed: true, restored: state.stop.previous };
+  return {
+    preview: false,
+    resumed: true,
+    restored: state.stop.previous,
+    quarantinedRunIds: inventory.quarantinedRunIds,
+    quarantinedRuns: inventory.quarantined,
+  };
 }
 async function main(env = process.env, args = process.argv.slice(2)) {
   const started = monotonic();

@@ -3,12 +3,14 @@ const assert = require("node:assert/strict");
 const policy = require("../factory/policy.cjs");
 const { stopFactory, resumeFactory, AGENT_WORKFLOWS } = require("../factory/stop.cjs");
 const { context, vars } = require("./helpers/factory-fixtures.cjs");
+const evidence = require("../../docs/factory/evidence/stale-run-43467058965/evidence.json");
 function fixture({
   stuck = false,
   cancellationError = false,
   variableWriteError = false,
   variableReadError = false,
   inventoryError = false,
+  quarantined = false,
 } = {}) {
   let elapsed = 0;
   let state = policy.reserve(
@@ -16,7 +18,14 @@ function fixture({
     context,
     policy.readConfig(vars)
   ).state;
+  if (quarantined) {
+    state.tickets[38] = structuredClone(evidence.sentinel.ticket);
+    Object.assign(state.grants, structuredClone(evidence.sentinel.grants));
+    state.days["2026-11-14"] = [38];
+    policy.validateState(state);
+  }
   const before = structuredClone(state);
+  const facts = structuredClone(evidence);
   const switches = {
     FACTORY_ENABLED: "true",
     FACTORY_AUTOMATION_ENABLED: "false",
@@ -33,6 +42,13 @@ function fixture({
     { id: 102, path: ".github/workflows/factory-deploy.yml", status: "waiting", run_attempt: 1 },
   ];
   const writes = [];
+  if (quarantined)
+    runs.push({
+      ...facts.run,
+      repository: { full_name: policy.REPOSITORY },
+      actor: { login: policy.OWNER },
+      triggering_actor: { login: policy.OWNER },
+    });
   const ledger = {
     async read() {
       return { state: structuredClone(state) };
@@ -64,6 +80,15 @@ function fixture({
         if (inventoryError) throw new Error("private inventory error");
         return { workflow_runs: structuredClone(runs), total_count: runs.length };
       }
+      if (method === "GET" && quarantined) {
+        if (url.includes(`/runs/${evidence.run.id}/jobs?`)) return facts.jobs;
+        if (url.endsWith(`/runs/${evidence.run.id}/artifacts?per_page=100`)) return facts.artifacts;
+        if (url.endsWith(`/runs/${evidence.run.id}/pending_deployments`))
+          return facts.pendingDeployments;
+        if (url.endsWith(`/check-suites/${evidence.run.check_suite_id}`)) return facts.checkSuite;
+        if (url.endsWith(`/check-suites/${evidence.run.check_suite_id}/check-runs?per_page=100`))
+          return facts.checkRuns;
+      }
       const id = Number(url.match(/\/runs\/(\d+)/)?.[1]);
       if (method === "GET" && id) return structuredClone(runs.find((run) => run.id === id));
       if (method === "POST" && id) {
@@ -89,6 +114,7 @@ function fixture({
     writes,
     switches,
     runs,
+    facts,
     get state() {
       return state;
     },
@@ -101,6 +127,100 @@ test("stop preview is read-only and targets all agent parents, not deployments",
   assert.deepEqual(result.runIds, [100, 101]);
   assert.equal(f.writes.length, 0);
   assert.deepEqual(f.state, f.before);
+});
+test("known contained queued record is explicit in preview and never called terminal", async () => {
+  const f = fixture({ quarantined: true });
+  const result = await stopFactory(f.args);
+  assert.deepEqual(result.runIds, [100, 101]);
+  assert.deepEqual(result.quarantinedRunIds, [evidence.run.id]);
+  assert.equal(result.quarantinedRuns[0].status, "queued");
+  assert.equal(f.writes.length, 0);
+});
+test("stop and resume preserve the contained record and all history without cancelling or refunding it", async () => {
+  const f = fixture({ quarantined: true });
+  const result = await stopFactory({ ...f.args, execute: true });
+  assert.equal(result.stopped, true);
+  assert.deepEqual(result.terminalRunIds, [100, 101]);
+  assert.deepEqual(result.quarantinedRunIds, [evidence.run.id]);
+  assert.equal(f.runs.find((run) => run.id === evidence.run.id).status, "queued");
+  assert.ok(!f.writes.some((w) => w.method === "POST" && w.url.includes(String(evidence.run.id))));
+  assert.deepEqual(f.state.days, f.before.days);
+  assert.deepEqual(f.state.tickets[38], f.before.tickets[38]);
+  assert.deepEqual(f.state.audit.at(-1).quarantinedRunIds, [evidence.run.id]);
+  const resumed = await resumeFactory({ ...f.args, execute: true });
+  assert.equal(resumed.resumed, true);
+  assert.deepEqual(resumed.quarantinedRunIds, [evidence.run.id]);
+  assert.deepEqual(f.state.audit.at(-1).quarantinedRunIds, [evidence.run.id]);
+});
+test("resume rechecks quarantine and cannot release the stop after jobs appear", async () => {
+  const f = fixture({ quarantined: true });
+  assert.equal((await stopFactory({ ...f.args, execute: true })).stopped, true);
+  f.facts.jobs = { total_count: 1, jobs: [{ id: 500, status: "queued" }] };
+  const before = f.writes.length;
+  await assert.rejects(
+    () => resumeFactory({ ...f.args, execute: true }),
+    /active|running|terminal/i
+  );
+  assert.equal(f.writes.length, before);
+  assert.ok(f.state.stop);
+});
+test("changed containment falls back to ordinary cancellation and retains an unresolved stop", async () => {
+  const f = fixture({ quarantined: true, stuck: true, cancellationError: true });
+  f.facts.checkRuns = { total_count: 1, check_runs: [{ id: 501 }] };
+  const result = await stopFactory({ ...f.args, execute: true });
+  assert.equal(result.stopped, false);
+  assert.deepEqual(result.quarantinedRunIds, []);
+  assert.ok(result.pendingRunIds.includes(evidence.run.id));
+  assert.ok(
+    f.writes.some((w) => w.method === "POST" && w.url.endsWith(`/${evidence.run.id}/cancel`))
+  );
+  assert.ok(f.state.stop);
+});
+test("a quarantine exemption is rechecked while another agent is still stopping", async () => {
+  const f = fixture({ quarantined: true, stuck: true, cancellationError: true });
+  const sleep = f.args.sleep;
+  f.args.sleep = async (ms) => {
+    await sleep(ms);
+    f.facts.jobs = { total_count: 1, jobs: [{ id: 501 }] };
+  };
+  const result = await stopFactory({ ...f.args, execute: true });
+  assert.equal(result.stopped, false);
+  assert.deepEqual(result.quarantinedRunIds, []);
+  assert.ok(result.pendingRunIds.includes(evidence.run.id));
+  assert.ok(
+    f.writes.some((w) => w.method === "POST" && w.url.endsWith(`/${evidence.run.id}/force-cancel`))
+  );
+});
+test("quarantine cannot acknowledge a stop if the retained containment changes before settlement", async () => {
+  const f = fixture({ quarantined: true });
+  const update = f.args.ledger.update.bind(f.args.ledger);
+  f.args.ledger.update = (fn) =>
+    update(async (state) => {
+      if (state.stop) {
+        // This remains valid current history, but no longer proves this completed drill.
+        state.tickets[38].status = "blocked";
+        Object.values(state.grants).find((g) => g.ticket === 38).outcome = "blocked";
+      }
+      return fn(state);
+    });
+  const result = await stopFactory({ ...f.args, execute: true });
+  assert.equal(result.stopped, false);
+  assert.deepEqual(result.quarantinedRunIds, []);
+  assert.ok(result.pendingRunIds.includes(evidence.run.id));
+  assert.ok(f.state.stop);
+  assert.ok(f.state.active);
+});
+test("resume checks again after switch acknowledgement and retains its marker on changed facts", async () => {
+  const f = fixture({ quarantined: true });
+  await stopFactory({ ...f.args, execute: true });
+  const request = f.args.api.request.bind(f.args.api);
+  f.args.api.request = async (method, url, body) => {
+    const value = await request(method, url, body);
+    if (method === "PATCH") f.facts.jobs = { total_count: 1, jobs: [{ id: 502 }] };
+    return value;
+  };
+  await assert.rejects(() => resumeFactory({ ...f.args, execute: true }), /running|changed/i);
+  assert.ok(f.state.stop);
 });
 test("one executed command stops admissions and all agents while preserving counters", async () => {
   const f = fixture();
