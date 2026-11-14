@@ -115,6 +115,34 @@ another run must use the existing allowance and cannot inherit old approval.
 The owner restored `FACTORY_ENABLED=false`; pickup and merging remain false,
 monitoring remains true. No third review is started by preparing this brief.
 
+## Owner-authorized ten-review ceiling in the same PR
+
+After preparing the review brief, the owner explicitly requested a maximum of
+ten reviews per ticket in PR #40. `LIMITS.FACTORY_MAX_REVIEWS_PER_TICKET` now allows
+ten; the other six policy ceilings and subscription-only authentication are
+unchanged. This is an explicit later scope extension, not a claim that issue #39
+originally requested it. The frozen issue body and its criteria hash are retained.
+
+Failure-first tests reproduced rejection of the new ten-review setting before
+the one-line policy change. Passing regressions then covered both ordinary
+coding tickets and owner PR reviews consuming the first five under the old
+configuration and the next five under the new one. They preserve historical
+grants, audit and day admissions, refuse an eleventh review and forged counters,
+and show a lower configured setting still blocks reservation/preflight. The
+existing five-review exhaustion regression remains in place.
+
+For this extension, the focused limits suite passed 9/9. The complete factory
+suite passed 393 tests, skipped 10 optional integrations and had no failures
+(403 total). Explicit formatting, whitespace and the 374-file source secret scan
+passed. A fresh separate local review found no blocking findings; it does not
+replace the required Claude Pro review of the final combined revision.
+
+The live GitHub variable remains five. The cap-change review itself must use
+trusted current main and that current limit. After protected merge, the owner may
+save `FACTORY_MAX_REVIEWS_PER_TICKET=10`; previous usage still counts. The two used
+reviews under #39 leave eight after that change. This creates no automatic model
+retry, additional coding cycle, provider capacity or paid API fallback.
+
 ## Preserved live settings
 
 Read-only checks during preparation observed:

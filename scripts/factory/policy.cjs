@@ -12,7 +12,7 @@ const APP_SLUG = /^[a-z0-9](?:[a-z0-9-]{0,98}[a-z0-9])?$/;
 const LIMITS = {
   FACTORY_MAX_TICKETS_PER_DAY: ["daily", 20],
   FACTORY_MAX_CODING_ATTEMPTS_PER_TICKET: ["coding", 5],
-  FACTORY_MAX_REVIEWS_PER_TICKET: ["reviews", 5],
+  FACTORY_MAX_REVIEWS_PER_TICKET: ["reviews", 10],
   FACTORY_MAX_AUTOMATIC_RETRIES: ["retries", 4],
   FACTORY_MAX_CONCURRENT_TICKETS: ["concurrent", 1],
   FACTORY_RUN_TIMEOUT_MINUTES: ["minutes", 30],

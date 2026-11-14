@@ -30,7 +30,7 @@ function ordinaryRecoveryRequest(overrides = {}) {
   return recoveryContext({ recovery: undefined, runId: "901", ...overrides });
 }
 
-test("approved higher ceilings accept configuration and reject each next value", () => {
+test("existing configuration remains valid and values above approved ceilings are rejected", () => {
   const config = raisedConfig();
   assert.deepEqual(
     [
@@ -47,7 +47,7 @@ test("approved higher ceilings accept configuration and reject each next value",
   for (const [key, value] of [
     ["FACTORY_MAX_TICKETS_PER_DAY", "21"],
     ["FACTORY_MAX_CODING_ATTEMPTS_PER_TICKET", "6"],
-    ["FACTORY_MAX_REVIEWS_PER_TICKET", "6"],
+    ["FACTORY_MAX_REVIEWS_PER_TICKET", "11"],
     ["FACTORY_MAX_AUTOMATIC_RETRIES", "5"],
     ["FACTORY_MAX_CONCURRENT_TICKETS", "2"],
     ["FACTORY_RUN_TIMEOUT_MINUTES", "31"],
@@ -55,6 +55,69 @@ test("approved higher ceilings accept configuration and reject each next value",
   ])
     assert.throws(() => raisedConfig({ [key]: value }), /Invalid .*above approved limit/);
   assert.throws(() => raisedConfig({ FACTORY_MAX_CONCURRENT_TICKETS: "0" }), /concurrency/i);
+});
+
+test("ten-review configuration changes only the review allowance", () => {
+  const previous = raisedConfig();
+  const increased = raisedConfig({ FACTORY_MAX_REVIEWS_PER_TICKET: "10" });
+  assert.deepEqual(increased, { ...previous, reviews: 10 });
+  assert.throws(
+    () => raisedConfig({ FACTORY_MAX_REVIEWS_PER_TICKET: "11" }),
+    /above approved limit/
+  );
+});
+
+test("raising five lifetime reviews to ten preserves consumed history and refuses an eleventh", () => {
+  const previousConfig = raisedConfig();
+  const config = raisedConfig({ FACTORY_MAX_REVIEWS_PER_TICKET: "10" });
+  for (const ownerPR of [false, true]) {
+    let state = policy.emptyState(policy.REPOSITORY);
+    if (!ownerPR) {
+      const code = policy.reserve(state, context, previousConfig, now);
+      state = policy.finish(code.state, code.grant.id, { status: "awaiting_review", pr: 20 }, now);
+    }
+    const input = {
+      ...context,
+      phase: "review",
+      ...(ownerPR ? { origin: "owner-pr", pr: 20, slot: "existing" } : {}),
+    };
+    let history;
+    for (let review = 1; review <= 10; review++) {
+      if (review === 6) {
+        history = structuredClone(state);
+        assert.throws(
+          () => policy.reserve(state, input, previousConfig, now),
+          /Independent review limit/
+        );
+        assert.deepEqual(state, history);
+      }
+      const saved = policy.reserve(state, input, review <= 5 ? previousConfig : config, now);
+      assert.equal(saved.state.tickets["10"].reviews, review);
+      assert.doesNotThrow(() => policy.validateState(saved.state));
+      assert.doesNotThrow(() => policy.preflight(saved.state, saved.grant.id, input, config));
+      if (review > 5)
+        assert.throws(
+          () => policy.preflight(saved.state, saved.grant.id, input, previousConfig),
+          /current limit/
+        );
+      state = policy.finish(
+        saved.state,
+        saved.grant.id,
+        { status: ownerPR ? "blocked" : "awaiting_review" },
+        now
+      );
+    }
+    assert.equal(state.tickets["10"].coding, ownerPR ? 0 : 1);
+    assert.equal(state.tickets["10"].reviews, 10);
+    assert.deepEqual(state.days, history.days);
+    assert.deepEqual(state.audit.slice(0, history.audit.length), history.audit);
+    for (const [id, grant] of Object.entries(history.grants))
+      assert.deepEqual(state.grants[id], grant);
+    assert.throws(() => policy.reserve(state, input, config, now), /Independent review limit/);
+    const forged = structuredClone(state);
+    forged.tickets["10"].reviews = 11;
+    assert.throws(() => policy.validateState(forged), /ledger ticket counters/);
+  }
 });
 
 test("ordinary tickets consume five lifetime coding attempts and four retries", () => {

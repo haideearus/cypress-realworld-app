@@ -83,8 +83,10 @@ production admission or approval evidence. A live rehearsal must be demonstrated
 before claiming it passed.
 
 The higher daily ceiling permits 20 **new tickets**, not 20 model calls. Existing
-ceilings remain: five coding sessions, five review sessions, four automatic
-retries, 200 turns per session, 30 minutes and one simultaneous ticket. A larger
+ceilings remain: five coding sessions, four automatic retries, 200 turns per
+session, 30 minutes and one simultaneous ticket. The review ceiling remains five
+until PR #40 merges and the owner explicitly saves its authorized value of ten;
+consumed reviews are retained and lower configured limits still apply. A larger
 allowance can consume included Claude Pro usage sooner. It adds no API-key
 fallback or purchased capacity and cannot enforce provider billing settings.
 

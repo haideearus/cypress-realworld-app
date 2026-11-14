@@ -56,13 +56,13 @@ and production deployment are outside this change.
 
 ## Limits and counter meanings
 
-Issue #21's reviewed change is merged. Its live daily setting was 10 on
-2026-11-13. Issue [#33](https://github.com/haideearus/cypress-realworld-app/issues/33)
-raises only the approved daily ceiling to 20. The table gives the intended
-settings **after that PR merges and the owner saves the daily variable**; a code
-change does not update GitHub variables. Keep all three factory switches false
-during this rollout. Per-ticket limits, concurrency and subscription-only
-authentication remain unchanged.
+Issues #21 and #33 installed the existing work limits and daily ceiling of 20.
+On 2026-11-14 the owner requested that PR #40 also raise the independent-review
+ceiling from five to ten per ticket. The table gives the intended settings
+**after PR #40 merges and the owner saves the review variable**; a code change
+does not update GitHub variables. Keep all three agent switches false during
+installation. Coding, retries, concurrency, daily admissions, turns, timeout and
+subscription-only authentication remain unchanged.
 
 | Variable                               | Post-merge value                            |
 | -------------------------------------- | ------------------------------------------- |
@@ -71,7 +71,7 @@ authentication remain unchanged.
 | FACTORY_AUTOMERGE_ENABLED              | false until ready                           |
 | FACTORY_MAX_TICKETS_PER_DAY            | 20                                          |
 | FACTORY_MAX_CODING_ATTEMPTS_PER_TICKET | 5                                           |
-| FACTORY_MAX_REVIEWS_PER_TICKET         | 5                                           |
+| FACTORY_MAX_REVIEWS_PER_TICKET         | 10                                          |
 | FACTORY_MAX_AUTOMATIC_RETRIES          | 4                                           |
 | FACTORY_MAX_CONCURRENT_TICKETS         | 1                                           |
 | FACTORY_TIMEZONE                       | Europe/Bucharest                            |
@@ -82,20 +82,24 @@ authentication remain unchanged.
 The daily counter records distinct first admissions using Bucharest dates,
 including owner PR reviews. Per-ticket code/review counters are lifetime counts,
 not per-day counts. Five attempts means one initial attempt plus at most four
-retries; the separate five-review allowance spans those attempts. All reservations
+retries; the separately configured review allowance spans those attempts. All reservations
 remain consumed even on failure/interruption, and a new run attempt cannot reuse
 an old grant. Historical counters and approvals are never refunded or reset.
 
-The cap-increase PR itself is reviewed by the existing policy on `main`, which
-still has a ceiling of 10 until that PR merges. If ten tickets have already been
-admitted today, wait for the next Bucharest calendar day before admitting its
-review ticket. Do not set the variable to 20 early, reset the ledger, or reuse an
-unrelated review ticket to bypass that limit. After the reviewed PR merges, save
-`FACTORY_MAX_TICKETS_PER_DAY=20`; the same day's existing admissions still count
-toward the new limit. The twenty-first distinct ticket is refused until the next
-day. Lower configured limits remain valid. More daily tickets can consume more
-of the shared Claude Pro allowance; this does not enable paid API usage or add
-subscription capacity.
+PR #40 itself is reviewed by trusted `main` using the current five-review
+setting. Keep `FACTORY_MAX_REVIEWS_PER_TICKET=5` until the protected merge; current
+main rejects ten. After merge, save `FACTORY_MAX_REVIEWS_PER_TICKET=10` while
+`FACTORY_ENABLED`, automatic pickup and automatic merging remain false. Already
+consumed reviews still count: two used reviews leave eight, rather than ten new
+ones. The eleventh lifetime review is refused, including on later days. Lower
+configured settings remain valid and still block excess reservations/preflight.
+Do not reset the ledger or switch tickets to refund attempts. More reviews can
+consume shared Claude Pro allowance sooner; this enables no paid API, extra
+usage purchase or additional subscription capacity.
+
+The daily counter still admits at most 20 distinct tickets using Bucharest dates.
+Existing admissions count toward that ceiling; the twenty-first is refused until
+the next calendar day. Raising the review ceiling does not change the daily cap.
 
 The coordinator retains one active-ticket lock across coding/CI/review. Existing
 owner PR review still reserves its own review before CI and uses zero coding

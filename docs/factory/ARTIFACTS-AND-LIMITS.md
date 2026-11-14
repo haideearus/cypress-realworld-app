@@ -52,6 +52,12 @@ job. Infrastructure/provider failures still stop instead of looping.
 
 ## Continue issue #11 without resetting history
 
+The table above records the original artifact/budget rollout. Later #33 raised
+daily admissions to 20. On 2026-11-14 the owner requested PR #40 also allow ten
+lifetime reviews per ticket. Save that review variable only after PR #40 merges;
+current main still caps it at five. Previous reviews remain consumed and no other
+limit is raised by that extension. See [the current limits guide](../CLAUDE-FACTORY.md#limits-and-counter-meanings).
+
 Its three consumed code grants and legacy recovery marker stay intact. Under the
 new five-attempt budget, ordinary attempts four/five use retries two/three; fresh
 tickets use at most five attempts/four retries. A sixth attempt and repeated
