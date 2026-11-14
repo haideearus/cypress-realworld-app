@@ -435,7 +435,8 @@
       "ci": {
         "requestId": "35a103a6-a248-4403-80da-4495657ff9ad",
         "head": "bbaf55d11a8c32b4c4c18db68af5c534e58b8e9b",
-        "runId": null
+        "runId": 43640514023,
+        "passed": true
       },
       "feedback": "{\"head\":\"96ed7c36fa86d4ded3ddb84ed9ac736f880652cd\",\"verdict\":\"pass\",\"summary\":\"Test summary.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"test finding\"}]}"
     }
