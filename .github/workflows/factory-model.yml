@@ -64,12 +64,16 @@ jobs:
           node-version: 22.20.0
       - name: Preserve trusted helpers outside the agent checkout
         run: node -e "require('node:fs').cpSync('scripts/factory',process.env.RUNNER_TEMP+'/factory-control',{recursive:true})"
+      - name: Install the checksum-pinned scanner without model credentials
+        run: node "$RUNNER_TEMP/factory-control/scanner-install.cjs"
       - name: Check out only the reserved commit
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           ref: ${{ inputs.head }}
           fetch-depth: 0
           persist-credentials: false
+      - name: Reject secrets in the reserved source before model file access
+        run: node "$RUNNER_TEMP/factory-control/secret-scan.cjs" source
       - name: Install the locked application tools without model credentials
         if: ${{ inputs.phase == 'code' }}
         run: |
@@ -84,6 +88,8 @@ jobs:
           FACTORY_VARIABLES: ${{ toJSON(vars) }}
           FACTORY_OPERATION: prepare
           FACTORY_INPUTS: ${{ toJSON(inputs) }}
+      - name: Reject secrets in prepared context before the model sees it
+        run: node "$RUNNER_TEMP/factory-control/secret-scan.cjs" file "$GITHUB_WORKSPACE/.factory-input/context.json"
       - name: Run the one reserved Claude subscription session
         id: model
         uses: anthropics/claude-code-action@4fa93a88de49bbef68b10eb15aabedf28ca0e1ed
@@ -100,8 +106,13 @@ jobs:
         if: ${{ failure() && steps.model.outcome == 'failure' }}
         continue-on-error: true
         run: node "$RUNNER_TEMP/factory-control/diagnostics.cjs"
-      - name: Upload only the sanitized failure report
+      - name: Scan sanitized failure diagnostics before upload
+        id: diagnostics_scan
         if: ${{ failure() && steps.model.outcome == 'failure' && steps.diagnostics.outcome == 'success' }}
+        continue-on-error: true
+        run: node "$RUNNER_TEMP/factory-control/secret-scan.cjs" file "$RUNNER_TEMP/factory-permission-denials.json"
+      - name: Upload only the sanitized failure report
+        if: ${{ failure() && steps.model.outcome == 'failure' && steps.diagnostics.outcome == 'success' && steps.diagnostics_scan.outcome == 'success' }}
         continue-on-error: true
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
@@ -117,6 +128,8 @@ jobs:
           FACTORY_INPUTS: ${{ toJSON(inputs) }}
           FACTORY_REVIEW_RESULT: ${{ steps.model.outputs.structured_output }}
           FACTORY_ARTIFACT_DIR: ${{ runner.temp }}/factory-artifact
+      - name: Reject secret-bearing role output before upload
+        run: node "$RUNNER_TEMP/factory-control/secret-scan.cjs" file "$RUNNER_TEMP/factory-artifact/bundle.json"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: ${{ inputs.phase }}-${{ inputs.grantId }}

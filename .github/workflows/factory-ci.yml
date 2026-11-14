@@ -56,6 +56,14 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version-file: .node-version
+      - name: Install the checksum-pinned secret scanner
+        run: node scripts/factory/scanner-install.cjs
+      - name: Reject secrets in the complete tracked source snapshot
+        run: node scripts/factory/secret-scan.cjs source
+      - name: Prove the scanner blocks a seeded credential without leaking it
+        run: node --test scripts/tests/factory-secret-scan.test.cjs
+        env:
+          FACTORY_SECRET_SCAN_INTEGRATION: "true"
       - run: corepack enable && corepack prepare yarn@1.22.22 --activate
       - run: yarn install --frozen-lockfile
       - run: yarn predev:cognito:ci
@@ -73,8 +81,15 @@ jobs:
         run: yarn start:ci > /tmp/factory-app.log 2>&1 &
       - name: API and browser regression tests without cloud recording
         run: yarn cypress:run --browser electron --spec 'cypress/tests/api/*,cypress/tests/ui/*'
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - name: Scan failure logs before artifact upload
+        id: failure_scan
         if: failure()
+        run: |
+          if [ -f /tmp/factory-app.log ]; then
+            node scripts/factory/secret-scan.cjs file /tmp/factory-app.log
+          fi
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: ${{ failure() && steps.failure_scan.outcome == 'success' }}
         with:
           name: test-failure-evidence
           retention-days: 7

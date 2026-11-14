@@ -63,6 +63,7 @@ class AutomaticMerger {
     return t;
   }
   stateTicket(state, ticket, expected) {
+    policy.assertNotStopped(state);
     this.authorize();
     const t = this.automaticTicket(state, ticket);
     if (state.active && !this.mergeLock(state, ticket, t.merge))

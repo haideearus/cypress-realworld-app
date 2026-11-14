@@ -80,6 +80,12 @@ class AutomaticCoordinator {
       return { ready: false, reason: "Automatic pickup disabled; no model invocation" };
 
     const { state } = await this.ledger.read();
+    if (state.stop)
+      return {
+        ready: false,
+        preview: dryRun,
+        reason: "Factory stopped by owner; explicit resume is required",
+      };
     if (state.active) {
       const held = state.tickets[String(state.active.ticket)];
       const intent = held?.merge;

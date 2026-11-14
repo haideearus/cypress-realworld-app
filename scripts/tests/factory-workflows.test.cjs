@@ -210,9 +210,46 @@ test("failed model sessions retain only a separate sanitized diagnostic without 
   assert.ok(upload);
   assert.equal(
     upload.if,
-    "${{ failure() && steps.model.outcome == 'failure' && steps.diagnostics.outcome == 'success' }}"
+    "${{ failure() && steps.model.outcome == 'failure' && steps.diagnostics.outcome == 'success' && steps.diagnostics_scan.outcome == 'success' }}"
   );
   assert.equal(upload.with.path, "${{ runner.temp }}/factory-permission-denials.json");
   assert.equal(upload.with["retention-days"], 7);
   assert.equal(upload["continue-on-error"], true);
+});
+
+test("secret scanning gates source, model context and every uploaded model bundle", () => {
+  const ci = load("factory-ci.yml").jobs.verify.steps;
+  const source = ci.findIndex((step) => step.run === "node scripts/factory/secret-scan.cjs source");
+  assert.ok(
+    source >= 0 && source < ci.findIndex((step) => step.run === "yarn install --frozen-lockfile")
+  );
+  assert.equal(
+    ci.find((step) => step.env?.FACTORY_SECRET_SCAN_INTEGRATION).env
+      .FACTORY_SECRET_SCAN_INTEGRATION,
+    "true"
+  );
+  const steps = load("factory-model.yml").jobs.agent.steps;
+  const model = steps.findIndex((step) => step.id === "model");
+  for (const suffix of ["source", 'file "$GITHUB_WORKSPACE/.factory-input/context.json"'])
+    assert.ok(
+      steps
+        .slice(0, model)
+        .some(
+          (step) => step.run === `node "$RUNNER_TEMP/factory-control/secret-scan.cjs" ${suffix}`
+        )
+    );
+  const upload = steps.findIndex(
+    (step) => step.with?.name === "${{ inputs.phase }}-${{ inputs.grantId }}"
+  );
+  assert.equal(
+    steps[upload - 1].run,
+    'node "$RUNNER_TEMP/factory-control/secret-scan.cjs" file "$RUNNER_TEMP/factory-artifact/bundle.json"'
+  );
+  assert.equal(steps[upload - 1].if, undefined);
+  assert.notEqual(steps[upload - 1]["continue-on-error"], true);
+  assert.ok(
+    steps
+      .find((step) => step.with?.name?.startsWith("diagnostic-"))
+      .if.includes("steps.diagnostics_scan.outcome == 'success'")
+  );
 });

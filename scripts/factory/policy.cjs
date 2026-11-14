@@ -2,6 +2,7 @@ const { randomUUID } = require("node:crypto");
 const recovery = require("./recovery.cjs");
 const { validateMonitorProof } = require("./monitor-proof.cjs");
 const { DRILL_WORKFLOW_REF, isDrillContext, validateDrillProof } = require("./drill-contract.cjs");
+const { validateStop } = require("./stop-contract.cjs");
 
 const REPOSITORY = "haideearus/cypress-realworld-app";
 const OWNER = "haideearus";
@@ -11,7 +12,7 @@ const APP_SLUG = /^[a-z0-9](?:[a-z0-9-]{0,98}[a-z0-9])?$/;
 const LIMITS = {
   FACTORY_MAX_TICKETS_PER_DAY: ["daily", 20],
   FACTORY_MAX_CODING_ATTEMPTS_PER_TICKET: ["coding", 5],
-  FACTORY_MAX_REVIEWS_PER_TICKET: ["reviews", 5],
+  FACTORY_MAX_REVIEWS_PER_TICKET: ["reviews", 10],
   FACTORY_MAX_AUTOMATIC_RETRIES: ["retries", 4],
   FACTORY_MAX_CONCURRENT_TICKETS: ["concurrent", 1],
   FACTORY_RUN_TIMEOUT_MINUTES: ["minutes", 30],
@@ -93,6 +94,7 @@ function validateState(state) {
     !Array.isArray(state.audit)
   )
     deny("Invalid factory ledger state");
+  validateStop(state.stop);
   for (const [day, ids] of Object.entries(state.days)) {
     if (
       !/^\d{4}-\d{2}-\d{2}$/.test(day) ||
@@ -338,6 +340,7 @@ function audit(state, event, detail, now = new Date()) {
 }
 function reserve(original, request, config, now = new Date()) {
   validateState(original);
+  assertNotStopped(original);
   authorize(request);
   if (!config.enabled || !config.minutes || !config.turns) deny("Factory disabled");
   const automatic = isAutomaticContext(request);
@@ -498,6 +501,7 @@ function reserve(original, request, config, now = new Date()) {
 }
 function preflight(state, grantId, context, config) {
   validateState(state);
+  assertNotStopped(state);
   authorize(context);
   if (!config.enabled || !config.minutes || !config.turns) deny("Factory disabled");
   const automatic = isAutomaticContext(context);
@@ -544,6 +548,7 @@ function preflight(state, grantId, context, config) {
 }
 function finish(original, grantId, outcome, now = new Date()) {
   validateState(original);
+  if (original.stop && outcome.status !== "blocked") assertNotStopped(original);
   const state = structuredClone(original);
   const g = state.grants[grantId];
   if (!g || g.status !== "reserved" || !state.active || state.active.ticket !== g.ticket)
@@ -637,7 +642,12 @@ function reviewGate(state, pr) {
   }
   return { ok: false, reason: "No genuine independent review covers this PR commit" };
 }
+function assertNotStopped(state) {
+  validateStop(state?.stop);
+  if (state?.stop) deny("Factory stopped by owner; explicit resume is required");
+}
 module.exports = {
+  assertNotStopped,
   REPOSITORY,
   OWNER,
   SHA,
