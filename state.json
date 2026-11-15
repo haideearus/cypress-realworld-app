@@ -596,9 +596,17 @@
       "reviews": 1,
       "retries": 0,
       "head": "d74b7aa7478a839aa90be0ac986c0832f35d59bb",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 51,
-      "approval": null,
+      "approval": {
+        "head": "d74b7aa7478a839aa90be0ac986c0832f35d59bb",
+        "pr": 51,
+        "grant": "fd31b6ad-0ffa-4937-9d36-5d29aedf1434",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/43706266447"
+      },
       "criteriaHash": "3a0051593cf0f87b53b6b2e0ea21ac42a8b50c2a8b931121387afb16206387a9",
       "branch": "agent/dependency-cve-automation",
       "ci": {
@@ -606,7 +614,8 @@
         "head": "d74b7aa7478a839aa90be0ac986c0832f35d59bb",
         "runId": 43706303347,
         "passed": true
-      }
+      },
+      "feedback": "{\"head\":\"d74b7aa7478a839aa90be0ac986c0832f35d59bb\",\"verdict\":\"pass\",\"summary\":\"Reviewed the dependency/CVE maintenance preparation PR against the owner-approved design doc and ticket #50. Inspected the design doc, dependabot.yml, the new factory-dependencies.yml workflow, and the core implementation (dependency-contract.cjs, dependency-policy.cjs, dependency-analysis.cjs, dependencies.cjs, dependency-run.cjs, merge.cjs integration via DependencyMerger, stop.cjs inventory, worker.cjs tool/prompt wiring, and policy.cjs shared config/caps). The implementation matches the design: Dependabot is scoped to patch/minor root npm updates with a 1-PR cap; the new main workflow validates genuine dependabot[bot] provenance and a narrow package.json/yarn.lock-only file contract; dependency analysis uses pinned, checksum-verified local tools (installed with --ignore-scripts, no Claude credential present in that job) and queries OSV with strict batch/size/time bounds, failing closed on malformed/oversized/stale data and holding any major, prerelease, downgrade, or newly-introduced-vulnerable version; the model review reuses the existing Read/Glob/Grep-only, no-shell/no-MCP/no-subagent role and shared ledger caps (daily admissions, lifetime review count, single active ticket, bounded 10-attempt head history); merge reuses the existing native check/expected-head/mergeability machinery via a dedicated DependencyMerger subclass that requires a fresh (≤5 min) premerge report and current-main rebase before writing; the application merge profile's validPath already excludes root package.json/yarn.lock, so ordinary coding agents still cannot touch dependency files; the owner stop command's AGENT_WORKFLOWS list now includes factory-dependencies.yml; and all three FACTORY_ENABLED/FACTORY_AUTOMATION_ENABLED/FACTORY_AUTOMERGE_ENABLED switches remain untouched (false) by this change, with no code that enables Dependabot repository settings, invokes a live Claude session, or performs a merge/deploy. Test coverage in scripts/tests/factory-dependency-*.test.cjs and factory-dependencies.test.cjs exercises provenance forgery, stale/rebased heads, OSV failure/vulnerable cases, shared-cap/competing-admission conflicts, bounded attempt history, lost-merge-response reconciliation, and stop inventory — consistent with the ticket's required proof list. No critical or important issues found within the stated preparation-only scope.\",\"findings\":[]}"
     }
   },
   "grants": {
@@ -991,15 +1000,12 @@
       "runId": "43706266447",
       "runAttempt": 1,
       "head": "d74b7aa7478a839aa90be0ac986c0832f35d59bb",
-      "status": "reserved",
-      "at": "2026-11-15T10:53:55.196Z"
+      "status": "finished",
+      "at": "2026-11-15T10:53:55.196Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 50,
-    "runId": "43706266447",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -1583,6 +1589,14 @@
       "phase": "review",
       "runId": "43706266447",
       "runAttempt": 1
+    },
+    {
+      "at": "2026-11-15T11:04:41.555Z",
+      "event": "finished",
+      "ticket": 50,
+      "grant": "fd31b6ad-0ffa-4937-9d36-5d29aedf1434",
+      "status": "reviewed",
+      "head": "d74b7aa7478a839aa90be0ac986c0832f35d59bb"
     }
   ]
 }
