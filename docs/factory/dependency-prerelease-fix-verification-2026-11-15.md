@@ -27,12 +27,19 @@ finished with 13 passed and two failures, both reporting
 - An unrelated stable update with an unchanged prerelease root dependency.
 - The actual checked-in application manifest and lock analyzed against themselves.
 
-After the fix, all 15 analyzer tests passed. The explicit regression rejecting
+After the fix, all 16 analyzer tests passed. The explicit regression rejecting
 an upgrade of the existing alpha dependency still passes, along with the prior
-new-prerelease, root-edge downgrade, major, registry, OSV and report guards.
+new-prerelease, root-edge downgrade, major, registry, OSV and report guards. A
+table-driven guard also rejects source, integrity and dependency-edge changes
+to an existing prerelease entry even when its version string stays identical.
 
-`yarn test:factory`: 463 passed, 10 skipped, zero failed (473 total).
+`yarn test:factory`: 464 passed, 10 skipped, zero failed (474 total).
 Explicit Prettier and staged-source secret scanning also pass.
+
+A fresh separate read-only local review found no Critical or Important findings.
+Its minor suggestion to preserve the same-version metadata boundary as a committed
+regression was addressed by the table above. This is not a genuine cloud
+subscription review and supplies no authorization for a new live trial.
 
 ## Read-only real proposal check
 

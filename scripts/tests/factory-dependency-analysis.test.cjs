@@ -61,6 +61,27 @@ test("upgrading an existing prerelease root remains held", () => {
   );
 });
 
+test("same prerelease version does not exempt changed lock entry metadata", () => {
+  const legacy = legacyPrerelease();
+  const changed = [
+    ["source", legacy.replace("registry.npmjs.org", "registry.yarnpkg.com")],
+    ["integrity", legacy.replace(sri, "sha512-" + Buffer.alloc(64, 2).toString("base64"))],
+    ["dependency edge", legacy + '  dependencies:\n    foo "^1.0.0"\n'],
+  ];
+  for (const [label, entry] of changed)
+    assert.throws(
+      () =>
+        inspect(
+          lock() + legacy,
+          lock("1.0.1") + entry,
+          manifestWithLegacyPrerelease,
+          manifestWithLegacyPrerelease
+        ),
+      /version/i,
+      label
+    );
+});
+
 test("the actual app manifest and lock form a valid unchanged baseline", () => {
   const fs = require("node:fs"),
     path = require("node:path");
