@@ -21,7 +21,7 @@
       "id": "3c214d40-5b7d-4abe-a9cd-04f84a18af68",
       "at": "2026-11-15T20:34:17.597Z",
       "day": "2026-11-15",
-      "phase": "pending",
+      "phase": "open",
       "recovered": false,
       "source": {
         "runId": "43758627673",
@@ -29,7 +29,7 @@
         "workflowSha": "ad0022b614c5b4b6446ed80606657a7594d3a99e"
       },
       "criteriaHash": "0ea17b711531dc1e849625b395c7a85b80232a75ed559d9f0222fc45f1b951ff",
-      "issue": null
+      "issue": 62
     }
   }
 }
