@@ -206,4 +206,79 @@ test("exceptions and injected report fields are sanitized before output or publi
     }
     assert.deepEqual(output, []);
   }));
-module.exports = { context, environment, healthy, at };
+test("publisher validates reports before network and never accepts account credentials", () =>
+  temporary(async (dir) => {
+    const { main } = require("../factory/monitor.cjs");
+    const previousFetch = globalThis.fetch,
+      previousExit = process.exitCode;
+    let network = 0;
+    globalThis.fetch = async () => {
+      network++;
+      throw Error("Network must not run");
+    };
+    try {
+      const base = {
+        ...environment(dir),
+        GITHUB_TOKEN: "fixture-token",
+        FACTORY_MONITOR_ENABLED: "true",
+        MONITOR_DRY_RUN: "true",
+      };
+      delete base.FACTORY_MONITOR_USERNAME;
+      delete base.FACTORY_MONITOR_PASSWORD;
+      assert.equal((await main(base)).outcome, "monitor_failed", "enabled checks require a report");
+      for (const key of ["FACTORY_MONITOR_USERNAME", "FACTORY_MONITOR_PASSWORD"])
+        assert.equal(
+          (await main({ ...base, FACTORY_APP_CHECKS_ENABLED: "false", [key]: "fixture-private" }))
+            .outcome,
+          "monitor_failed"
+        );
+      assert.equal(network, 0);
+      assert.equal(
+        (await main({ ...base, FACTORY_MONITOR_ENABLED: "false", MONITOR_DRY_RUN: "false" }))
+          .outcome,
+        "disabled"
+      );
+      assert.equal(network, 0);
+    } finally {
+      globalThis.fetch = previousFetch;
+      process.exitCode = previousExit;
+    }
+  }));
+test("publisher preview combines a validated same-run report with public availability checks", () =>
+  temporary(async (dir) => {
+    const { main } = require("../factory/monitor.cjs");
+    const c = require("../factory/app-checks-contract.cjs");
+    const env = {
+      ...environment(dir),
+      GITHUB_TOKEN: "fixture-token",
+      FACTORY_MONITOR_ENABLED: "true",
+      MONITOR_DRY_RUN: "true",
+    };
+    delete env.FACTORY_MONITOR_USERNAME;
+    delete env.FACTORY_MONITOR_PASSWORD;
+    const failed = { ...healthy, healthy: false, checks: { ...healthy.checks, feed: "failed" } };
+    c.writeReport(env, c.makeReport(failed, context));
+    const previousFetch = globalThis.fetch;
+    const calls = [];
+    globalThis.fetch = async (url, options) => {
+      calls.push(String(url));
+      assert.equal(options.method, "GET");
+      assert.ok(String(url).startsWith("https://haide-software-factory.onrender.com"));
+      return url.endsWith("/healthz")
+        ? new Response(JSON.stringify({ status: "ok", release: "b".repeat(40) }), {
+            headers: { "content-type": "application/json" },
+          })
+        : url.endsWith("/readyz")
+          ? new Response('{"status":"ok"}', { headers: { "content-type": "application/json" } })
+          : new Response('<div id="root"></div>', { headers: { "content-type": "text/html" } });
+    };
+    try {
+      const result = await main(env);
+      assert.equal(result.outcome, "preview");
+      assert.equal(result.observation.healthy, false);
+      assert.deepEqual(result.observation.appChecks, failed);
+      assert.equal(calls.length, 3);
+    } finally {
+      globalThis.fetch = previousFetch;
+    }
+  }));

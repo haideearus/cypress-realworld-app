@@ -23,6 +23,7 @@ function fixture() {
   let seq = 0;
   let issueState = "open";
   let issueNumber = 49;
+  let created;
   const store = {
     async read() {
       events.push("read");
@@ -40,13 +41,15 @@ function fixture() {
   const api = {
     async request(method, path, body) {
       events.push(`${method}:${path}`);
-      if (method === "POST" && path.endsWith("/issues"))
+      if (method === "POST" && path.endsWith("/issues")) {
+        created = structuredClone(body);
         return {
           number: ++issueNumber,
           title: body.title,
           body: body.body,
           user: { login: "github-actions[bot]", type: "Bot" },
         };
+      }
       if (method === "GET" && path.endsWith(`/issues/${issueNumber}`))
         return { number: issueNumber, state: issueState };
       throw new Error("Unexpected request");
@@ -73,6 +76,9 @@ function fixture() {
   return {
     options,
     events,
+    get created() {
+      return created;
+    },
     store,
     get state() {
       return state;
@@ -93,6 +99,46 @@ test("disabled monitoring performs no probe or mutation; preview never writes", 
   const p = await monitor({ ...f.options, enabled: false, dryRun: true });
   assert.equal(p.outcome, "preview");
   assert.deepEqual(f.events, ["probe"]);
+});
+test("signed-in failures create one sanitized trusted ticket while basic availability stays healthy", async () => {
+  const f = fixture();
+  f.healthy = true;
+  const appChecks = {
+    healthy: false,
+    checks: { login: "ok", session: "ok", feed: "failed", logout: "ok" },
+    attempts: 3,
+  };
+  const r = await monitor({ ...f.options, appChecks });
+  assert.equal(r.outcome, "incident_created");
+  assert.equal(r.observation.healthy, false);
+  assert.deepEqual(r.observation.checks, { health: "ok", readiness: "ok", frontend: "ok" });
+  assert.deepEqual(r.observation.appChecks, appChecks);
+  assert.match(
+    f.created.body,
+    /Signed-in API checks: login=ok; session=ok; feed=failed; logout=ok/
+  );
+  assert.deepEqual(f.created.labels, ["factory-ready"]);
+  await monitor({ ...f.options, appChecks });
+  assert.equal(f.events.filter((e) => e.startsWith("POST:")).length, 1);
+});
+test("app-check previews do not publish and invalid/extra fields never enter a ticket", async () => {
+  const f = fixture();
+  f.healthy = true;
+  const appChecks = {
+    healthy: true,
+    checks: { login: "ok", session: "ok", feed: "ok", logout: "ok" },
+    attempts: 1,
+  };
+  const result = await monitor({ ...f.options, appChecks, dryRun: true });
+  assert.deepEqual(result.observation.appChecks, appChecks);
+  assert.equal(result.observation.healthy, true);
+  assert.ok(!f.events.some((e) => e.startsWith("POST:")));
+  await assert.rejects(
+    () =>
+      monitor({ ...f.options, appChecks: { ...appChecks, cookie: "private remote instructions" } }),
+    /check/i
+  );
+  assert.ok(!f.events.some((e) => e.startsWith("POST:")));
 });
 test("untrusted context, rerun or ambiguous inputs stop before network work", async () => {
   const f = fixture();

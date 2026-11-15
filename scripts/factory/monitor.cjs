@@ -5,6 +5,12 @@ const { REPOSITORY, OWNER, SHA, assertSubscriptionEnv } = require("./policy.cjs"
 const { MonitorStore, MAX_INCIDENTS, MAX_CREATIONS_PER_DAY } = require("./monitor-state.cjs");
 const { MONITOR_WORKFLOW } = require("./monitor-origin.cjs");
 const { probeApp } = require("./monitor-probe.cjs");
+const {
+  validateAppChecks,
+  appChecksEnabled,
+  monitorContext,
+  readReport,
+} = require("./app-checks-contract.cjs");
 function assertMonitorContext(context) {
   if (
     context.repository !== REPOSITORY ||
@@ -22,12 +28,16 @@ function assertMonitorContext(context) {
 }
 function validateObservation(observation) {
   const checks = observation?.checks;
+  const appChecks =
+    observation?.appChecks === undefined ? undefined : validateAppChecks(observation.appChecks);
   if (
     typeof observation?.healthy !== "boolean" ||
     !checks ||
     Object.keys(checks).sort().join(",") !== "frontend,health,readiness" ||
     Object.values(checks).some((value) => !["ok", "failed"].includes(value)) ||
-    observation.healthy !== Object.values(checks).every((value) => value === "ok") ||
+    observation.healthy !==
+      (Object.values(checks).every((value) => value === "ok") &&
+        (!appChecks || appChecks.healthy)) ||
     !Number.isInteger(observation.attempts) ||
     observation.attempts < 1 ||
     observation.attempts > 3 ||
@@ -39,12 +49,16 @@ function validateObservation(observation) {
     checks: { ...checks },
     attempts: observation.attempts,
     ...(observation.release ? { release: observation.release } : {}),
+    ...(appChecks ? { appChecks } : {}),
   };
 }
 function issueText(incident, observation) {
+  const signedIn = observation.appChecks
+    ? `Signed-in API checks: login=${observation.appChecks.checks.login}; session=${observation.appChecks.checks.session}; feed=${observation.appChecks.checks.feed}; logout=${observation.appChecks.checks.logout}.\n\n`
+    : "";
   return {
     title: "Production monitor: investigate failed public checks",
-    body: `## Observed incident\n\nThe fixed public production probes failed after bounded cold-start retries.\n\nIncident: ${incident.id}\nObserved at: ${incident.at}\nChecks: health=${observation.checks.health}; readiness=${observation.checks.readiness}; frontend=${observation.checks.frontend}.\nEvidence: https://github.com/${REPOSITORY}/actions/runs/${incident.source.runId}\n\n## Bounded maintenance task\n\nInvestigate the application cause using repository code and disposable local tests. A provider outage, free-plan quota, cold start, credential problem or configuration issue may have no code fix. If so, stop with evidence and request owner attention; do not invent a repair.\n\nFor a reproducible application bug, demonstrate a failing regression test, implement the smallest repair and show it passing. Preserve independent review, existing scope restrictions and named human production approval.\n\nDo not change the harness, limits, hosting plan, credentials or production data. Do not run database-seeding tests against production. Do not enable paid APIs. Do not edit this issue's title or body after admission; put additional observations in comments.\n\n## Acceptance criteria\n\n- Explain the reproducible application failure or the evidence for an operator/provider issue.\n- For code changes, preserve failing-before and passing-after test evidence and relevant existing tests.\n- No unverified recovery claim: deployment still requires the owner's approval and public checks afterward.\n`,
+    body: `## Observed incident\n\nThe fixed ${observation.appChecks ? "production" : "public production"} probes failed after bounded cold-start retries.\n\nIncident: ${incident.id}\nObserved at: ${incident.at}\nChecks: health=${observation.checks.health}; readiness=${observation.checks.readiness}; frontend=${observation.checks.frontend}.\n${signedIn}Evidence: https://github.com/${REPOSITORY}/actions/runs/${incident.source.runId}\n\n## Bounded maintenance task\n\nInvestigate the application cause using repository code and disposable local tests. A provider outage, free-plan quota, cold start, credential problem or configuration issue may have no code fix. If so, stop with evidence and request owner attention; do not invent a repair.\n\nFor a reproducible application bug, demonstrate a failing regression test, implement the smallest repair and show it passing. Preserve independent review, existing scope restrictions and named human production approval.\n\nDo not change the harness, limits, hosting plan, credentials or production data. Do not run database-seeding tests against production. Do not enable paid APIs. Do not edit this issue's title or body after admission; put additional observations in comments.\n\n## Acceptance criteria\n\n- Explain the reproducible application failure or the evidence for an operator/provider issue.\n- For code changes, preserve failing-before and passing-after test evidence and relevant existing tests.\n- No unverified recovery claim: deployment still requires the owner's approval and public checks afterward.\n`,
   };
 }
 async function monitor({
@@ -54,13 +68,22 @@ async function monitor({
   dryRun = true,
   store = new MonitorStore(api),
   probe = probeApp,
+  appChecks,
   now = () => new Date().toISOString(),
 }) {
   assertMonitorContext(context);
   if (typeof enabled !== "boolean" || typeof dryRun !== "boolean")
     throw new Error("Invalid monitor switches");
   if (!enabled && !dryRun) return { outcome: "disabled" };
-  const observation = validateObservation(await probe());
+  const base = validateObservation(await probe());
+  const observation =
+    appChecks === undefined
+      ? base
+      : validateObservation({
+          ...base,
+          healthy: base.healthy && validateAppChecks(appChecks).healthy,
+          appChecks,
+        });
   if (dryRun) return { outcome: "preview", observation };
   return observeIncident({ api, context, store, observation, now });
 }
@@ -166,22 +189,23 @@ async function main(env = process.env) {
   };
   try {
     assertSubscriptionEnv(env);
+    if (env.FACTORY_MONITOR_USERNAME || env.FACTORY_MONITOR_PASSWORD)
+      throw new Error("Account credentials must not reach the publisher");
+    const context = monitorContext(env);
+    assertMonitorContext(context);
+    const enabled = boolean(env.FACTORY_MONITOR_ENABLED, false);
+    const dryRun =
+      env.GITHUB_EVENT_NAME === "schedule" ? false : boolean(env.MONITOR_DRY_RUN, true);
+    const checked =
+      appChecksEnabled(env.FACTORY_APP_CHECKS_ENABLED) && (enabled || dryRun)
+        ? readReport(env, context)
+        : undefined;
     result = await monitor({
       api: new GitHub({ token: env.GITHUB_TOKEN }),
-      context: {
-        repository: env.GITHUB_REPOSITORY,
-        ref: env.GITHUB_REF,
-        workflowRef: env.GITHUB_WORKFLOW_REF,
-        workflowSha: env.GITHUB_WORKFLOW_SHA,
-        sha: env.GITHUB_SHA,
-        runId: env.GITHUB_RUN_ID,
-        runAttempt: Number(env.GITHUB_RUN_ATTEMPT),
-        eventName: env.GITHUB_EVENT_NAME,
-        actor: env.GITHUB_ACTOR,
-        triggeringActor: env.GITHUB_TRIGGERING_ACTOR,
-      },
-      enabled: boolean(env.FACTORY_MONITOR_ENABLED, false),
-      dryRun: env.GITHUB_EVENT_NAME === "schedule" ? false : boolean(env.MONITOR_DRY_RUN, true),
+      context,
+      enabled,
+      dryRun,
+      appChecks: checked,
     });
   } catch {
     // Never print remote exception text, response bodies or request headers.
