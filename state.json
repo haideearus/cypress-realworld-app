@@ -2207,6 +2207,24 @@
       "phase": "review",
       "runId": "43764916721",
       "runAttempt": 1
+    },
+    {
+      "at": "2026-11-15T21:47:07.576Z",
+      "event": "factory-stop-requested",
+      "actor": "haideearus",
+      "commandId": "18503a86-a554-442f-8f24-bae836e09807",
+      "reason": "Owner emergency stop"
     }
-  ]
+  ],
+  "stop": {
+    "id": "18503a86-a554-442f-8f24-bae836e09807",
+    "at": "2026-11-15T21:47:06.781Z",
+    "actor": "haideearus",
+    "reason": "Owner emergency stop",
+    "previous": {
+      "FACTORY_AUTOMATION_ENABLED": "false",
+      "FACTORY_AUTOMERGE_ENABLED": "false",
+      "FACTORY_ENABLED": "true"
+    }
+  }
 }
