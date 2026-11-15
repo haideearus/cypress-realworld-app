@@ -10,7 +10,10 @@ monitor is also disabled unless `FACTORY_MONITOR_ENABLED=true`.
 fixed production URL every 30 minutes. Three bounded rounds, separated by
 30-second pauses, allow a sleeping free service to wake. It never logs in, writes
 production data, seeds a database or calls an AI model. These are availability
-checks, not a full browser test of every payment flow.
+checks, not a full browser test of every payment flow. The separately default-off
+[synthetic-user API extension](APP-CHECKS.md), prepared under #46, adds login,
+session, bounded feed and logout checks with a dedicated account. The description
+above applies when that extension is off. Its rollout does not enable AI agents.
 
 The monitor accepts a healthy deployed SHA even when main is newer: a newer
 commit may still be awaiting human deployment approval. A green Actions run

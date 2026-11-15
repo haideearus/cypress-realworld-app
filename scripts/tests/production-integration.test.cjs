@@ -170,6 +170,38 @@ test(
       const logout = await api("/logout", "POST");
       assert.equal(logout.status, 302);
       assert.equal((await api("/checkAuth")).status, 401);
+      // Exercise the production monitor's real protocol against this disposable
+      // app/PG instance. Only the test transport maps its fixed HTTPS host locally.
+      const { probeUserJourney } = require("../factory/app-checks-probe.cjs");
+      const calls = [];
+      const journeyResult = await probeUserJourney({
+        username: "Heath93",
+        password: "s3cret",
+        attempts: 1,
+        fetch: async (url, options) => {
+          const target = new URL(url);
+          assert.equal(target.origin, "https://haide-software-factory.onrender.com");
+          assert.equal(options.headers.Origin, target.origin);
+          assert.equal(options.redirect, "manual");
+          calls.push([target.pathname + target.search, options.method]);
+          return fetch(base + target.pathname + target.search, {
+            ...options,
+            headers: { ...options.headers, Origin: origin, "x-forwarded-proto": "https" },
+          });
+        },
+      });
+      assert.deepEqual(journeyResult, {
+        healthy: true,
+        checks: { login: "ok", session: "ok", feed: "ok", logout: "ok" },
+        attempts: 1,
+      });
+      assert.deepEqual(calls, [
+        ["/api/login", "POST"],
+        ["/api/checkAuth", "GET"],
+        ["/api/transactions/public?page=1&limit=5", "GET"],
+        ["/api/logout", "POST"],
+        ["/api/checkAuth", "GET"],
+      ]);
     } finally {
       await stop();
       await pool.end();

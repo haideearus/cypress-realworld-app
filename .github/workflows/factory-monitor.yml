@@ -5,10 +5,15 @@ on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: Check public endpoints without creating tickets or writing monitor state
+        description: Check enabled probes without creating tickets or writing monitor state
         type: boolean
         required: true
         default: true
+      app_checks:
+        description: Include signed-in checks in this preview (requires the two account secrets)
+        type: boolean
+        required: true
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -27,6 +32,8 @@ jobs:
     permissions:
       contents: write
       issues: write
+    env:
+      FACTORY_APP_CHECKS_ENABLED: ${{ (vars.FACTORY_APP_CHECKS_ENABLED == 'true' || (github.event_name == 'workflow_dispatch' && inputs.dry_run && inputs.app_checks)) && 'true' || 'false' }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -36,6 +43,15 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: "22.20.0"
+      - name: Check synthetic-user API journey
+        if: ${{ env.FACTORY_APP_CHECKS_ENABLED == 'true' }}
+        env:
+          FACTORY_MONITOR_USERNAME: ${{ secrets.FACTORY_MONITOR_USERNAME }}
+          FACTORY_MONITOR_PASSWORD: ${{ secrets.FACTORY_MONITOR_PASSWORD }}
+        run: node scripts/factory/app-checks.cjs
+      - name: Scan credential-free app check report
+        if: ${{ env.FACTORY_APP_CHECKS_ENABLED == 'true' }}
+        run: node scripts/factory/app-checks-scan.cjs
       - name: Observe production and publish incident
         env:
           GITHUB_TOKEN: ${{ github.token }}
