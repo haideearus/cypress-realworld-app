@@ -82,6 +82,13 @@ test("lock-only patch produces actual added and removed version queries", () => 
     { name: "foo", version: "1.0.1", side: "added" },
   ]);
 });
+test("root edge cannot downgrade into an unchanged selector already elsewhere", () => {
+  const existing = lock("1.1.0").replace("foo@^1.0.0", "foo@^1.1.0");
+  assert.throws(
+    () => inspect(lock("1.9.0") + "\n" + existing, existing, manifest(), manifest("^1.1.0")),
+    /downgrade/i
+  );
+});
 test("root scripts, names and unsupported major or downgrade cannot enter review", () => {
   assert.throws(() => inspect(lock(), lock("2.0.0")), /major|version/i);
   assert.throws(() => inspect(lock("1.0.1"), lock()), /downgrade/i);

@@ -1,6 +1,7 @@
 # Dependency and security maintenance
 
 Implementation ticket: [#50](https://github.com/haideearus/cypress-realworld-app/issues/50).
+Local preparation evidence: [verification record](dependency-maintenance-verification-2026-11-15.md).
 This lane is prepared for review. It has not been activated or tried against a live
 Dependabot PR. All three factory switches remain false during implementation.
 

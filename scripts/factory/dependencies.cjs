@@ -24,9 +24,12 @@ function expectedReport(ticket, context, stage) {
 function artifactName(stage, context, ticket) {
   return `dependency-${stage}-${context.runId}-${context.runAttempt}-${ticket.pr}-${ticket.head}`;
 }
-async function trustedRun(api, context, allowEitherEvent = false) {
+async function trustedRun(api, context, historical = false) {
   if (!d.contextOK(context)) throw new Error("Unauthorized dependency context");
-  const run = await api.request("GET", `${ROOT}/actions/runs/${context.runId}`);
+  const run = await api.request(
+    "GET",
+    `${ROOT}/actions/runs/${context.runId}${historical ? `/attempts/${context.runAttempt}` : ""}`
+  );
   if (
     run.id !== Number(context.runId) ||
     run.path !== ".github/workflows/factory-dependencies.yml" ||
@@ -37,7 +40,7 @@ async function trustedRun(api, context, allowEitherEvent = false) {
     run.actor?.login !== policy.OWNER ||
     run.triggering_actor?.login !== policy.OWNER ||
     run.run_attempt !== context.runAttempt ||
-    !(allowEitherEvent
+    !(historical
       ? ["schedule", "workflow_dispatch"].includes(run.event)
       : run.event === context.event)
   )
@@ -83,6 +86,79 @@ class DependencyCoordinator {
     if (!d.contextOK(this.context)) throw new Error("Unauthorized dependency context");
   }
   async pending(t, preview) {
+    const observed = d.prOK(await this.api.request("GET", `${ROOT}/pulls/${t.pr}`), true);
+    if (observed.number !== t.pr || observed.head.ref !== t.branch)
+      throw new Error("Dependency PR identity changed");
+    if (observed.head.sha !== t.head) {
+      if (preview)
+        return {
+          ready: false,
+          mode: "preview",
+          ticket: t.pr,
+          head: observed.head.sha,
+          reason: "Bot changed reviewed head; live intake must invalidate stale approval",
+        };
+      // A changed open head proves an old expected-head PUT did not merge this PR.
+      // Also prove the old attempt terminal so it cannot issue a late write.
+      if (observed.state !== "open")
+        return {
+          ready: false,
+          reason: "Changed closed dependency head requires owner reconciliation",
+        };
+      if (t.merge) {
+        const run = await this.api.request(
+          "GET",
+          `${ROOT}/actions/runs/${t.merge.runId}/attempts/${t.merge.runAttempt}`
+        );
+        const previous = {
+          ...this.context,
+          runId: t.merge.runId,
+          runAttempt: t.merge.runAttempt,
+          workflowSha: run.head_sha,
+          event: run.event,
+        };
+        const verified = await trustedRun(this.api, previous, true);
+        if (verified.status !== "completed")
+          return { ready: false, reason: "Previous dependency merge attempt remains active" };
+      }
+      await this.ledger.update(async (s) => {
+        policy.assertNotStopped(s);
+        const current = s.tickets[String(t.pr)];
+        if (
+          JSON.stringify(current) !== JSON.stringify(t) ||
+          Object.values(s.grants).some((g) => g.status === "reserved") ||
+          (s.active &&
+            !(
+              t.merge?.status === "intent" &&
+              s.active.ticket === t.pr &&
+              s.active.runId === t.merge.runId &&
+              s.active.runAttempt === t.merge.runAttempt
+            ))
+        )
+          throw new Error("Dependency history changed during stale-proof reconciliation");
+        const latest = d.prOK(await this.api.request("GET", `${ROOT}/pulls/${t.pr}`));
+        if (
+          latest.number !== t.pr ||
+          latest.head.ref !== t.branch ||
+          latest.head.sha !== observed.head.sha ||
+          latest.head.sha === t.head
+        )
+          throw new Error("Dependency bot head changed during reconciliation");
+        policy.audit(s, "dependency_stale_approval_retired", {
+          ticket: t.pr,
+          head: t.head,
+          observedHead: latest.head.sha,
+          grant: t.approval?.grant,
+          ...(t.merge ? { mergeIntent: t.merge } : {}),
+        });
+        current.status = "blocked";
+        current.approval = null;
+        delete current.merge;
+        if (s.active?.ticket === t.pr) s.active = null;
+        return { state: s };
+      });
+      return null;
+    }
     const pr = await this.pr(t.pr, { closed: true, expected: t });
     return {
       ready: !preview,
@@ -126,9 +202,11 @@ class DependencyCoordinator {
       return { ready: false, reason: "Factory stopped; explicit owner resume required" };
     if (state.active) {
       const t = state.tickets[String(state.active.ticket)];
-      // A lost response to a merge must be reconciled; never clear its intent.
-      if (t?.dependency && t.status === "reviewed" && t.merge?.status === "intent")
-        return this.pending(t, preview);
+      if (t?.dependency && t.status === "reviewed" && t.merge?.status === "intent") {
+        const result = await this.pending(t, preview);
+        if (result) return result;
+        state = (await this.ledger.read()).state;
+      }
       if (
         !preview &&
         t?.dependency &&
@@ -158,10 +236,13 @@ class DependencyCoordinator {
         t.status === "reviewed" &&
         !["closed", "merged"].includes(t.merge?.status)
     );
-    if (pending)
-      return pending.dependency
-        ? this.pending(pending, preview)
-        : { ready: false, reason: "Pending app merge must be reconciled" };
+    if (pending) {
+      if (!pending.dependency)
+        return { ready: false, reason: "Pending app merge must be reconciled" };
+      const result = await this.pending(pending, preview);
+      if (result) return result;
+      state = (await this.ledger.read()).state;
+    }
     let candidate;
     for (let page = 1; page <= 5 && !candidate; page++) {
       const rows = await this.api.request(

@@ -52,7 +52,7 @@ async function fixture(config = cfg) {
     if (method === "GET" && p === "/git/ref/heads/main") return response({ object: { sha: head } });
     if (method === "GET" && p.startsWith("/compare/"))
       return response({ behind_by: 0, merge_base_commit: { sha: head } });
-    if (method === "GET" && p === "/actions/runs/100")
+    if (method === "GET" && ["/actions/runs/100", "/actions/runs/100/attempts/1"].includes(p))
       return response({
         id: 100,
         path: ".github/workflows/factory-dependencies.yml",
@@ -301,6 +301,103 @@ test("pending dependency merge blocks app admission and closed history reconcile
   const result = await new DependencyMerger(x.api, cfg, ctx, null).merge(52);
   assert.equal(result.merged, true);
   assert.equal((await x.ledger.read()).state.tickets["52"].reviews, 1);
+});
+test("a bot rebase retires stale approval and admits a bounded new head without resetting history", async () => {
+  const x = await fixture();
+  await reviewed(x);
+  x.f.rows[0].head.sha = "c".repeat(40);
+  const before = (await x.ledger.read()).commit;
+  const preview = await x.coordinator.select(true);
+  assert.equal(preview.ready, false);
+  assert.equal((await x.ledger.read()).commit, before);
+  const picked = await x.coordinator.select(false);
+  assert.equal(picked.mode, "review");
+  assert.equal(picked.head, "c".repeat(40));
+  const s = (await x.ledger.read()).state,
+    t = s.tickets["52"];
+  assert.equal(t.reviews, 1);
+  assert.equal(t.approval, null);
+  assert.equal(t.dependency.attempts.length, 2);
+  assert.equal(Object.values(s.days).flat().length, 1);
+  assert.equal(Object.values(s.grants).length, 1);
+});
+test("a recorded historical attempt is used to release orphan metadata after a rerun", async () => {
+  const x = await fixture();
+  await x.coordinator.select(false);
+  const historical = {
+    id: 100,
+    path: ".github/workflows/factory-dependencies.yml",
+    repository: { full_name: policy.REPOSITORY },
+    head_repository: { full_name: policy.REPOSITORY },
+    head_sha: head,
+    head_branch: "main",
+    event: "schedule",
+    actor: { login: "haideearus" },
+    triggering_actor: { login: "haideearus" },
+    run_attempt: 1,
+    status: "completed",
+  };
+  let historicalReads = 0;
+  x.f.route = (p) =>
+    p === "/actions/runs/100"
+      ? { ...historical, run_attempt: 2 }
+      : p === "/actions/runs/100/attempts/1"
+        ? (historicalReads++, historical)
+        : undefined;
+  await new DependencyCoordinator(x.api, cfg, { ...ctx, runId: "101" }).select(false);
+  const s = (await x.ledger.read()).state;
+  assert.ok(historicalReads > 0);
+  assert.equal(s.active, null);
+  assert.equal(s.tickets["52"].status, "blocked");
+  assert.equal(s.tickets["52"].reviews, 0);
+  assert.equal(Object.values(s.days).flat().length, 1);
+});
+test("a bot head change cannot release a live merge intent, but terminal unmerged intent is audited", async () => {
+  const x = await fixture();
+  await reviewed(x);
+  await x.ledger.update((s) => {
+    const t = s.tickets["52"];
+    t.merge = {
+      status: "intent",
+      head: t.head,
+      pr: 52,
+      at: new Date().toISOString(),
+      runId: "100",
+      runAttempt: 1,
+    };
+    s.active = { ticket: 52, runId: "100", runAttempt: 1 };
+    return { state: s };
+  });
+  x.f.rows[0].head.sha = "c".repeat(40);
+  const prior = x.f.route;
+  x.f.route = (p) =>
+    p === "/actions/runs/100/attempts/1"
+      ? {
+          id: 100,
+          path: ".github/workflows/factory-dependencies.yml",
+          head_sha: head,
+          head_branch: "main",
+          repository: { full_name: policy.REPOSITORY },
+          head_repository: { full_name: policy.REPOSITORY },
+          actor: { login: "haideearus" },
+          triggering_actor: { login: "haideearus" },
+          event: "schedule",
+          run_attempt: 1,
+          status: x.f.intentTerminal ? "completed" : "in_progress",
+        }
+      : prior(p);
+  assert.equal((await x.coordinator.select(false)).ready, false);
+  assert.equal((await x.ledger.read()).state.tickets["52"].merge.status, "intent");
+  x.f.intentTerminal = true;
+  assert.equal((await x.coordinator.select(false)).mode, "review");
+  const state = (await x.ledger.read()).state;
+  assert.equal(state.tickets["52"].merge, undefined);
+  assert.equal(state.tickets["52"].reviews, 1);
+  assert.ok(
+    state.audit.some(
+      (a) => a.event === "dependency_stale_approval_retired" && a.mergeIntent?.status === "intent"
+    )
+  );
 });
 test("old premerge reports and changed dependency paths never reach a merge write", async () => {
   const x = await fixture();

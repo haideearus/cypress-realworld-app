@@ -173,6 +173,11 @@ function inspectUpdate(baseManifest, headManifest, baseLock, headLock, tools) {
   })) {
     const e = next[name + "@" + range];
     if (!e || !semver.satisfies(e.version, range)) fail("Incomplete root dependency lock");
+    const previousRange =
+      a.dependencies?.[name] || a.devDependencies?.[name] || a.optionalDependencies?.[name];
+    const previous = old[name + "@" + previousRange];
+    if (!previous) fail("Incomplete base root dependency edge");
+    compatible(previous.version, e.version, semver);
   }
   const inventory = (obj) =>
     new Map(
