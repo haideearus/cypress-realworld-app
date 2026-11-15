@@ -628,8 +628,16 @@
       "origin": "dependency-pr",
       "head": "1327b536eccb60bb0d66222ddbe008d54005c396",
       "pr": 52,
-      "status": "reviewing",
-      "approval": null,
+      "status": "reviewed",
+      "approval": {
+        "head": "1327b536eccb60bb0d66222ddbe008d54005c396",
+        "pr": 52,
+        "grant": "c2882d6b-6e90-4234-a133-e2cce900d07d",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/43751010503"
+      },
       "branch": "dependabot/npm_and_yarn/axios-0.35.0",
       "criteriaHash": "19ef877c259fcbe42601558f3afe4a283c62664c92a794578d5ae77e35baa500",
       "dependency": {
@@ -681,7 +689,7 @@
         "runId": 43751102747,
         "passed": true
       },
-      "feedback": "{\"head\":\"c89871f643c936d958a861d738ebca623f3963c9\",\"verdict\":\"changes_requested\",\"summary\":\"The diff bumps axios 0.28.1→0.35.0 with transitive follow-redirects→1.16.3 and a form-data constraint merge (plus a no-op js-yaml entry reorder). The trusted dependencyFacts packet confirms axios 0.35.0 and follow-redirects 1.16.3 are genuine, integrity-matched registry releases observed at check time 2026-11-15T17:45:02Z, and that OSV reports no advisories against either added version — so the stale `feedback` field's \\\"axios 0.35.0 is fabricated\\\" claim (which is actually about a different, earlier head, 5b3d4c0a..., not this head) is contradicted by current source facts and should not be acted on. App usage (src/utils/asyncUtils.ts, cypress.config.ts) only relies on stable axios.create/interceptors/get/post APIs, so no compatibility break is evident from the version bump itself. However, cross-checking the dependencyFacts advisory ranges against the actual resolved versions in the diff surfaces a real gap: form-data remains pinned at 4.0.4, but the packet's own advisory record for GHSA-hmw2-7cc7-3qxx lists `fixed: 4.0.6` for the 4.0.x line, meaning 4.0.4 is still inside the vulnerable range. The PR's result metadata nonetheless lists GHSA-hmw2-7cc7-3qxx as \\\"fixed,\\\" which is incorrect — the lockfile change only dedupes an existing 4.0.1/4.0.4 split onto the pre-existing 4.0.4 resolution and never actually bumps form-data far enough. This predates the PR but is mischaracterized as remediated here, so merging on the strength of the \\\"30 advisories fixed\\\" claim would leave that CVE open while implying otherwise.\",\"findings\":[{\"severity\":\"important\",\"message\":\"form-data stays resolved at 4.0.4 after this diff (yarn.lock: form-data@^4.0.0, ^4.0.4, ~4.0.4 → version 4.0.4), but the trusted dependencyFacts advisory record for GHSA-hmw2-7cc7-3qxx gives a fixed version of 4.0.6 for the 4.0.x range (vulnerable range 4.0.0 ≤ v < 4.0.6). 4.0.4 falls inside that vulnerable range, so this advisory is NOT actually fixed by this change, contradicting its inclusion in the PR's reported 'fixed' advisory list. The diff only merges the previous form-data@^4.0.0 (→4.0.1) constraint into the already-present form-data@^4.0.4/~4.0.4 (→4.0.4) entry — it doesn't bump form-data high enough to clear the known-vulnerable range. Root cause appears to be that the automation's OSV recheck only covers package/version identities it classifies as newly 'added' (axios 0.35.0, follow-redirects 1.16.3), while form-data 4.0.4 was already present pre-diff and so was never re-verified against current advisory ranges even though it remains in the diff's changed/fixed summary. Recommend bumping form-data to ≥4.0.6 (e.g. via a yarn resolution or confirming a newer axios/form-data combination) before relying on this PR to close out the listed advisories.\"},{\"severity\":\"minor\",\"message\":\"The supplied 'feedback' field and docs/factory/*.md narrate review history for earlier, different heads of this same PR (5b3d4c0a7580d93ef148996e0dacf30fbfe2e5fa, 660dbd10925a7907098534842bd6e26f700c55bc, b6eb56e...), not the actual head under review (c89871f6...). Their critical claim that axios 0.35.0 is a fabricated/non-existent release is specifically refuted by the current dependencyFacts registry entry (integrity-matched, observed 2026-11-15T17:45:02Z) for this exact head and should not be carried forward into this review or treated as corroborating evidence either way.\"}]}",
+      "feedback": "{\"head\":\"1327b536eccb60bb0d66222ddbe008d54005c396\",\"verdict\":\"pass\",\"summary\":\"The diff bumps the direct dependency axios 0.28.1→0.35.0 and consolidates the transitive follow-redirects range to 1.16.3, plus a cosmetic (non-functional) reorder of an existing js-yaml@4.2.0 lockfile entry. The trusted dependencyFacts packet, observed 2026-11-15T19:19:11.869Z for this exact base/head, shows integrity-matched registry entries for axios 0.35.0 and follow-redirects 1.16.3 with no OSV advisories against either, and shows form-data already retained at 4.0.6 (unchanged by this diff, zero advisories) — directly verified in the current yarn.lock at line 7770-7773. App usage of axios (src/utils/asyncUtils.ts: axios.create + interceptors.request.use; cypress.config.ts: axios.get/axios.post) relies only on long-stable APIs, so no compatibility break is evident. All semver ranges requiring follow-redirects (^1.0.0, ^1.14.0, ^1.15.4, ^1.15.6) and form-data (^4.0.0, ^4.0.4, ~4.0.4) are correctly satisfied by the single merged lockfile entries, and resolved integrity hashes match the dependencyFacts registry records exactly, ruling out tampering/typosquat concerns. The embedded 'feedback' field describes an earlier/different head (c89871f6...) and its central claim — that form-data is still pinned at the vulnerable 4.0.4 — is contradicted by the current source facts for this head (form-data is 4.0.6, pre-existing, with no open advisory), so it does not carry forward as a defect here. No critical or important issues found for this head's bounded, mechanical dependency update.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"The supplied 'feedback' field in context.json narrates a review of a different head (c89871f6...) whose central concern (form-data pinned at vulnerable 4.0.4) does not apply to this head: here form-data is already retained at 4.0.6 (yarn.lock lines 7770-7773, matching the dependencyFacts registry entry with zero advisories). This stale feedback should not be treated as evidence for or against the current head.\"}]}",
       "analysis": {
         "version": 2,
         "repository": "haideearus/cypress-realworld-app",
@@ -1289,15 +1297,12 @@
       "runId": "43751010503",
       "runAttempt": 1,
       "head": "1327b536eccb60bb0d66222ddbe008d54005c396",
-      "status": "reserved",
-      "at": "2026-11-15T19:18:48.133Z"
+      "status": "finished",
+      "at": "2026-11-15T19:18:48.133Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 52,
-    "runId": "43751010503",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -2035,6 +2040,14 @@
       "phase": "review",
       "runId": "43751010503",
       "runAttempt": 1
+    },
+    {
+      "at": "2026-11-15T19:21:28.118Z",
+      "event": "finished",
+      "ticket": 52,
+      "grant": "c2882d6b-6e90-4234-a133-e2cce900d07d",
+      "status": "reviewed",
+      "head": "1327b536eccb60bb0d66222ddbe008d54005c396"
     }
   ]
 }
