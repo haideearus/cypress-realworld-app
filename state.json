@@ -663,7 +663,11 @@
       "approval": null,
       "criteriaHash": "a144a943c19fa2c54abc8b1a93627ae4fb43c2b0fcc75add993af157af1165fa",
       "branch": "agent/fix-unchanged-prerelease-analysis",
-      "ci": null
+      "ci": {
+        "requestId": "78bf8e75-c275-4a89-8b3d-573235f099b0",
+        "head": "797b28e18b6ee0f5a832a11c39277f717707d4eb",
+        "runId": null
+      }
     }
   },
   "grants": {
