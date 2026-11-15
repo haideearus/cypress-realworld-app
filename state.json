@@ -513,7 +513,7 @@
       "reviews": 3,
       "retries": 0,
       "head": "bcdc66a3ac6bf8bd049fa3f51ac7a251a44c44bb",
-      "status": "reviewing",
+      "status": "blocked",
       "pr": 45,
       "approval": null,
       "criteriaHash": "d42165f81ef371f37ff5ce9369620a6678d504c71d5b5c5e45425ceda1749044",
@@ -1363,15 +1363,12 @@
       "runId": "43764916721",
       "runAttempt": 1,
       "head": "bcdc66a3ac6bf8bd049fa3f51ac7a251a44c44bb",
-      "status": "reserved",
-      "at": "2026-11-15T21:40:03.274Z"
+      "status": "finished",
+      "at": "2026-11-15T21:40:03.274Z",
+      "outcome": "blocked"
     }
   },
-  "active": {
-    "ticket": 44,
-    "runId": "43764916721",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -2214,6 +2211,30 @@
       "actor": "haideearus",
       "commandId": "18503a86-a554-442f-8f24-bae836e09807",
       "reason": "Owner emergency stop"
+    },
+    {
+      "at": "2026-11-15T21:47:31.496Z",
+      "event": "factory-stop-result",
+      "actor": "haideearus",
+      "commandId": "18503a86-a554-442f-8f24-bae836e09807",
+      "terminalRunIds": [
+        43764916721
+      ],
+      "quarantinedRunIds": [
+        43467058965
+      ],
+      "quarantinedRuns": [
+        {
+          "id": 43467058965,
+          "runAttempt": 1,
+          "status": "queued",
+          "head": "421553c2c108dc2704ef6cec7864582b8c63ead6",
+          "containmentTicket": 38,
+          "reason": "Frozen pre-job controller rejects retained drill history before admission"
+        }
+      ],
+      "pendingRunIds": [],
+      "elapsedMs": 27374
     }
   ],
   "stop": {
