@@ -24,7 +24,7 @@ against the baseline with `reviewer is missing current registry facts`: expected
 `1.0.1`, received `undefined`. Both logs were preserved outside the source tree as
 `dependency-evidence-red.log` and `dependency-worker-evidence-red.log`.
 
-After implementation:
+Initial implementation at `b6eb56e`:
 
 ```text
 node --test scripts/tests/factory-*.test.cjs
@@ -84,9 +84,62 @@ Primary source contracts:
 
 ## Operational boundary
 
-All three factory switches remained false during preparation. Monitoring stayed
+All three factory switches remained false during initial preparation. Monitoring stayed
 unchanged. No Claude run, paid AI API, merge, deployment, counter reset or branch
 protection change was performed. A fresh local agent review and final checks are
 recorded in the PR. Genuine Claude Pro review and the required native checks
 remain necessary before merge. Retrying PR #52 later requires a fresh genuine
 Dependabot commit; this PR grants no same-head retry exemption.
+
+## Follow-up to the first Claude Pro review
+
+The owner authorized and ran [review 43729011956](https://github.com/haideearus/cypress-realworld-app/actions/runs/43729011956)
+under issue #55 for head `b6eb56e`. The workflow completed, but the verdict was
+`changes_requested`: the new workflow path needed structural regression coverage.
+One review remains consumed; its verdict and ledger history are preserved. All
+three switches were confirmed false afterward, the ledger was idle, and no
+further Claude run was started while addressing the findings.
+
+The follow-up tests now check trusted parser installation before candidate
+checkout, dependency-only guards, credential isolation, preparation and both
+scans before the exact-file upload, fail-closed behavior, artifact path and
+seven-day retention. The new workflow test failed on the omitted
+`include-hidden-files` input. The pinned upload action excludes files inside
+dot-directories, so the workflow now enables this input for the single scanned
+`.factory-input/dependency-facts.json` file. It does not upload the directory or
+broaden the artifact's contents. See the pinned action's
+[hidden-file rules](https://github.com/actions/upload-artifact/blob/ea165f8d65b6e75b540449e92b4886f43607fa02/README.md#uploading-hidden-files).
+
+Eight isolated, in-memory workflow mutations were rejected by the new regression:
+upload before scan, parser install after candidate checkout, weaker role guard,
+ignored scan failure, broader upload path, omitted hidden-file input, longer
+retention and missing-file warning. These checks did not modify the repository
+workflow or contact GitHub. Three additional collector tests exercise the actual
+holds at 51 added versions, 101 advisory IDs, and a packet over 256 KiB built from
+individually valid bounded responses. No production collector limit changed.
+
+```text
+node --test scripts/tests/factory-workflows.test.cjs scripts/tests/factory-dependency-evidence.test.cjs
+# tests 25
+# pass 25
+# fail 0
+
+node --test scripts/tests/factory-*.test.cjs
+# tests 488
+# pass 478
+# fail 0
+# skipped 10
+```
+
+Logs are retained locally as `dependency-review-workflow-red.log`,
+`dependency-workflow-mutations.log`, `dependency-review-followup-targeted.log` and
+`dependency-review-followup-factory.log`. The original PR head's complete
+[native CI 43727062749](https://github.com/haideearus/cypress-realworld-app/actions/runs/43727062749)
+passed, including app/runtime checks. Those results belong to the original head;
+the pushed follow-up requires fresh native CI and another genuine Claude Pro
+review before merging.
+
+A fresh separate local agent independently reran all 25 targeted tests with Node
+22.20.0, actionlint and the diff check, and found no blocking findings in the
+follow-up. A live runner upload was not exercised by these local checks; the
+actual dependency workflow remains a later authorized trial.

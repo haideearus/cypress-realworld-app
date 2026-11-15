@@ -103,6 +103,7 @@ jobs:
         with:
           name: dependency-facts-${{ inputs.grantId }}
           path: ${{ github.workspace }}/.factory-input/dependency-facts.json
+          include-hidden-files: true
           if-no-files-found: error
           retention-days: 7
       - name: Run the one reserved Claude subscription session

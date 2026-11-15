@@ -231,3 +231,79 @@ test("evidence needs immutable distinct commits and a fresh bounded collection i
     /stale|time/i
   );
 });
+
+test("fifty-one added registry versions are held before public metadata requests", async () => {
+  const manifest = (version) =>
+    JSON.stringify({
+      dependencies: Object.fromEntries(Array.from({ length: 51 }, (_, i) => [`pkg-${i}`, version])),
+    });
+  const lock = (version) =>
+    Array.from(
+      { length: 51 },
+      (_, i) =>
+        `pkg-${i}@${version}:\n  version "${version}"\n  resolved "https://registry.npmjs.org/pkg-${i}/-/pkg-${i}-${version}.tgz"\n  integrity ${integrity}\n`
+    ).join("\n");
+  let calls = 0;
+  await assert.rejects(
+    collect(
+      async () => {
+        calls++;
+        throw new Error("unexpected request");
+      },
+      {
+        ...source,
+        baseManifest: manifest("1.0.0"),
+        headManifest: manifest("1.0.1"),
+        baseLock: lock("1.0.0"),
+        headLock: lock("1.0.1"),
+      }
+    ),
+    /inventory exceeds bound/
+  );
+  assert.equal(calls, 0);
+});
+
+test("one hundred and one advisory IDs are held before fetching advisory details", async () => {
+  let details = 0;
+  await assert.rejects(
+    collect(async (url, options) => {
+      if (url.includes("/vulns/")) details++;
+      return transport((body, requested) => {
+        if (requested.endsWith("querybatch"))
+          body.results[0].vulns = Array.from({ length: 101 }, (_, i) => ({
+            id: `CVE-2026-${10000 + i}`,
+            modified,
+          }));
+      })(url, options);
+    }),
+    /advisory evidence exceeds bound/
+  );
+  assert.equal(details, 0);
+});
+
+test("valid individual advisory records cannot produce a packet beyond 256 KiB", async () => {
+  const ids = Array.from({ length: 6 }, (_, i) => `CVE-2026-${20000 + i}`);
+  let fetched = 0;
+  const fetcher = async (url) => {
+    if (url.includes("registry.npmjs.org")) return new Response(JSON.stringify(registry()));
+    if (url.endsWith("querybatch"))
+      return new Response(
+        JSON.stringify({
+          results: [{ vulns: ids.map((id) => ({ id, modified })) }, {}],
+        })
+      );
+    assert.ok(ids.includes(url.split("/").at(-1)));
+    const record = advisory();
+    record.id = url.split("/").at(-1);
+    record.affected[0].versions = Array.from(
+      { length: 500 },
+      (_, i) => `0.28.1-build.${i}.` + "a".repeat(80)
+    );
+    const body = JSON.stringify(record);
+    assert.ok(Buffer.byteLength(body) < 1048576);
+    fetched++;
+    return new Response(body);
+  };
+  await assert.rejects(collect(fetcher), /packet oversized/);
+  assert.equal(fetched, 6);
+});
