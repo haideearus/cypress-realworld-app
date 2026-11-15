@@ -71,6 +71,8 @@ function inspectUpdate(baseManifest, headManifest, baseLock, headLock, tools, de
   };
   const old = parse(baseLock),
     next = parse(headLock);
+  const retargetedNames = new Set();
+  const selectedCandidateIds = new Set();
   const nameOf = (selector) => {
     const m = /^((?:@[a-z0-9._-]+\/)?[a-z0-9._-]+)@(.+)$/i.exec(selector);
     if (!m || !semver.validRange(m[2]) || /(?:git|https?|file|link|npm):/.test(m[2]))
@@ -123,11 +125,47 @@ function inspectUpdate(baseManifest, headManifest, baseLock, headLock, tools, de
     )
       fail("Invalid dependency integrity");
   };
+  // Compare actual base/candidate paths. A reused node can select a new reused
+  // descendant even though neither identity was added to the lock inventory.
+  const oldIds = new Map(Object.values(old).map((entry, i) => [entry, i]));
+  const visited = new Set(),
+    selectedSelectors = new Set();
+  function followSelection(previous, selector) {
+    const pending = [[previous, selector]];
+    while (pending.length) {
+      const [before, target] = pending.pop();
+      const key = (before ? oldIds.get(before) : "new") + ":" + target;
+      if (visited.has(key)) continue;
+      visited.add(key);
+      if (visited.size > 500) fail("Dependency selection exceeds inventory limit");
+      const entry = next[target];
+      if (!entry) fail("Incomplete candidate dependency edge");
+      validateEntry(target, entry);
+      if (before) compatible(before.version, entry.version, semver);
+      selectedSelectors.add(target);
+      retargetedNames.add(nameOf(target));
+      selectedCandidateIds.add(nameOf(target) + "@" + entry.version);
+      for (const [child, range] of Object.entries({
+        ...entry.dependencies,
+        ...entry.optionalDependencies,
+      })) {
+        const candidate = next[child + "@" + range];
+        if (!candidate) fail("Incomplete candidate dependency edge");
+        const priorRange = before?.dependencies?.[child] || before?.optionalDependencies?.[child];
+        const prior = priorRange ? old[child + "@" + priorRange] : undefined;
+        if (priorRange && !prior) fail("Incomplete base dependency edge");
+        if (priorRange !== range || !same(prior, candidate))
+          pending.push([prior, child + "@" + range]);
+        if (pending.length > 500) fail("Dependency selection exceeds inventory limit");
+      }
+    }
+  }
   for (const [selector, entry] of Object.entries(next)) {
     const before = old[selector];
     if (same(before, entry)) continue;
     validateEntry(selector, entry);
-    if (before) compatible(before.version, entry.version, semver);
+    selectedCandidateIds.add(nameOf(selector) + "@" + entry.version);
+    if (before) followSelection(before, selector);
     else {
       const previous = Object.entries(old)
         .filter(([s]) => inventoryName(s) === nameOf(selector))
@@ -140,47 +178,26 @@ function inspectUpdate(baseManifest, headManifest, baseLock, headLock, tools, de
       )
         fail("Dependency major version or downgrade held");
     }
-    for (const [child, range] of Object.entries({
-      ...entry.dependencies,
-      ...entry.optionalDependencies,
-    })) {
-      const resolved = next[child + "@" + range];
-      if (!resolved) fail("Incomplete dependency lock edge");
-      validateEntry(child + "@" + range, resolved);
-      const predecessors = before
-        ? [before]
-        : Object.entries(old)
-            .filter(
-              ([s, e]) =>
-                inventoryName(s) === nameOf(selector) &&
-                semver.major(e.version) === semver.major(entry.version)
-            )
-            .map(([, e]) => e);
-      for (const predecessor of predecessors) {
-        const priorRange =
-          predecessor.dependencies?.[child] || predecessor.optionalDependencies?.[child];
-        if (!priorRange) continue;
-        const prior = old[child + "@" + priorRange];
-        if (!prior) fail("Incomplete base dependency edge");
-        compatible(prior.version, resolved.version, semver);
-      }
-    }
   }
   for (const [name, range] of Object.entries({
     ...b.dependencies,
     ...b.devDependencies,
     ...b.optionalDependencies,
   })) {
-    const e = next[name + "@" + range];
-    if (!e || !semver.satisfies(e.version, range)) fail("Incomplete root dependency lock");
+    const selector = name + "@" + range;
+    const entry = next[selector];
+    if (!entry || !semver.satisfies(entry.version, range)) fail("Incomplete root dependency lock");
     const previousRange =
       a.dependencies?.[name] || a.devDependencies?.[name] || a.optionalDependencies?.[name];
     const previous = old[name + "@" + previousRange];
     if (!previous) fail("Incomplete base root dependency edge");
-    // Existing prerelease baselines may stay unchanged. New/changed entries are
-    // validated above; changed root resolutions still need the full version gate.
-    if (previous.version !== e.version) compatible(previous.version, e.version, semver);
+    if (previousRange !== range || !same(previous, entry)) followSelection(previous, selector);
   }
+  // New selectors must be attributable to an actual changed path; guessing from
+  // every historical version both misses nested changes and mislabels baselines.
+  for (const selector of Object.keys(next))
+    if (!old[selector] && !selectedSelectors.has(selector))
+      fail("Ambiguous dependency graph transition");
   const inventory = (obj) =>
     new Map(
       Object.entries(obj).map(([s, e]) => [
@@ -190,15 +207,35 @@ function inspectUpdate(baseManifest, headManifest, baseLock, headLock, tools, de
     );
   const oi = inventory(old),
     ni = inventory(next);
+  const affectedNames = new Set(
+    [...new Set([...Object.keys(old), ...Object.keys(next)])]
+      .filter((s) => !same(old[s], next[s]))
+      .map(inventoryName)
+  );
+  for (const name of retargetedNames) affectedNames.add(name);
+  for (const section of sections)
+    for (const name of Object.keys(b[section] || {}))
+      if (a[section]?.[name] !== b[section][name]) affectedNames.add(name);
+  const removed = [...oi].filter(([k]) => !ni.has(k));
+  const added = [...ni].filter(([k]) => !oi.has(k));
   const queries = [
-    ...[...oi].filter(([k]) => !ni.has(k)).map(([, e]) => ({ ...e, side: "removed" })),
-    ...[...ni].filter(([k]) => !oi.has(k)).map(([, e]) => ({ ...e, side: "added" })),
+    ...removed.map(([, e]) => ({ ...e, side: "removed" })),
+    ...[...ni]
+      .filter(([, e]) => affectedNames.has(e.name))
+      .map(([k, e]) => ({
+        ...e,
+        side: !oi.has(k) ? "added" : selectedCandidateIds.has(k) ? "retained" : "baseline",
+      })),
   ];
   if (queries.length > 500) fail("Dependency update exceeds inventory limit");
-  const result = { changed: queries.length, queries };
+  const result = {
+    changed: removed.length + added.length || affectedNames.size,
+    candidateVersions: queries.filter((q) => q.side !== "removed").length,
+    queries,
+  };
   if (details) {
     result.registryEntries = queries
-      .filter((q) => q.side === "added")
+      .filter((q) => q.side !== "removed")
       .map((q) => ({
         name: q.name,
         version: q.version,
@@ -246,12 +283,13 @@ async function queryOsv(queries, transport = fetch, details = false) {
         !/^(?:@[a-z0-9._-]+\/)?[a-z0-9._-]+$/i.test(q.name) ||
         typeof q.version !== "string" ||
         q.version.length > 100 ||
-        !["added", "removed"].includes(q.side)
+        !["added", "removed", "retained", "baseline"].includes(q.side)
     )
   )
     fail("Invalid OSV query");
   const old = new Set(),
-    added = new Set();
+    added = new Set(),
+    baseline = new Set();
   const packages = [];
   for (let start = 0; start < queries.length; start += 100) {
     const batch = queries.slice(start, start + 100);
@@ -288,7 +326,9 @@ async function queryOsv(queries, transport = fetch, details = false) {
       for (const v of item.vulns || []) {
         if (!v || !/^[A-Za-z0-9][A-Za-z0-9._-]{1,100}$/.test(v.id || ""))
           fail("Invalid OSV response identifier");
-        (batch[i].side === "added" ? added : old).add(v.id);
+        (batch[i].side === "removed" ? old : batch[i].side === "baseline" ? baseline : added).add(
+          v.id
+        );
       }
       if (details)
         packages.push({
@@ -297,8 +337,13 @@ async function queryOsv(queries, transport = fetch, details = false) {
         });
     });
   }
-  if (added.size) fail("Known vulnerable dependency version introduced");
-  return { fixed: [...old].sort(), ...(details ? { packages } : {}) };
+  if (added.size) fail("Known vulnerable candidate dependency version retained or introduced");
+  return {
+    cleared: [...old].filter((id) => !baseline.has(id)).sort(),
+    remainingBaseline: [...baseline].sort(),
+    candidateVersions: queries.filter((q) => q.side !== "removed").length,
+    ...(details ? { packages } : {}),
+  };
 }
 const keys = [
   "version",
@@ -317,13 +362,13 @@ const keys = [
   .sort()
   .join(",");
 function reportFor(identity, result, now = new Date()) {
-  return { version: 1, ...identity, at: now.toISOString(), result };
+  return { version: 2, ...identity, at: now.toISOString(), result };
 }
 function validateReport(r, expected, now = new Date()) {
   if (
     !r ||
     Object.keys(r).sort().join(",") !== keys ||
-    r.version !== 1 ||
+    r.version !== 2 ||
     r.repository !== REPOSITORY ||
     !Number.isSafeInteger(r.pr) ||
     r.pr < 1 ||
@@ -334,13 +379,24 @@ function validateReport(r, expected, now = new Date()) {
     r.runAttempt < 1 ||
     !["analysis", "premerge"].includes(r.stage) ||
     !r.result ||
-    Object.keys(r.result).sort().join(",") !== "changed,fixed" ||
+    Object.keys(r.result).sort().join(",") !==
+      "candidateVersions,changed,cleared,remainingBaseline" ||
     !Number.isSafeInteger(r.result.changed) ||
     r.result.changed < 1 ||
     r.result.changed > 500 ||
-    !Array.isArray(r.result.fixed) ||
-    r.result.fixed.length > 500 ||
-    r.result.fixed.some((x) => !/^[A-Za-z0-9][A-Za-z0-9._-]{1,100}$/.test(x))
+    !Number.isSafeInteger(r.result.candidateVersions) ||
+    r.result.candidateVersions < 0 ||
+    r.result.candidateVersions > 500 ||
+    !Array.isArray(r.result.cleared) ||
+    r.result.cleared.length > 500 ||
+    new Set(r.result.cleared).size !== r.result.cleared.length ||
+    r.result.cleared.some((x) => !/^[A-Za-z0-9][A-Za-z0-9._-]{1,100}$/.test(x)) ||
+    !Array.isArray(r.result.remainingBaseline) ||
+    r.result.remainingBaseline.length + r.result.cleared.length > 500 ||
+    new Set(r.result.remainingBaseline).size !== r.result.remainingBaseline.length ||
+    r.result.remainingBaseline.some(
+      (x) => !/^[A-Za-z0-9][A-Za-z0-9._-]{1,100}$/.test(x) || r.result.cleared.includes(x)
+    )
   )
     fail("Invalid dependency report");
   for (const [key, value] of Object.entries(expected))

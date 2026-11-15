@@ -116,7 +116,7 @@ test("dependency worker supplies fresh exact-commit facts without adding model t
         stage: "analysis",
         toolDigest: a.toolDigest(),
       },
-      { changed: 2, fixed: [] }
+      { changed: 2, candidateVersions: 1, cleared: [], remainingBaseline: [] }
     );
     next.tickets["52"].ci = { head, passed: true, runId: 501 };
     return lifecycle.reserveDependencyReview(next, ctx, config);
