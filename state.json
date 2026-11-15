@@ -752,7 +752,11 @@
       "approval": null,
       "criteriaHash": "fcb2b98f4390c79b071ddd1ffbfcae9860e4ab12a0987703d9df41081980c421",
       "branch": "agent/current-dependency-review-evidence",
-      "ci": null
+      "ci": {
+        "requestId": "91b1c3c0-0d3c-46f2-8549-3c467159a64d",
+        "head": "b6eb56ee842f016eb23533bb603434edb09ec965",
+        "runId": null
+      }
     }
   },
   "grants": {
