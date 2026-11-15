@@ -340,6 +340,11 @@ recovery operation; do not overwrite an unknown branch or reset counters.
 
 ## Verification and remaining work
 
+Dependency and CVE maintenance is prepared under [#50](https://github.com/haideearus/cypress-realworld-app/issues/50).
+See the [dependency runbook](factory/DEPENDENCY-MAINTENANCE.md) for its separate
+Dependabot lane, shared limits, safe holds, fork activation and preview. Preparing
+that implementation does not enable live dependency processing or start Claude.
+
 Run `yarn test:factory`. The suite exercises the real policy/controller/worker
 against fake GitHub HTTP responses and temporary local Git repositories. It
 simulates model results and does not import an AI SDK or contact a model.

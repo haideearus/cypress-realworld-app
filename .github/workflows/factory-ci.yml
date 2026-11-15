@@ -68,7 +68,9 @@ jobs:
       - run: yarn install --frozen-lockfile
       - run: yarn predev:cognito:ci
       - name: Factory policy and simulated agent checks without model calls
-        run: yarn test:factory
+        run: |
+          (cd scripts/factory/dependency-tools && npm ci --ignore-scripts --no-audit --fund=false)
+          yarn test:factory
       - name: Exercise the credential-free drill sandbox without AI or GitHub writes
         run: node --test scripts/tests/factory-drill-sandbox.test.cjs
         env:

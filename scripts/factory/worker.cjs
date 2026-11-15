@@ -138,7 +138,7 @@ async function prepare(api, config, context, { grantId, cwd, environment = proce
   // Caller inputs cannot select this capability profile: only verified ledger provenance can.
   const drill = ticket.origin === "drill";
   const issue = await api.request("GET", `${ROOT}/issues/${grant.ticket}`);
-  if (criteriaHash(issue) !== ticket.criteriaHash)
+  if (ticket.origin !== "dependency-pr" && criteriaHash(issue) !== ticket.criteriaHash)
     throw new Error("Ticket criteria changed after admission");
   const data = {
     head: grant.head,
@@ -146,6 +146,40 @@ async function prepare(api, config, context, { grantId, cwd, environment = proce
     feedback: ticket.feedback || "",
     capabilities: capabilitiesFor(grant.phase, drill),
   };
+  if (ticket.origin === "dependency-pr") {
+    const d = require("./dependency-contract.cjs");
+    const a = require("./dependency-analysis.cjs");
+    const attempt = d.matches(ticket, context, config);
+    const pr = d.prOK(await api.request("GET", `${ROOT}/pulls/${ticket.pr}`));
+    if (
+      pr.head.sha !== grant.head ||
+      pr.head.ref !== ticket.branch ||
+      pr.base.sha !== attempt.base ||
+      ticket.criteriaHash !== d.criteria(pr.number)
+    )
+      throw new Error("Dependency review identity changed");
+    d.filesOK(await api.request("GET", `${ROOT}/pulls/${ticket.pr}/files?per_page=3`));
+    // Age was checked when accepted before CI. A separate fresh report is mandatory before merge.
+    data.dependency = a.validateReport(
+      ticket.analysis,
+      {
+        pr: ticket.pr,
+        base: attempt.base,
+        head: grant.head,
+        workflowSha: attempt.workflowSha,
+        runId: attempt.runId,
+        runAttempt: attempt.runAttempt,
+        stage: "analysis",
+        toolDigest: a.toolDigest(),
+      },
+      new Date(ticket.analysis?.at)
+    );
+    data.ticket = {
+      number: ticket.pr,
+      title: "Review a bounded dependency update",
+      body: "Check compatibility and security of the root package.json/yarn.lock diff. No coding or tool execution is authorized. Hold any concern; do not assume tests or OSV prove safety.",
+    };
+  }
   if (grant.phase === "review") {
     if (
       !ticket.ci ||

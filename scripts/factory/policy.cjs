@@ -1,4 +1,5 @@
 const { randomUUID } = require("node:crypto");
+const dependency = require("./dependency-contract.cjs");
 const recovery = require("./recovery.cjs");
 const { validateMonitorProof } = require("./monitor-proof.cjs");
 const { DRILL_WORKFLOW_REF, isDrillContext, validateDrillProof } = require("./drill-contract.cjs");
@@ -115,9 +116,9 @@ function validateState(state) {
       !ticket ||
       !SHA.test(ticket.head) ||
       !Number.isInteger(ticket.coding) ||
-      ticket.coding < (ticket.origin === "owner-pr" ? 0 : 1) ||
+      ticket.coding < (["owner-pr", "dependency-pr"].includes(ticket.origin) ? 0 : 1) ||
       ticket.coding > MAX_CODING_ATTEMPTS ||
-      ![undefined, "factory", "owner-pr", "drill"].includes(ticket.origin) ||
+      ![undefined, "factory", "owner-pr", "dependency-pr", "drill"].includes(ticket.origin) ||
       (ticket.origin === "owner-pr" &&
         (ticket.coding !== 0 || !Number.isSafeInteger(ticket.pr) || ticket.pr < 1)) ||
       !Number.isInteger(ticket.reviews) ||
@@ -129,6 +130,8 @@ function validateState(state) {
     )
       deny("Invalid ledger ticket counters");
     const grants = Object.values(state.grants).filter((g) => g?.ticket === Number(id));
+    if (ticket.origin === "dependency-pr") dependency.validateTicket(ticket, grants);
+    else if (ticket.dependency !== undefined) deny("Invalid dependency ticket origin");
     if (ticket.origin === "drill") {
       const d = ticket.drill;
       const g = grants[0];
@@ -200,7 +203,7 @@ function validateState(state) {
         Number.isFinite(Date.parse(m.at)) &&
         new Date(m.at).toISOString() === m.at;
       if (
-        !ticket.automatic ||
+        (!ticket.automatic && ticket.origin !== "dependency-pr") ||
         !record(m) ||
         Object.keys(m).some(
           (key) =>
@@ -297,7 +300,8 @@ function authorize(request) {
     request.ref !== "refs/heads/main" ||
     (request.workflowRef === DRILL_WORKFLOW_REF && !isDrillContext(request)) ||
     ((request.event !== "workflow_dispatch" || request.workflowRef === AUTOMATIC_WORKFLOW_REF) &&
-      !isAutomaticContext(request))
+      !isAutomaticContext(request) &&
+      !dependency.contextOK(request))
   )
     deny("Unauthorized factory invocation");
   if (
@@ -391,7 +395,49 @@ function reserve(original, request, config, now = new Date()) {
   )
     deny("Invalid automatic reservation provenance");
   const ownerReview = request.phase === "review" && request.origin === "owner-pr";
-  if (request.origin !== undefined && !ownerReview && !drill) deny("Invalid reservation origin");
+  const dependencyReview = request.phase === "review" && request.origin === "dependency-pr";
+  if (dependencyReview) {
+    const a = require("./dependency-analysis.cjs");
+    const attempt = dependency.validateTicket(existing);
+    a.validateReport(
+      existing.analysis,
+      {
+        repository: REPOSITORY,
+        pr: existing.pr,
+        base: attempt.base,
+        head: existing.head,
+        workflowSha: attempt.workflowSha,
+        runId: attempt.runId,
+        runAttempt: attempt.runAttempt,
+        stage: "analysis",
+        toolDigest: a.toolDigest(),
+      },
+      new Date(existing.analysis?.at)
+    );
+    if (
+      !existing ||
+      !dependency.contextOK(request) ||
+      request.slot !== "dependency" ||
+      request.pr !== existing.pr ||
+      !config.automatic
+    )
+      deny("Invalid dependency review origin");
+    dependency.matches(existing, request, config);
+    if (
+      !existing.analysis ||
+      existing.analysis.head !== request.head ||
+      existing.ci?.head !== request.head ||
+      existing.ci.passed !== true
+    )
+      deny("Dependency analysis and CI required");
+  }
+  if (
+    (dependency.contextOK(request) && !dependencyReview) ||
+    (existing?.origin === "dependency-pr" && !dependencyReview)
+  )
+    deny("Dependency origin cannot enter ordinary work");
+  if (request.origin !== undefined && !ownerReview && !dependencyReview && !drill)
+    deny("Invalid reservation origin");
   if (ownerReview && (!Number.isSafeInteger(request.pr) || request.pr < 1))
     deny("Invalid owner PR number");
   if (
@@ -413,6 +459,7 @@ function reserve(original, request, config, now = new Date()) {
   if (
     request.phase === "review" &&
     !ownerReview &&
+    !dependencyReview &&
     (!existing ||
       !state.active ||
       existing.status !== "awaiting_review" ||
@@ -510,6 +557,12 @@ function preflight(state, grantId, context, config) {
   if (automatic && !config.automatic) deny("Automatic factory disabled");
   const grant = state.grants[grantId];
   const ticket = grant && state.tickets[String(grant.ticket)];
+  if (ticket?.origin === "dependency-pr") {
+    dependency.matches(ticket, context, config);
+    if (context.phase !== "review" || context.slot !== "dependency" || !config.automatic)
+      deny("Invalid dependency model role");
+  } else if (dependency.contextOK(context))
+    deny("Dependency workflow requires dependency provenance");
   if (ticket?.origin === "drill") {
     if (
       !isDrillContext(context) ||
@@ -634,7 +687,7 @@ function reviewGate(state, pr) {
       g.outcome === "reviewed" &&
       g.head === pr.head &&
       t.reviews > 0 &&
-      (t.coding > 0 || t.origin === "owner-pr")
+      (t.coding > 0 || ["owner-pr", "dependency-pr"].includes(t.origin))
     )
       return {
         ok: true,

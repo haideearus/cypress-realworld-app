@@ -123,8 +123,7 @@ class Controller {
         Object.entries(state.tickets).some(
           ([id, other]) =>
             id !== String(ticket) &&
-            other.automatic &&
-            other.origin === "factory" &&
+            (other.automatic || other.dependency) &&
             other.status === "reviewed" &&
             !["merged", "closed"].includes(other.merge?.status)
         )
@@ -208,6 +207,20 @@ class Controller {
   async matchingPR(t) {
     if (!t.pr) throw new Error("No published PR");
     const pr = await this.api.request("GET", `${ROOT}/pulls/${t.pr}`);
+    if (t.origin === "dependency-pr") {
+      const d = require("./dependency-contract.cjs");
+      const attempt = d.matches(t, this.context, this.config);
+      d.prOK(pr);
+      if (
+        pr.number !== t.pr ||
+        pr.head.sha !== t.head ||
+        pr.head.ref !== t.branch ||
+        pr.base.sha !== attempt.base
+      )
+        throw new Error("Dependency PR identity changed");
+      d.filesOK(await this.api.request("GET", `${ROOT}/pulls/${t.pr}/files?per_page=3`));
+      return pr;
+    }
     if (
       pr.state !== "open" ||
       pr.head?.sha !== t.head ||

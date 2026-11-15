@@ -86,6 +86,17 @@ class AutomaticCoordinator {
         preview: dryRun,
         reason: "Factory stopped by owner; explicit resume is required",
       };
+    if (
+      Object.values(state.tickets).some(
+        (t) =>
+          t.dependency && t.status === "reviewed" && !["closed", "merged"].includes(t.merge?.status)
+      )
+    )
+      return {
+        ready: false,
+        preview: dryRun,
+        reason: "Pending dependency merge must be reconciled",
+      };
     if (state.active) {
       const held = state.tickets[String(state.active.ticket)];
       const intent = held?.merge;

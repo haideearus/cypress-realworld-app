@@ -20,6 +20,12 @@ inputs:
     default: ${{ github.token }}
     description: Job-scoped token for trusted metadata operations
 outputs:
+  mode:
+    value: ${{ steps.run.outputs.mode }}
+    description: Bounded dependency preparation or merge mode
+  reviewed:
+    value: ${{ steps.run.outputs.reviewed }}
+    description: Independent review passed
   ready:
     value: ${{ steps.run.outputs.ready }}
     description: A durable reservation or publication is ready
@@ -53,7 +59,9 @@ runs:
     - id: run
       shell: bash
       run: |
-        if [[ "$FACTORY_OPERATION" == auto_* ]]; then
+        if [[ "$FACTORY_OPERATION" == dep_* ]]; then
+          node scripts/factory/dependency-run.cjs
+        elif [[ "$FACTORY_OPERATION" == auto_* ]]; then
           node scripts/factory/automation.cjs
         else
           node scripts/factory/controller.cjs

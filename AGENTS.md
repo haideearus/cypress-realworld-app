@@ -60,6 +60,10 @@ The Claude factory is installed disabled. See [docs/CLAUDE-FACTORY.md](docs/CLAU
 for installation order, subscription-only authentication, durable usage counters,
 and cancellation. Normal agent tickets cannot modify the harness or its policy.
 
+Before `yarn test:factory`, install the separate trusted dependency parser tools:
+from `scripts/factory/dependency-tools`, run `npm ci --ignore-scripts --no-audit --fund=false`,
+then return to the repository root. See [dependency maintenance](docs/factory/DEPENDENCY-MAINTENANCE.md).
+
 Production tests require a private `TEST_DATABASE_URL` for a disposable database
 whose name ends with `_test`. They drop tables. Run the production build and
 `test:production` before the production browser check; its local TLS proxy needs
