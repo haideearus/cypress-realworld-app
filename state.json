@@ -34,7 +34,8 @@
       52,
       53,
       55,
-      60
+      60,
+      62
     ]
   },
   "tickets": {
@@ -838,6 +839,25 @@
         "passed": true
       },
       "feedback": "{\"head\":\"d0cfe4d4af8b362e536316447c6e2f15353ad8bb\",\"verdict\":\"pass\",\"summary\":\"The PR fixes the retained-dependency-version blind spot identified in PR #52's review. `inspectUpdate` now classifies every resulting lock entry of an affected package name as removed/added/retained/baseline by actually following changed selectors and reused dependency paths (via `followSelection`, cycle/bounded via a visited-pair set and 500-item limits), so a version that happens to equal a pre-existing baseline copy is no longer able to dodge the advisory check. `queryOsv` folds \\\"added\\\" and \\\"retained\\\" into the same rejecting bucket while keeping \\\"baseline\\\" advisories reported separately as `remainingBaseline`, and `cleared` is only ever derived from removed-side IDs not also present in baseline, so a cleared ID is guaranteed absent from every resulting version (including retained/added, since the function throws before computing the result if either is vulnerable). `validateReport` strictly requires `version: 2` and the new `changed/candidateVersions/cleared/remainingBaseline` shape, and this is reused unmodified by `policy.reserve`/`DependencyMerger`, so historical v1 ledger analysis records remain readable but cannot authorize a new review or premerge (covered by a dedicated regression in factory-dependency-policy.test.cjs that triggers through `policy.reserve`'s `validateReport` call). Evidence collection (`dependency-evidence.cjs`) verifies registry source/integrity and OSV advisory records for all non-removed sides including retained/baseline, with strict parsing and size/count bounds that fail closed on malformed, oversized, or inconsistent data. The yarn.lock patch is minimal and verified: the two previously-separate form-data selectors (`^4.0.0`→4.0.1 and `^4.0.4`/`~4.0.4`→4.0.4) are consolidated into one `form-data@^4.0.0, ^4.0.4, ~4.0.4` entry at 4.0.6, with only the required `hasown` bump (new 2.0.4 entry alongside the untouched 2.0.2 one) and a `mime-types` selector widening that resolves to an already-present 2.1.35 entry; package.json, resolutions, and the private parser-tool lock are untouched. A real regression test exercises the installed `form-data` package for the multipart CRLF header-injection bug directly. Operational boundaries (factory switches false, no workflow/ledger/policy changes, no model invocation) are respected — only dependency-analysis/evidence/run scripts, tests, and docs changed.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"dependency-run.cjs's analyze() path calls queryOsv without details=true and discards osv.packages, so the analysis/premerge CI-bound report only carries changed/candidateVersions/cleared/remainingBaseline (as intended for v2), but relies entirely on dependency-evidence.cjs's separate collectEvidence() call to supply the reviewer with per-package side/advisory detail. This split is consistent with the ticket but worth double-checking in the real workflow wiring (not part of this diff) that both the analysis-stage report and the evidence packet are always produced from the same inventory/queries so they can't diverge.\"}]}"
+    },
+    "62": {
+      "coding": 1,
+      "origin": "drill",
+      "reviews": 0,
+      "retries": 0,
+      "head": "5f69e0fd05e775b2d91d7f2cb51cf82d92955fcf",
+      "status": "coding",
+      "pr": null,
+      "approval": null,
+      "drill": {
+        "runId": "43758627673",
+        "runAttempt": 1,
+        "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-monitor-drill.yml@refs/heads/main",
+        "workflowSha": "ad0022b614c5b4b6446ed80606657a7594d3a99e",
+        "seedSha": "5f69e0fd05e775b2d91d7f2cb51cf82d92955fcf",
+        "incidentId": "3c214d40-5b7d-4abe-a9cd-04f84a18af68"
+      },
+      "criteriaHash": "0ea17b711531dc1e849625b395c7a85b80232a75ed559d9f0222fc45f1b951ff"
     }
   },
   "grants": {
@@ -1309,9 +1329,24 @@
       "status": "finished",
       "at": "2026-11-15T19:18:48.133Z",
       "outcome": "reviewed"
+    },
+    "12b3b08a-16c4-4579-b32c-5d1da0d8d75e": {
+      "id": "12b3b08a-16c4-4579-b32c-5d1da0d8d75e",
+      "ticket": 62,
+      "phase": "code",
+      "slot": "drill",
+      "runId": "43758627673",
+      "runAttempt": 1,
+      "head": "5f69e0fd05e775b2d91d7f2cb51cf82d92955fcf",
+      "status": "reserved",
+      "at": "2026-11-15T20:34:22.546Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 62,
+    "runId": "43758627673",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -2057,6 +2092,15 @@
       "grant": "c2882d6b-6e90-4234-a133-e2cce900d07d",
       "status": "reviewed",
       "head": "1327b536eccb60bb0d66222ddbe008d54005c396"
+    },
+    {
+      "at": "2026-11-15T20:34:22.546Z",
+      "event": "reserved",
+      "ticket": 62,
+      "grant": "12b3b08a-16c4-4579-b32c-5d1da0d8d75e",
+      "phase": "code",
+      "runId": "43758627673",
+      "runAttempt": 1
     }
   ]
 }
