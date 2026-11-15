@@ -788,7 +788,11 @@
       "approval": null,
       "criteriaHash": "ff9ccf1614864fc5b6afed4daed4d65d07e64e6af918d7988929ee155eec3673",
       "branch": "agent/retained-dependency-advisories",
-      "ci": null
+      "ci": {
+        "requestId": "3f37f2b5-dc8f-4b10-9bf2-a9bec9f76cb4",
+        "head": "d0cfe4d4af8b362e536316447c6e2f15353ad8bb",
+        "runId": null
+      }
     }
   },
   "grants": {
