@@ -177,7 +177,9 @@ function inspectUpdate(baseManifest, headManifest, baseLock, headLock, tools) {
       a.dependencies?.[name] || a.devDependencies?.[name] || a.optionalDependencies?.[name];
     const previous = old[name + "@" + previousRange];
     if (!previous) fail("Incomplete base root dependency edge");
-    compatible(previous.version, e.version, semver);
+    // Existing prerelease baselines may stay unchanged. New/changed entries are
+    // validated above; changed root resolutions still need the full version gate.
+    if (previous.version !== e.version) compatible(previous.version, e.version, semver);
   }
   const inventory = (obj) =>
     new Map(
