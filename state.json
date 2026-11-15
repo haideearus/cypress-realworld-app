@@ -529,7 +529,11 @@
       "approval": null,
       "criteriaHash": "ba8f4e5397e1b5d48dca1d72ef6f1cd0ff96876167871716621558b1e2b2662c",
       "branch": "agent/synthetic-user-app-checks",
-      "ci": null
+      "ci": {
+        "requestId": "473a590d-515c-4304-a87f-84b77a03c6dd",
+        "head": "1cd816e56e20964604c4e44eaba072f6f6b7830f",
+        "runId": null
+      }
     }
   },
   "grants": {
