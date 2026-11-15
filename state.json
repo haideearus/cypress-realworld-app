@@ -747,6 +747,15 @@
             "GHSA-xx6v-rp6x-q39c"
           ]
         }
+      },
+      "merge": {
+        "status": "merged",
+        "head": "1327b536eccb60bb0d66222ddbe008d54005c396",
+        "pr": 52,
+        "at": "2026-11-15T20:16:23.091Z",
+        "runId": "43757073329",
+        "runAttempt": 1,
+        "mergeCommit": "ad0022b614c5b4b6446ed80606657a7594d3a99e"
       }
     },
     "53": {
