@@ -29,6 +29,47 @@ const lock = (version = "1.0.0", edges = "") =>
 const inspect = (a = lock(), b = lock("1.0.1"), ma = manifest(), mb = ma) =>
   inspectUpdate(ma, mb, a, b, tools);
 
+const legacyPrerelease = (version = "5.0.0-alpha.175") =>
+  `\n"@mui/lab@^5.0.0-alpha.167":\n  version "${version}"\n  resolved "https://registry.npmjs.org/@mui/lab/-/lab-${version}.tgz"\n  integrity ${sri}\n`;
+const manifestWithLegacyPrerelease = manifest("^1.0.0", {
+  dependencies: { foo: "^1.0.0", "@mui/lab": "^5.0.0-alpha.167" },
+});
+
+test("unchanged prerelease root baseline permits an unrelated stable update", () => {
+  const result = inspect(
+    lock() + legacyPrerelease(),
+    lock("1.0.1") + legacyPrerelease(),
+    manifestWithLegacyPrerelease,
+    manifestWithLegacyPrerelease
+  );
+  assert.deepEqual(result.queries, [
+    { name: "foo", version: "1.0.0", side: "removed" },
+    { name: "foo", version: "1.0.1", side: "added" },
+  ]);
+});
+
+test("upgrading an existing prerelease root remains held", () => {
+  assert.throws(
+    () =>
+      inspect(
+        lock() + legacyPrerelease(),
+        lock("1.0.1") + legacyPrerelease("5.0.0-alpha.176"),
+        manifestWithLegacyPrerelease,
+        manifestWithLegacyPrerelease
+      ),
+    /version/i
+  );
+});
+
+test("the actual app manifest and lock form a valid unchanged baseline", () => {
+  const fs = require("node:fs"),
+    path = require("node:path");
+  const root = path.resolve(__dirname, "../..");
+  const m = fs.readFileSync(path.join(root, "package.json"), "utf8");
+  const l = fs.readFileSync(path.join(root, "yarn.lock"), "utf8");
+  assert.deepEqual(inspect(l, l, m, m), { changed: 0, queries: [] });
+});
+
 test("changed parent selector cannot hide a major child edge", () => {
   const children =
     '\n"bar@^1.0.0":\n  version "1.0.0"\n  resolved "https://registry.npmjs.org/bar/-/bar-1.0.0.tgz"\n  integrity ' +
