@@ -624,9 +624,9 @@
       "reviews": 0,
       "retries": 0,
       "origin": "dependency-pr",
-      "head": "660dbd10925a7907098534842bd6e26f700c55bc",
+      "head": "5b3d4c0a7580d93ef148996e0dacf30fbfe2e5fa",
       "pr": 52,
-      "status": "blocked",
+      "status": "new",
       "approval": null,
       "branch": "dependabot/npm_and_yarn/axios-0.35.0",
       "criteriaHash": "19ef877c259fcbe42601558f3afe4a283c62664c92a794578d5ae77e35baa500",
@@ -646,6 +646,14 @@
             "runAttempt": 1,
             "workflowSha": "8363e411eb9e766f777f26031f2765e2e4cbe223",
             "at": "2026-11-15T12:22:16.938Z"
+          },
+          {
+            "head": "5b3d4c0a7580d93ef148996e0dacf30fbfe2e5fa",
+            "base": "a013f61ba98c733025d3eed06daa31a2add20639",
+            "runId": "43717816985",
+            "runAttempt": 1,
+            "workflowSha": "a013f61ba98c733025d3eed06daa31a2add20639",
+            "at": "2026-11-15T13:13:05.738Z"
           }
         ]
       },
@@ -1079,7 +1087,11 @@
       "outcome": "reviewed"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 52,
+    "runId": "43717816985",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -1702,6 +1714,13 @@
       "grant": "291c280c-01be-4553-a6dd-d188808861e1",
       "status": "reviewed",
       "head": "797b28e18b6ee0f5a832a11c39277f717707d4eb"
+    },
+    {
+      "at": "2026-11-15T13:13:05.738Z",
+      "event": "dependency_metadata_admitted",
+      "ticket": 52,
+      "head": "5b3d4c0a7580d93ef148996e0dacf30fbfe2e5fa",
+      "runId": "43717816985"
     }
   ]
 }
