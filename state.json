@@ -524,9 +524,17 @@
       "reviews": 1,
       "retries": 0,
       "head": "1cd816e56e20964604c4e44eaba072f6f6b7830f",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 47,
-      "approval": null,
+      "approval": {
+        "head": "1cd816e56e20964604c4e44eaba072f6f6b7830f",
+        "pr": 47,
+        "grant": "55485980-b4d5-4226-b38e-72f3b0799f0d",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/43686528902"
+      },
       "criteriaHash": "ba8f4e5397e1b5d48dca1d72ef6f1cd0ff96876167871716621558b1e2b2662c",
       "branch": "agent/synthetic-user-app-checks",
       "ci": {
@@ -534,7 +542,8 @@
         "head": "1cd816e56e20964604c4e44eaba072f6f6b7830f",
         "runId": 43686571893,
         "passed": true
-      }
+      },
+      "feedback": "{\"head\":\"1cd816e56e20964604c4e44eaba072f6f6b7830f\",\"verdict\":\"pass\",\"summary\":\"Reviewed the synthetic-user API journey addition (app-checks.cjs, app-checks-probe.cjs, app-checks-contract.cjs, app-checks-budget.cjs, app-checks-scan.cjs, factory-monitor.yml, monitor.cjs changes, docs, and tests) against ticket #46's acceptance criteria. The probe hits only the four fixed endpoints (login/checkAuth/transactions/public/logout) against a hardcoded APP_URL with no URL override, rejects unsafe cookies (requires Secure+HttpOnly), never follows redirects (redirect:\\\"manual\\\", credentials:\\\"omit\\\"), bounds body size/timeouts/retries, and always attempts logout cleanup. The credential-free report is a strict enum/count/provenance structure validated against current run/workflow/freshness before use, written/read with symlink/hardlink/TOCTOU-safe file handling. The workflow isolates secrets so the checker step gets only the two account secrets (no GitHub token/Claude credential/App key/deploy hook) and the publisher step gets the GitHub token but explicitly rejects any run where account credentials leaked into its env; job/workflow permissions, schedule, dedup/incident caps, and legacy (no-appChecks) observation paths are all preserved and covered by tests (factory-monitor-workflow.test.cjs, factory-app-checks*.test.cjs, factory-monitor.test.cjs). FACTORY_APP_CHECKS_ENABLED defaults to false and the three agent-enablement switches are untouched. A real disposable-app integration test (production-integration.test.cjs) exercises the actual probe against a local compiled server/Postgres instance, mapping only the test transport's fetch to localhost rather than touching production. Docs in docs/factory/APP-CHECKS.md accurately describe scope, secrets, rollout, and limitations without embedding credentials. No credentials, policy changes, production access, or unauthorized agent/provider usage were found in the diff.\",\"findings\":[]}"
     }
   },
   "grants": {
@@ -883,15 +892,12 @@
       "runId": "43686528902",
       "runAttempt": 1,
       "head": "1cd816e56e20964604c4e44eaba072f6f6b7830f",
-      "status": "reserved",
-      "at": "2026-11-15T06:40:51.012Z"
+      "status": "finished",
+      "at": "2026-11-15T06:40:51.012Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 46,
-    "runId": "43686528902",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -1424,6 +1430,14 @@
       "phase": "review",
       "runId": "43686528902",
       "runAttempt": 1
+    },
+    {
+      "at": "2026-11-15T06:52:04.898Z",
+      "event": "finished",
+      "ticket": 46,
+      "grant": "55485980-b4d5-4226-b38e-72f3b0799f0d",
+      "status": "reviewed",
+      "head": "1cd816e56e20964604c4e44eaba072f6f6b7830f"
     }
   ]
 }
