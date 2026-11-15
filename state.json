@@ -846,7 +846,7 @@
       "reviews": 0,
       "retries": 0,
       "head": "5f69e0fd05e775b2d91d7f2cb51cf82d92955fcf",
-      "status": "coding",
+      "status": "drill_complete",
       "pr": null,
       "approval": null,
       "drill": {
@@ -857,7 +857,8 @@
         "seedSha": "5f69e0fd05e775b2d91d7f2cb51cf82d92955fcf",
         "incidentId": "3c214d40-5b7d-4abe-a9cd-04f84a18af68"
       },
-      "criteriaHash": "0ea17b711531dc1e849625b395c7a85b80232a75ed559d9f0222fc45f1b951ff"
+      "criteriaHash": "0ea17b711531dc1e849625b395c7a85b80232a75ed559d9f0222fc45f1b951ff",
+      "feedback": "Isolated drill verified; no production approval, PR or deployment."
     }
   },
   "grants": {
@@ -1338,15 +1339,12 @@
       "runId": "43758627673",
       "runAttempt": 1,
       "head": "5f69e0fd05e775b2d91d7f2cb51cf82d92955fcf",
-      "status": "reserved",
-      "at": "2026-11-15T20:34:22.546Z"
+      "status": "finished",
+      "at": "2026-11-15T20:34:22.546Z",
+      "outcome": "drill_complete"
     }
   },
-  "active": {
-    "ticket": 62,
-    "runId": "43758627673",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -2101,6 +2099,14 @@
       "phase": "code",
       "runId": "43758627673",
       "runAttempt": 1
+    },
+    {
+      "at": "2026-11-15T20:37:04.844Z",
+      "event": "finished",
+      "ticket": 62,
+      "grant": "12b3b08a-16c4-4579-b32c-5d1da0d8d75e",
+      "status": "drill_complete",
+      "head": "5f69e0fd05e775b2d91d7f2cb51cf82d92955fcf"
     }
   ]
 }
