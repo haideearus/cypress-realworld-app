@@ -34,7 +34,7 @@ function compatible(a, b, semver) {
   if (semver.major(a) !== semver.major(b)) fail("Dependency major update held");
   if (semver.lt(b, a)) fail("Dependency downgrade held");
 }
-function inspectUpdate(baseManifest, headManifest, baseLock, headLock, tools) {
+function inspectUpdate(baseManifest, headManifest, baseLock, headLock, tools, details = false) {
   const { lockfile, semver } = tools;
   const a = json(baseManifest),
     b = json(headManifest);
@@ -195,7 +195,22 @@ function inspectUpdate(baseManifest, headManifest, baseLock, headLock, tools) {
     ...[...ni].filter(([k]) => !oi.has(k)).map(([, e]) => ({ ...e, side: "added" })),
   ];
   if (queries.length > 500) fail("Dependency update exceeds inventory limit");
-  return { changed: queries.length, queries };
+  const result = { changed: queries.length, queries };
+  if (details) {
+    result.registryEntries = queries
+      .filter((q) => q.side === "added")
+      .map((q) => ({
+        name: q.name,
+        version: q.version,
+        entries: Object.entries(next)
+          .filter(([s, e]) => inventoryName(s) === q.name && e.version === q.version)
+          .map(([s, e]) => {
+            validateEntry(s, e);
+            return { resolved: e.resolved, integrity: e.integrity };
+          }),
+      }));
+  }
+  return result;
 }
 async function boundedJSON(response) {
   if (!response.ok) fail("OSV unavailable");
@@ -221,7 +236,7 @@ async function boundedJSON(response) {
     reader.releaseLock();
   }
 }
-async function queryOsv(queries, transport = fetch) {
+async function queryOsv(queries, transport = fetch, details = false) {
   if (
     !Array.isArray(queries) ||
     queries.length > 500 ||
@@ -237,6 +252,7 @@ async function queryOsv(queries, transport = fetch) {
     fail("Invalid OSV query");
   const old = new Set(),
     added = new Set();
+  const packages = [];
   for (let start = 0; start < queries.length; start += 100) {
     const batch = queries.slice(start, start + 100);
     let r;
@@ -274,10 +290,15 @@ async function queryOsv(queries, transport = fetch) {
           fail("Invalid OSV response identifier");
         (batch[i].side === "added" ? added : old).add(v.id);
       }
+      if (details)
+        packages.push({
+          ...batch[i],
+          vulnerabilities: (item.vulns || []).map((v) => ({ id: v.id, modified: v.modified })),
+        });
     });
   }
   if (added.size) fail("Known vulnerable dependency version introduced");
-  return { fixed: [...old].sort() };
+  return { fixed: [...old].sort(), ...(details ? { packages } : {}) };
 }
 const keys = [
   "version",

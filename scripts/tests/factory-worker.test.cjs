@@ -34,6 +34,135 @@ function repo(t) {
   return { cwd, head: git("rev-parse", "HEAD") };
 }
 test("isolated worker adapter exists", () => assert.ok(worker, "missing model worker adapter"));
+
+test("dependency worker supplies fresh exact-commit facts without adding model tools or rewriting history", async (t) => {
+  const app = repo(t);
+  const runGit = (...args) => execFileSync("git", args, { cwd: app.cwd, encoding: "utf8" }).trim();
+  const integrity = "sha512-" + Buffer.alloc(64, 1).toString("base64");
+  const writeVersion = (v) => {
+    fs.writeFileSync(
+      path.join(app.cwd, "package.json"),
+      JSON.stringify({ dependencies: { foo: v } })
+    );
+    fs.writeFileSync(
+      path.join(app.cwd, "yarn.lock"),
+      `foo@${v}:\n  version "${v}"\n  resolved "https://registry.npmjs.org/foo/-/foo-${v}.tgz"\n  integrity ${integrity}\n`
+    );
+    runGit("add", "package.json", "yarn.lock");
+    runGit("-c", "core.hooksPath=/dev/null", "commit", "-qm", v, "--no-gpg-sign");
+    return runGit("rev-parse", "HEAD");
+  };
+  const base = writeVersion("1.0.0"),
+    head = writeVersion("1.0.1");
+  const d = require("../factory/dependency-contract.cjs");
+  const a = require("../factory/dependency-analysis.cjs");
+  const lifecycle = require("../factory/dependency-policy.cjs");
+  const pr = {
+    number: 52,
+    state: "open",
+    draft: false,
+    user: { login: "dependabot[bot]", type: "Bot", id: 49699333 },
+    head: {
+      sha: head,
+      ref: "dependabot/npm_and_yarn/foo-1.0.1",
+      repo: { full_name: policy.REPOSITORY },
+    },
+    base: { sha: base, ref: "main", repo: { full_name: policy.REPOSITORY } },
+  };
+  const fixture = new FactoryFixture();
+  const backing = new GitHub({ token: "fixture-only", fetch: fixture.fetch });
+  let changedMain = false;
+  const api = {
+    request: async (method, route, ...args) => {
+      if (route.endsWith("/pulls/52")) return structuredClone(pr);
+      if (route.endsWith("/pulls/52/files?per_page=3"))
+        return [
+          { filename: "package.json", status: "modified" },
+          { filename: "yarn.lock", status: "modified" },
+        ];
+      if (route.endsWith("/git/ref/heads/main"))
+        return { object: { sha: changedMain ? "f".repeat(40) : base } };
+      return backing.request(method, route, ...args);
+    },
+  };
+  const ledger = new Ledger(api);
+  await ledger.initialize();
+  const config = policy.readConfig({
+    ...vars,
+    FACTORY_AUTOMATION_ENABLED: "true",
+    FACTORY_GITHUB_APP_SLUG: "factory-example",
+    FACTORY_GITHUB_APP_CLIENT_ID: "Iv123456789",
+  });
+  const ctx = {
+    ...context,
+    ticket: 52,
+    phase: "review",
+    slot: "dependency",
+    head,
+    workflowRef: d.WORKFLOW,
+    workflowSha: base,
+  };
+  const saved = await ledger.update((state) => {
+    const next = lifecycle.claimDependency(state, pr, ctx, config);
+    next.tickets["52"].analysis = a.reportFor(
+      {
+        repository: policy.REPOSITORY,
+        pr: 52,
+        base,
+        head,
+        workflowSha: base,
+        runId: ctx.runId,
+        runAttempt: 1,
+        stage: "analysis",
+        toolDigest: a.toolDigest(),
+      },
+      { changed: 2, fixed: [] }
+    );
+    next.tickets["52"].ci = { head, passed: true, runId: 501 };
+    return lifecycle.reserveDependencyReview(next, ctx, config);
+  });
+  const options = {
+    grantId: saved.grant.id,
+    cwd: app.cwd,
+    environment: {},
+    transport: async (url) =>
+      new Response(
+        JSON.stringify(
+          url.endsWith("querybatch")
+            ? { results: [{}, {}] }
+            : {
+                name: "foo",
+                version: "1.0.1",
+                dist: {
+                  tarball: "https://registry.npmjs.org/foo/-/foo-1.0.1.tgz",
+                  integrity,
+                },
+              }
+        )
+      ),
+  };
+  const before = (await ledger.read()).commit;
+  const result = await worker.prepare(api, config, ctx, options);
+  const input = JSON.parse(fs.readFileSync(path.join(app.cwd, ".factory-input/context.json")));
+  assert.equal(
+    input.dependencyFacts?.registry?.[0]?.version,
+    "1.0.1",
+    "reviewer is missing current registry facts"
+  );
+  assert.equal(input.dependencyFacts.base, base);
+  assert.equal(input.dependencyFacts.head, head);
+  assert.deepEqual(
+    JSON.parse(fs.readFileSync(path.join(app.cwd, ".factory-input/dependency-facts.json"))),
+    input.dependencyFacts
+  );
+  assert.deepEqual(input.capabilities.fileTools, ["Read", "Glob", "Grep"]);
+  assert.deepEqual(input.capabilities.shellCommands, []);
+  assert.ok(result.claudeArgs.includes('--tools "Read,Glob,Grep"'));
+  assert.equal((await ledger.read()).commit, before);
+  changedMain = true;
+  await assert.rejects(worker.prepare(api, config, ctx, options), /base|main/i);
+  assert.equal((await ledger.read()).commit, before);
+});
 test("prepared worker is fresh, restricted and bound to a committed reservation", async (t) => {
   const app = repo(t);
   const fixture = new FactoryFixture();
