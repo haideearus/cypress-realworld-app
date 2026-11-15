@@ -106,12 +106,13 @@ real issue and source run before repairing state in an owner-reviewed operation.
 The monitor deliberately does not retry an uncertain publication or trust a
 receipt from a failed source run. Do not delete the registry or reset counters.
 
-A healthy observation records recovery without claiming a particular PR fixed
-the outage. The issue stays open for the owner to assess the evidence. Once it is
-closed and a healthy check is observed, the monitor can create a future incident.
-Closing it during a continuing outage cannot immediately create another ticket.
-Automatic resolution tied to deployed repair evidence and generic stale-run
-recovery remain a later stage.
+A healthy observation alone does not prove a deployed repair. The
+[#63 acceptance setup](MONITOR-TO-REPAIR-ACCEPTANCE.md) adds verified automatic
+retirement after genuine review/merge, named-approved exact-release deployment
+and fresh matching probes. It persists close intent and confirms the exact issue
+is completed before clearing the active pointer; usage and original criteria stay
+intact. Missing proof yields `recovery_held`. Manual closure alone cannot rearm the
+production registry. Generic stale-run recovery remains separate.
 
 To stop new monitoring work, save `FACTORY_MONITOR_ENABLED=false`; also cancel an
 active monitor run if needed because GitHub can snapshot variables. To stop agent

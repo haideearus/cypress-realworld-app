@@ -11,12 +11,31 @@ const iso = (value) =>
   Number.isFinite(Date.parse(value)) &&
   new Date(value).toISOString() === value;
 function validateAppChecks(result) {
+  const contract = result && Object.hasOwn(result, "feedContract");
+  const releasesValid =
+    !contract ||
+    (exact(result.releases, "before,after") &&
+      Object.values(result.releases).every(
+        (s) => s === null || (typeof s === "string" && SHA.test(s))
+      ));
+  const releaseStable =
+    contract &&
+    releasesValid &&
+    result.releases.before !== null &&
+    result.releases.before === result.releases.after;
   if (
-    !exact(result, "healthy,checks,attempts") ||
+    !exact(
+      result,
+      contract ? "healthy,checks,attempts,feedContract,releases" : "healthy,checks,attempts"
+    ) ||
+    !releasesValid ||
     !exact(result.checks, "login,session,feed,logout") ||
     typeof result.healthy !== "boolean" ||
     !Object.values(result.checks).every((v) => ["ok", "failed"].includes(v)) ||
-    result.healthy !== Object.values(result.checks).every((v) => v === "ok") ||
+    (contract && !["ok", "failed"].includes(result.feedContract)) ||
+    result.healthy !==
+      (Object.values(result.checks).every((v) => v === "ok") &&
+        (!contract || (result.feedContract === "ok" && releaseStable))) ||
     !Number.isInteger(result.attempts) ||
     result.attempts < 1 ||
     result.attempts > 3
@@ -46,7 +65,7 @@ function monitorContext(env) {
 function validateReport(report, context, now = new Date().toISOString()) {
   if (
     !exact(report, "version,repository,runId,runAttempt,workflowSha,at,result") ||
-    report.version !== 1 ||
+    report.version !== (Object.hasOwn(report.result || {}, "feedContract") ? 2 : 1) ||
     report.repository !== REPOSITORY ||
     context.repository !== REPOSITORY ||
     report.runId !== context.runId ||
@@ -65,7 +84,7 @@ function validateReport(report, context, now = new Date().toISOString()) {
 }
 function makeReport(result, context, at = new Date().toISOString()) {
   const report = {
-    version: 1,
+    version: Object.hasOwn(result, "feedContract") ? 2 : 1,
     repository: context.repository,
     runId: context.runId,
     runAttempt: context.runAttempt,
@@ -113,7 +132,17 @@ function readReport(env, context, now = new Date().toISOString()) {
     const buffer = Buffer.alloc(8193),
       count = fs.readSync(fd, buffer, 0, buffer.length, 0);
     if (count > 8192) throw Error();
-    return validateReport(JSON.parse(buffer.subarray(0, count).toString("utf8")), context, now);
+    const result = validateReport(
+      JSON.parse(buffer.subarray(0, count).toString("utf8")),
+      context,
+      now
+    );
+    if (
+      Object.hasOwn(result, "feedContract") !==
+      appChecksEnabled(env.FACTORY_FEED_CONTRACT_CHECK_ENABLED)
+    )
+      throw Error("App-check mode does not match this run");
+    return result;
   } catch {
     throw Error("Invalid or unavailable app-check report");
   } finally {

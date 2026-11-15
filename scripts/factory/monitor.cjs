@@ -57,9 +57,13 @@ function issueText(incident, observation) {
   const signedIn = observation.appChecks
     ? `Signed-in API checks: login=${observation.appChecks.checks.login}; session=${observation.appChecks.checks.session}; feed=${observation.appChecks.checks.feed}; logout=${observation.appChecks.checks.logout}.\n\n`
     : "";
+  const contract =
+    observation.appChecks?.feedContract !== undefined
+      ? `Pagination contract check: ${observation.appChecks.feedContract}. Reproduction: the dedicated signed-in journey reads GET /api/transactions/public?page=1&limit=0 after the normal page=1&limit=5 control. Require bounded JSON 400/422 rejection or coherent positive bounded pagination; HTTP 200 with totalPages=null is invalid.\n\n`
+      : "";
   return {
     title: "Production monitor: investigate failed public checks",
-    body: `## Observed incident\n\nThe fixed ${observation.appChecks ? "production" : "public production"} probes failed after bounded cold-start retries.\n\nIncident: ${incident.id}\nObserved at: ${incident.at}\nChecks: health=${observation.checks.health}; readiness=${observation.checks.readiness}; frontend=${observation.checks.frontend}.\n${signedIn}Evidence: https://github.com/${REPOSITORY}/actions/runs/${incident.source.runId}\n\n## Bounded maintenance task\n\nInvestigate the application cause using repository code and disposable local tests. A provider outage, free-plan quota, cold start, credential problem or configuration issue may have no code fix. If so, stop with evidence and request owner attention; do not invent a repair.\n\nFor a reproducible application bug, demonstrate a failing regression test, implement the smallest repair and show it passing. Preserve independent review, existing scope restrictions and named human production approval.\n\nDo not change the harness, limits, hosting plan, credentials or production data. Do not run database-seeding tests against production. Do not enable paid APIs. Do not edit this issue's title or body after admission; put additional observations in comments.\n\n## Acceptance criteria\n\n- Explain the reproducible application failure or the evidence for an operator/provider issue.\n- For code changes, preserve failing-before and passing-after test evidence and relevant existing tests.\n- No unverified recovery claim: deployment still requires the owner's approval and public checks afterward.\n`,
+    body: `## Observed incident\n\nThe fixed ${observation.appChecks ? "production" : "public production"} probes failed after bounded cold-start retries.\n\nIncident: ${incident.id}\nObserved at: ${incident.at}\nChecks: health=${observation.checks.health}; readiness=${observation.checks.readiness}; frontend=${observation.checks.frontend}.\n${signedIn}${contract}Evidence: https://github.com/${REPOSITORY}/actions/runs/${incident.source.runId}\n\n## Bounded maintenance task\n\nInvestigate the application cause using repository code and disposable local tests. A provider outage, free-plan quota, cold start, credential problem or configuration issue may have no code fix. If so, stop with evidence and request owner attention; do not invent a repair.\n\nFor a reproducible application bug, demonstrate a failing regression test, implement the smallest repair and show it passing. Preserve independent review, existing scope restrictions and named human production approval.\n\nDo not change the harness, limits, hosting plan, credentials or production data. Do not run database-seeding tests against production. Do not enable paid APIs. Do not edit this issue's title or body after admission; put additional observations in comments.\n\n## Acceptance criteria\n\n- Explain the reproducible application failure or the evidence for an operator/provider issue.\n- For code changes, preserve failing-before and passing-after test evidence and relevant existing tests.\n- No unverified recovery claim: deployment still requires the owner's approval and public checks afterward.\n`,
   };
 }
 async function monitor({
@@ -86,7 +90,7 @@ async function monitor({
           appChecks,
         });
   if (dryRun) return { outcome: "preview", observation };
-  return observeIncident({ api, context, store, observation, now });
+  return observeIncident({ api, context, store, observation, now, verifiedRetirement: true });
 }
 async function observeIncident({
   api,
@@ -96,6 +100,7 @@ async function observeIncident({
   now = () => new Date().toISOString(),
   issueText: renderIssueText = issueText,
   labels = ["factory-ready"],
+  verifiedRetirement = false,
 }) {
   observation = validateObservation(observation);
   const at = now();
@@ -117,6 +122,37 @@ async function observeIncident({
       issue.pull_request
     )
       throw new Error("Monitor issue identity changed");
+    if (active.probeMode === "feed-contract" && observation.appChecks?.feedContract === undefined)
+      return { outcome: "required_probe_missing", issue: active.issue, observation };
+    if (verifiedRetirement && observation.healthy) {
+      try {
+        const { retireIncident } = require("./monitor-recovery.cjs");
+        return await retireIncident({
+          api,
+          context,
+          store,
+          incident: active,
+          issue,
+          observation,
+          now,
+        });
+      } catch {
+        // A healthy observation is not evidence that this incident's code repair
+        // was reviewed, approved, deployed and observed on its required probes.
+        const latest = await store.read();
+        const held = latest.state.incidents[active.id];
+        if (latest.state.active === active.id && held && !held.retirement && !held.recovered) {
+          held.recovered = true;
+          await store.save(latest.state, latest.commit);
+        }
+        return {
+          outcome: "recovery_held",
+          issue: active.issue,
+          observation,
+          reason: "Repair/deployment proof missing, changed, or closure unconfirmed",
+        };
+      }
+    }
     const changed = active.recovered !== observation.healthy;
     active.recovered = observation.healthy;
     if (observation.healthy && issue.state === "closed") state.active = null;
@@ -149,6 +185,7 @@ async function observeIncident({
     },
     criteriaHash: "",
     issue: null,
+    ...(observation.appChecks?.feedContract !== undefined ? { probeMode: "feed-contract" } : {}),
   };
   const text = renderIssueText(incident, observation);
   incident.criteriaHash = createHash("sha256")
@@ -197,12 +234,18 @@ async function main(env = process.env) {
     const enabled = boolean(env.FACTORY_MONITOR_ENABLED, false);
     const dryRun =
       env.GITHUB_EVENT_NAME === "schedule" ? false : boolean(env.MONITOR_DRY_RUN, true);
+    if (
+      (enabled || dryRun) &&
+      appChecksEnabled(env.FACTORY_FEED_CONTRACT_CHECK_ENABLED) &&
+      !appChecksEnabled(env.FACTORY_APP_CHECKS_ENABLED)
+    )
+      throw Error("Feed contract requires the synthetic API journey");
     const checked =
       appChecksEnabled(env.FACTORY_APP_CHECKS_ENABLED) && (enabled || dryRun)
         ? readReport(env, context)
         : undefined;
     result = await monitor({
-      api: new GitHub({ token: env.GITHUB_TOKEN, ...(checked ? { fetch: publisherFetch() } : {}) }),
+      api: new GitHub({ token: env.GITHUB_TOKEN, fetch: publisherFetch() }),
       context,
       enabled,
       dryRun,

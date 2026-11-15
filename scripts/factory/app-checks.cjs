@@ -35,10 +35,13 @@ async function main(
     )
       throw Error("Unrelated credentials are forbidden");
     credentials(env.FACTORY_MONITOR_USERNAME, env.FACTORY_MONITOR_PASSWORD);
+    const feedContract = appChecksEnabled(env.FACTORY_FEED_CONTRACT_CHECK_ENABLED);
     const checked = await probe({
       username: env.FACTORY_MONITOR_USERNAME,
       password: env.FACTORY_MONITOR_PASSWORD,
+      feedContract,
     });
+    if (Object.hasOwn(checked, "feedContract") !== feedContract) throw Error("Probe mode mismatch");
     const report = makeReport(checked, context, now());
     writeReport(env, report);
     const result = { outcome: "checked", result: report.result };

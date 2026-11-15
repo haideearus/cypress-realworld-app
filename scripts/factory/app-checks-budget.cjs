@@ -1,5 +1,6 @@
 const LIMITS = Object.freeze({
   request: 10000,
+  contractRequest: 6000,
   retryDelay: 30000,
   retryGuard: 1000,
   attempts: 3,
@@ -8,9 +9,12 @@ const LIMITS = Object.freeze({
   availability: 152000,
   job: 480000,
 });
-function phaseBudgets() {
+function phaseBudgets({ feedContract = false } = {}) {
+  if (typeof feedContract !== "boolean") throw Error("Invalid contract mode");
   const journey =
-    LIMITS.attempts * 5 * LIMITS.request +
+    LIMITS.attempts *
+      (feedContract ? 8 : 5) *
+      (feedContract ? LIMITS.contractRequest : LIMITS.request) +
     (LIMITS.attempts - 1) * (LIMITS.retryDelay + LIMITS.retryGuard);
   return {
     journey,
