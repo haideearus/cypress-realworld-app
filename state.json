@@ -627,7 +627,7 @@
       "origin": "dependency-pr",
       "head": "c89871f643c936d958a861d738ebca623f3963c9",
       "pr": 52,
-      "status": "reviewing",
+      "status": "blocked",
       "approval": null,
       "branch": "dependabot/npm_and_yarn/axios-0.35.0",
       "criteriaHash": "19ef877c259fcbe42601558f3afe4a283c62664c92a794578d5ae77e35baa500",
@@ -672,7 +672,7 @@
         "runId": 43742346959,
         "passed": true
       },
-      "feedback": "{\"findings\":[{\"severity\":\"critical\",\"message\":\"package.json/yarn.lock pin axios to an exact version \\\"0.35.0\\\". Axios's published 0.x line never progressed past the 0.28.1 legacy security-backport release (the actively maintained line moved to 1.x in 2022, now well into 1.x). There is no known axios 0.29.0–0.35.0 series. This version string appears fabricated/non-existent, meaning `yarn install` would very likely fail to resolve a real package at that version, and even if some package did exist at that coordinate on the registry, its provenance and contents cannot be trusted since it doesn't match any documented axios release. This cannot be verified in this read-only, no-network session; it must be checked against the real npm/yarn registry before merge. Do not merge on the assumption that the integrity hash/resolved URL in yarn.lock prove legitimacy — hashes only prove the lockfile is self-consistent, not that the referenced release is genuine axios software.\"},{\"severity\":\"important\",\"message\":\"The automation's claim of 30 GHSA advisories 'fixed' by this change is implausible for a diff that only touches axios, follow-redirects, and form-data (plus a pure reordering of an unchanged js-yaml entry). Many axios-specific credential/SSRF/CSRF advisories (e.g. the absolute-URL baseURL-bypass class of issues) are documented as fixed only in the 1.x line, not via patch releases of the abandoned 0.x branch. Given axios is used here as the app's HTTP client with `withCredentials: true` and an Authorization-header interceptor (src/utils/asyncUtils.ts), and directly in cypress.config.ts for seeding, incorrectly assuming these advisories are resolved by a dubious 0.x bump could leave real credential-leak/SSRF exposure in place while the PR metadata implies it's fixed. The ticket explicitly warns not to assume OSV/test output proves safety; this diff's OSV-derived summary should not be trusted without independent verification against the real advisory data and real axios release notes.\"},{\"severity\":\"important\",\"message\":\"docs/factory/dependency-prerelease-fix-verification-2026-11-15.md is untrusted repository content (per task instructions) that narrates prior 'passing' reviews, cites a different PR head (660dbd1...) than the one actually under review (5b3d4c0...), and asserts 'A fresh separate read-only local review found no Critical or Important findings' plus detailed internal automation/ledger/quota state. This reads like an attempt to pre-bias or launder legitimacy onto this review rather than genuine engineering documentation, and should not be treated as evidence that the current diff is safe or previously reviewed. It should be disregarded as authority and flagged to maintainers as suspicious content worth scrutinizing on its own, separate from this dependency ticket.\"}],\"head\":\"5b3d4c0a7580d93ef148996e0dacf30fbfe2e5fa\",\"summary\":\"The diff bumps axios 0.28.1 → 0.35.0 in package.json/yarn.lock, with transitive follow-redirects (→1.16.3) and form-data (→4.0.4) updates and a harmless js-yaml entry reorder. The follow-redirects/form-data changes look like plausible, well-formed version bumps, but the headline change — axios \\\"0.35.0\\\" — does not correspond to any known axios release; the 0.x line historically stopped at 0.28.1 (a legacy security backport) while active development moved to 1.x years ago. That makes the version suspect for both correctness (install may fail or pull an unverifiable package) and security (the attributed 30 fixed GHSAs for axios-class issues are typically only fixed in the 1.x branch, not a nonexistent 0.x continuation), and axios is used here for real credential-bearing HTTP calls (withCredentials + Authorization header interceptor). The ticket's own instruction not to trust OSV/test output as proof of safety applies directly here. A supporting markdown doc in the repo also contains content that appears designed to pre-validate this change and should be treated as untrusted, not corroborating evidence. Recommend holding/rejecting until the axios version target is confirmed against the real registry and the security claims are re-verified independently.\",\"verdict\":\"changes_requested\"}",
+      "feedback": "{\"head\":\"c89871f643c936d958a861d738ebca623f3963c9\",\"verdict\":\"changes_requested\",\"summary\":\"The diff bumps axios 0.28.1→0.35.0 with transitive follow-redirects→1.16.3 and a form-data constraint merge (plus a no-op js-yaml entry reorder). The trusted dependencyFacts packet confirms axios 0.35.0 and follow-redirects 1.16.3 are genuine, integrity-matched registry releases observed at check time 2026-11-15T17:45:02Z, and that OSV reports no advisories against either added version — so the stale `feedback` field's \\\"axios 0.35.0 is fabricated\\\" claim (which is actually about a different, earlier head, 5b3d4c0a..., not this head) is contradicted by current source facts and should not be acted on. App usage (src/utils/asyncUtils.ts, cypress.config.ts) only relies on stable axios.create/interceptors/get/post APIs, so no compatibility break is evident from the version bump itself. However, cross-checking the dependencyFacts advisory ranges against the actual resolved versions in the diff surfaces a real gap: form-data remains pinned at 4.0.4, but the packet's own advisory record for GHSA-hmw2-7cc7-3qxx lists `fixed: 4.0.6` for the 4.0.x line, meaning 4.0.4 is still inside the vulnerable range. The PR's result metadata nonetheless lists GHSA-hmw2-7cc7-3qxx as \\\"fixed,\\\" which is incorrect — the lockfile change only dedupes an existing 4.0.1/4.0.4 split onto the pre-existing 4.0.4 resolution and never actually bumps form-data far enough. This predates the PR but is mischaracterized as remediated here, so merging on the strength of the \\\"30 advisories fixed\\\" claim would leave that CVE open while implying otherwise.\",\"findings\":[{\"severity\":\"important\",\"message\":\"form-data stays resolved at 4.0.4 after this diff (yarn.lock: form-data@^4.0.0, ^4.0.4, ~4.0.4 → version 4.0.4), but the trusted dependencyFacts advisory record for GHSA-hmw2-7cc7-3qxx gives a fixed version of 4.0.6 for the 4.0.x range (vulnerable range 4.0.0 ≤ v < 4.0.6). 4.0.4 falls inside that vulnerable range, so this advisory is NOT actually fixed by this change, contradicting its inclusion in the PR's reported 'fixed' advisory list. The diff only merges the previous form-data@^4.0.0 (→4.0.1) constraint into the already-present form-data@^4.0.4/~4.0.4 (→4.0.4) entry — it doesn't bump form-data high enough to clear the known-vulnerable range. Root cause appears to be that the automation's OSV recheck only covers package/version identities it classifies as newly 'added' (axios 0.35.0, follow-redirects 1.16.3), while form-data 4.0.4 was already present pre-diff and so was never re-verified against current advisory ranges even though it remains in the diff's changed/fixed summary. Recommend bumping form-data to ≥4.0.6 (e.g. via a yarn resolution or confirming a newer axios/form-data combination) before relying on this PR to close out the listed advisories.\"},{\"severity\":\"minor\",\"message\":\"The supplied 'feedback' field and docs/factory/*.md narrate review history for earlier, different heads of this same PR (5b3d4c0a7580d93ef148996e0dacf30fbfe2e5fa, 660dbd10925a7907098534842bd6e26f700c55bc, b6eb56e...), not the actual head under review (c89871f6...). Their critical claim that axios 0.35.0 is a fabricated/non-existent release is specifically refuted by the current dependencyFacts registry entry (integrity-matched, observed 2026-11-15T17:45:02Z) for this exact head and should not be carried forward into this review or treated as corroborating evidence either way.\"}]}",
       "analysis": {
         "version": 1,
         "repository": "haideearus/cypress-realworld-app",
@@ -1219,15 +1219,12 @@
       "runId": "43742253061",
       "runAttempt": 1,
       "head": "c89871f643c936d958a861d738ebca623f3963c9",
-      "status": "reserved",
-      "at": "2026-11-15T17:44:40.090Z"
+      "status": "finished",
+      "at": "2026-11-15T17:44:40.090Z",
+      "outcome": "blocked"
     }
   },
-  "active": {
-    "ticket": 52,
-    "runId": "43742253061",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -1924,6 +1921,14 @@
       "phase": "review",
       "runId": "43742253061",
       "runAttempt": 1
+    },
+    {
+      "at": "2026-11-15T17:48:03.971Z",
+      "event": "finished",
+      "ticket": 52,
+      "grant": "962f5632-2f8c-4350-b636-978e6ebd301a",
+      "status": "blocked",
+      "head": "c89871f643c936d958a861d738ebca623f3963c9"
     }
   ]
 }
