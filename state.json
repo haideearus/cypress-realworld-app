@@ -601,7 +601,11 @@
       "approval": null,
       "criteriaHash": "3a0051593cf0f87b53b6b2e0ea21ac42a8b50c2a8b931121387afb16206387a9",
       "branch": "agent/dependency-cve-automation",
-      "ci": null
+      "ci": {
+        "requestId": "21555ebc-5f8d-408d-869e-c59c78e35afa",
+        "head": "d74b7aa7478a839aa90be0ac986c0832f35d59bb",
+        "runId": null
+      }
     }
   },
   "grants": {
