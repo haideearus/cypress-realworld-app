@@ -33,7 +33,8 @@
       50,
       52,
       53,
-      55
+      55,
+      60
     ]
   },
   "tickets": {
@@ -775,6 +776,19 @@
         "passed": true
       },
       "feedback": "{\"head\":\"69f348f41aa5aabc226e1ed373cc6e86ddcfadd6\",\"verdict\":\"pass\",\"summary\":\"This revision is a focused follow-up to the prior changes_requested review at b6eb56e. It adds exactly the missing regression coverage: scripts/tests/factory-workflows.test.cjs now asserts the full step ordering (trusted checkout → trusted-parser install → helper preservation → scanner install → candidate checkout → prepare → context secret-scan → dependency-facts secret-scan → dependency-facts upload → model) for the new dependency-evidence CI path in .github/workflows/factory-model.yml, and checks the dependency-only `if` guard, absence of continue-on-error/secrets exposure, the exact npm ci command, the pinned upload-artifact action, include-hidden-files, if-no-files-found: error and retention-days: 7. I verified by reading the actual factory-model.yml that its step order matches what the new test enforces. scripts/tests/factory-dependency-evidence.test.cjs also gained three boundary tests (51 added versions, 101 advisory IDs, >256 KiB packet from individually valid responses) addressing the earlier minor coverage gap, and I traced the collectEvidence/inspectUpdate/queryOsv code paths to confirm each bound is actually enforced before any further network calls, matching the tests' assertions (call counts of 0 before the inventory/advisory bound fails, 6 fetches before the packet-size fail). The worker.cjs integration correctly re-fetches the PR and main ref and reruns policy.preflight after the public-network window, before any file is written, so a base/main move or reservation change is caught (confirmed the new factory-worker.test.cjs second `prepare()` call hits this check, not a stale-file EEXIST, because the base/main validation precedes all fs.writeFileSync calls). dependency-analysis.cjs's `details` parameter defaults to false and dependency-run.cjs's existing calls are unaffected, preserving backward compatibility as claimed. Reviewer tool/permission scope (Read/Glob/Grep only, no Bash/Edit/Write/network) and the ledger/grant mutation behavior (prepare remains read-only on ledger state) are unchanged. No critical or important issues found in this revision.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"docs/factory/current-dependency-facts-verification-2026-11-15.md still reports specific local test-run counts (484/474/10, then 488/478/10, plus a live PR #52 npm/OSV check and a GitHub Actions run URL for a prior review) that a read-only reviewer without shell/network execution cannot independently verify. This was already flagged as a minor, non-blocking item in the prior review and remains only a documentation-transparency note, not a code defect.\"}]}"
+    },
+    "60": {
+      "coding": 0,
+      "origin": "owner-pr",
+      "reviews": 1,
+      "retries": 0,
+      "head": "d0cfe4d4af8b362e536316447c6e2f15353ad8bb",
+      "status": "reviewing",
+      "pr": 61,
+      "approval": null,
+      "criteriaHash": "ff9ccf1614864fc5b6afed4daed4d65d07e64e6af918d7988929ee155eec3673",
+      "branch": "agent/retained-dependency-advisories",
+      "ci": null
     }
   },
   "grants": {
@@ -1222,9 +1236,24 @@
       "status": "finished",
       "at": "2026-11-15T17:44:40.090Z",
       "outcome": "blocked"
+    },
+    "cb5d4111-6e42-43a6-9a67-c937231ead2d": {
+      "id": "cb5d4111-6e42-43a6-9a67-c937231ead2d",
+      "ticket": 60,
+      "phase": "review",
+      "slot": "existing",
+      "runId": "43747440662",
+      "runAttempt": 1,
+      "head": "d0cfe4d4af8b362e536316447c6e2f15353ad8bb",
+      "status": "reserved",
+      "at": "2026-11-15T18:33:51.286Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 60,
+    "runId": "43747440662",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -1929,6 +1958,15 @@
       "grant": "962f5632-2f8c-4350-b636-978e6ebd301a",
       "status": "blocked",
       "head": "c89871f643c936d958a861d738ebca623f3963c9"
+    },
+    {
+      "at": "2026-11-15T18:33:51.286Z",
+      "event": "reserved",
+      "ticket": 60,
+      "grant": "cb5d4111-6e42-43a6-9a67-c937231ead2d",
+      "phase": "review",
+      "runId": "43747440662",
+      "runAttempt": 1
     }
   ]
 }
