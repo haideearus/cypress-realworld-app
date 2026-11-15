@@ -253,3 +253,65 @@ test("secret scanning gates source, model context and every uploaded model bundl
       .if.includes("steps.diagnostics_scan.outcome == 'success'")
   );
 });
+
+test("dependency facts use trusted parsers and a fail-closed scanned exact-file audit upload before the model", () => {
+  const job = load("factory-model.yml").jobs.agent;
+  const steps = job.steps;
+  const trusted = steps.findIndex(
+    (s) => s.uses?.startsWith("actions/checkout@") && s.with?.ref === "${{ github.workflow_sha }}"
+  );
+  const install = steps.findIndex(
+    (s) => s["working-directory"] === "scripts/factory/dependency-tools"
+  );
+  const preserve = steps.findIndex((s) => s.run?.includes("cpSync('scripts/factory'"));
+  const candidate = steps.findIndex(
+    (s) => s.uses?.startsWith("actions/checkout@") && s.with?.ref === "${{ inputs.head }}"
+  );
+  const prepare = steps.findIndex((s) => s.id === "prepare");
+  const contextScan = steps.findIndex(
+    (s) =>
+      s.run ===
+      'node "$RUNNER_TEMP/factory-control/secret-scan.cjs" file "$GITHUB_WORKSPACE/.factory-input/context.json"'
+  );
+  const factsScan = steps.findIndex(
+    (s) =>
+      s.run ===
+      'node "$RUNNER_TEMP/factory-control/secret-scan.cjs" file "$GITHUB_WORKSPACE/.factory-input/dependency-facts.json"'
+  );
+  const upload = steps.findIndex((s) => s.with?.name === "dependency-facts-${{ inputs.grantId }}");
+  const model = steps.findIndex((s) => s.id === "model");
+  const order = [
+    trusted,
+    install,
+    preserve,
+    candidate,
+    prepare,
+    contextScan,
+    factsScan,
+    upload,
+    model,
+  ];
+  assert.ok(
+    order.every((n, i) => n >= 0 && (i === 0 || n > order[i - 1])),
+    "trusted parser install and scanned audit upload must precede candidate execution/model access"
+  );
+  const dependencyOnly = "${{ inputs.phase == 'review' && inputs.slot == 'dependency' }}";
+  for (const position of [install, factsScan, upload]) {
+    assert.equal(steps[position].if, dependencyOnly);
+    assert.notEqual(steps[position]["continue-on-error"], true);
+    assert.doesNotMatch(JSON.stringify(steps[position]), /secrets\.|GH_TOKEN|github\.token/);
+  }
+  assert.equal(steps[install].run, "npm ci --ignore-scripts --no-audit --fund=false");
+  assert.equal(
+    steps[upload].uses,
+    "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02"
+  );
+  assert.equal(
+    steps[upload].with.path,
+    "${{ github.workspace }}/.factory-input/dependency-facts.json"
+  );
+  // upload-artifact excludes dot-directory contents by default, even this exact file.
+  assert.equal(steps[upload].with["include-hidden-files"], true);
+  assert.equal(steps[upload].with["if-no-files-found"], "error");
+  assert.equal(steps[upload].with["retention-days"], 7);
+});

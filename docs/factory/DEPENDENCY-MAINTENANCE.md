@@ -100,6 +100,41 @@ The app still uses Yarn Classic and its existing lock. Tool installation runs in
 the trusted source checkout without lifecycle scripts or model/App credentials.
 The fixture suite simulates GitHub/OSV/model results; it is not a live Claude trial.
 
+## Current facts supplied to the reviewer
+
+Before the dependency model session, trusted code reads `package.json` and
+`yarn.lock` from the reserved immutable base/head commits. It fetches each added
+version's npm registry record and matches the package name, version, canonical
+tarball, integrity, and any lock URL SHA-1 fragment. A fresh OSV batch maps advisory
+IDs to each changed package/version; advisory detail requests supply the affected
+npm package ranges and explicit affected versions, including legacy release lines.
+The packet records its
+observation time, exact commits, changed dependency files and source URLs.
+
+The reviewer receives these facts in `.factory-input/context.json`. A separate
+`dependency-facts-<grant>` artifact retains the same scanned packet for seven days.
+It is evidence, not an approval or a replacement for CI, independent review,
+fresh premerge checks or native branch protection. Unchanged historical documents
+are context; they cannot authorize approval of a newer head. Registry existence
+and matching checksums do not establish publisher trust, API compatibility, or an
+absence of vulnerabilities throughout the app.
+
+Only fixed, unauthenticated npm and OSV endpoints are contacted by trusted code;
+redirects are refused and metadata-supplied URLs are never followed. No package
+code or lifecycle scripts run to collect facts. The parser tools are installed
+from the existing private lock in the trusted checkout before candidate checkout,
+without model credentials. Claude still has only Read, Glob and Grep.
+
+Evidence collection permits at most 50 added versions, 100 distinct advisory
+records, four concurrent public requests, 1 MiB per response, 256 KiB for the
+finished packet, 500 explicit versions per affected record, 15 seconds per request
+and two minutes for collection. Missing,
+changed, withdrawn, oversized or malformed evidence holds the review. Unsupported
+advisory range formats are held rather than silently omitted. These are metadata
+safety bounds; the existing AI admission/attempt/review/turn/time limits and
+historical ledger schema remain unchanged. A failed preparation retains its grant
+and history; this feature does not introduce a same-head retry exemption.
+
 Sources: [Dependabot configuration and limits](https://docs.github.com/en/code-security/reference/supply-chain-security/dependabot-options-reference),
 [fork version updates](https://docs.github.com/en/code-security/dependabot/working-with-dependabot/enabling-and-disabling-version-updates),
 [OSV batch API and pagination](https://google.github.io/osv.dev/post-v1-querybatch/).
