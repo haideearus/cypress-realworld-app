@@ -658,9 +658,17 @@
       "reviews": 1,
       "retries": 0,
       "head": "797b28e18b6ee0f5a832a11c39277f717707d4eb",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 54,
-      "approval": null,
+      "approval": {
+        "head": "797b28e18b6ee0f5a832a11c39277f717707d4eb",
+        "pr": 54,
+        "grant": "291c280c-01be-4553-a6dd-d188808861e1",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/43715336434"
+      },
       "criteriaHash": "a144a943c19fa2c54abc8b1a93627ae4fb43c2b0fcc75add993af157af1165fa",
       "branch": "agent/fix-unchanged-prerelease-analysis",
       "ci": {
@@ -668,7 +676,8 @@
         "head": "797b28e18b6ee0f5a832a11c39277f717707d4eb",
         "runId": 43715382443,
         "passed": true
-      }
+      },
+      "feedback": "{\"findings\":[{\"severity\":\"minor\",\"message\":\"docs/factory/dependency-prerelease-fix-verification-2026-11-15.md states the failing-before run of scripts/tests/factory-dependency-analysis.test.cjs had '13 passed and two failures'. The diff is a pure insertion of 4 new tests into a 12-test file (16 total after the change), and only 2 of those 4 new tests (the unchanged-prerelease-root test and the real-app-baseline test) actually exercise the buggy line being fixed; the other 2 new tests (the prerelease-upgrade-still-held and changed-metadata-still-held cases) are already caught by the pre-existing unconditional prerelease rejection in validateEntry and would pass before and after the fix. So the correct failing-before tally should be 14 passed / 2 failed (16 total), not 13/2 (15 total). This is just an arithmetic slip in the verification writeup, not a functional defect.\"}],\"head\":\"797b28e18b6ee0f5a832a11c39277f717707d4eb\",\"summary\":\"The change in scripts/factory/dependency-analysis.cjs narrowly guards the root-dependency compatibility check so that compatible() is only invoked when the base and head resolved versions differ (`if (previous.version !== e.version) compatible(...)`). This precisely fixes the reported bug: an unchanged prerelease root baseline (e.g. @mui/lab pinned to ^5.0.0-alpha.167, resolved 5.0.0-alpha.175 in both snapshots) no longer trips the unconditional prerelease rejection inside compatible() while an unrelated dependency is updated. I traced the surrounding logic carefully: when versions are equal, skipping compatible() is safe because major-mismatch and downgrade checks are trivially false for identical version strings — the only thing being bypassed is the blanket prerelease rejection, exactly as intended. Root lock completeness (`next[name+range]` must exist and satisfy range) and base-edge completeness (`old[name+previousRange]` must exist) are untouched. Any actual change to an existing prerelease lock entry — version bump, source swap, integrity change, or added dependency edge — is still caught, but via the pre-existing unconditional-prerelease-rejection branch in validateEntry() inside the main entries loop (since the entry is no longer byte-identical to the base, `same(before, entry)` fails and validateEntry() rejects any prerelease version regardless of what changed). This matches all acceptance criteria: unchanged prerelease root baselines are permitted; new/changed prerelease dependencies, root downgrades into existing selectors, majors, forbidden files/scripts, and unsupported sources are all still rejected (verified against the existing, unmodified tests covering those paths). The diff is scoped to exactly 3 files (the analyzer, its test, and a verification doc) and does not touch any quota/provenance/OSV/CI/review/merge/kill-switch logic, satisfying the \\\"keep everything else unchanged\\\" requirement. I confirmed against the real repository that package.json actually pins @mui/lab to the exact prerelease range described in the ticket, and that yarn.lock has ~1780 entries (well under internal size/count limits) with no unsupported protocol selectors outside the already-handled `@npm:` alias pattern used elsewhere in the test suite, so the new \\\"actual app manifest and lock form a valid unchanged baseline\\\" self-check is plausible as described. The four new tests meaningfully pin the fixed behavior (unchanged-baseline-passes, prerelease-upgrade-still-blocked, metadata-change-still-blocked, real-baseline-passes). One minor inaccuracy was found in the verification doc's test-count arithmetic, noted below; it does not affect code correctness. No credentials, policy changes, deploys, merges, or AI/model invocations appear anywhere in the diff.\",\"verdict\":\"pass\"}"
     }
   },
   "grants": {
@@ -1065,15 +1074,12 @@
       "runId": "43715336434",
       "runAttempt": 1,
       "head": "797b28e18b6ee0f5a832a11c39277f717707d4eb",
-      "status": "reserved",
-      "at": "2026-11-15T12:44:15.919Z"
+      "status": "finished",
+      "at": "2026-11-15T12:44:15.919Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 53,
-    "runId": "43715336434",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -1688,6 +1694,14 @@
       "phase": "review",
       "runId": "43715336434",
       "runAttempt": 1
+    },
+    {
+      "at": "2026-11-15T12:55:28.473Z",
+      "event": "finished",
+      "ticket": 53,
+      "grant": "291c280c-01be-4553-a6dd-d188808861e1",
+      "status": "reviewed",
+      "head": "797b28e18b6ee0f5a832a11c39277f717707d4eb"
     }
   ]
 }
