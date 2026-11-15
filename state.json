@@ -552,9 +552,17 @@
       "reviews": 1,
       "retries": 0,
       "head": "ee62e1b720e512c1f9dc194155aec11b298ce132",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 49,
-      "approval": null,
+      "approval": {
+        "head": "ee62e1b720e512c1f9dc194155aec11b298ce132",
+        "pr": 49,
+        "grant": "1a17c59a-9aec-402c-97e2-d404fe99efd7",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/43691015736"
+      },
       "criteriaHash": "3dc79e81f4327f78a16d4038cd9c1533229a3ade530d595e409c08099580d905",
       "automatic": {
         "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-automatic.yml@refs/heads/main",
@@ -569,7 +577,8 @@
         "head": "ee62e1b720e512c1f9dc194155aec11b298ce132",
         "runId": 43691483288,
         "passed": true
-      }
+      },
+      "feedback": "{\"head\":\"ee62e1b720e512c1f9dc194155aec11b298ce132\",\"verdict\":\"pass\",\"summary\":\"The fix chains `.trim(message)` before `.required(message)` on the firstName/lastName Yup string schemas in UserSettingsForm.tsx. Yup's `trim()` applies a transform that strips leading/trailing whitespace from the value during cast, before any test (including `required()`) runs. Since `required()`'s underlying `isAbsent` check treats `\\\"\\\"` as absent, a whitespace-only input (\\\"   \\\", \\\"\\\\t\\\\t\\\") is transformed to \\\"\\\" and then correctly rejected by `required()`, reproducing the same message string used by both methods (\\\"Enter a first name\\\"/\\\"Enter a last name\\\"). Internal spaces, apostrophes, hyphens and non-ASCII characters are untouched by trim() since it only strips leading/trailing whitespace, so valid names like \\\"José\\\", \\\"Mary Jane\\\", \\\"O'Brien\\\", \\\"Núñez\\\" remain accepted. No character-set restriction or server/API contract change was introduced. The diff is scoped to exactly the validation schema and its component test file, with phone/email/privacy validation and submit-success logic left untouched. New tests in UserSettingsForm.test.tsx independently exercise firstName and lastName with whitespace-only, tab-only, and empty-string inputs (asserting the error text, disabled Save, and updateUser never called) and with valid international/space/apostrophe/hyphen names (asserting Save is enabled and no error shown), satisfying acceptance criteria 1-5. This matches a component-level (rendered Formik form) test rather than a reconstructed standalone schema, satisfying criterion 6's \\\"component regression\\\" requirement at the code level.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"This read-only review has no shell/network access and cannot independently re-run `yarn test:unit:ci` or inspect the linked CI run (https://github.com/haideearus/cypress-realworld-app/actions/runs/43691483288) to confirm the RED/GREEN evidence and trusted-CI pass required by acceptance criterion 7. That gate should still be confirmed from the actual CI result before/at merge.\"},{\"severity\":\"minor\",\"message\":\"Unlike the existing phone-number suite, the new firstName/lastName tests don't include a dedicated 'submits successfully with a valid name and calls updateUser with the new value' case. Not required by the acceptance criteria (which focus on rejection behavior and keeping accepted names unaffected), but adding one would close a small coverage gap and mirror the pattern already used for phone number.\"}]}"
     }
   },
   "grants": {
@@ -942,15 +951,12 @@
       "runId": "43691015736",
       "runAttempt": 1,
       "head": "ee62e1b720e512c1f9dc194155aec11b298ce132",
-      "status": "reserved",
-      "at": "2026-11-15T07:53:41.529Z"
+      "status": "finished",
+      "at": "2026-11-15T07:53:41.529Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 48,
-    "runId": "43691015736",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -1517,6 +1523,14 @@
       "phase": "review",
       "runId": "43691015736",
       "runAttempt": 1
+    },
+    {
+      "at": "2026-11-15T07:56:59.071Z",
+      "event": "finished",
+      "ticket": 48,
+      "grant": "1a17c59a-9aec-402c-97e2-d404fe99efd7",
+      "status": "reviewed",
+      "head": "ee62e1b720e512c1f9dc194155aec11b298ce132"
     }
   ]
 }
