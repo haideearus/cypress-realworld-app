@@ -625,7 +625,7 @@
       "origin": "dependency-pr",
       "head": "660dbd10925a7907098534842bd6e26f700c55bc",
       "pr": 52,
-      "status": "new",
+      "status": "blocked",
       "approval": null,
       "branch": "dependabot/npm_and_yarn/axios-0.35.0",
       "criteriaHash": "19ef877c259fcbe42601558f3afe4a283c62664c92a794578d5ae77e35baa500",
@@ -648,7 +648,8 @@
           }
         ]
       },
-      "ci": null
+      "ci": null,
+      "feedback": "Dependency preparation held; no model invocation"
     }
   },
   "grants": {
@@ -1038,11 +1039,7 @@
       "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 52,
-    "runId": "43713470670",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -1638,6 +1635,13 @@
     {
       "at": "2026-11-15T12:22:16.938Z",
       "event": "dependency_metadata_admitted",
+      "ticket": 52,
+      "head": "660dbd10925a7907098534842bd6e26f700c55bc",
+      "runId": "43713470670"
+    },
+    {
+      "at": "2026-11-15T12:22:49.075Z",
+      "event": "dependency_preparation_blocked",
       "ticket": 52,
       "head": "660dbd10925a7907098534842bd6e26f700c55bc",
       "runId": "43713470670"
