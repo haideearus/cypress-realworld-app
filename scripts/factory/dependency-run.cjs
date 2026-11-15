@@ -67,7 +67,12 @@ async function analyze(coordinator, number, stage, { transport = fetch } = {}) {
   // Revalidate the main/base/head after the public service call.
   await coordinator.pr(number, { expected: t });
   return validateReport(
-    reportFor(identity, { changed: inventory.changed, fixed: advisory.fixed }),
+    reportFor(identity, {
+      changed: inventory.changed,
+      candidateVersions: advisory.candidateVersions,
+      cleared: advisory.cleared,
+      remainingBaseline: advisory.remainingBaseline,
+    }),
     identity
   );
 }

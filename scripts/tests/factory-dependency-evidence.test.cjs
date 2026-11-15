@@ -122,6 +122,85 @@ test("a newly affected candidate is held before any review can consume the packe
   );
 });
 
+test("review facts include advisory details for unchanged baseline copies without calling them cleared", async () => {
+  const extra = `\naxios@0.21.4:\n  version "0.21.4"\n  resolved "https://registry.yarnpkg.com/axios/-/axios-0.21.4.tgz"\n  integrity ${integrity}\n`;
+  const input = { ...source, baseLock: source.baseLock + extra, headLock: source.headLock + extra };
+  const result = await collect(async (url, options) => {
+    assert.equal(options.headers?.Authorization, undefined);
+    if (url === "https://registry.npmjs.org/axios/0.21.4") {
+      const record = registry();
+      record.version = "0.21.4";
+      record.dist.tarball = "https://registry.npmjs.org/axios/-/axios-0.21.4.tgz";
+      return new Response(JSON.stringify(record));
+    }
+    if (url === "https://api.osv.dev/v1/querybatch") {
+      const queries = JSON.parse(options.body).queries;
+      return new Response(
+        JSON.stringify({
+          results: queries.map((q) =>
+            q.version === "0.35.0" ? {} : { vulns: [{ id, modified }] }
+          ),
+        })
+      );
+    }
+    return transport()(url, options);
+  }, input);
+  assert.equal(result.version, 2);
+  assert.deepEqual(result.advisorySummary.cleared, []);
+  assert.deepEqual(result.advisorySummary.remainingBaseline, [id]);
+  assert.equal(result.advisorySummary.candidateVersions, 2);
+  assert.deepEqual(
+    result.packages.find((p) => p.version === "0.21.4"),
+    {
+      name: "axios",
+      version: "0.21.4",
+      side: "baseline",
+      advisoryIds: [id],
+    }
+  );
+  assert.equal(result.advisories[0].id, id);
+  assert.match(result.advisorySummary.scope, /does not resolve/);
+});
+
+test("retained candidates need registry integrity verification and cannot hide a known advisory", async () => {
+  const entry = (range, version) =>
+    `\nform-data@${range}:\n  version "${version}"\n  resolved "https://registry.npmjs.org/form-data/-/form-data-${version}.tgz"\n  integrity ${integrity}\n`;
+  const input = {
+    ...source,
+    baseLock: source.baseLock + entry("^4.0.0", "4.0.1") + entry("~4.0.4", "4.0.4"),
+    headLock: source.headLock + entry("^4.0.0", "4.0.4") + entry("~4.0.4", "4.0.4"),
+  };
+  for (const corruptRegistry of [false, true]) {
+    const fetcher = async (url, options) => {
+      if (url.includes("registry.npmjs.org/form-data"))
+        return new Response(
+          JSON.stringify({
+            name: "form-data",
+            version: "4.0.4",
+            dist: {
+              tarball: "https://registry.npmjs.org/form-data/-/form-data-4.0.4.tgz",
+              integrity: corruptRegistry
+                ? "sha512-" + Buffer.alloc(64, 2).toString("base64")
+                : integrity,
+            },
+          })
+        );
+      if (url.includes("registry.npmjs.org/axios")) return new Response(JSON.stringify(registry()));
+      assert.equal(url, "https://api.osv.dev/v1/querybatch");
+      const queries = JSON.parse(options.body).queries;
+      assert.ok(queries.some((q) => q.package.name === "form-data" && q.version === "4.0.4"));
+      return new Response(
+        JSON.stringify({
+          results: queries.map((q) =>
+            q.package.name === "form-data" ? { vulns: [{ id, modified }] } : {}
+          ),
+        })
+      );
+    };
+    await assert.rejects(collect(fetcher, input), corruptRegistry ? /integrity/i : /vulnerab/i);
+  }
+});
+
 test("advisory details must match the queried ID, package and batch modification", async () => {
   for (const mutate of [
     (a) => {

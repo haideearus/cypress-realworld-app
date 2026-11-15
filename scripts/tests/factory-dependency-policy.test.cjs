@@ -31,6 +31,30 @@ test("dependency claim shares one admission and lock, without pretending a model
   policy.validateState(s);
   assert.throws(() => policy.reserve(s, { ...context, ticket: 12 }, cfg), /active/i);
 });
+
+test("historical fixed-only reports remain readable but cannot reserve new reviews", () => {
+  const s = dep.claimDependency(policy.emptyState(policy.REPOSITORY), pr(), ctx, cfg);
+  s.tickets["52"].analysis = {
+    version: 1,
+    repository: policy.REPOSITORY,
+    pr: 52,
+    base: head,
+    head: pr().head.sha,
+    workflowSha: head,
+    runId: ctx.runId,
+    runAttempt: 1,
+    stage: "analysis",
+    toolDigest: require("../factory/dependency-analysis.cjs").toolDigest(),
+    at: new Date().toISOString(),
+    result: { changed: 2, fixed: ["GHSA-hmw2-7cc7-3qxx"] },
+  };
+  s.tickets["52"].ci = { head: pr().head.sha, passed: true, runId: 9 };
+  const before = JSON.stringify(s);
+  assert.doesNotThrow(() => policy.validateState(s));
+  assert.throws(() => dep.reserveDependencyReview(s, ctx, cfg), /report/i);
+  assert.equal(JSON.stringify(s), before);
+  assert.equal(s.tickets["52"].reviews, 0);
+});
 test("review cannot reserve before successful analysis and CI", () => {
   const s = dep.claimDependency(policy.emptyState(policy.REPOSITORY), pr(), ctx, cfg);
   assert.throws(() => dep.reserveDependencyReview(s, ctx, cfg), /analysis|CI/i);
@@ -50,7 +74,7 @@ test("review cannot reserve before successful analysis and CI", () => {
       stage: "analysis",
       toolDigest: a.toolDigest(),
     },
-    { changed: 2, fixed: [] }
+    { changed: 2, candidateVersions: 1, cleared: [], remainingBaseline: [] }
   );
   const r = dep.reserveDependencyReview(s, ctx, cfg);
   assert.equal(r.state.tickets["52"].reviews, 1);

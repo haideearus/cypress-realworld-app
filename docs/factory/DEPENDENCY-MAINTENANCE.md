@@ -2,8 +2,12 @@
 
 Implementation ticket: [#50](https://github.com/haideearus/cypress-realworld-app/issues/50).
 Local preparation evidence: [verification record](dependency-maintenance-verification-2026-11-15.md).
-This lane is prepared for review. It has not been activated or tried against a live
-Dependabot PR. All three factory switches remain false during implementation.
+This lane is installed. Controlled trials of Dependabot PR #52 have been held by
+analysis or independent review; a completed dependency merge/deployment trial is
+still pending. The retained-version/reporting repair is tracked in
+[#60](https://github.com/haideearus/cypress-realworld-app/issues/60) and its
+[verification record](retained-advisory-fix-verification-2026-11-15.md).
+All three factory switches remain false during this repair.
 
 ## What happens
 
@@ -46,20 +50,30 @@ There is no paid API fallback. Subscription exhaustion blocks the attempt.
   downgrades, changed dependency names/sections, scripts/configuration, unsupported
   sources, prereleases and ambiguous graph transitions are held. The ordinary app
   merger still cannot merge dependency files.
-- OSV checks cover added and removed package/version identities. A known affected
-  added version, outage, pagination, malformed result or exceeded bound holds the
-  change. Recorded removed-version advisories describe this update; they do not
-  certify that the entire app is vulnerability-free or that every CVE is fixable.
+- OSV checks cover removed versions and every resulting version of affected
+  package names. Added versions and existing versions selected by changed root or
+  dependency paths are blocking candidates. Reused paths are followed recursively
+  with bounded, cycle-safe comparisons; an ambiguous new selector is held.
+- An affected newly selected/retargeted candidate, outage, pagination, malformed
+  result or exceeded bound holds the change. Advisories on unchanged baseline
+  copies are reported as `remainingBaseline`. They are never called cleared.
+  `cleared` contains removed-version advisory IDs absent from all resulting
+  versions of affected package names. This is an incremental check, not a whole-app
+  security audit or a promise that every CVE is fixable.
 - Reports bind repository, PR, current base/head, trusted workflow source, run,
   attempt, stage and the private tools lock digest. Actual same-run successful
   producer jobs and artifacts are checked. Premerge evidence expires after five
   minutes and the PR must include current `main`; otherwise wait for a bot rebase.
+  New analysis/premerge proof uses report v2: `changed`, `candidateVersions`,
+  `cleared` and `remainingBaseline`. Historical v1 reports remain in the ledger,
+  but cannot authorize a new review or merge. No counters are refunded or reset.
 - Interrupted metadata-only preparation can be released after its owning trusted
   parent is proven terminal. Model grants and uncertain merge intents are retained;
   the existing owner stop/recovery paths handle them without refunding counters.
 
 The analysis bounds are 64 KiB manifests, 2 MiB locks, 10,000 lock entries, 500
-changed package/version identities, five OSV batches of 100, 1 MiB per response and
+combined removed/candidate package-version queries, 500 path comparisons and at
+most 500 pending comparisons, five OSV batches of 100, 1 MiB per response and
 15 seconds per public request. Analysis jobs time out after eight minutes.
 
 ## Installation after this PR is reviewed and merged
@@ -103,13 +117,15 @@ The fixture suite simulates GitHub/OSV/model results; it is not a live Claude tr
 ## Current facts supplied to the reviewer
 
 Before the dependency model session, trusted code reads `package.json` and
-`yarn.lock` from the reserved immutable base/head commits. It fetches each added
-version's npm registry record and matches the package name, version, canonical
+`yarn.lock` from the reserved immutable base/head commits. It fetches each resulting
+affected version's npm registry record, including retained/baseline copies, and
+matches the package name, version, canonical
 tarball, integrity, and any lock URL SHA-1 fragment. A fresh OSV batch maps advisory
-IDs to each changed package/version; advisory detail requests supply the affected
+IDs to each checked package/version; advisory detail requests supply the affected
 npm package ranges and explicit affected versions, including legacy release lines.
 The packet records its
-observation time, exact commits, changed dependency files and source URLs.
+observation time, exact commits, changed dependency files, source URLs and the
+separate cleared/remaining-baseline summary.
 
 The reviewer receives these facts in `.factory-input/context.json`. A separate
 `dependency-facts-<grant>` artifact retains the same scanned packet for seven days.
@@ -125,7 +141,7 @@ code or lifecycle scripts run to collect facts. The parser tools are installed
 from the existing private lock in the trusted checkout before candidate checkout,
 without model credentials. Claude still has only Read, Glob and Grep.
 
-Evidence collection permits at most 50 added versions, 100 distinct advisory
+Evidence collection permits at most 50 resulting affected versions, 100 distinct advisory
 records, four concurrent public requests, 1 MiB per response, 256 KiB for the
 finished packet, 500 explicit versions per affected record, 15 seconds per request
 and two minutes for collection. Missing,

@@ -130,7 +130,12 @@ test("foreign producer and wrong-head report cannot authorize dependency analysi
     stage: "analysis",
     toolDigest: toolDigest(),
   };
-  const report = reportFor(identity, { changed: 2, fixed: [] });
+  const report = reportFor(identity, {
+    changed: 2,
+    candidateVersions: 1,
+    cleared: [],
+    remainingBaseline: [],
+  });
   await assert.rejects(x.coordinator.acceptAnalysis(52, { ...report, head: "c".repeat(40) }));
   x.f.producerFailure = true;
   await assert.rejects(x.coordinator.acceptAnalysis(52, report), /producer/i);
@@ -168,7 +173,7 @@ const report = (stage = "analysis", now = new Date()) =>
       stage,
       toolDigest: toolDigest(),
     },
-    { changed: 2, fixed: [] },
+    { changed: 2, candidateVersions: 1, cleared: [], remainingBaseline: [] },
     now
   );
 async function reviewed(x) {
