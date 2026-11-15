@@ -28,7 +28,8 @@
     "2026-11-15": [
       42,
       44,
-      46
+      46,
+      48
     ]
   },
   "tickets": {
@@ -544,6 +545,24 @@
         "passed": true
       },
       "feedback": "{\"head\":\"1cd816e56e20964604c4e44eaba072f6f6b7830f\",\"verdict\":\"pass\",\"summary\":\"Reviewed the synthetic-user API journey addition (app-checks.cjs, app-checks-probe.cjs, app-checks-contract.cjs, app-checks-budget.cjs, app-checks-scan.cjs, factory-monitor.yml, monitor.cjs changes, docs, and tests) against ticket #46's acceptance criteria. The probe hits only the four fixed endpoints (login/checkAuth/transactions/public/logout) against a hardcoded APP_URL with no URL override, rejects unsafe cookies (requires Secure+HttpOnly), never follows redirects (redirect:\\\"manual\\\", credentials:\\\"omit\\\"), bounds body size/timeouts/retries, and always attempts logout cleanup. The credential-free report is a strict enum/count/provenance structure validated against current run/workflow/freshness before use, written/read with symlink/hardlink/TOCTOU-safe file handling. The workflow isolates secrets so the checker step gets only the two account secrets (no GitHub token/Claude credential/App key/deploy hook) and the publisher step gets the GitHub token but explicitly rejects any run where account credentials leaked into its env; job/workflow permissions, schedule, dedup/incident caps, and legacy (no-appChecks) observation paths are all preserved and covered by tests (factory-monitor-workflow.test.cjs, factory-app-checks*.test.cjs, factory-monitor.test.cjs). FACTORY_APP_CHECKS_ENABLED defaults to false and the three agent-enablement switches are untouched. A real disposable-app integration test (production-integration.test.cjs) exercises the actual probe against a local compiled server/Postgres instance, mapping only the test transport's fetch to localhost rather than touching production. Docs in docs/factory/APP-CHECKS.md accurately describe scope, secrets, rollout, and limitations without embedding credentials. No credentials, policy changes, production access, or unauthorized agent/provider usage were found in the diff.\",\"findings\":[]}"
+    },
+    "48": {
+      "coding": 1,
+      "origin": "factory",
+      "reviews": 0,
+      "retries": 0,
+      "head": "d591b58c5d60e7a26f9f6d8a7dbdf82fd2009f18",
+      "status": "coding",
+      "pr": null,
+      "approval": null,
+      "criteriaHash": "3dc79e81f4327f78a16d4038cd9c1533229a3ade530d595e409c08099580d905",
+      "automatic": {
+        "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-automatic.yml@refs/heads/main",
+        "workflowSha": "d591b58c5d60e7a26f9f6d8a7dbdf82fd2009f18",
+        "runId": "43691015736",
+        "runAttempt": 1,
+        "appSlug": "haideearus-software-factory"
+      }
     }
   },
   "grants": {
@@ -895,9 +914,24 @@
       "status": "finished",
       "at": "2026-11-15T06:40:51.012Z",
       "outcome": "reviewed"
+    },
+    "a94c9e0e-5a26-4450-b037-252ba35570c1": {
+      "id": "a94c9e0e-5a26-4450-b037-252ba35570c1",
+      "ticket": 48,
+      "phase": "code",
+      "slot": "cycle1",
+      "runId": "43691015736",
+      "runAttempt": 1,
+      "head": "d591b58c5d60e7a26f9f6d8a7dbdf82fd2009f18",
+      "status": "reserved",
+      "at": "2026-11-15T07:41:09.014Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 48,
+    "runId": "43691015736",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -1438,6 +1472,15 @@
       "grant": "55485980-b4d5-4226-b38e-72f3b0799f0d",
       "status": "reviewed",
       "head": "1cd816e56e20964604c4e44eaba072f6f6b7830f"
+    },
+    {
+      "at": "2026-11-15T07:41:09.014Z",
+      "event": "reserved",
+      "ticket": 48,
+      "grant": "a94c9e0e-5a26-4450-b037-252ba35570c1",
+      "phase": "code",
+      "runId": "43691015736",
+      "runAttempt": 1
     }
   ]
 }
