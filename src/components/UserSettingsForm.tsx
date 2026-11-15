@@ -32,8 +32,8 @@ const phoneRegExp =
 const DefaultPrivacyLevelValues = Object.values(DefaultPrivacyLevel);
 
 const validationSchema = object({
-  firstName: string().required("Enter a first name"),
-  lastName: string().required("Enter a last name"),
+  firstName: string().trim("Enter a first name").required("Enter a first name"),
+  lastName: string().trim("Enter a last name").required("Enter a last name"),
   email: string().email("Must contain a valid email address").required("Enter an email address"),
   phoneNumber: string()
     .matches(phoneRegExp, "Phone number is not valid")

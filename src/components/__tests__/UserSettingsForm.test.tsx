@@ -23,11 +23,29 @@ const userProfile: User = {
 const getPhoneNumberInput = () =>
   document.querySelector('[data-test="user-settings-phoneNumber-input"]') as HTMLInputElement;
 
+const getFirstNameInput = () =>
+  document.querySelector('[data-test="user-settings-firstName-input"]') as HTMLInputElement;
+
+const getLastNameInput = () =>
+  document.querySelector('[data-test="user-settings-lastName-input"]') as HTMLInputElement;
+
 const getSubmitButton = () =>
   document.querySelector('[data-test="user-settings-submit"]') as HTMLButtonElement;
 
 const setPhoneNumber = (value: string) => {
   const input = getPhoneNumberInput();
+  fireEvent.change(input, { target: { value } });
+  fireEvent.blur(input);
+};
+
+const setFirstName = (value: string) => {
+  const input = getFirstNameInput();
+  fireEvent.change(input, { target: { value } });
+  fireEvent.blur(input);
+};
+
+const setLastName = (value: string) => {
+  const input = getLastNameInput();
   fireEvent.change(input, { target: { value } });
   fireEvent.blur(input);
 };
@@ -76,4 +94,68 @@ describe("UserSettingsForm phone number validation", () => {
       expect.objectContaining({ id: userProfile.id, phoneNumber: "(615) 555-1212" })
     );
   });
+});
+
+describe("UserSettingsForm firstName validation", () => {
+  test.each(["   ", "", "\t\t"])(
+    "rejects %j, shows 'Enter a first name', keeps Save disabled, and never calls updateUser",
+    async (firstName) => {
+      const updateUser = vi.fn();
+      render(<UserSettingsForm userProfile={userProfile} updateUser={updateUser} />);
+
+      setFirstName(firstName);
+
+      await waitFor(() => {
+        expect(screen.getByText("Enter a first name")).toBeInTheDocument();
+      });
+      expect(getSubmitButton()).toBeDisabled();
+      expect(updateUser).not.toHaveBeenCalled();
+    }
+  );
+
+  test.each(["Edgar", "José", "Mary Jane", "O'Brien", "Anne-Marie"])(
+    "accepts %j and enables Save when other fields are valid",
+    async (firstName) => {
+      render(<UserSettingsForm userProfile={userProfile} updateUser={vi.fn()} />);
+
+      setFirstName(firstName);
+
+      await waitFor(() => {
+        expect(getSubmitButton()).not.toBeDisabled();
+      });
+      expect(screen.queryByText("Enter a first name")).not.toBeInTheDocument();
+    }
+  );
+});
+
+describe("UserSettingsForm lastName validation", () => {
+  test.each(["   ", "", "\t\t"])(
+    "rejects %j, shows 'Enter a last name', keeps Save disabled, and never calls updateUser",
+    async (lastName) => {
+      const updateUser = vi.fn();
+      render(<UserSettingsForm userProfile={userProfile} updateUser={updateUser} />);
+
+      setLastName(lastName);
+
+      await waitFor(() => {
+        expect(screen.getByText("Enter a last name")).toBeInTheDocument();
+      });
+      expect(getSubmitButton()).toBeDisabled();
+      expect(updateUser).not.toHaveBeenCalled();
+    }
+  );
+
+  test.each(["Johns", "Núñez", "Van Der Berg", "O'Neil", "Smith-Jones"])(
+    "accepts %j and enables Save when other fields are valid",
+    async (lastName) => {
+      render(<UserSettingsForm userProfile={userProfile} updateUser={vi.fn()} />);
+
+      setLastName(lastName);
+
+      await waitFor(() => {
+        expect(getSubmitButton()).not.toBeDisabled();
+      });
+      expect(screen.queryByText("Enter a last name")).not.toBeInTheDocument();
+    }
+  );
 });
