@@ -510,20 +510,15 @@
     "44": {
       "coding": 0,
       "origin": "owner-pr",
-      "reviews": 1,
+      "reviews": 2,
       "retries": 0,
       "head": "bcdc66a3ac6bf8bd049fa3f51ac7a251a44c44bb",
-      "status": "blocked",
+      "status": "reviewing",
       "pr": 45,
       "approval": null,
       "criteriaHash": "d42165f81ef371f37ff5ce9369620a6678d504c71d5b5c5e45425ceda1749044",
       "branch": "test/emergency-stop-2026-11-15",
-      "ci": {
-        "requestId": "3d76316a-4572-4e77-a893-8f223aca0047",
-        "head": "bcdc66a3ac6bf8bd049fa3f51ac7a251a44c44bb",
-        "runId": 43654325621,
-        "passed": true
-      }
+      "ci": null
     },
     "46": {
       "coding": 0,
@@ -1342,9 +1337,24 @@
       "status": "finished",
       "at": "2026-11-15T20:34:22.546Z",
       "outcome": "drill_complete"
+    },
+    "ca44f947-879f-4d4e-b27c-a0c198b3a8ab": {
+      "id": "ca44f947-879f-4d4e-b27c-a0c198b3a8ab",
+      "ticket": 44,
+      "phase": "review",
+      "slot": "existing",
+      "runId": "43761861924",
+      "runAttempt": 1,
+      "head": "bcdc66a3ac6bf8bd049fa3f51ac7a251a44c44bb",
+      "status": "reserved",
+      "at": "2026-11-15T21:07:14.047Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 44,
+    "runId": "43761861924",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -2107,6 +2117,15 @@
       "grant": "12b3b08a-16c4-4579-b32c-5d1da0d8d75e",
       "status": "drill_complete",
       "head": "5f69e0fd05e775b2d91d7f2cb51cf82d92955fcf"
+    },
+    {
+      "at": "2026-11-15T21:07:14.047Z",
+      "event": "reserved",
+      "ticket": 44,
+      "grant": "ca44f947-879f-4d4e-b27c-a0c198b3a8ab",
+      "phase": "review",
+      "runId": "43761861924",
+      "runAttempt": 1
     }
   ]
 }
