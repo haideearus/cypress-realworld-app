@@ -657,7 +657,11 @@
           }
         ]
       },
-      "ci": null,
+      "ci": {
+        "requestId": "28bd331e-301b-4d0d-b761-5d816f33d469",
+        "head": "5b3d4c0a7580d93ef148996e0dacf30fbfe2e5fa",
+        "runId": null
+      },
       "feedback": "Dependency preparation held; no model invocation",
       "analysis": {
         "version": 1,
