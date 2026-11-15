@@ -31,7 +31,8 @@
       46,
       48,
       50,
-      52
+      52,
+      53
     ]
   },
   "tickets": {
@@ -650,6 +651,19 @@
       },
       "ci": null,
       "feedback": "Dependency preparation held; no model invocation"
+    },
+    "53": {
+      "coding": 0,
+      "origin": "owner-pr",
+      "reviews": 1,
+      "retries": 0,
+      "head": "797b28e18b6ee0f5a832a11c39277f717707d4eb",
+      "status": "reviewing",
+      "pr": 54,
+      "approval": null,
+      "criteriaHash": "a144a943c19fa2c54abc8b1a93627ae4fb43c2b0fcc75add993af157af1165fa",
+      "branch": "agent/fix-unchanged-prerelease-analysis",
+      "ci": null
     }
   },
   "grants": {
@@ -1037,9 +1051,24 @@
       "status": "finished",
       "at": "2026-11-15T10:53:55.196Z",
       "outcome": "reviewed"
+    },
+    "291c280c-01be-4553-a6dd-d188808861e1": {
+      "id": "291c280c-01be-4553-a6dd-d188808861e1",
+      "ticket": 53,
+      "phase": "review",
+      "slot": "existing",
+      "runId": "43715336434",
+      "runAttempt": 1,
+      "head": "797b28e18b6ee0f5a832a11c39277f717707d4eb",
+      "status": "reserved",
+      "at": "2026-11-15T12:44:15.919Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 53,
+    "runId": "43715336434",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -1645,6 +1674,15 @@
       "ticket": 52,
       "head": "660dbd10925a7907098534842bd6e26f700c55bc",
       "runId": "43713470670"
+    },
+    {
+      "at": "2026-11-15T12:44:15.919Z",
+      "event": "reserved",
+      "ticket": 53,
+      "grant": "291c280c-01be-4553-a6dd-d188808861e1",
+      "phase": "review",
+      "runId": "43715336434",
+      "runAttempt": 1
     }
   ]
 }
