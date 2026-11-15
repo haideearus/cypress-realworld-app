@@ -5,6 +5,7 @@ const { REPOSITORY, OWNER, SHA, assertSubscriptionEnv } = require("./policy.cjs"
 const { MonitorStore, MAX_INCIDENTS, MAX_CREATIONS_PER_DAY } = require("./monitor-state.cjs");
 const { MONITOR_WORKFLOW } = require("./monitor-origin.cjs");
 const { probeApp } = require("./monitor-probe.cjs");
+const { publisherFetch } = require("./app-checks-budget.cjs");
 const {
   validateAppChecks,
   appChecksEnabled,
@@ -201,7 +202,7 @@ async function main(env = process.env) {
         ? readReport(env, context)
         : undefined;
     result = await monitor({
-      api: new GitHub({ token: env.GITHUB_TOKEN }),
+      api: new GitHub({ token: env.GITHUB_TOKEN, ...(checked ? { fetch: publisherFetch() } : {}) }),
       context,
       enabled,
       dryRun,

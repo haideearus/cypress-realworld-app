@@ -194,6 +194,25 @@ test("a cookie received before a malformed or oversized login body is still clea
     assert.ok(f.calls.some((c) => c.url.endsWith("/api/logout")));
   }
 });
+test("safe cookies missing Secure or HttpOnly fail login but are retained for cleanup", async () => {
+  for (const attributes of ["Secure", "HttpOnly"]) {
+    const f = fixture((url, options, index) => {
+      if (url.endsWith("/api/login"))
+        return json({ user }, 200, { "set-cookie": COOKIE + "; " + attributes });
+      if (url.endsWith("/api/checkAuth") && index === 2)
+        return json({ error: "unauthorized" }, 401);
+    });
+    const result = await probe(f);
+    assert.equal(result.healthy, false);
+    assert.equal(result.checks.login, "failed");
+    assert.deepEqual(
+      f.calls.map((c) => new URL(c.url).pathname),
+      ["/api/login", "/api/logout", "/api/checkAuth"]
+    );
+    assert.equal(f.calls[1].options.headers.Cookie, COOKIE);
+    assert.equal(result.checks.logout, "ok");
+  }
+});
 test("cold-start retries are bounded and can recover without sharing a cookie between attempts", async () => {
   const f = fixture((url, options, index) => (index === 0 ? json({}, 503) : undefined));
   const sleeps = [];

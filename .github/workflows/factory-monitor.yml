@@ -51,9 +51,7 @@ jobs:
         run: node scripts/factory/app-checks.cjs
       - name: Scan credential-free app check report
         if: ${{ env.FACTORY_APP_CHECKS_ENABLED == 'true' }}
-        run: |
-          node scripts/factory/scanner-install.cjs
-          node scripts/factory/secret-scan.cjs file "$RUNNER_TEMP/factory-app-checks-$GITHUB_RUN_ID-1.json"
+        run: node scripts/factory/app-checks-scan.cjs
       - name: Observe production and publish incident
         env:
           GITHUB_TOKEN: ${{ github.token }}

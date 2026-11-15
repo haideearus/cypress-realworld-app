@@ -72,3 +72,26 @@ PG and a test transport mapping the immutable public-origin request to localhost
       push branch and open draft PR against this fork linked to #46.
 - [ ] Observe normal CI and verify live configuration/history unchanged. Start
       no Claude review, authenticated production check, merge or deployment.
+
+## Implementation verification
+
+Fresh local review of `094e77d..8c103a0` found two important issues: cleanup of a
+safe cookie with invalid security attributes, and the aggregate scanner budget.
+Both were reproduced RED, fixed, and verified GREEN. Safe pairs are now retained
+for cleanup while login still fails its security contract. Scanner install/scan
+share 30 seconds; enabled app-check publication shares 60 seconds; the aggregate
+phase contract retains 26 seconds for setup inside the unchanged eight-minute job.
+Legacy availability-only HTTP bounds remain unchanged.
+
+Final local verification: 439 factory tests, 429 passed and 10 platform/optional
+skips; real production-mode app/PG journey passed with the original test timeout;
+production build, actionlint, formatting, whitespace and 396-file source scan
+passed. The real pinned scanner also accepted a generated safe report through
+the bounded wrapper. The disposable local PostgreSQL process was stopped.
+
+Rollout decision: a manual preview-only checkbox permits credentialed validation
+while the scheduled global flag remains false. API checks do not cover rendered
+UI. Sessions whose cookie never arrives cannot be explicitly cleaned up; that
+limitation is documented. Live setup/rollout, provider settings and physical
+PC-off proof were not asserted by the local review. Genuine Claude Pro review
+and successful required GitHub checks remain necessary before merge.

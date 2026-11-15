@@ -1,7 +1,8 @@
 const { APP_URL } = require("./deploy-render.cjs");
 const MAX_BODY = 64 * 1024;
-const TIMEOUT = 10000;
-const RETRY_DELAY = 30000;
+const { LIMITS } = require("./app-checks-budget.cjs");
+const TIMEOUT = LIMITS.request;
+const RETRY_DELAY = LIMITS.retryDelay;
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 function credentials(username, password) {
   if (
@@ -15,19 +16,23 @@ function credentials(username, password) {
   )
     throw Error("Invalid synthetic account configuration");
 }
-function cookieFrom(headers) {
+function cookieFrom(headers, receivedCookie) {
   const values = headers.getSetCookie();
   if (values.join("").length > 4096) throw Error("Invalid session header");
   const sid = values.filter((value) => /^connect\.sid=/.test(value));
   if (sid.length > 1) throw Error("Ambiguous session header");
   if (!sid.length) return undefined;
   const pair = sid[0].split(";")[0];
-  if (pair === "connect.sid=") return null;
-  if (
-    !/^connect\.sid=[A-Za-z0-9%._~+/=-]{1,2048}$/.test(pair) ||
-    !/;\s*Secure(?:;|$)/i.test(sid[0]) ||
-    !/;\s*HttpOnly(?:;|$)/i.test(sid[0])
-  )
+  if (pair === "connect.sid=") {
+    receivedCookie(null);
+    return null;
+  }
+  if (!/^connect\.sid=[A-Za-z0-9%._~+/=-]{1,2048}$/.test(pair))
+    throw Error("Invalid session header");
+  // Retain only a syntactically safe, unambiguous pair for cleanup even when
+  // its security attributes make the authentication contract fail.
+  receivedCookie(pair);
+  if (!/;\s*Secure(?:;|$)/i.test(sid[0]) || !/;\s*HttpOnly(?:;|$)/i.test(sid[0]))
     throw Error("Invalid session header");
   return pair;
 }
@@ -52,8 +57,7 @@ async function request(fetch, route, method, cookie, body, timeoutMs, receivedCo
           ...(body ? { body: JSON.stringify(body) } : {}),
         });
         if (controller.signal.aborted) return null;
-        const sessionCookie = cookieFrom(response.headers);
-        receivedCookie(sessionCookie);
+        const sessionCookie = cookieFrom(response.headers, receivedCookie);
         const size = response.headers.get("content-length");
         if (size !== null && (!/^\d+$/.test(size) || Number(size) > MAX_BODY)) return null;
         const chunks = [];
@@ -182,7 +186,7 @@ async function pause(sleep) {
           () => false
         ),
       new Promise((resolve) => {
-        timer = setTimeout(() => resolve(false), RETRY_DELAY + 1000);
+        timer = setTimeout(() => resolve(false), RETRY_DELAY + LIMITS.retryGuard);
       }),
     ]);
   } finally {
@@ -194,7 +198,7 @@ async function probeUserJourney({
   password,
   fetch = globalThis.fetch,
   sleep = delay,
-  attempts = 3,
+  attempts = LIMITS.attempts,
   requestTimeoutMs = TIMEOUT,
 } = {}) {
   credentials(username, password);
@@ -203,7 +207,7 @@ async function probeUserJourney({
     typeof sleep !== "function" ||
     !Number.isInteger(attempts) ||
     attempts < 1 ||
-    attempts > 3 ||
+    attempts > LIMITS.attempts ||
     !Number.isInteger(requestTimeoutMs) ||
     requestTimeoutMs < 1 ||
     requestTimeoutMs > TIMEOUT

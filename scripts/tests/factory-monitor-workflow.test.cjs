@@ -43,7 +43,7 @@ test("monitor is main-only, default preview, bounded and carries no provider cre
   assert.ok(!Object.keys(publisher.env).some((key) => /USERNAME|PASSWORD/.test(key)));
   assert.equal(publisher.env.FACTORY_APP_CHECKS_ENABLED, undefined);
   const scan = job.steps.find((step) => step.name === "Scan credential-free app check report");
-  assert.ok(scan.run.includes("secret-scan.cjs"));
+  assert.equal(scan.run, "node scripts/factory/app-checks-scan.cjs");
   assert.equal(scan.env, undefined);
   assert.ok(job.steps.indexOf(scan) > job.steps.indexOf(checker));
   assert.ok(job.steps.indexOf(scan) < job.steps.indexOf(publisher));

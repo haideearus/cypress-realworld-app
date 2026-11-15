@@ -21,6 +21,10 @@ failure can prevent cleanup when the cookie was never received. These are API
 checks, not rendered-browser/button coverage. Three attempts use ten-second
 request deadlines, 64-KiB response limits and 30-second pauses. The existing
 eight-minute workflow bound and 30-minute best-effort schedule remain unchanged.
+Scanner installation and report scanning share a 30-second deadline; app-check
+incident publication has a shared 60-second HTTP budget. Cold downloads or API
+outages fail closed rather than consuming unbounded runner time. An uncertain
+publication retains its pending receipt for operator recovery, as before.
 
 The account step receives its two account secrets, no GitHub token, Claude
 credential, App key or deploy hook. A separate credential-free step scans its

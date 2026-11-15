@@ -31,9 +31,16 @@ attempted whenever a cookie is available, including earlier failures.
 
 At most three attempts, ten seconds per request, 64 KiB per response, two
 30-second retry pauses. Each attempt has at most five calls, including cleanup
-and logout verification: worst case 210 seconds plus existing availability
-probes (150 seconds), below the unchanged eight-minute job limit. Runtime
+and logout verification. With timeout guards the journey is bounded by 212
+seconds; existing availability probes by 152. Scanner install plus scan share
+one 30-second subprocess deadline. In app-check mode, all incident-publication
+HTTP calls share 60 seconds, leaving 26 seconds of the unchanged eight-minute
+job budget for setup. Provider/setup overruns still fail closed; they are not
+an uptime guarantee. The legacy availability-only transport is unchanged. Runtime
 validators may lower these limits in tests but cannot raise them.
+
+Owner manual preview may set `app_checks=true` while `dry_run=true` without
+enabling the global flag. That override never applies to scheduled or live runs.
 
 The credentialed checker receives no GitHub token, provider credential, App key
 or deploy hook. A later scanner step and publisher receive no account secrets.
