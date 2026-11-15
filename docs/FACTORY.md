@@ -43,6 +43,31 @@ again must add the `upstream` remote as shown below.
 
 ## Current setup status
 
+Latest update, 2026-11-15: the app, Claude coding/CI/independent review, App-backed
+automatic merging and named human-approved deployment have demonstrated runs
+linked below. Production monitoring is installed and enabled. The isolated cloud
+repair rehearsal passed in
+[43581712040](https://github.com/haideearus/cypress-realworld-app/actions/runs/43581712040);
+it does not establish a real unattended production incident repair or a physical
+PC-off interval.
+
+Secret scanning and owner stop controls merged in PR #40; the narrowly guarded
+stale-record exception merged in PR #43. The owner shutdown trial
+[43654287550](https://github.com/haideearus/cypress-realworld-app/actions/runs/43654287550)
+completed in 37.5 seconds wall time, cancelled the parent workflow and preserved
+usage. Claude finished successfully during shutdown, so forced interruption of a
+still-running Claude process remains separate acceptance evidence. The stop
+marker remains active, all three agent switches are false, and the ledger is idle.
+
+The [synthetic-user API checks](factory/APP-CHECKS.md) are prepared under #46,
+default-off and not yet installed. They extend existing outage tickets with
+signed-in behavior failures; no account secret or live setting was changed during
+preparation. Dependency/CVE automation, rendered-browser traffic, a complete
+unattended production-repair cycle and final course evidence remain follow-up
+work. Historical status and foundation milestones below are dated evidence.
+
+### Historical update, 2026-11-13
+
 Update on 2026-11-13: the cloud coding, CI and independent Claude Pro review path
 was demonstrated for issue #11. Its public-feed repair, including a real HTTP
 regression, merged through [PR #25](https://github.com/haideearus/cypress-realworld-app/pull/25).
@@ -173,7 +198,7 @@ Resolve any conflicts in the maintenance branch, run the required checks, and
 open a PR into our `main`. Dependency and source updates go through the same
 review process as bug fixes. Preserve the factory configuration and evidence.
 
-## Next milestone
+## Original foundation milestone (historical)
 
 Make the full application run with a production startup, one public URL,
 persistent demo data, and environment-managed secrets. Then install the factory

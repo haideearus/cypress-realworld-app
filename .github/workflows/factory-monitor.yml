@@ -9,6 +9,11 @@ on:
         type: boolean
         required: true
         default: true
+      app_checks:
+        description: Include signed-in checks in this preview (requires the two account secrets)
+        type: boolean
+        required: true
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -27,6 +32,8 @@ jobs:
     permissions:
       contents: write
       issues: write
+    env:
+      FACTORY_APP_CHECKS_ENABLED: ${{ (vars.FACTORY_APP_CHECKS_ENABLED == 'true' || (github.event_name == 'workflow_dispatch' && inputs.dry_run && inputs.app_checks)) && 'true' || 'false' }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -37,14 +44,13 @@ jobs:
         with:
           node-version: "22.20.0"
       - name: Check synthetic-user API journey
-        if: ${{ vars.FACTORY_APP_CHECKS_ENABLED == 'true' }}
+        if: ${{ env.FACTORY_APP_CHECKS_ENABLED == 'true' }}
         env:
-          FACTORY_APP_CHECKS_ENABLED: ${{ vars.FACTORY_APP_CHECKS_ENABLED }}
           FACTORY_MONITOR_USERNAME: ${{ secrets.FACTORY_MONITOR_USERNAME }}
           FACTORY_MONITOR_PASSWORD: ${{ secrets.FACTORY_MONITOR_PASSWORD }}
         run: node scripts/factory/app-checks.cjs
       - name: Scan credential-free app check report
-        if: ${{ vars.FACTORY_APP_CHECKS_ENABLED == 'true' }}
+        if: ${{ env.FACTORY_APP_CHECKS_ENABLED == 'true' }}
         run: |
           node scripts/factory/scanner-install.cjs
           node scripts/factory/secret-scan.cjs file "$RUNNER_TEMP/factory-app-checks-$GITHUB_RUN_ID-1.json"
@@ -53,5 +59,4 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           FACTORY_MONITOR_ENABLED: ${{ vars.FACTORY_MONITOR_ENABLED }}
           MONITOR_DRY_RUN: ${{ toJSON(inputs.dry_run) }}
-          FACTORY_APP_CHECKS_ENABLED: ${{ vars.FACTORY_APP_CHECKS_ENABLED }}
         run: node scripts/factory/monitor.cjs
