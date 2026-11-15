@@ -551,9 +551,9 @@
       "origin": "factory",
       "reviews": 0,
       "retries": 0,
-      "head": "d591b58c5d60e7a26f9f6d8a7dbdf82fd2009f18",
-      "status": "coding",
-      "pr": null,
+      "head": "ee62e1b720e512c1f9dc194155aec11b298ce132",
+      "status": "awaiting_review",
+      "pr": 49,
       "approval": null,
       "criteriaHash": "3dc79e81f4327f78a16d4038cd9c1533229a3ade530d595e409c08099580d905",
       "automatic": {
@@ -562,7 +562,8 @@
         "runId": "43691015736",
         "runAttempt": 1,
         "appSlug": "haideearus-software-factory"
-      }
+      },
+      "branch": "agent/factory-48"
     }
   },
   "grants": {
@@ -923,8 +924,9 @@
       "runId": "43691015736",
       "runAttempt": 1,
       "head": "d591b58c5d60e7a26f9f6d8a7dbdf82fd2009f18",
-      "status": "reserved",
-      "at": "2026-11-15T07:41:09.014Z"
+      "status": "finished",
+      "at": "2026-11-15T07:41:09.014Z",
+      "outcome": "awaiting_review"
     }
   },
   "active": {
@@ -1481,6 +1483,14 @@
       "phase": "code",
       "runId": "43691015736",
       "runAttempt": 1
+    },
+    {
+      "at": "2026-11-15T07:46:50.667Z",
+      "event": "finished",
+      "ticket": 48,
+      "grant": "a94c9e0e-5a26-4450-b037-252ba35570c1",
+      "status": "awaiting_review",
+      "head": "ee62e1b720e512c1f9dc194155aec11b298ce132"
     }
   ]
 }
