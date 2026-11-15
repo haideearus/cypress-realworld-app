@@ -1,0 +1,280 @@
+name: Dependency maintenance
+on:
+  schedule:
+    - cron: "29 * * * *"
+  workflow_dispatch:
+    inputs:
+      preview:
+        description: Preview Dependabot eligibility without state changes or model calls
+        type: boolean
+        required: true
+        default: true
+permissions:
+  contents: read
+concurrency:
+  group: factory-dependencies
+  cancel-in-progress: false
+jobs:
+  select:
+    if: ${{ github.ref == 'refs/heads/main' && ((github.event_name == 'workflow_dispatch' && inputs.preview) || (vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true')) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: read
+      actions: read
+    concurrency:
+      group: factory-ledger
+      cancel-in-progress: false
+    outputs:
+      ready: ${{ steps.control.outputs.ready }}
+      mode: ${{ steps.control.outputs.mode }}
+      ticket: ${{ steps.control.outputs.ticket }}
+      head: ${{ steps.control.outputs.head }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - id: control
+        uses: ./.github/actions/factory-control
+        with:
+          operation: dep_select
+          variables_json: ${{ toJSON(vars) }}
+          parameters: "${{ toJSON(inputs) }}"
+
+  analysis:
+    needs: select
+    if: ${{ needs.select.outputs.ready == 'true' && needs.select.outputs.mode == 'review' && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.20.0
+      - name: Install trusted parser tools without lifecycle scripts or model credentials
+        working-directory: scripts/factory/dependency-tools
+        run: npm ci --ignore-scripts --no-audit --fund=false
+      - name: Install the checksum-pinned scanner
+        run: node scripts/factory/scanner-install.cjs
+      - id: control
+        uses: ./.github/actions/factory-control
+        with:
+          operation: dep_analysis
+          variables_json: ${{ toJSON(vars) }}
+          parameters: '{"ticket":"${{ needs.select.outputs.ticket }}"}'
+      - name: Scan the bounded analysis report before upload
+        run: node scripts/factory/secret-scan.cjs file "$RUNNER_TEMP/factory-dependencies/analysis.json"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: dependency-analysis-${{ github.run_id }}-${{ github.run_attempt }}-${{ needs.select.outputs.ticket }}-${{ needs.select.outputs.head }}
+          path: ${{ runner.temp }}/factory-dependencies/analysis.json
+          if-no-files-found: error
+          retention-days: 7
+
+  ci:
+    needs: [select, analysis]
+    if: ${{ needs.analysis.result == 'success' && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    permissions:
+      contents: write
+      pull-requests: read
+      actions: write
+    concurrency:
+      group: factory-ledger
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: dependency-analysis-${{ github.run_id }}-${{ github.run_attempt }}-${{ needs.select.outputs.ticket }}-${{ needs.select.outputs.head }}
+          path: ${{ runner.temp }}/dependency-analysis
+      - id: accept
+        uses: ./.github/actions/factory-control
+        with:
+          operation: dep_accept
+          variables_json: ${{ toJSON(vars) }}
+          parameters: '{"ticket":"${{ needs.select.outputs.ticket }}"}'
+          bundle_path: ${{ runner.temp }}/dependency-analysis/analysis.json
+      - id: control
+        uses: ./.github/actions/factory-control
+        with:
+          operation: dep_ci
+          variables_json: ${{ toJSON(vars) }}
+          parameters: '{"ticket":"${{ needs.select.outputs.ticket }}"}'
+
+  reserve:
+    needs: [select, ci]
+    if: ${{ needs.ci.result == 'success' && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: read
+      actions: read
+    concurrency:
+      group: factory-ledger
+      cancel-in-progress: false
+    outputs:
+      grantId: ${{ steps.control.outputs.grantId }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - id: control
+        uses: ./.github/actions/factory-control
+        with:
+          operation: dep_reserve
+          variables_json: ${{ toJSON(vars) }}
+          parameters: '{"ticket":"${{ needs.select.outputs.ticket }}"}'
+
+  review:
+    needs: [select, reserve]
+    if: ${{ needs.reserve.outputs.grantId != '' && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' }}
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
+    uses: ./.github/workflows/factory-model.yml
+    with:
+      ticket: ${{ needs.select.outputs.ticket }}
+      grantId: ${{ needs.reserve.outputs.grantId }}
+      head: ${{ needs.select.outputs.head }}
+      slot: dependency
+      phase: review
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+  assess:
+    needs: [select, reserve, review]
+    if: ${{ needs.review.result == 'success' && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: read
+      actions: read
+    concurrency:
+      group: factory-ledger
+      cancel-in-progress: false
+    outputs:
+      reviewed: ${{ steps.control.outputs.reviewed }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: review-${{ needs.reserve.outputs.grantId }}
+          path: ${{ runner.temp }}/dependency-review
+      - id: control
+        uses: ./.github/actions/factory-control
+        with:
+          operation: dep_assess
+          variables_json: ${{ toJSON(vars) }}
+          parameters: '{"ticket":"${{ needs.select.outputs.ticket }}","grantId":"${{ needs.reserve.outputs.grantId }}"}'
+          bundle_path: ${{ runner.temp }}/dependency-review/bundle.json
+
+  premerge:
+    needs: [select, assess]
+    if: ${{ always() && !cancelled() && needs.select.outputs.ready == 'true' && (needs.select.outputs.mode == 'merge' || needs.assess.outputs.reviewed == 'true') && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' && vars.FACTORY_AUTOMERGE_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.20.0
+      - name: Install trusted parser tools without lifecycle scripts or model credentials
+        working-directory: scripts/factory/dependency-tools
+        run: npm ci --ignore-scripts --no-audit --fund=false
+      - name: Install the checksum-pinned scanner
+        run: node scripts/factory/scanner-install.cjs
+      - id: control
+        uses: ./.github/actions/factory-control
+        with:
+          operation: dep_premerge
+          variables_json: ${{ toJSON(vars) }}
+          parameters: '{"ticket":"${{ needs.select.outputs.ticket }}"}'
+      - name: Scan the bounded analysis report before upload
+        run: node scripts/factory/secret-scan.cjs file "$RUNNER_TEMP/factory-dependencies/premerge.json"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: dependency-premerge-${{ github.run_id }}-${{ github.run_attempt }}-${{ needs.select.outputs.ticket }}-${{ needs.select.outputs.head }}
+          path: ${{ runner.temp }}/factory-dependencies/premerge.json
+          if-no-files-found: error
+          retention-days: 7
+
+  merge:
+    needs: [select, premerge]
+    if: ${{ always() && !cancelled() && needs.select.outputs.ready == 'true' && (needs.select.outputs.mode == 'reconcile' || needs.premerge.result == 'success') && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' && vars.FACTORY_AUTOMERGE_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    concurrency:
+      group: factory-auto-merge
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        if: ${{ needs.select.outputs.mode != 'reconcile' }}
+        with:
+          name: dependency-premerge-${{ github.run_id }}-${{ github.run_attempt }}-${{ needs.select.outputs.ticket }}-${{ needs.select.outputs.head }}
+          path: ${{ runner.temp }}/dependency-premerge
+      - id: app
+        uses: ./.github/actions/factory-app-token
+        with:
+          client-id: ${{ vars.FACTORY_GITHUB_APP_CLIENT_ID }}
+          expected-slug: ${{ vars.FACTORY_GITHUB_APP_SLUG }}
+          private-key: ${{ secrets.FACTORY_GITHUB_APP_PRIVATE_KEY }}
+      - uses: ./.github/actions/factory-control
+        with:
+          operation: dep_merge
+          github_token: ${{ steps.app.outputs.token }}
+          variables_json: ${{ toJSON(vars) }}
+          parameters: '{"ticket":"${{ needs.select.outputs.ticket }}"}'
+          bundle_path: ${{ needs.select.outputs.mode != 'reconcile' && format('{0}/dependency-premerge/premerge.json', runner.temp) || '' }}
+  finalize:
+    needs: [select, analysis, ci, reserve, review, assess, premerge, merge]
+    if: ${{ always() && !cancelled() && needs.select.outputs.ready == 'true' && needs.select.outputs.mode == 'review' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: read
+    concurrency:
+      group: factory-ledger
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - id: control
+        uses: ./.github/actions/factory-control
+        with:
+          operation: dep_finalize
+          variables_json: ${{ toJSON(vars) }}
+          parameters: '{"ticket":"${{ needs.select.outputs.ticket }}"}'

@@ -1,0 +1,9 @@
+{
+  "name": "factory-dependency-analysis-tools",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "@yarnpkg/lockfile": "1.1.0",
+    "semver": "7.7.3"
+  }
+}

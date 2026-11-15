@@ -36,6 +36,9 @@ class AutomaticMerger {
   enabled() {
     return this.config.enabled && this.config.automatic && this.config.autoMerge;
   }
+  branchFor(ticket) {
+    return `agent/factory-${ticket}`;
+  }
   mergeLock(state, ticket, merge) {
     return (
       merge?.status === "intent" &&
@@ -130,7 +133,7 @@ class AutomaticMerger {
         (pr) =>
           pr.number === ticket.pr &&
           pr.head?.sha === ticket.head &&
-          pr.head?.ref === `agent/factory-${ticket.number}` &&
+          pr.head?.ref === this.branchFor(ticket.number, ticket) &&
           pr.url === `https://api.github.com${ROOT}/pulls/${ticket.pr}` &&
           pr.head?.repo?.url === `https://api.github.com${ROOT}` &&
           pr.base?.ref === "main" &&
@@ -183,7 +186,7 @@ class AutomaticMerger {
         run.path !== `.github/workflows/${file}` ||
         run.event !== "pull_request" ||
         run.head_sha !== t.head ||
-        run.head_branch !== `agent/factory-${ticket}` ||
+        run.head_branch !== this.branchFor(ticket, t) ||
         run.repository?.full_name !== policy.REPOSITORY ||
         run.head_repository?.full_name !== policy.REPOSITORY ||
         run.check_suite_id !== check.check_suite.id ||
@@ -307,6 +310,7 @@ class AutomaticMerger {
       return { state };
     });
   }
+  async permitWrite() {}
   async merge(ticket, { dryRun = false } = {}) {
     this.authorize();
     if (!Number.isSafeInteger(ticket) || ticket < 1 || typeof dryRun !== "boolean")
@@ -392,6 +396,7 @@ class AutomaticMerger {
       gate = await this.checks(ticket, t);
       if (!gate.passed || latest.pr.mergeable !== true || latest.pr.mergeable_state !== "clean")
         throw new Error("Native checks or clean PR mergeability changed");
+      await this.permitWrite(ticket, t);
     } catch (error) {
       await this.release(ticket, t, intent);
       throw error;
