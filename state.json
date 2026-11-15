@@ -518,7 +518,11 @@
       "approval": null,
       "criteriaHash": "d42165f81ef371f37ff5ce9369620a6678d504c71d5b5c5e45425ceda1749044",
       "branch": "test/emergency-stop-2026-11-15",
-      "ci": null
+      "ci": {
+        "requestId": "48a989ad-2eed-483c-890d-2b0c1b14ee70",
+        "head": "bcdc66a3ac6bf8bd049fa3f51ac7a251a44c44bb",
+        "runId": null
+      }
     },
     "46": {
       "coding": 0,
