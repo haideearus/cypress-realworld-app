@@ -621,12 +621,12 @@
     },
     "52": {
       "coding": 0,
-      "reviews": 0,
+      "reviews": 1,
       "retries": 0,
       "origin": "dependency-pr",
       "head": "5b3d4c0a7580d93ef148996e0dacf30fbfe2e5fa",
       "pr": 52,
-      "status": "new",
+      "status": "reviewing",
       "approval": null,
       "branch": "dependabot/npm_and_yarn/axios-0.35.0",
       "criteriaHash": "19ef877c259fcbe42601558f3afe4a283c62664c92a794578d5ae77e35baa500",
@@ -1138,6 +1138,17 @@
       "status": "finished",
       "at": "2026-11-15T12:44:15.919Z",
       "outcome": "reviewed"
+    },
+    "060c2155-4039-4c57-ac73-348a073d7cec": {
+      "id": "060c2155-4039-4c57-ac73-348a073d7cec",
+      "ticket": 52,
+      "phase": "review",
+      "slot": "dependency",
+      "runId": "43717816985",
+      "runAttempt": 1,
+      "head": "5b3d4c0a7580d93ef148996e0dacf30fbfe2e5fa",
+      "status": "reserved",
+      "at": "2026-11-15T13:20:53.261Z"
     }
   },
   "active": {
@@ -1774,6 +1785,15 @@
       "ticket": 52,
       "head": "5b3d4c0a7580d93ef148996e0dacf30fbfe2e5fa",
       "runId": "43717816985"
+    },
+    {
+      "at": "2026-11-15T13:20:53.261Z",
+      "event": "reserved",
+      "ticket": 52,
+      "grant": "060c2155-4039-4c57-ac73-348a073d7cec",
+      "phase": "review",
+      "runId": "43717816985",
+      "runAttempt": 1
     }
   ]
 }
