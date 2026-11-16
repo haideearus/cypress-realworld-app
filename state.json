@@ -896,10 +896,10 @@
         }
       },
       "merge": {
-        "status": "intent",
+        "status": "closed",
         "head": "0c33f0cfc987640dcbd2e65cbf919eab840024f4",
         "pr": 57,
-        "at": "2026-11-16T13:35:43.254Z",
+        "at": "2026-11-16T13:55:12.690Z",
         "runId": "43877094697",
         "runAttempt": 1
       }
@@ -3094,6 +3094,32 @@
       ],
       "pendingRunIds": [],
       "elapsedMs": 11747
+    },
+    {
+      "at": "2026-11-16T13:55:12.690Z",
+      "event": "owner_dependency_already_applied_closed",
+      "actor": "haideearus",
+      "ticket": 57,
+      "head": "0c33f0cfc987640dcbd2e65cbf919eab840024f4",
+      "mainCommit": "f06550feae8ca432ca82866e60ce750fe7035ae7",
+      "tree": "71ce3477cb46b72b5b2421c64c37bb5c85cdcb09",
+      "ciRunId": 43879136102,
+      "ciEvent": "workflow_dispatch",
+      "disposition": "closed-already-applied",
+      "githubMerged": false,
+      "sourceMergeRunId": "43877094697",
+      "previousMergeIntent": {
+        "status": "intent",
+        "head": "0c33f0cfc987640dcbd2e65cbf919eab840024f4",
+        "pr": 57,
+        "at": "2026-11-16T13:35:43.254Z",
+        "runId": "43877094697",
+        "runAttempt": 1
+      },
+      "commentUrl": "https://github.com/haideearus/cypress-realworld-app/pull/57#issuecomment-6918413647",
+      "reason": "Exact approved tree already on main; PR merge metadata never confirmed; duplicate write avoided",
+      "approvalPreserved": true,
+      "countersPreserved": true
     }
   ],
   "stop": {
