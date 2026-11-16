@@ -125,8 +125,39 @@ function validFeed(data) {
     (page.totalPages === 0 ? data.results.length === 0 : data.results.length > 0)
   );
 }
-async function attempt(fetch, username, password, timeoutMs) {
+function validFeedContract(response) {
+  if (!response?.data || typeof response.data !== "object" || Array.isArray(response.data))
+    return false;
+  if ([400, 422].includes(response.status))
+    return (
+      (typeof response.data.error === "string" && response.data.error.length > 0) ||
+      (Array.isArray(response.data.errors) && response.data.errors.length > 0)
+    );
+  const data = response.data,
+    page = data.pageData;
+  return Boolean(
+    response.status === 200 &&
+      page?.page === 1 &&
+      Number.isSafeInteger(page.limit) &&
+      page.limit > 0 &&
+      page.limit <= 50 &&
+      Number.isSafeInteger(page.totalPages) &&
+      page.totalPages >= 0 &&
+      page.hasNextPages === page.totalPages > 1 &&
+      Array.isArray(data.results) &&
+      data.results.length <= page.limit &&
+      data.results.every(
+        (item) => item && typeof item.id === "string" && item.id.length > 0 && item.id.length <= 100
+      ) &&
+      (page.totalPages === 0 ? data.results.length === 0 : data.results.length > 0)
+  );
+}
+async function attempt(fetch, username, password, timeoutMs, feedContract) {
   const checks = { login: "failed", session: "failed", feed: "failed", logout: "failed" };
+  const result = {
+    checks,
+    ...(feedContract ? { feedContract: "failed", releases: { before: null, after: null } } : {}),
+  };
   let cookie, lastCookie;
   const call = async (route, method = "GET", body) => {
     return request(fetch, route, method, cookie, body, timeoutMs, (value) => {
@@ -136,7 +167,21 @@ async function attempt(fetch, username, password, timeoutMs) {
       }
     });
   };
+  const release = async () => {
+    // Public release observations never carry the account's session cookie.
+    const r = await request(fetch, "/healthz", "GET", undefined, undefined, timeoutMs);
+    return r?.status === 200 &&
+      r.data?.status === "ok" &&
+      typeof r.data.release === "string" &&
+      /^[a-f0-9]{40}$/.test(r.data.release)
+      ? r.data.release
+      : null;
+  };
   try {
+    if (feedContract) {
+      result.releases.before = await release();
+      if (!result.releases.before) return result;
+    }
     const login = await call("/api/login", "POST", { username, password, remember: false });
     if (
       login?.status !== 200 ||
@@ -144,7 +189,7 @@ async function attempt(fetch, username, password, timeoutMs) {
       !publicIdentity(login.data?.user) ||
       login.data.user.username !== username
     )
-      return checks;
+      return result;
     checks.login = "ok";
     const session = await call("/api/checkAuth");
     if (
@@ -154,11 +199,15 @@ async function attempt(fetch, username, password, timeoutMs) {
       session.data.user.id !== login.data.user.id ||
       session.data.user.username !== username
     )
-      return checks;
+      return result;
     checks.session = "ok";
     const feed = await call("/api/transactions/public?page=1&limit=5");
     if (feed?.status === 200 && cookie && validFeed(feed.data)) checks.feed = "ok";
-    return checks;
+    if (feedContract && checks.feed === "ok") {
+      const contract = await call("/api/transactions/public?page=1&limit=0");
+      if (cookie && validFeedContract(contract)) result.feedContract = "ok";
+    }
+    return result;
   } finally {
     if (lastCookie) {
       const oldCookie = lastCookie;
@@ -173,6 +222,7 @@ async function attempt(fetch, username, password, timeoutMs) {
       )
         checks.logout = "ok";
     }
+    if (feedContract) result.releases.after = await release();
   }
 }
 async function pause(sleep) {
@@ -200,9 +250,11 @@ async function probeUserJourney({
   sleep = delay,
   attempts = LIMITS.attempts,
   requestTimeoutMs = TIMEOUT,
+  feedContract = false,
 } = {}) {
   credentials(username, password);
   if (
+    typeof feedContract !== "boolean" ||
     typeof fetch !== "function" ||
     typeof sleep !== "function" ||
     !Number.isInteger(attempts) ||
@@ -214,9 +266,25 @@ async function probeUserJourney({
   )
     throw Error("Invalid app-check bounds");
   for (let count = 1; count <= attempts; count++) {
-    const checks = await attempt(fetch, username, password, requestTimeoutMs);
-    const healthy = Object.values(checks).every((value) => value === "ok");
-    const result = { healthy, checks, attempts: count };
+    const checked = await attempt(
+      fetch,
+      username,
+      password,
+      Math.min(requestTimeoutMs, feedContract ? LIMITS.contractRequest : TIMEOUT),
+      feedContract
+    );
+    const healthy =
+      Object.values(checked.checks).every((value) => value === "ok") &&
+      (!feedContract ||
+        (checked.feedContract === "ok" &&
+          checked.releases.before !== null &&
+          checked.releases.before === checked.releases.after));
+    const result = {
+      healthy,
+      checks: checked.checks,
+      attempts: count,
+      ...(feedContract ? { feedContract: checked.feedContract, releases: checked.releases } : {}),
+    };
     if (healthy || count === attempts || !(await pause(sleep))) return result;
   }
 }

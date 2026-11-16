@@ -14,6 +14,11 @@ on:
         type: boolean
         required: true
         default: false
+      feed_contract:
+        description: Include the pagination contract check in this preview only
+        type: boolean
+        required: true
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -29,11 +34,17 @@ jobs:
            vars.FACTORY_MONITOR_ENABLED == 'true') }}
     runs-on: ubuntu-latest
     timeout-minutes: 8
+    concurrency:
+      group: factory-ledger
+      cancel-in-progress: false
     permissions:
       contents: write
       issues: write
+      actions: read
+      pull-requests: read
     env:
-      FACTORY_APP_CHECKS_ENABLED: ${{ (vars.FACTORY_APP_CHECKS_ENABLED == 'true' || (github.event_name == 'workflow_dispatch' && inputs.dry_run && inputs.app_checks)) && 'true' || 'false' }}
+      FACTORY_APP_CHECKS_ENABLED: ${{ (vars.FACTORY_APP_CHECKS_ENABLED == 'true' || (github.event_name == 'workflow_dispatch' && inputs.dry_run && (inputs.app_checks || inputs.feed_contract))) && 'true' || 'false' }}
+      FACTORY_FEED_CONTRACT_CHECK_ENABLED: ${{ (vars.FACTORY_FEED_CONTRACT_CHECK_ENABLED == 'true' || (github.event_name == 'workflow_dispatch' && inputs.dry_run && inputs.feed_contract)) && 'true' || 'false' }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:

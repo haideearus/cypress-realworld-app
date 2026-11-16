@@ -1,9 +1,10 @@
 # Synthetic-user API checks
 
 Implementation: [#46](https://github.com/haideearus/cypress-realworld-app/issues/46).
-This extension is prepared for review. It is default-off; source code, local tests
-and CI do not establish a live rollout. The existing availability monitor remains
-separate from enabling agents or clearing an owner emergency stop.
+The standard synthetic journey is installed. Its live settings remain separate
+from enabling agents or clearing an owner emergency stop. The optional
+[pagination-contract check and verified retirement](MONITOR-TO-REPAIR-ACCEPTANCE.md)
+are prepared under #63, default-off and not a live rollout.
 
 ## What it does
 
@@ -29,11 +30,15 @@ publication retains its pending receipt for operator recovery, as before.
 The account step receives its two account secrets, no GitHub token, Claude
 credential, App key or deploy hook. A separate credential-free step scans its
 report. The publisher gets a GitHub token but no account secrets. Only strict
-run/source/time metadata, four ok/failed outcomes and an attempt count cross that
+run/source/time metadata, fixed ok/failed outcomes and an attempt count cross that
 boundary. Cookies, user/feed data, response bodies and remote exception text are
 not logged, uploaded or copied into issues or model context.
 
 ## Settings after review and merge
+
+The optional `FACTORY_FEED_CONTRACT_CHECK_ENABLED` flag defaults false when absent.
+The `feed_contract` preview input is also false by default. See the acceptance
+runbook for the disabled installation and separately authorized rollout.
 
 | Kind     | Name                         | Value/source                              |
 | -------- | ---------------------------- | ----------------------------------------- |

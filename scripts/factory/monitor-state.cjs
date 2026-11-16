@@ -1,6 +1,7 @@
 const { ROOT } = require("./github.cjs");
 const { REPOSITORY, SHA } = require("./policy.cjs");
 const { UUID, validateMonitorProof, proofFromIncident } = require("./monitor-proof.cjs");
+const { validateRetirement } = require("./monitor-recovery-contract.cjs");
 const MAX_INCIDENTS = 180;
 const MAX_CREATIONS_PER_DAY = 2;
 const record = (value) => value && typeof value === "object" && !Array.isArray(value);
@@ -22,9 +23,14 @@ function validateMonitorState(state) {
     throw new Error("Invalid monitor registry");
   const issueIds = new Set();
   for (const [id, incident] of Object.entries(state.incidents)) {
+    const extra = ["probeMode", "retirement"].filter((key) => Object.hasOwn(incident || {}, key));
     if (
       !UUID.test(id) ||
-      !exact(incident, "id,at,day,phase,recovered,source,criteriaHash,issue") ||
+      !exact(
+        incident,
+        ["id,at,day,phase,recovered,source,criteriaHash,issue", ...extra].join(",")
+      ) ||
+      (Object.hasOwn(incident, "probeMode") && incident.probeMode !== "feed-contract") ||
       incident.id !== id ||
       !["pending", "open"].includes(incident.phase) ||
       typeof incident.recovered !== "boolean" ||
@@ -44,6 +50,15 @@ function validateMonitorState(state) {
       (incident.issue !== null && issueIds.has(incident.issue))
     )
       throw new Error("Invalid monitor incident");
+    if (incident.retirement !== undefined) {
+      const r = validateRetirement(incident.retirement);
+      if (
+        incident.phase !== "open" ||
+        r.probeMode !== (incident.probeMode || "standard") ||
+        (r.phase === "intent" ? state.active !== id : !incident.recovered || state.active === id)
+      )
+        throw Error("Invalid monitor retirement state");
+    }
     if (incident.issue !== null) issueIds.add(incident.issue);
   }
   return state;

@@ -27,11 +27,39 @@ test("monitor is main-only, default preview, bounded and carries no provider cre
   const checker = job.steps.find((step) => step.name === "Check synthetic-user API journey");
   assert.equal(checker.run, "node scripts/factory/app-checks.cjs");
   assert.equal(workflow.on.workflow_dispatch.inputs.app_checks.default, false);
+  assert.deepEqual(Object.keys(job.env).sort(), [
+    "FACTORY_APP_CHECKS_ENABLED",
+    "FACTORY_FEED_CONTRACT_CHECK_ENABLED",
+  ]);
+  assert.equal(workflow.on.workflow_dispatch.inputs.feed_contract.default, false);
+  assert.equal(job.permissions.actions, "read");
+  assert.equal(job.permissions["pull-requests"], "read");
+  assert.equal(job.concurrency.group, "factory-ledger");
+  const evaluate = (key, vars, event, inputs) =>
+    require("node:vm").runInNewContext(
+      job.env[key].slice(3, -2),
+      { vars, github: { event_name: event }, inputs },
+      { timeout: 1000 }
+    );
+  for (const [event, dry, override, want] of [
+    ["schedule", false, true, "false"],
+    ["workflow_dispatch", false, true, "false"],
+    ["workflow_dispatch", true, false, "false"],
+    ["workflow_dispatch", true, true, "true"],
+  ]) {
+    const inputs = { dry_run: dry, app_checks: false, feed_contract: override };
+    assert.equal(evaluate("FACTORY_FEED_CONTRACT_CHECK_ENABLED", {}, event, inputs), want);
+    assert.equal(evaluate("FACTORY_APP_CHECKS_ENABLED", {}, event, inputs), want);
+  }
   assert.equal(
-    job.env.FACTORY_APP_CHECKS_ENABLED,
-    "${{ (vars.FACTORY_APP_CHECKS_ENABLED == 'true' || (github.event_name == 'workflow_dispatch' && inputs.dry_run && inputs.app_checks)) && 'true' || 'false' }}"
+    evaluate(
+      "FACTORY_FEED_CONTRACT_CHECK_ENABLED",
+      { FACTORY_FEED_CONTRACT_CHECK_ENABLED: "true" },
+      "schedule",
+      {}
+    ),
+    "true"
   );
-  assert.deepEqual(Object.keys(job.env), ["FACTORY_APP_CHECKS_ENABLED"]);
   assert.equal(checker.if, "${{ env.FACTORY_APP_CHECKS_ENABLED == 'true' }}");
   assert.deepEqual(Object.keys(checker.env).sort(), [
     "FACTORY_MONITOR_PASSWORD",

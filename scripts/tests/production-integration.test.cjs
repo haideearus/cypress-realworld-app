@@ -13,6 +13,7 @@ const port = 8081;
 const origin = "https://rwa.example.test";
 const base = `http://127.0.0.1:${port}`;
 const secret = randomBytes(32).toString("hex");
+const testRelease = "a".repeat(40);
 let server;
 async function start() {
   server = spawn(process.execPath, ["dist/server/backend/main.js"], {
@@ -24,6 +25,7 @@ async function start() {
       DATABASE_URL: uri,
       SESSION_SECRET: secret,
       APP_ORIGIN: origin,
+      RENDER_GIT_COMMIT: testRelease,
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -202,6 +204,46 @@ test(
         ["/api/logout", "POST"],
         ["/api/checkAuth", "GET"],
       ]);
+      let zeroResponse;
+      const contractResult = await probeUserJourney({
+        username: "Heath93",
+        password: "s3cret",
+        attempts: 1,
+        feedContract: true,
+        fetch: async (url, options) => {
+          const target = new URL(url);
+          assert.equal(target.origin, "https://haide-software-factory.onrender.com");
+          const response = await fetch(base + target.pathname + target.search, {
+            ...options,
+            headers: { ...options.headers, Origin: origin, "x-forwarded-proto": "https" },
+          });
+          if (target.searchParams.get("limit") === "0")
+            zeroResponse = { status: response.status, body: await response.clone().json() };
+          return response;
+        },
+      });
+      assert.deepEqual(contractResult.checks, {
+        login: "ok",
+        session: "ok",
+        feed: "ok",
+        logout: "ok",
+      });
+      assert.deepEqual(contractResult.releases, { before: testRelease, after: testRelease });
+      assert.ok(zeroResponse, "enabled checker must reach the real authenticated route");
+      // This setup detects the current defect without making the future repair
+      // fail CI. The later agent adds its own failing-before app regression.
+      if (zeroResponse.status === 200 && zeroResponse.body.pageData?.totalPages === null) {
+        assert.equal(contractResult.feedContract, "failed");
+        assert.equal(contractResult.healthy, false);
+      } else {
+        assert.ok([200, 400, 422].includes(zeroResponse.status));
+        if (zeroResponse.status === 200) {
+          assert.ok(zeroResponse.body.pageData.limit > 0 && zeroResponse.body.pageData.limit <= 50);
+          assert.ok(Number.isSafeInteger(zeroResponse.body.pageData.totalPages));
+        }
+        assert.equal(contractResult.feedContract, "ok");
+        assert.equal(contractResult.healthy, true);
+      }
     } finally {
       await stop();
       await pool.end();

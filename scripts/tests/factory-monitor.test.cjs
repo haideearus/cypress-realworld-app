@@ -181,21 +181,21 @@ test("uncertain issue creation is never retried and leaves the pending intent", 
   const r = await monitor(f.options);
   assert.equal(r.outcome, "publication_needs_owner_recovery");
 });
-test("healthy observation preserves issue history and permits rearm only after issue closes", async () => {
+test("healthy observation preserves history and manual closure alone cannot rearm production", async () => {
   const f = fixture();
   await monitor(f.options);
   f.healthy = true;
   const r = await monitor(f.options);
-  assert.equal(r.outcome, "recovered");
+  assert.equal(r.outcome, "recovery_held");
   assert.equal(Object.values(f.state.incidents)[0].recovered, true);
   assert.notEqual(f.state.active, null);
   f.issueState = "closed";
   await monitor(f.options);
-  assert.equal(f.state.active, null);
+  assert.notEqual(f.state.active, null);
   assert.equal(Object.keys(f.state.incidents).length, 1);
   f.healthy = false;
   await monitor(f.options);
-  assert.equal(Object.keys(f.state.incidents).length, 2);
+  assert.equal(Object.keys(f.state.incidents).length, 1);
 });
 test("closing an issue while outage continues does not create fresh repair budget", async () => {
   const f = fixture();
@@ -207,14 +207,22 @@ test("closing an issue while outage continues does not create fresh repair budge
 });
 test("two incident creation intents per UTC date cap flapping without deleting history", async () => {
   const f = fixture();
-  for (let n = 0; n < 2; n++) {
-    f.healthy = false;
-    f.issueState = "open";
-    await monitor(f.options);
-    f.healthy = true;
-    f.issueState = "closed";
-    await monitor(f.options);
-  }
+  const previous = emptyMonitorState();
+  for (const [n, id] of [
+    "11111111-1111-4111-8111-111111111111",
+    "22222222-2222-4222-8222-222222222222",
+  ].entries())
+    previous.incidents[id] = {
+      id,
+      at: "2026-11-13T00:00:00.000Z",
+      day: "2026-11-13",
+      phase: "open",
+      recovered: true,
+      source: { runId: String(100 + n), runAttempt: 1, workflowSha: sha },
+      criteriaHash: "a".repeat(64),
+      issue: 100 + n,
+    };
+  await f.store.save(previous, null);
   f.healthy = false;
   const r = await monitor(f.options);
   assert.equal(r.outcome, "incident_creation_limit");
