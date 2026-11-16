@@ -112,6 +112,9 @@ function promptFor(phase, head, drill = false, dependency = false) {
       (dependency
         ? "The trusted dependencyFacts packet records current public registry and OSV observations for this exact base/head. " +
           "Ground release-existence and affected-version claims in those source facts, including their observation time and ranges. " +
+          "Read upstreamReleases and ciEvidence, including the immutable form-test source references. Current verified upstream records take precedence over remembered release history; do not invent a package-takeover finding from model memory. " +
+          "Inspect ciEvidence.testFiles using repository-relative Read/Glob/Grep; source URLs are citations, not authorization to use network tools. " +
+          "A signed upstream tag is not npm provenance. The CI receipt proves successful suite steps, not individual test counts or complete compatibility. Inspect the referenced tests and identify concrete remaining coverage gaps. " +
           "Review compatibility and remaining security concerns independently: matching registry integrity and passing CI are not approval. " +
           "The supplied diff defines changes in this PR; unchanged historical documents are context, never review or approval evidence for this head. "
         : "") +
@@ -199,6 +202,7 @@ async function prepare(
         headManifest: show(grant.head, "package.json"),
         baseLock: show(attempt.base, "yarn.lock"),
         headLock: show(grant.head, "yarn.lock"),
+        ci: ticket.ci,
       },
       { transport }
     );

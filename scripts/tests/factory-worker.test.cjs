@@ -118,28 +118,58 @@ test("dependency worker supplies fresh exact-commit facts without adding model t
       },
       { changed: 2, candidateVersions: 1, cleared: [], remainingBaseline: [] }
     );
-    next.tickets["52"].ci = { head, passed: true, runId: 501 };
+    next.tickets["52"].ci = { head, passed: true, runId: 501, requestId: "worker-ci" };
     return lifecycle.reserveDependencyReview(next, ctx, config);
   });
   const options = {
     grantId: saved.grant.id,
     cwd: app.cwd,
     environment: {},
-    transport: async (url) =>
-      new Response(
-        JSON.stringify(
-          url.endsWith("querybatch")
-            ? { results: [{}, {}] }
-            : {
-                name: "foo",
-                version: "1.0.1",
-                dist: {
-                  tarball: "https://registry.npmjs.org/foo/-/foo-1.0.1.tgz",
-                  integrity,
-                },
-              }
-        )
-      ),
+    transport: async (url) => {
+      let result;
+      if (url.endsWith("/workflows/factory-ci.yml"))
+        result = { id: 1, path: ".github/workflows/factory-ci.yml" };
+      else if (url.endsWith("/runs/501"))
+        result = {
+          id: 501,
+          workflow_id: 1,
+          path: ".github/workflows/factory-ci.yml",
+          head_sha: head,
+          run_attempt: 1,
+          event: "workflow_dispatch",
+          display_title: "Factory CI / worker-ci",
+          repository: { full_name: policy.REPOSITORY },
+          head_repository: { full_name: policy.REPOSITORY },
+          status: "completed",
+          conclusion: "success",
+        };
+      else if (url.includes("/attempts/1/jobs"))
+        result = {
+          total_count: 1,
+          jobs: [
+            {
+              id: 2,
+              run_id: 501,
+              head_sha: head,
+              name: "verify",
+              status: "completed",
+              conclusion: "success",
+              steps: [
+                "Run yarn types && yarn lint && yarn test:unit:ci",
+                "API and browser regression tests without cloud recording",
+              ].map((name) => ({ name, status: "completed", conclusion: "success" })),
+            },
+          ],
+        };
+      else if (url.endsWith("querybatch")) result = { results: [{}, {}] };
+      else
+        result = {
+          name: "foo",
+          version: "1.0.1",
+          dist: { tarball: "https://registry.npmjs.org/foo/-/foo-1.0.1.tgz", integrity },
+        };
+      return new Response(JSON.stringify(result));
+    },
   };
   const before = (await ledger.read()).commit;
   const result = await worker.prepare(api, config, ctx, options);
@@ -149,6 +179,10 @@ test("dependency worker supplies fresh exact-commit facts without adding model t
     "1.0.1",
     "reviewer is missing current registry facts"
   );
+  assert.equal(input.dependencyFacts.ciEvidence.status, "verified");
+  assert.equal(input.dependencyFacts.ciEvidence.head, head);
+  assert.equal(input.dependencyFacts.ciEvidence.runId, 501);
+  assert.match(result.promptJson, /remembered release history/);
   assert.equal(input.dependencyFacts.base, base);
   assert.equal(input.dependencyFacts.head, head);
   assert.deepEqual(
