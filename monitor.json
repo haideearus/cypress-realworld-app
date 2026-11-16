@@ -52,7 +52,7 @@
       "id": "c4b87394-9185-4508-bbbc-551567f91c27",
       "at": "2026-11-16T09:59:35.904Z",
       "day": "2026-11-16",
-      "phase": "pending",
+      "phase": "open",
       "recovered": false,
       "source": {
         "runId": "43844558664",
@@ -60,7 +60,7 @@
         "workflowSha": "a6440d30afd84958f42c1d0c4205a2a559a2460b"
       },
       "criteriaHash": "28be3497b9af479d1321b8b5d89bdd9d4c6f8e738b2f6705ccef7ddddfe81cbb",
-      "issue": null,
+      "issue": 68,
       "probeMode": "feed-contract"
     }
   }
