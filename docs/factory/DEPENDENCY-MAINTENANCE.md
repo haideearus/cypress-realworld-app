@@ -71,6 +71,43 @@ There is no paid API fallback. Subscription exhaustion blocks the attempt.
   parent is proven terminal. Model grants and uncertain merge intents are retained;
   the existing owner stop/recovery paths handle them without refunding counters.
 
+## Confirming an automatic merge
+
+The merger stores a durable intent before issuing one expected-head squash request.
+It appends a small allowlisted receipt to the ledger audit: accepted with a commit
+SHA, rejected, malformed, or unknown transport outcome. Raw GitHub messages and
+response bodies are excluded. An accepted receipt alone does not prove the PR
+merged.
+
+Confirmation reads validate the same PR, repository, author and approved head.
+They do not demand a rebase against the main branch that the pending merge may
+already have changed. Fresh merge requests still require all existing base,
+report, native CI/review, clean mergeability and stop checks.
+
+The merger polls at five-second intervals, up to its existing polling budget
+(normally 30 observations). It records merged only when GitHub reports matching
+closed/merged PR metadata and a valid merge commit, consistent with any retained
+accepted receipt. Still-open or unavailable metadata produces
+`merge_confirmation_pending` or `merge_confirmation_unavailable`. These are held
+outcomes, not merge success. The intent, approval, counters and lock remain.
+An observer waits for a still-running writer's receipt before confirming success.
+Receipt agreement is checked again inside the final ledger update, including
+when another observer read older evidence. Late receipts are retained; conflicting
+late evidence restores the held intent and appends the prior observation to audit.
+
+A later dependency run routes that intent through the existing reconciliation
+lane, without analysis, premerge, CI reservation or another Claude session. It
+never repeats the ambiguous merge request, even if the original workflow has
+finished. A changed head after an uncertain write is held for owner reconciliation;
+it does not erase the old approval or admit a new review. A provably unsent
+preflight failure may release its intent, preserving it in the audit, so a future
+run can perform fresh checks.
+
+If GitHub never confirms its metadata, owner reconciliation is still required.
+The automation does not infer a merged PR from matching trees, bypass checks,
+approve deployment, or manufacture a missing push event. PR #57's earlier owner
+closure and its approval/counters remain historical evidence.
+
 The analysis bounds are 64 KiB manifests, 2 MiB locks, 10,000 lock entries, 500
 combined removed/candidate package-version queries, 500 path comparisons and at
 most 500 pending comparisons, five OSV batches of 100, 1 MiB per response and

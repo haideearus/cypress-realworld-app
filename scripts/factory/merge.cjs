@@ -3,6 +3,7 @@ const { Controller, criteriaHash } = require("./controller.cjs");
 const { Ledger, ROOT } = require("./github.cjs");
 const { validPath } = require("./artifacts.cjs");
 const { verifyMonitorIssue } = require("./monitor-origin.cjs");
+const { ConfirmationUnavailable, readMergePR, mergeReceipt } = require("./merge-confirmation.cjs");
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const fingerprint = (ticket) => {
@@ -97,8 +98,8 @@ class AutomaticMerger {
     )
       throw new Error("Current issue criteria, owner, or state changed");
   }
-  async pr(ticket, t) {
-    const pr = await this.api.request("GET", `${ROOT}/pulls/${t.pr}`);
+  async pr(ticket, t, { confirmation = false } = {}) {
+    const pr = await readMergePR(this.api, t.pr, confirmation);
     if (
       pr.number !== t.pr ||
       !["open", "closed"].includes(pr.state) ||
@@ -111,7 +112,7 @@ class AutomaticMerger {
       pr.draft !== false
     )
       throw new Error("Automatic PR identity or head changed");
-    if (pr.state === "open") {
+    if (pr.state === "open" && !confirmation) {
       const files = await this.api.pages(`${ROOT}/pulls/${t.pr}/files`);
       if (
         files.length < 1 ||
@@ -252,6 +253,9 @@ class AutomaticMerger {
     return this.ledger.update((state) => {
       const t = this.stateTicket(state, ticket, expected);
       if (!same(t.merge, previous)) throw new IntentHeld("Merge intent changed concurrently");
+      // Recheck within the CAS mutation: a receipt can arrive while a different
+      // observer is waiting for GitHub's PR metadata.
+      this.checkReceipt(state, ticket, t, record);
       if (record.status === "intent")
         state.active = { ticket, runId: record.runId, runAttempt: record.runAttempt };
       else if (this.mergeLock(state, ticket, previous)) state.active = null;
@@ -267,7 +271,7 @@ class AutomaticMerger {
     const merged = pr.merged === true;
     if (merged && (pr.state !== "closed" || !policy.SHA.test(pr.merge_commit_sha || "")))
       throw new Error("Merged PR has no verifiable merge commit");
-    await this.issue(ticket, t, { merged });
+    await this.issue(ticket, t, { merged, confirmation: true, observed: pr });
     const status = merged ? "merged" : "closed";
     if (
       !dryRun &&
@@ -307,8 +311,106 @@ class AutomaticMerger {
       if (!same(t.merge, intent) || !this.mergeLock(state, ticket, intent))
         throw new IntentHeld("Cannot release another merge lock");
       state.active = null;
+      // This method is called only before the PUT can be issued. Preserve the
+      // unsent intent in audit so the next run may try fresh preflight checks.
+      state.audit.push({
+        at: new Date().toISOString(),
+        event: "automatic_merge_not_sent",
+        ticket,
+        previousMergeIntent: t.merge,
+      });
+      delete t.merge;
       return { state };
     });
+  }
+  async receipt(ticket, expected, intent, receipt) {
+    await this.ledger.update((state) => {
+      const t = this.stateTicket(state, ticket, expected);
+      if (!same(t.merge, intent) && !["merged", "closed"].includes(t.merge?.status))
+        throw new IntentHeld("Merge intent changed before receipt");
+      state.audit.push({
+        at: new Date().toISOString(),
+        event: "automatic_merge_api_result",
+        ticket,
+        pr: t.pr,
+        head: t.head,
+        runId: intent.runId,
+        runAttempt: intent.runAttempt,
+        ...receipt,
+      });
+      if (
+        receipt.outcome === "accepted" &&
+        t.merge?.status === "merged" &&
+        receipt.mergeCommit !== t.merge.mergeCommit
+      ) {
+        state.audit.push({
+          at: new Date().toISOString(),
+          event: "automatic_merge_confirmation_conflict",
+          ticket,
+          previousMergeRecord: t.merge,
+        });
+        t.merge = intent;
+        state.active = { ticket, runId: intent.runId, runAttempt: intent.runAttempt };
+      }
+      return { state };
+    });
+  }
+  latestReceipt(state, ticket, t) {
+    return state.audit.findLast(
+      (row) =>
+        row.event === "automatic_merge_api_result" &&
+        row.ticket === ticket &&
+        row.head === t.head &&
+        row.pr === t.pr
+    );
+  }
+  checkReceipt(state, ticket, t, record) {
+    const receipt = this.latestReceipt(state, ticket, t);
+    if (
+      record.status === "merged" &&
+      receipt?.outcome === "accepted" &&
+      receipt.mergeCommit !== record.mergeCommit
+    )
+      throw new Error("Merge confirmation disagrees with retained API receipt");
+  }
+  async confirm(ticket, expected, { dryRun = false } = {}) {
+    let reason = "merge_confirmation_pending";
+    for (let poll = 0; poll < (dryRun ? 1 : this.maxPolls); poll++) {
+      if (poll) await this.sleep(5000);
+      const { state } = await this.ledger.read();
+      const t = this.stateTicket(state, ticket, expected);
+      try {
+        const receipt = this.latestReceipt(state, ticket, t);
+        if (t.merge?.status === "intent" && !receipt) {
+          // Another observer cannot race the in-flight writer's API response.
+          let owner;
+          try {
+            owner = await this.api.request(
+              "GET",
+              `${ROOT}/actions/runs/${t.merge.runId}/attempts/${t.merge.runAttempt}`
+            );
+          } catch {
+            throw new ConfirmationUnavailable();
+          }
+          if (owner.status !== "completed") continue;
+        }
+        const pr = await this.pr(ticket, t, { confirmation: true });
+        reason = "merge_confirmation_pending";
+        this.checkReceipt(state, ticket, t, {
+          status: pr.merged === true ? "merged" : "pending",
+          mergeCommit: pr.merge_commit_sha,
+        });
+        const terminal = await this.reconcile(ticket, t, pr, { dryRun });
+        if (terminal) return terminal;
+      } catch (error) {
+        if (!(error instanceof ConfirmationUnavailable)) throw error;
+        reason = "merge_confirmation_unavailable";
+      }
+    }
+    return this.result(
+      { ...expected, number: ticket },
+      { pending: true, reason, ...(dryRun ? { dryRun: true, wouldMerge: false } : {}) }
+    );
   }
   async permitWrite() {}
   async merge(ticket, { dryRun = false } = {}) {
@@ -326,6 +428,9 @@ class AutomaticMerger {
         reason: "Ticket is not independently reviewed; nothing is ready to merge",
       };
     const t = this.stateTicket(state, ticket);
+    // An existing intent may represent a completed write with a lost response.
+    // Workflow terminality and still-open metadata never authorize a second PUT.
+    if (t.merge?.status === "intent") return this.confirm(ticket, t, { dryRun });
     const pr = await this.pr(ticket, t);
     const terminal = await this.reconcile(ticket, t, pr, { dryRun });
     if (terminal) return terminal;
@@ -333,22 +438,6 @@ class AutomaticMerger {
       throw new Error("Terminal merge record disagrees with current PR state");
     await this.issue(ticket, t);
     await this.ci(t);
-    if (t.merge?.status === "intent") {
-      if (t.merge.runId === this.context.runId && t.merge.runAttempt === this.context.runAttempt)
-        return this.result(
-          { ...t, number: ticket },
-          { pending: true, ...(dryRun ? { dryRun } : {}) }
-        );
-      const previous = await this.api.request(
-        "GET",
-        `${ROOT}/actions/runs/${t.merge.runId}/attempts/${t.merge.runAttempt}`
-      );
-      if (previous.status !== "completed")
-        return this.result(
-          { ...t, number: ticket },
-          { pending: true, ...(dryRun ? { dryRun } : {}) }
-        );
-    }
     let gate = await this.checks(ticket, t);
     if (!gate.passed && !gate.failed)
       throw new Error("Native review gate is pending or unavailable");
@@ -383,11 +472,7 @@ class AutomaticMerger {
     } catch (error) {
       if (!(error instanceof IntentHeld)) throw error;
       const current = await this.current(ticket, t);
-      const actual = await this.pr(ticket, current);
-      return (
-        (await this.reconcile(ticket, current, actual)) ||
-        this.result({ ...t, number: ticket }, { pending: true })
-      );
+      return this.confirm(ticket, current);
     }
     try {
       const latest = await this.beforeWrite(ticket, t, intent);
@@ -401,20 +486,18 @@ class AutomaticMerger {
       await this.release(ticket, t, intent);
       throw error;
     }
+    let receipt;
     try {
-      await this.api.request("PUT", `${ROOT}/pulls/${t.pr}/merge`, {
+      const response = await this.api.request("PUT", `${ROOT}/pulls/${t.pr}/merge`, {
         sha: t.head,
         merge_method: "squash",
       });
-    } catch {
-      // A timeout or lost response can follow a successful merge. Observe GitHub first.
+      receipt = mergeReceipt(response);
+    } catch (error) {
+      receipt = mergeReceipt(null, error);
     }
-    const current = await this.current(ticket, t);
-    const actual = await this.pr(ticket, current);
-    return (
-      (await this.reconcile(ticket, current, actual)) ||
-      this.result({ ...t, number: ticket }, { pending: true })
-    );
+    await this.receipt(ticket, t, intent, receipt);
+    return this.confirm(ticket, t);
   }
 }
 
