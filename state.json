@@ -909,12 +909,12 @@
     },
     "58": {
       "coding": 0,
-      "reviews": 0,
+      "reviews": 1,
       "retries": 0,
       "origin": "dependency-pr",
       "head": "d0451952eeedb97c14ae6ccd07e698e0c2957771",
       "pr": 58,
-      "status": "new",
+      "status": "reviewing",
       "approval": null,
       "branch": "dependabot/npm_and_yarn/postcss-selector-parser-6.1.6",
       "criteriaHash": "87d3e6eaffefeabf091fd6a84776269d7e57824929d03646111bbe1c103d519c",
@@ -1815,6 +1815,17 @@
       "status": "finished",
       "at": "2026-11-16T15:58:59.248Z",
       "outcome": "reviewed"
+    },
+    "d981d282-21f2-4c51-b9d6-c19dc762d227": {
+      "id": "d981d282-21f2-4c51-b9d6-c19dc762d227",
+      "ticket": 58,
+      "phase": "review",
+      "slot": "dependency",
+      "runId": "43909582583",
+      "runAttempt": 1,
+      "head": "d0451952eeedb97c14ae6ccd07e698e0c2957771",
+      "status": "reserved",
+      "at": "2026-11-16T16:45:48.694Z"
     }
   },
   "active": {
@@ -3459,6 +3470,15 @@
       "ticket": 58,
       "head": "d0451952eeedb97c14ae6ccd07e698e0c2957771",
       "runId": "43909582583"
+    },
+    {
+      "at": "2026-11-16T16:45:48.694Z",
+      "event": "reserved",
+      "ticket": 58,
+      "grant": "d981d282-21f2-4c51-b9d6-c19dc762d227",
+      "phase": "review",
+      "runId": "43909582583",
+      "runAttempt": 1
     }
   ]
 }
