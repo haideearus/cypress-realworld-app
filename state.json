@@ -3067,6 +3067,24 @@
           "reason": "Frozen pre-job controller rejects retained drill history before admission"
         }
       ]
+    },
+    {
+      "at": "2026-11-16T13:37:24.708Z",
+      "event": "factory-stop-requested",
+      "actor": "haideearus",
+      "commandId": "f80440eb-4520-4a7f-8b93-ffba7c363be3",
+      "reason": "Owner emergency stop"
     }
-  ]
+  ],
+  "stop": {
+    "id": "f80440eb-4520-4a7f-8b93-ffba7c363be3",
+    "at": "2026-11-16T13:37:23.990Z",
+    "actor": "haideearus",
+    "reason": "Owner emergency stop",
+    "previous": {
+      "FACTORY_AUTOMATION_ENABLED": "true",
+      "FACTORY_AUTOMERGE_ENABLED": "true",
+      "FACTORY_ENABLED": "true"
+    }
+  }
 }
