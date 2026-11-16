@@ -40,7 +40,8 @@
     "2026-11-16": [
       63,
       66,
-      68
+      68,
+      57
     ]
   },
   "tickets": {
@@ -818,6 +819,38 @@
       },
       "feedback": "{\"head\":\"69f348f41aa5aabc226e1ed373cc6e86ddcfadd6\",\"verdict\":\"pass\",\"summary\":\"This revision is a focused follow-up to the prior changes_requested review at b6eb56e. It adds exactly the missing regression coverage: scripts/tests/factory-workflows.test.cjs now asserts the full step ordering (trusted checkout → trusted-parser install → helper preservation → scanner install → candidate checkout → prepare → context secret-scan → dependency-facts secret-scan → dependency-facts upload → model) for the new dependency-evidence CI path in .github/workflows/factory-model.yml, and checks the dependency-only `if` guard, absence of continue-on-error/secrets exposure, the exact npm ci command, the pinned upload-artifact action, include-hidden-files, if-no-files-found: error and retention-days: 7. I verified by reading the actual factory-model.yml that its step order matches what the new test enforces. scripts/tests/factory-dependency-evidence.test.cjs also gained three boundary tests (51 added versions, 101 advisory IDs, >256 KiB packet from individually valid responses) addressing the earlier minor coverage gap, and I traced the collectEvidence/inspectUpdate/queryOsv code paths to confirm each bound is actually enforced before any further network calls, matching the tests' assertions (call counts of 0 before the inventory/advisory bound fails, 6 fetches before the packet-size fail). The worker.cjs integration correctly re-fetches the PR and main ref and reruns policy.preflight after the public-network window, before any file is written, so a base/main move or reservation change is caught (confirmed the new factory-worker.test.cjs second `prepare()` call hits this check, not a stale-file EEXIST, because the base/main validation precedes all fs.writeFileSync calls). dependency-analysis.cjs's `details` parameter defaults to false and dependency-run.cjs's existing calls are unaffected, preserving backward compatibility as claimed. Reviewer tool/permission scope (Read/Glob/Grep only, no Bash/Edit/Write/network) and the ledger/grant mutation behavior (prepare remains read-only on ledger state) are unchanged. No critical or important issues found in this revision.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"docs/factory/current-dependency-facts-verification-2026-11-15.md still reports specific local test-run counts (484/474/10, then 488/478/10, plus a live PR #52 npm/OSV check and a GitHub Actions run URL for a prior review) that a read-only reviewer without shell/network execution cannot independently verify. This was already flagged as a minor, non-blocking item in the prior review and remains only a documentation-transparency note, not a code defect.\"}]}"
     },
+    "57": {
+      "coding": 0,
+      "reviews": 0,
+      "retries": 0,
+      "origin": "dependency-pr",
+      "head": "ecdb52c85b251ba1aaf65dac0cb3c2cd3873d104",
+      "pr": 57,
+      "status": "new",
+      "approval": null,
+      "branch": "dependabot/npm_and_yarn/lodash-es-4.18.1",
+      "criteriaHash": "4ef07ca11761f9de9f250bf3d7c008253cd16c588da85a1a1752d552fb297b4f",
+      "dependency": {
+        "version": 1,
+        "pr": 57,
+        "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-dependencies.yml@refs/heads/main",
+        "workflowSha": "054a0efca643bd89f0dc756448e6f26de3e3c5a5",
+        "runId": "43859914645",
+        "runAttempt": 1,
+        "appSlug": "haideearus-software-factory",
+        "attempts": [
+          {
+            "head": "ecdb52c85b251ba1aaf65dac0cb3c2cd3873d104",
+            "base": "054a0efca643bd89f0dc756448e6f26de3e3c5a5",
+            "runId": "43859914645",
+            "runAttempt": 1,
+            "workflowSha": "054a0efca643bd89f0dc756448e6f26de3e3c5a5",
+            "at": "2026-11-16T11:41:25.562Z"
+          }
+        ]
+      },
+      "ci": null
+    },
     "60": {
       "coding": 0,
       "origin": "owner-pr",
@@ -1528,7 +1561,11 @@
       "outcome": "reviewed"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 57,
+    "runId": "43859914645",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -2646,6 +2683,13 @@
           "reason": "Frozen pre-job controller rejects retained drill history before admission"
         }
       ]
+    },
+    {
+      "at": "2026-11-16T11:41:25.562Z",
+      "event": "dependency_metadata_admitted",
+      "ticket": 57,
+      "head": "ecdb52c85b251ba1aaf65dac0cb3c2cd3873d104",
+      "runId": "43859914645"
     }
   ]
 }
