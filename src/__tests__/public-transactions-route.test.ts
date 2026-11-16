@@ -154,4 +154,16 @@ describe("GET /transactions/public pagination", () => {
       expect(allIds).not.toContain("private-record");
     }
   );
+
+  it("rejects a zero page size instead of returning an incoherent 200", async () => {
+    setFixture(5);
+    const response = await fetch(`${origin}/transactions/public?page=1&limit=0`, {
+      signal: AbortSignal.timeout(5000),
+    });
+
+    expect([400, 422]).toContain(response.status);
+    const body = (await response.json()) as { errors?: unknown[] };
+    expect(Array.isArray(body.errors)).toBe(true);
+    expect(body.errors!.length).toBeGreaterThan(0);
+  });
 });
