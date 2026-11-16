@@ -1,19 +1,24 @@
 # Production monitoring and maintenance tickets
 
 Implementation ticket: [#33](https://github.com/haideearus/cypress-realworld-app/issues/33).
-Keep the three existing factory switches false during installation. The new
-monitor is also disabled unless `FACTORY_MONITOR_ENABLED=true`.
+Snapshot, 16 November 2026: production monitoring, synthetic API journeys and
+feed-contract checking are installed and enabled. All three agent switches are
+false with a durable stop. Issue #68's monitor-to-repair and verified incident
+retirement have demonstrated runs. See [current operations](OPERATIONS.md) and
+the [acceptance index](ACCEPTANCE-2026-11-16.md). The initial-off setup steps below
+are dated installation history, not instructions to disable installed monitoring.
 
 ## What runs in the cloud
 
-`Production monitor` checks `/healthz`, `/readyz` and the frontend HTML on the
+The basic availability component checks `/healthz`, `/readyz` and frontend HTML on the
 fixed production URL every 30 minutes. Three bounded rounds, separated by
 30-second pauses, allow a sleeping free service to wake. It never logs in, writes
 production data, seeds a database or calls an AI model. These are availability
-checks, not a full browser test of every payment flow. The separately default-off
-[synthetic-user API extension](APP-CHECKS.md), prepared under #46, adds login,
-session, bounded feed and logout checks with a dedicated account. The description
-above applies when that extension is off. Its rollout does not enable AI agents.
+checks, not a full browser test of every payment flow. The separate
+[synthetic-user API extension](APP-CHECKS.md), installed under #46, adds login,
+session, bounded feed and logout checks with a dedicated account. That enabled
+journey performs its own synthetic session requests; the no-login description
+above applies to basic availability probes. Its rollout does not enable AI agents.
 
 The monitor accepts a healthy deployed SHA even when main is newer: a newer
 commit may still be awaiting human deployment approval. A green Actions run
@@ -50,16 +55,15 @@ registry. It has no Claude secret, App private key, deploy hook or paid API key.
 The GitHub App keeps its existing permissions, including Issues **read**. The
 automatic preview gains Actions **read** to verify a monitor's source run.
 
-## Setup after independent review and merge
+## Original setup after review and merge (completed installation)
 
 1. Keep `FACTORY_ENABLED`, `FACTORY_AUTOMATION_ENABLED` and
    `FACTORY_AUTOMERGE_ENABLED` set to `false`.
 2. Under **Settings → Secrets and variables → Actions → Variables**, add
    `FACTORY_MONITOR_ENABLED=false`. No new secret or provider account is needed.
-3. Only after this PR is merged, change `FACTORY_MAX_TICKETS_PER_DAY` to `20`.
-   Current main's previous ceiling of 10 still controls this PR's review before
-   merge. If today's budget is exhausted, use the next Bucharest daily window;
-   do not reset history, reuse another review ticket or bypass required review.
+3. The daily ceiling of `20` is now installed and observed. Preserve it during
+   documentation work. If today's budget is exhausted, use the next Bucharest
+   daily window; do not reset history, reuse another review ticket or bypass review.
 4. Open **Actions → Production monitor → Run workflow**. Select **main** and
    leave the preview checkbox checked. Click **Run workflow** once.
 5. Open its summary. Expect `outcome: preview`, `healthy: true`, three `ok`
@@ -73,9 +77,10 @@ automatic preview gains Actions **read** to verify a monitor's source run.
    factory switches and limits; production deployment still requires the named
    owner's approval. Keep Claude usage credits/extra usage off.
 
-No real failure was injected during implementation. Local transport fixtures
-prove deduplication and provenance; the cloud preview and later full incident
-trial must still be observed before claiming unattended end-to-end operation.
+No real failure was injected during the original implementation. Local fixtures
+covered deduplication/provenance; subsequent cloud preview and the full incident
+trial for issue #68 are recorded in the acceptance index. Extended scheduled overnight
+operation remains separate acceptance; see the dated index for that distinction.
 
 ## Limits, costs and operator recovery
 
@@ -87,9 +92,9 @@ before claiming it passed.
 
 The higher daily ceiling permits 20 **new tickets**, not 20 model calls. Existing
 ceilings remain: five coding sessions, four automatic retries, 200 turns per
-session, 30 minutes and one simultaneous ticket. The review ceiling remains five
-until PR #40 merges and the owner explicitly saves its authorized value of ten;
-consumed reviews are retained and lower configured limits still apply. A larger
+session, 30 minutes and one simultaneous ticket. The ten-review ceiling from
+PR #40 is now installed and observed; consumed reviews are retained and lower
+configured limits still apply. A larger
 allowance can consume included Claude Pro usage sooner. It adds no API-key
 fallback or purchased capacity and cannot enforce provider billing settings.
 
@@ -116,5 +121,7 @@ production registry. Generic stale-run recovery remains separate.
 
 To stop new monitoring work, save `FACTORY_MONITOR_ENABLED=false`; also cancel an
 active monitor run if needed because GitHub can snapshot variables. To stop agent
-work, save the three factory switches false and cancel any active factory run.
+work, use the supported owner `node scripts/factory/stop.cjs --execute` command
+and verify its result and all three false variables. Setting variables alone is
+not the demonstrated active-stop procedure; see [operations](OPERATIONS.md).
 Previously admitted ticket history and outstanding incident evidence remain.

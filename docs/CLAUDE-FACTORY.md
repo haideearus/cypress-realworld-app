@@ -1,5 +1,13 @@
 # Claude factory: installation and operation
 
+Current snapshot, 16 November 2026: the workflows and limits are installed;
+all three agent switches are false with a durable owner stop. Monitoring remains
+enabled. Use the [operations guide](factory/OPERATIONS.md) for current operation
+and the [acceptance index](factory/ACCEPTANCE-2026-11-16.md) for demonstrated runs
+and remaining scheduled acceptance. Installation defaults below are not live
+settings or permission to resume. In particular, resume restores its saved
+profile, which can enable all three switches.
+
 This implements ticket [#6](https://github.com/haideearus/cypress-realworld-app/issues/6).
 The workflows are installed through a reviewed PR. Keep `FACTORY_ENABLED=false`
 during installation. Saving variables or a token does not enforce the limits by
@@ -25,11 +33,11 @@ itself; the controller and worker preflight enforce them.
    remaining automatic retry, within the configured five-attempt ceiling.
    Provider errors and interrupted model jobs stop work.
 
-The initial version was manual. Ticket #26 adds a separately disabled scheduled
+The initial version was manual. Ticket #26 added a separately gated scheduled
 entry and protected automatic merging using a repository-only GitHub App. Follow
 [the installation and trial guide](factory/AUTOMATIC-PICKUP.md); code preparation
-does not establish live unattended operation. Public mentions, incident monitoring
-and production deployment are outside this change.
+does not establish ongoing unattended operation. Later monitoring, dependency and
+production-deployment installations are recorded in the current acceptance index.
 
 ## Subscription and spending
 
@@ -56,15 +64,14 @@ and production deployment are outside this change.
 
 ## Limits and counter meanings
 
-Issues #21 and #33 installed the existing work limits and daily ceiling of 20.
-On 2026-11-14 the owner requested that PR #40 also raise the independent-review
-ceiling from five to ten per ticket. The table gives the intended settings
-**after PR #40 merges and the owner saves the review variable**; a code change
-does not update GitHub variables. Keep all three agent switches false during
-installation. Coding, retries, concurrency, daily admissions, turns, timeout and
-subscription-only authentication remain unchanged.
+Issues #21 and #33 installed work limits and the daily ceiling of 20. PR #40 and
+acceptance ticket #41 subsequently installed the owner-authorized ten-review
+ceiling. The table reflects the settings observed on 16 November 2026. A source
+change does not update GitHub variables. Preserve the current paused state until
+the owner separately authorizes operation; coding, retries, concurrency, daily
+admissions, turns, timeout and subscription-only authentication remain enforced.
 
-| Variable                               | Post-merge value                            |
+| Variable                               | Observed value / activation condition       |
 | -------------------------------------- | ------------------------------------------- |
 | FACTORY_ENABLED                        | false until ready                           |
 | FACTORY_AUTOMATION_ENABLED             | false until ready                           |
@@ -86,25 +93,21 @@ retries; the separately configured review allowance spans those attempts. All re
 remain consumed even on failure/interruption, and a new run attempt cannot reuse
 an old grant. Historical counters and approvals are never refunded or reset.
 
-PR #40 itself is reviewed by trusted `main` using the current five-review
-setting. Keep `FACTORY_MAX_REVIEWS_PER_TICKET=5` until the protected merge; current
-main rejects ten. After merge, save `FACTORY_MAX_REVIEWS_PER_TICKET=10` while
-`FACTORY_ENABLED`, automatic pickup and automatic merging remain false. Already
-consumed reviews still count toward each ticket's ten total, rather than granting
-ten additional sessions. The eleventh lifetime review is refused, including on later days. Lower
-configured settings remain valid and still block excess reservations/preflight.
+Ten is now supported by main and observed in the repository variable; do not
+follow an old installation instruction to lower it to five for PR #40. Already
+consumed reviews count toward each ticket's ten total, not ten additional
+sessions. The eleventh lifetime review is refused, including on later days.
+Lower configured settings remain valid and still block excess reservations/preflight.
 Do not reset the ledger or switch tickets to refund attempts. More reviews can
 consume shared Claude Pro allowance sooner; this enables no paid API, extra
 usage purchase or additional subscription capacity.
 
-The current combined acceptance ticket for PR #40 is
-[#41](https://github.com/haideearus/cypress-realworld-app/issues/41). The owner
-selected it after #39's frozen preservation-of-caps criterion conflicted with the
-later requested ten-review ceiling. For a later authorized review use
-`main`, operation `review`, ticket `41`, PR `40`. Keep #39's three used reviews
-and blocked outcome intact. #41 has its own ordinary admission/lifetime counter;
-no existing grant, counter, audit or verdict is reset or transferred. Neither
-ticket is queued for automatic pickup by this change.
+Historical acceptance for PR #40 used
+[#41](https://github.com/haideearus/cypress-realworld-app/issues/41), after #39's
+frozen preservation-of-caps criterion conflicted with the later requested ceiling.
+That is completed setup history, not an instruction to dispatch PR #40 again.
+Keep #39's three used reviews and blocked outcome intact. No existing grant,
+counter, audit or verdict is reset or transferred to a different ticket.
 
 The daily counter still admits at most 20 distinct tickets using Bucharest dates.
 Existing admissions count toward that ceiling; the twenty-first is refused until

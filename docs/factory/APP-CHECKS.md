@@ -1,10 +1,14 @@
 # Synthetic-user API checks
 
 Implementation: [#46](https://github.com/haideearus/cypress-realworld-app/issues/46).
-The standard synthetic journey is installed. Its live settings remain separate
-from enabling agents or clearing an owner emergency stop. The optional
+Snapshot, 16 November 2026: the standard journey and the
 [pagination-contract check and verified retirement](MONITOR-TO-REPAIR-ACCEPTANCE.md)
-are prepared under #63, default-off and not a live rollout.
+are installed and enabled with production monitoring. Issue #68's verified
+recovery completed after its approved deployment. All three agent switches are
+false and the owner stop is active; monitoring does not clear that stop or enable
+agents. See the [operations guide](OPERATIONS.md) and
+[acceptance index](ACCEPTANCE-2026-11-16.md). Defaults and installation steps below
+are historical setup instructions, not the current live values.
 
 ## What it does
 
@@ -34,11 +38,12 @@ run/source/time metadata, fixed ok/failed outcomes and an attempt count cross th
 boundary. Cookies, user/feed data, response bodies and remote exception text are
 not logged, uploaded or copied into issues or model context.
 
-## Settings after review and merge
+## Installation defaults and secret sources
 
 The optional `FACTORY_FEED_CONTRACT_CHECK_ENABLED` flag defaults false when absent.
 The `feed_contract` preview input is also false by default. See the acceptance
-runbook for the disabled installation and separately authorized rollout.
+runbook for the original disabled installation. Both feature variables were
+observed true in the current snapshot; do not switch them off to repeat setup.
 
 | Kind     | Name                         | Value/source                              |
 | -------- | ---------------------------- | ----------------------------------------- |
@@ -57,7 +62,11 @@ PRs, logs, committed files or workflow inputs. Save both values under Settings �
 Secrets and variables → Actions → **Secrets**. The implementation does not create
 that production account or save these settings for you.
 
-## Preview without enabling scheduled app checks
+## Original preview procedure before rollout
+
+This procedure records first installation. For an installed-service preview,
+preserve the actual feature settings and agent stop, use `dry_run=true` on main,
+and inspect both availability and enabled app-check outcomes.
 
 After independent review, merge and saving the two secrets:
 
@@ -74,7 +83,7 @@ The preview override is ignored when `dry_run=false`; live checks require the
 repository variable. Missing credentials, invalid context or unsafe/missing
 reports fail closed without publishing an application incident.
 
-## Later explicit rollout
+## Original explicit rollout (completed setup)
 
 After a passing preview and owner authorization, save
 `FACTORY_APP_CHECKS_ENABLED=true`. While the existing monitor is enabled, the
@@ -89,8 +98,8 @@ operator attention rather than a code patch. A later healthy observation is not
 proof of a particular repair or deployment.
 
 Ticket creation does not start Claude while the agent switches are false or the
-owner stop marker is active. Future repairs need separately authorized resume and
-rollout, then CI, fresh Claude Pro review, protected merging and named production
+owner stop marker is active. Automatic repairs require an owner-authorized
+operating profile and cleared stop, then CI, fresh Claude Pro review, protected merging and named production
 approval. Keep provider extra usage off; checks do not inspect billing settings.
 
 To stop only these journeys, set `FACTORY_APP_CHECKS_ENABLED=false`; cancel an
