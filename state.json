@@ -1120,9 +1120,17 @@
       "reviews": 1,
       "retries": 0,
       "head": "037cd10df74706f7518fcc64be1faa59a41c0d84",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 75,
-      "approval": null,
+      "approval": {
+        "head": "037cd10df74706f7518fcc64be1faa59a41c0d84",
+        "pr": 75,
+        "grant": "d258b74d-2dba-4c65-991a-08e81a7451ca",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/43902342572"
+      },
       "criteriaHash": "79d7ffea50378c2e561a69e17920fcb65c8086ce5bdd18af2f284832c1eb727d",
       "branch": "agent/74-dependency-review-status",
       "ci": {
@@ -1130,7 +1138,8 @@
         "head": "037cd10df74706f7518fcc64be1faa59a41c0d84",
         "runId": 43902445145,
         "passed": true
-      }
+      },
+      "feedback": "{\"head\":\"037cd10df74706f7518fcc64be1faa59a41c0d84\",\"verdict\":\"pass\",\"summary\":\"The diff adds `const gate = await this.controller.gate(number)` after the existing ledger commit in `DependencyCoordinator.assess` (scripts/factory/dependencies.cjs), reusing the pre-existing `Controller.gate`/`policy.reviewGate` checker already used by the owner-PR assessment path. `checks: write` is added only to the `assess` job in factory-dependencies.yml; the model (`review`) job, top-level workflow permissions, and other jobs are unchanged. Traced `controller.gate()` and `policy.reviewGate()`: the check is always published (pass or fail) against the PR's live head, success requires the exact approved head/verdict/grant linkage, ledger-read failures inside `gate()` are caught and downgraded to a failing check (not thrown), while a failed check-run POST itself propagates and aborts the job — all after the review ledger commit, so the completed review/approval/blocked verdict and counters are already durably written and are not touched by publication outcome. Six new regression tests cover pass, changes-requested, invalid-artifact (never publishes), changed-head (publishes failure against the new head, not the stale approved one), ledger-unavailable-at-publish, and failed-publication-with-recovery cases; a workflow-shape test asserts the exact permission sets for `assess`/`review`/top-level and that no other job gets `checks: write`. I manually verified these assertions against the actual current `.github/workflows/factory-dependencies.yml` and `scripts/factory/controller.cjs`/`policy.cjs` and they match. Docs (DEPENDENCY-MAINTENANCE.md, verification/plan/spec files) accurately describe the change and preparation-only scope; no factory-ready label, no enablement flag changes, no Claude/API invocation, and no app code touched — consistent with the ticket being a harness-only, draft-PR preparation task.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"The verification doc's reported test counts (24→25, 19 pass/5 fail → 25 pass) could not be independently executed in this read-only review; they are internally consistent with the 6 new test() blocks added across two commits as described, but are otherwise self-reported and unverified.\"},{\"severity\":\"minor\",\"message\":\"The new `assess()` return value gates `reviewed` on both `review.verdict === \\\"pass\\\"` and `gate.ok`, whereas the pre-existing, unmodified `Controller.assessPR` (owner-pr flow) still gates only on `review.verdict === \\\"pass\\\"` and ignores its own `gate()` result. This asymmetry isn't introduced by this diff and isn't in scope of the ticket, but it's worth a follow-up ticket since it means owner-PR premerge can still proceed even if evidence publication reports a non-ok gate, while the dependency flow now blocks premerge via the `reviewed` output on the same condition.\"}]}"
     }
   },
   "grants": {
@@ -1743,15 +1752,12 @@
       "runId": "43902342572",
       "runAttempt": 1,
       "head": "037cd10df74706f7518fcc64be1faa59a41c0d84",
-      "status": "reserved",
-      "at": "2026-11-16T15:58:59.248Z"
+      "status": "finished",
+      "at": "2026-11-16T15:58:59.248Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 74,
-    "runId": "43902342572",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -3321,6 +3327,14 @@
       "phase": "review",
       "runId": "43902342572",
       "runAttempt": 1
+    },
+    {
+      "at": "2026-11-16T16:09:23.404Z",
+      "event": "finished",
+      "ticket": 74,
+      "grant": "d258b74d-2dba-4c65-991a-08e81a7451ca",
+      "status": "reviewed",
+      "head": "037cd10df74706f7518fcc64be1faa59a41c0d84"
     }
   ]
 }
