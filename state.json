@@ -3120,6 +3120,30 @@
       "reason": "Exact approved tree already on main; PR merge metadata never confirmed; duplicate write avoided",
       "approvalPreserved": true,
       "countersPreserved": true
+    },
+    {
+      "at": "2026-11-16T14:33:43.364Z",
+      "event": "owner_review_only_resume_profile",
+      "actor": "haideearus",
+      "ticket": 72,
+      "pr": 73,
+      "head": "f6156ea5a73d3f4b6765ea78e04cc13cb48c256d",
+      "previousStop": {
+        "id": "f80440eb-4520-4a7f-8b93-ffba7c363be3",
+        "at": "2026-11-16T13:37:23.990Z",
+        "actor": "haideearus",
+        "reason": "Owner emergency stop",
+        "previous": {
+          "FACTORY_AUTOMATION_ENABLED": "true",
+          "FACTORY_AUTOMERGE_ENABLED": "true",
+          "FACTORY_ENABLED": "true"
+        }
+      },
+      "profile": {
+        "FACTORY_ENABLED": "true",
+        "FACTORY_AUTOMATION_ENABLED": "false",
+        "FACTORY_AUTOMERGE_ENABLED": "false"
+      }
     }
   ],
   "stop": {
@@ -3128,9 +3152,9 @@
     "actor": "haideearus",
     "reason": "Owner emergency stop",
     "previous": {
-      "FACTORY_AUTOMATION_ENABLED": "true",
-      "FACTORY_AUTOMERGE_ENABLED": "true",
-      "FACTORY_ENABLED": "true"
+      "FACTORY_ENABLED": "true",
+      "FACTORY_AUTOMATION_ENABLED": "false",
+      "FACTORY_AUTOMERGE_ENABLED": "false"
     }
   }
 }
