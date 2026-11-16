@@ -41,7 +41,8 @@
       63,
       66,
       68,
-      57
+      57,
+      70
     ]
   },
   "tickets": {
@@ -1032,6 +1033,19 @@
         "runAttempt": 1,
         "mergeCommit": "054a0efca643bd89f0dc756448e6f26de3e3c5a5"
       }
+    },
+    "70": {
+      "coding": 0,
+      "origin": "owner-pr",
+      "reviews": 1,
+      "retries": 0,
+      "head": "74c6df02338f77d614159ba70bad0529f9549a50",
+      "status": "reviewing",
+      "pr": 71,
+      "approval": null,
+      "criteriaHash": "1b3669872dbc62fcc989b1ab087f95772fafacd76cb97c0e9711d898070237c8",
+      "branch": "agent/dependency-release-ci-evidence",
+      "ci": null
     }
   },
   "grants": {
@@ -1599,9 +1613,24 @@
       "status": "finished",
       "at": "2026-11-16T11:47:27.472Z",
       "outcome": "blocked"
+    },
+    "41edc29f-7a4c-402b-9cdc-89ba2377f38c": {
+      "id": "41edc29f-7a4c-402b-9cdc-89ba2377f38c",
+      "ticket": 70,
+      "phase": "review",
+      "slot": "existing",
+      "runId": "43865969388",
+      "runAttempt": 1,
+      "head": "74c6df02338f77d614159ba70bad0529f9549a50",
+      "status": "reserved",
+      "at": "2026-11-16T12:22:35.945Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 70,
+    "runId": "43865969388",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -2818,6 +2847,15 @@
           "reason": "Frozen pre-job controller rejects retained drill history before admission"
         }
       ]
+    },
+    {
+      "at": "2026-11-16T12:22:35.945Z",
+      "event": "reserved",
+      "ticket": 70,
+      "grant": "41edc29f-7a4c-402b-9cdc-89ba2377f38c",
+      "phase": "review",
+      "runId": "43865969388",
+      "runAttempt": 1
     }
   ]
 }
