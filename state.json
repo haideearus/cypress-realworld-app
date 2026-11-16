@@ -869,9 +869,17 @@
       "reviews": 1,
       "retries": 0,
       "head": "2ab7e7164761a09f580dd0109ccb5aa4c34811ce",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 64,
-      "approval": null,
+      "approval": {
+        "head": "2ab7e7164761a09f580dd0109ccb5aa4c34811ce",
+        "pr": 64,
+        "grant": "17caa602-aa0a-446b-a63a-bf62dea44067",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/43821551786"
+      },
       "criteriaHash": "9a3f6d7d8b53910ceb744e3b9ba2d221e9596d47fc03d0a94c08d9e3460c893a",
       "branch": "agent/monitor-feed-contract-recovery",
       "ci": {
@@ -879,7 +887,8 @@
         "head": "2ab7e7164761a09f580dd0109ccb5aa4c34811ce",
         "runId": 43821619479,
         "passed": true
-      }
+      },
+      "feedback": "{\"head\":\"2ab7e7164761a09f580dd0109ccb5aa4c34811ce\",\"verdict\":\"pass\",\"summary\":\"This PR prepares (but does not enable) a default-off feed-contract pagination probe and adds verified, evidence-bound incident retirement to the production monitor, per ticket #63. I reviewed the full implementation (app-checks-contract.cjs, app-checks-probe.cjs, app-checks.cjs, monitor.cjs, monitor-recovery.cjs, monitor-recovery-contract.cjs, monitor-state.cjs, monitor-proof.cjs, the factory-monitor.yml workflow) against the diff's file list and the acceptance criteria, plus the associated test suites and docs.\\n\\nFindings:\\n- The feed-contract probe (`app-checks-probe.cjs: validFeedContract`) correctly accepts a bounded 400/422 documented rejection or coherent positive bounded pagination (limit 1-50, consistent totalPages/hasNextPages), and rejects 200 responses with null/incoherent metadata, matching the acceptance criterion. It is strictly additive to the existing page=1/limit=5 journey and adds no live request when `FACTORY_FEED_CONTRACT_CHECK_ENABLED` is absent/false (verified by `app-checks-probe.cjs` gating and the \\\"default-off adds no request\\\" test).\\n- The workflow's `feed_contract`/`app_checks` preview inputs are wired so the override only takes effect when `dry_run=true` (`factory-monitor.yml` env expressions, exercised by `factory-monitor-workflow.test.cjs`), and feed-contract mode cannot be enabled without `FACTORY_APP_CHECKS_ENABLED` (checked in `monitor.cjs:main`).\\n- Probe-mode binding is enforced end-to-end: reports are versioned 2 only when `feedContract` is present and must match the running mode (`readReport` throws on mismatch); the incident's `probeMode: \\\"feed-contract\\\"` is baked into the immutable proof (`monitor-proof.cjs`) and checked again before any retirement (`observeIncident`'s `required_probe_missing` branch, and `verifyRepair`'s requireProof on `probeMode`/`feedContract === \\\"ok\\\"`/matching release SHAs before and after the journey).\\n- `monitor-recovery.cjs` verifies real, independently-checkable evidence before closing an issue: ledger ticket status/review/merge, protected-branch CI success, a single successful first-attempt `factory-deploy.yml` run for the exact merge commit with named-owner environment approval, trusted workflow source at both SHAs, and fresh healthy same-mode probes bound to that release. Ambiguous/missing/forged evidence throws and is caught by `monitor.cjs`'s `recovery_held` fallback, which records `recovered` but never closes the issue, matches, edits, or resets counters — this is covered by an extensive test matrix in `factory-monitor-recovery.test.cjs` (malformed/forged provenance, wrong approval/release/deployment, active concurrent work, lost close/final responses, repeated retirement idempotency, legacy vs. feed-contract scope).\\n- The isolated drill path (`monitor-drill.cjs`) calls `observeIncident` directly without `verifiedRetirement`, so the new verified-closure logic is only reachable from the real `monitor()` flow — the drill boundary is preserved, not weakened.\\n- No application source (`src/`, `backend/`) was touched; the real `limit=0` defect is only demonstrated (not fixed) via a disposable local Postgres + compiled production-mode app in `production-integration.test.cjs`, consistent with \\\"confirm but don't fix\\\" in the ticket. The verification doc explicitly states no production host, model, or paid API was used during preparation, and the three factory switches (`FACTORY_ENABLED`/`FACTORY_AUTOMATION_ENABLED`/`FACTORY_AUTOMERGE_ENABLED`, in untouched `policy.cjs`) and existing monitor/stop settings are unaffected.\\n- The operator/evidence runbook (`docs/factory/MONITOR-TO-REPAIR-ACCEPTANCE.md`) is included and matches the implemented controls and budgets (eight-request/206s contract journey vs. 212s standard, fits the existing 8-minute job, confirmed by `phaseBudgets` and a budget-math test).\\n\\nNo critical or important issues found.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"docs/factory/MONITOR-TO-REPAIR-ACCEPTANCE.md line 76 contains a mojibake artifact (\\\"Actions Ã¢â€ â€™ Production monitor Ã¢â€ â€™ Run workflow Ã¢â€ â€™ main\\\"), apparently a double-encoded UTF-8 arrow character (→) saved incorrectly. Purely cosmetic in a runbook doc, but should be fixed to avoid confusing operators following the later rollout steps.\"}]}"
     }
   },
   "grants": {
@@ -1396,15 +1405,12 @@
       "runId": "43821551786",
       "runAttempt": 1,
       "head": "2ab7e7164761a09f580dd0109ccb5aa4c34811ce",
-      "status": "reserved",
-      "at": "2026-11-16T07:07:35.941Z"
+      "status": "finished",
+      "at": "2026-11-16T07:07:35.941Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 63,
-    "runId": "43821551786",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -2304,6 +2310,14 @@
       "phase": "review",
       "runId": "43821551786",
       "runAttempt": 1
+    },
+    {
+      "at": "2026-11-16T07:17:38.646Z",
+      "event": "finished",
+      "ticket": 63,
+      "grant": "17caa602-aa0a-446b-a63a-bf62dea44067",
+      "status": "reviewed",
+      "head": "2ab7e7164761a09f580dd0109ccb5aa4c34811ce"
     }
   ]
 }
