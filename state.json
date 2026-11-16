@@ -899,8 +899,8 @@
         "status": "intent",
         "head": "0c33f0cfc987640dcbd2e65cbf919eab840024f4",
         "pr": 57,
-        "at": "2026-11-16T13:07:18.908Z",
-        "runId": "43870940530",
+        "at": "2026-11-16T13:35:43.254Z",
+        "runId": "43877094697",
         "runAttempt": 1
       }
     },
@@ -1677,7 +1677,11 @@
       "outcome": "reviewed"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 57,
+    "runId": "43877094697",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
