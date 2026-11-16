@@ -1092,9 +1092,17 @@
       "reviews": 1,
       "retries": 0,
       "head": "f6156ea5a73d3f4b6765ea78e04cc13cb48c256d",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 73,
-      "approval": null,
+      "approval": {
+        "head": "f6156ea5a73d3f4b6765ea78e04cc13cb48c256d",
+        "pr": 73,
+        "grant": "b2fcefcc-81d9-40a1-9466-12d89069cfe5",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/43887091302"
+      },
       "criteriaHash": "03e7c9468a652d9fc351c3b387ae82b5510af21d97b888319b514088f7df8cd5",
       "branch": "agent/72-merge-confirmation",
       "ci": {
@@ -1102,7 +1110,8 @@
         "head": "f6156ea5a73d3f4b6765ea78e04cc13cb48c256d",
         "runId": 43887188440,
         "passed": true
-      }
+      },
+      "feedback": "{\"head\":\"f6156ea5a73d3f4b6765ea78e04cc13cb48c256d\",\"verdict\":\"pass\",\"summary\":\"Reviewed the diff for ticket #72 (merge-confirmation separation, bounded receipts, cross-run replay prevention) against scripts/factory/merge.cjs, merge-confirmation.cjs, dependencies.cjs and their tests at head f6156ea5a73d3f4b6765ea78e04cc13cb48c256d. Traced the core state machine in detail: intent status now structurally routes every later call (any run, any workflow terminality) to the new confirm()/receipt() machinery rather than back to the PUT-issuing code path, so an ambiguous PUT cannot be repeated — this holds even when the owning workflow run is reported completed, and even when a dependency PR's head/main advances while the PR is still open. mergeReceipt()/readMergePR() produce a strictly allowlisted, sanitized receipt (outcome + optional mergeCommit/httpStatus only); no raw response bodies, messages, or credentials are ever persisted (verified against the new tests asserting absence of injected raw strings in the serialized ledger). Confirmation reads (confirmation:true) correctly bypass the pre-write rebase/file-list/report checks in both AutomaticMerger.pr() and DependencyCoordinator.pr(), while fresh writes still go through the full existing checks (verified by the \\\"cannot authorize a fresh dependency merge on an outdated main\\\" test). The receipt-vs-metadata cross-check is re-verified inside the ledger.update mutator itself (fresh read), correctly resolving the race where one observer reads stale evidence while another's receipt lands concurrently (traced the two-observer/receipt-conflict tests step by step; behavior matches the documented design of restoring the held intent on conflicting late evidence). release() only fires before any PUT is issued, so only provably-unsent intents are released, with an audit entry preserved. Dependency head changes after an uncertain intent now hold for owner reconciliation instead of retiring the approval/counters, closing the exact gap described in the ticket. Test coverage for delayed confirmation, lost/malformed/rejected responses, advancing main, cross-run replay, and unchanged counters is present and its assertions are consistent with the implementation as traced. No workflow/env files were touched, so the three factory switches remain false, and no credentials or paid-AI/Claude invocations are introduced.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"The new audit entries written in merge.cjs (automatic_merge_api_result, automatic_merge_confirmation_conflict, automatic_merge_not_sent) are pushed directly onto state.audit instead of going through the existing policy.audit() helper, which is the only place that bounds the audit log to the last 500 entries. This is a minor inconsistency with the established pattern; practical impact is limited by the ledger's hard 1MB size cap and by other call sites that still invoke policy.audit() and re-trim the array, but it would be cleaner to reuse policy.audit() here.\"},{\"severity\":\"minor\",\"message\":\"DependencyMerger.issue() (called from reconcile() during every confirm() poll) performs its own extra GET of the PR to cross-check against the already-fetched `observed` PR, in addition to confirm()'s own PR read. This doubles the number of /pulls/{n} reads per confirmation poll for dependency merges (unlike the app-merge path, which was explicitly optimized to avoid a redundant files-list read). It's bounded by maxPolls and not unsafe, just an avoidable inefficiency.\"}]}"
     }
   },
   "grants": {
@@ -1703,15 +1712,12 @@
       "runId": "43887091302",
       "runAttempt": 1,
       "head": "f6156ea5a73d3f4b6765ea78e04cc13cb48c256d",
-      "status": "reserved",
-      "at": "2026-11-16T14:34:25.215Z"
+      "status": "finished",
+      "at": "2026-11-16T14:34:25.215Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 72,
-    "runId": "43887091302",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -3211,6 +3217,14 @@
       "phase": "review",
       "runId": "43887091302",
       "runAttempt": 1
+    },
+    {
+      "at": "2026-11-16T14:51:56.120Z",
+      "event": "finished",
+      "ticket": 72,
+      "grant": "b2fcefcc-81d9-40a1-9466-12d89069cfe5",
+      "status": "reviewed",
+      "head": "f6156ea5a73d3f4b6765ea78e04cc13cb48c256d"
     }
   ]
 }
