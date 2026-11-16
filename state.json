@@ -902,7 +902,11 @@
       "approval": null,
       "criteriaHash": "e65ae419096173e4653f504cf0095505c443b3191b2a6edf656f1ff999065025",
       "branch": "agent/recovered-monitor-acknowledgment",
-      "ci": null
+      "ci": {
+        "requestId": "5eb8fe8b-fb1d-4f2b-bb90-0ffe50fd0e04",
+        "head": "dfc3d95d89818e848eddf373001857674d52baa5",
+        "runId": null
+      }
     }
   },
   "grants": {
