@@ -1677,11 +1677,7 @@
       "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 57,
-    "runId": "43870940530",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
