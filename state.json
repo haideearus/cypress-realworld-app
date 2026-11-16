@@ -822,12 +822,12 @@
     },
     "57": {
       "coding": 0,
-      "reviews": 1,
+      "reviews": 2,
       "retries": 0,
       "origin": "dependency-pr",
       "head": "0c33f0cfc987640dcbd2e65cbf919eab840024f4",
       "pr": 57,
-      "status": "new",
+      "status": "reviewing",
       "approval": null,
       "branch": "dependabot/npm_and_yarn/lodash-es-4.18.1",
       "criteriaHash": "4ef07ca11761f9de9f250bf3d7c008253cd16c588da85a1a1752d552fb297b4f",
@@ -1647,6 +1647,17 @@
       "status": "finished",
       "at": "2026-11-16T12:22:35.945Z",
       "outcome": "reviewed"
+    },
+    "0b9427e7-9746-4cdd-a4d7-f140f9c1d23f": {
+      "id": "0b9427e7-9746-4cdd-a4d7-f140f9c1d23f",
+      "ticket": 57,
+      "phase": "review",
+      "slot": "dependency",
+      "runId": "43870940530",
+      "runAttempt": 1,
+      "head": "0c33f0cfc987640dcbd2e65cbf919eab840024f4",
+      "status": "reserved",
+      "at": "2026-11-16T13:02:59.000Z"
     }
   },
   "active": {
@@ -2969,6 +2980,15 @@
       "ticket": 57,
       "head": "0c33f0cfc987640dcbd2e65cbf919eab840024f4",
       "runId": "43870940530"
+    },
+    {
+      "at": "2026-11-16T13:02:59.000Z",
+      "event": "reserved",
+      "ticket": 57,
+      "grant": "0b9427e7-9746-4cdd-a4d7-f140f9c1d23f",
+      "phase": "review",
+      "runId": "43870940530",
+      "runAttempt": 1
     }
   ]
 }
