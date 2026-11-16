@@ -1226,9 +1226,17 @@
       "reviews": 1,
       "retries": 0,
       "head": "7695b2bb5f51d8424c8feae7509e60376ee01ad2",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 78,
-      "approval": null,
+      "approval": {
+        "head": "7695b2bb5f51d8424c8feae7509e60376ee01ad2",
+        "pr": 78,
+        "grant": "9f0b9296-f2b0-458d-8ff4-0638625330d9",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/43924222574"
+      },
       "criteriaHash": "c3315f2da81d7ef57ed9912992f829ad7f54ad1d9a001a1838f49787e871ef2b",
       "branch": "agent/77-operations-evidence",
       "ci": {
@@ -1236,7 +1244,8 @@
         "head": "7695b2bb5f51d8424c8feae7509e60376ee01ad2",
         "runId": 43924326041,
         "passed": true
-      }
+      },
+      "feedback": "{\"head\":\"7695b2bb5f51d8424c8feae7509e60376ee01ad2\",\"verdict\":\"pass\",\"summary\":\"The diff touches only documentation and sanitized JSON evidence under docs/ (CLAUDE-FACTORY.md, FACTORY.md, docs/factory/{APP-CHECKS,DEPENDENCY-MAINTENANCE,PRODUCTION-MONITORING}.md, new OPERATIONS.md and ACCEPTANCE-2026-11-16.md plus its evidence JSON, and two superpowers plan/spec files) — no workflow, script, dependency, permission, branch-protection, or secret files were modified, matching the ticket's \\\"documentation and sanitized evidence only\\\" scope. All three FACTORY_* switches are consistently documented as unchanged (false), and the new evidence JSON mirrors that state. Cross-checked the evidence against actual repo history (e.g. merge commit f5969ed cited for PR #58 matches the real git log entry for the postcss-selector-parser bump), and local markdown links to referenced files (OPERATIONS.md, ACCEPTANCE-2026-11-16.md, MONITOR-TO-REPAIR-ACCEPTANCE.md, DEPLOYMENT.md, AGENTS.md, README.md, quarantine evidence README, etc.) resolve to real files. No credential patterns, API keys, or secret values appear anywhere in the diff — only secret *names* (FACTORY_MONITOR_USERNAME/PASSWORD) are referenced, consistent with the \\\"sanitized\\\" requirement. The documents are heavily hedged, distinguishing owner-reported facts (e.g. PC-off interval) from independently observed ones, and explicitly state this ticket does not admit itself as factory-ready or authorize any live action, matching the ticket's acceptance criteria.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"The acceptance evidence (hashes, run outcomes, timestamps in docs/factory/evidence/acceptance-2026-11-16.json and ACCEPTANCE-2026-11-16.md) is self-reported by the authoring agent; as a read-only reviewer without network/shell access I could not independently re-verify the cited GitHub run IDs, protection/variable hashes, or artifact digests against live GitHub state. This is an inherent limitation of this review pass, not a defect in the PR, and the documents themselves are appropriately candid about being a 'curated' rather than 'complete' audit.\"}]}"
     }
   },
   "grants": {
@@ -1873,15 +1882,12 @@
       "runId": "43924222574",
       "runAttempt": 1,
       "head": "7695b2bb5f51d8424c8feae7509e60376ee01ad2",
-      "status": "reserved",
-      "at": "2026-11-16T18:00:26.742Z"
+      "status": "finished",
+      "at": "2026-11-16T18:00:26.742Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 77,
-    "runId": "43924222574",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -3633,6 +3639,14 @@
       "phase": "review",
       "runId": "43924222574",
       "runAttempt": 1
+    },
+    {
+      "at": "2026-11-16T18:09:48.759Z",
+      "event": "finished",
+      "ticket": 77,
+      "grant": "9f0b9296-f2b0-458d-8ff4-0638625330d9",
+      "status": "reviewed",
+      "head": "7695b2bb5f51d8424c8feae7509e60376ee01ad2"
     }
   ]
 }
