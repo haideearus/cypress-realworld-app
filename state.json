@@ -3647,6 +3647,24 @@
       "grant": "9f0b9296-f2b0-458d-8ff4-0638625330d9",
       "status": "reviewed",
       "head": "7695b2bb5f51d8424c8feae7509e60376ee01ad2"
+    },
+    {
+      "at": "2026-11-16T18:10:36.646Z",
+      "event": "factory-stop-requested",
+      "actor": "haideearus",
+      "commandId": "ab6af190-a533-456c-ad86-1aab357ef6aa",
+      "reason": "Owner emergency stop"
     }
-  ]
+  ],
+  "stop": {
+    "id": "ab6af190-a533-456c-ad86-1aab357ef6aa",
+    "at": "2026-11-16T18:10:35.758Z",
+    "actor": "haideearus",
+    "reason": "Owner emergency stop",
+    "previous": {
+      "FACTORY_AUTOMATION_ENABLED": "false",
+      "FACTORY_AUTOMERGE_ENABLED": "false",
+      "FACTORY_ENABLED": "true"
+    }
+  }
 }
