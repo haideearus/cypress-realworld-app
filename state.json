@@ -3542,6 +3542,30 @@
       ],
       "pendingRunIds": [],
       "elapsedMs": 10925
+    },
+    {
+      "at": "2026-11-16T17:58:38.116Z",
+      "event": "owner_review_only_resume_profile",
+      "actor": "haideearus",
+      "ticket": 77,
+      "pr": 78,
+      "head": "7695b2bb5f51d8424c8feae7509e60376ee01ad2",
+      "previousStop": {
+        "id": "ea89a0b0-8179-4d9d-a180-c72bb8e889eb",
+        "at": "2026-11-16T16:51:41.640Z",
+        "actor": "haideearus",
+        "reason": "Owner emergency stop",
+        "previous": {
+          "FACTORY_AUTOMATION_ENABLED": "true",
+          "FACTORY_AUTOMERGE_ENABLED": "true",
+          "FACTORY_ENABLED": "true"
+        }
+      },
+      "profile": {
+        "FACTORY_ENABLED": "true",
+        "FACTORY_AUTOMATION_ENABLED": "false",
+        "FACTORY_AUTOMERGE_ENABLED": "false"
+      }
     }
   ],
   "stop": {
@@ -3550,9 +3574,9 @@
     "actor": "haideearus",
     "reason": "Owner emergency stop",
     "previous": {
-      "FACTORY_AUTOMATION_ENABLED": "true",
-      "FACTORY_AUTOMERGE_ENABLED": "true",
-      "FACTORY_ENABLED": "true"
+      "FACTORY_ENABLED": "true",
+      "FACTORY_AUTOMATION_ENABLED": "false",
+      "FACTORY_AUTOMERGE_ENABLED": "false"
     }
   }
 }
