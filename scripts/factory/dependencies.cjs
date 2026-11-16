@@ -6,6 +6,7 @@ const { Ledger, ROOT } = require("./github.cjs");
 const { Controller } = require("./controller.cjs");
 const { AutomaticMerger } = require("./merge.cjs");
 const { validateReview } = require("./artifacts.cjs");
+const { ConfirmationUnavailable, readMergePR } = require("./merge-confirmation.cjs");
 
 function expectedReport(ticket, context, stage) {
   const a = d.validateTicket(ticket);
@@ -86,10 +87,21 @@ class DependencyCoordinator {
     if (!d.contextOK(this.context)) throw new Error("Unauthorized dependency context");
   }
   async pending(t, preview) {
-    const observed = d.prOK(await this.api.request("GET", `${ROOT}/pulls/${t.pr}`), true);
+    let observed;
+    try {
+      observed = d.prOK(await readMergePR(this.api, t.pr, t.merge?.status === "intent"), true);
+    } catch (error) {
+      if (!(error instanceof ConfirmationUnavailable)) throw error;
+      return { ready: false, reason: "merge_confirmation_unavailable" };
+    }
     if (observed.number !== t.pr || observed.head.ref !== t.branch)
       throw new Error("Dependency PR identity changed");
     if (observed.head.sha !== t.head) {
+      if (t.merge?.status === "intent")
+        return {
+          ready: false,
+          reason: "Changed dependency head after uncertain merge requires owner reconciliation",
+        };
       if (preview)
         return {
           ready: false,
@@ -98,29 +110,13 @@ class DependencyCoordinator {
           head: observed.head.sha,
           reason: "Bot changed reviewed head; live intake must invalidate stale approval",
         };
-      // A changed open head proves an old expected-head PUT did not merge this PR.
-      // Also prove the old attempt terminal so it cannot issue a late write.
+      // Without a merge intent this is a new candidate head. An uncertain merge
+      // was handled above and must never retire its approval on this path.
       if (observed.state !== "open")
         return {
           ready: false,
           reason: "Changed closed dependency head requires owner reconciliation",
         };
-      if (t.merge) {
-        const run = await this.api.request(
-          "GET",
-          `${ROOT}/actions/runs/${t.merge.runId}/attempts/${t.merge.runAttempt}`
-        );
-        const previous = {
-          ...this.context,
-          runId: t.merge.runId,
-          runAttempt: t.merge.runAttempt,
-          workflowSha: run.head_sha,
-          event: run.event,
-        };
-        const verified = await trustedRun(this.api, previous, true);
-        if (verified.status !== "completed")
-          return { ready: false, reason: "Previous dependency merge attempt remains active" };
-      }
       await this.ledger.update(async (s) => {
         policy.assertNotStopped(s);
         const current = s.tickets[String(t.pr)];
@@ -159,6 +155,8 @@ class DependencyCoordinator {
       });
       return null;
     }
+    if (t.merge?.status === "intent")
+      return { ready: !preview, mode: "reconcile", ticket: t.pr, head: t.head };
     const pr = await this.pr(t.pr, { closed: true, expected: t });
     return {
       ready: !preview,
@@ -167,15 +165,15 @@ class DependencyCoordinator {
       head: t.head,
     };
   }
-  async pr(number, { closed = false, expected } = {}) {
+  async pr(number, { closed = false, expected, confirmation = false } = {}) {
     if (!Number.isSafeInteger(number) || number < 1) throw new Error("Invalid dependency PR");
-    const pr = d.prOK(await this.api.request("GET", `${ROOT}/pulls/${number}`), closed);
+    const pr = d.prOK(await readMergePR(this.api, number, confirmation), closed);
     if (
       pr.number !== number ||
       (expected && (pr.head.sha !== expected.head || pr.head.ref !== expected.branch))
     )
       throw new Error("Dependency head changed");
-    if (pr.state === "open") {
+    if (pr.state === "open" && !confirmation) {
       d.filesOK(await this.api.request("GET", `${ROOT}/pulls/${number}/files?per_page=3`));
       const main = await this.api.request("GET", `${ROOT}/git/ref/heads/main`);
       const compare = await this.api.request(
@@ -401,17 +399,24 @@ class DependencyMerger extends AutomaticMerger {
   branchFor(_number, t) {
     return t.branch;
   }
-  async issue(number, t) {
-    await this.pr(number, t);
+  async issue(number, t, { confirmation = false, observed } = {}) {
+    const current = await this.pr(number, t, { confirmation });
+    if (
+      confirmation &&
+      (current.state !== observed.state ||
+        current.merged !== observed.merged ||
+        (observed.merged === true && current.merge_commit_sha !== observed.merge_commit_sha))
+    )
+      throw new ConfirmationUnavailable();
   }
   async permitWrite(number, t) {
     await this.pr(number, t);
     analysis.validateReport(this.report, expectedReport(t, this.context, "premerge"));
   }
-  async pr(number, t) {
-    const pr = await this.coordinator.pr(number, { closed: true, expected: t });
+  async pr(number, t, { confirmation = false } = {}) {
+    const pr = await this.coordinator.pr(number, { closed: true, expected: t, confirmation });
     // Closed/lost-response reconciliation needs no fresh report or another model.
-    if (pr.state === "open")
+    if (pr.state === "open" && !confirmation)
       analysis.validateReport(this.report, expectedReport(t, this.context, "premerge"));
     return pr;
   }
@@ -420,6 +425,7 @@ class DependencyMerger extends AutomaticMerger {
     if (!this.enabled()) return { merged: false, reason: "Dependency merge disabled" };
     const { state } = await this.ledger.read();
     const t = this.automaticTicket(state, number);
+    if (t.merge?.status === "intent") return super.merge(number, options);
     const pr = await this.coordinator.pr(number, { closed: true, expected: t });
     if (pr.state === "open") await producer(this.api, this.context, t, this.report, "premerge");
     return super.merge(number, options);

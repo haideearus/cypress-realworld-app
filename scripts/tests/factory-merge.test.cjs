@@ -106,7 +106,15 @@ class MergeFixture extends GitHubFixture {
     this.files = [{ filename: "src/example.ts", status: "modified" }];
     this.refreshCompletes = true;
     this.mergeResponse = "success";
+    this.mergeReply = null;
+    this.putStarted = false;
+    this.confirmationReads = 0;
+    this.onConfirmationRead = null;
+    this.checkReads = 0;
+    this.onChecksRead = null;
     this.beforeMerge = null;
+    this.beforeMergeReply = null;
+    this.filesUnavailableAfterPut = false;
     this.extraCalls = [];
     const ledgerFetch = this.fetch;
     this.fetch = async (url, options = {}) => {
@@ -120,10 +128,22 @@ class MergeFixture extends GitHubFixture {
         });
       this.extraCalls.push({ path, method, body });
       if (method === "GET" && path === "/issues/10") return reply(200, this.issue);
-      if (method === "GET" && path === "/pulls/20") return reply(200, this.pr);
-      if (method === "GET" && path === "/pulls/20/files") return reply(200, this.files);
-      if (method === "GET" && path === `/commits/${head}/check-runs`)
+      if (method === "GET" && path === "/pulls/20") {
+        if (this.putStarted) {
+          this.confirmationReads++;
+          if (this.onConfirmationRead) await this.onConfirmationRead(this.confirmationReads);
+        }
+        return reply(200, this.pr);
+      }
+      if (method === "GET" && path === "/pulls/20/files") {
+        if (this.putStarted && this.filesUnavailableAfterPut)
+          throw new Error("temporary file-list error");
+        return reply(200, this.files);
+      }
+      if (method === "GET" && path === `/commits/${head}/check-runs`) {
+        if (this.onChecksRead) await this.onChecksRead(++this.checkReads);
         return reply(200, { check_runs: this.checks });
+      }
       const run = /^\/actions\/runs\/(\d+)$/.exec(path);
       if (method === "GET" && run) return reply(200, this.runs.get(Number(run[1])) || {});
       const jobs = /^\/actions\/runs\/(\d+)\/jobs$/.exec(path);
@@ -162,6 +182,7 @@ class MergeFixture extends GitHubFixture {
         return reply(201, {});
       }
       if (method === "PUT" && path === "/pulls/20/merge") {
+        this.putStarted = true;
         if (this.beforeMerge) await this.beforeMerge();
         if (body.sha !== this.pr.head.sha || this.pr.state !== "open")
           return reply(409, { message: "Head changed or PR closed" });
@@ -171,8 +192,9 @@ class MergeFixture extends GitHubFixture {
           this.pr.merge_commit_sha = "c".repeat(40);
           this.issue.state = "closed";
         }
+        if (this.beforeMergeReply) await this.beforeMergeReply();
         if (this.mergeResponse.startsWith("lost")) throw new Error("Connection lost");
-        return reply(200, { merged: true, sha: "c".repeat(40) });
+        return reply(200, this.mergeReply || { merged: true, sha: "c".repeat(40) });
       }
       return ledgerFetch(url, options);
     };
@@ -593,7 +615,7 @@ test("uncertain unmerged response retains intent and duplicate ticks do not retr
   assert.equal((await merger.merge(10)).pending, true);
   assert.equal(fixture.mutations().filter((call) => call.method === "PUT").length, 1);
 });
-test("a later tick only retries a prior completed attempt after reconciling unmerged state", async () => {
+test("a later tick never repeats an ambiguous PUT even after the previous run completed", async () => {
   const { fixture, merger, ledger, api } = await setup();
   fixture.mergeResponse = "lost-unmerged";
   await merger.merge(10);
@@ -607,9 +629,309 @@ test("a later tick only retries a prior completed attempt after reconciling unme
   );
   assert.equal((await next.merge(10)).pending, true);
   fixture.runStatuses.set("200", "completed");
-  assert.equal((await next.merge(10)).merged, true);
-  assert.equal((await ledger.read()).state.tickets["10"].merge.runId, "201");
-  assert.equal(fixture.mutations().filter((call) => call.method === "PUT").length, 2);
+  assert.equal((await next.merge(10)).pending, true);
+  assert.equal((await ledger.read()).state.tickets["10"].merge.runId, "200");
+  assert.equal(fixture.mutations().filter((call) => call.method === "PUT").length, 1);
+});
+
+test("delayed GitHub closure is confirmed in one bounded attempt without another PUT", async () => {
+  const { fixture, merger, ledger } = await setup();
+  const before = copy((await ledger.read()).state);
+  fixture.mergeResponse = "reply-only";
+  fixture.onConfirmationRead = async (n) => {
+    if (n === 2)
+      Object.assign(fixture.pr, {
+        state: "closed",
+        merged: true,
+        merge_commit_sha: "c".repeat(40),
+      });
+  };
+  const result = await merger.merge(10);
+  assert.equal(result.merged, true);
+  assert.equal(fixture.confirmationReads, 2);
+  assert.equal(fixture.mutations().filter((call) => call.method === "PUT").length, 1);
+  const after = (await ledger.read()).state;
+  assert.deepEqual(after.grants, before.grants);
+  assert.deepEqual(after.days, before.days);
+  assert.deepEqual(after.tickets["10"].approval, before.tickets["10"].approval);
+  assert.equal(after.tickets["10"].reviews, before.tickets["10"].reviews);
+});
+
+test("an accepted response is audited without raw data and cannot alone claim a merge", async () => {
+  const { fixture, merger, ledger } = await setup();
+  fixture.mergeResponse = "reply-only";
+  fixture.mergeReply = { merged: true, sha: "c".repeat(40), message: "private-provider-message" };
+  const result = await merger.merge(10);
+  assert.equal(result.merged, false);
+  assert.equal(result.pending, true);
+  assert.equal(result.reason, "merge_confirmation_pending");
+  const state = (await ledger.read()).state;
+  const receipt = state.audit.find((row) => row.event === "automatic_merge_api_result");
+  assert.equal(receipt.outcome, "accepted");
+  assert.equal(receipt.mergeCommit, "c".repeat(40));
+  assert.equal(JSON.stringify(state).includes("private-provider-message"), false);
+  assert.equal(state.tickets["10"].merge.status, "intent");
+  assert.equal(fixture.confirmationReads, 2);
+});
+
+for (const [name, reply, outcome] of [
+  ["malformed", { merged: true, sha: "not-a-sha", message: "raw-message" }, "malformed"],
+  ["rejected", { merged: false, message: "raw-message" }, "rejected"],
+])
+  test(`${name} merge replies retain a bounded audit outcome and never prove merged`, async () => {
+    const { fixture, merger, ledger } = await setup();
+    fixture.mergeResponse = "reply-only";
+    fixture.mergeReply = reply;
+    const result = await merger.merge(10);
+    assert.equal(result.merged, false);
+    assert.equal(result.pending, true);
+    const state = (await ledger.read()).state;
+    assert.equal(
+      state.audit.find((row) => row.event === "automatic_merge_api_result").outcome,
+      outcome
+    );
+    assert.equal(JSON.stringify(state).includes("raw-message"), false);
+  });
+
+test("a lost transport response is retained as unknown without exception contents", async () => {
+  const { fixture, merger, ledger } = await setup();
+  fixture.mergeResponse = "lost-unmerged";
+  assert.equal((await merger.merge(10)).pending, true);
+  const receipt = (await ledger.read()).state.audit.find(
+    (row) => row.event === "automatic_merge_api_result"
+  );
+  assert.equal(receipt.outcome, "unknown");
+  assert.equal(JSON.stringify(receipt).includes("Connection lost"), false);
+});
+
+test("a retained accepted receipt must agree with closed GitHub merge metadata", async () => {
+  const { fixture, merger, ledger } = await setup();
+  fixture.mergeReply = { merged: true, sha: "d".repeat(40) };
+  await assert.rejects(merger.merge(10), /receipt|confirmation|disagree/i);
+  assert.equal((await ledger.read()).state.tickets["10"].merge.status, "intent");
+});
+
+test("terminal persistence rechecks a receipt that arrived during an observer's PR read", async () => {
+  const { fixture, merger, ledger, api } = await setup();
+  fixture.mergeReply = { merged: true, sha: "d".repeat(40) };
+  let putReady, returnReply, observerReady, returnObservation;
+  const putReached = new Promise((resolve) => {
+    putReady = resolve;
+  });
+  const replyBarrier = new Promise((resolve) => {
+    returnReply = resolve;
+  });
+  const observerReached = new Promise((resolve) => {
+    observerReady = resolve;
+  });
+  const observationBarrier = new Promise((resolve) => {
+    returnObservation = resolve;
+  });
+  fixture.beforeMergeReply = async () => {
+    putReady();
+    await replyBarrier;
+  };
+  fixture.onConfirmationRead = async (n) => {
+    if (n === 1) {
+      observerReady();
+      await observationBarrier;
+    }
+  };
+  const writer = merger.merge(10);
+  const writerFailed = assert.rejects(writer, /receipt|confirmation|disagree/i);
+  await putReached;
+  const observer = new implementation.AutomaticMerger(
+    api,
+    config,
+    { ...automaticContext, runId: "201" },
+    { sleep: async () => {}, maxPolls: 2 }
+  );
+  const observation = observer.merge(10);
+  const observerFailed = assert.rejects(observation, /receipt|confirmation|disagree/i);
+  await observerReached;
+  returnReply();
+  await writerFailed;
+  returnObservation();
+  await observerFailed;
+  const state = (await ledger.read()).state;
+  assert.equal(state.tickets["10"].merge.status, "intent");
+  assert.equal(
+    state.audit.find((r) => r.event === "automatic_merge_api_result").mergeCommit,
+    "d".repeat(40)
+  );
+  assert.equal(fixture.mutations().filter((call) => call.method === "PUT").length, 1);
+});
+
+test("a late merge receipt survives another observer's terminal reconciliation", async () => {
+  const { fixture, merger, ledger, api } = await setup();
+  let putReady, returnReply;
+  const putReached = new Promise((resolve) => {
+    putReady = resolve;
+  });
+  const replyBarrier = new Promise((resolve) => {
+    returnReply = resolve;
+  });
+  fixture.beforeMergeReply = async () => {
+    putReady();
+    await replyBarrier;
+  };
+  const writer = merger.merge(10);
+  await putReached;
+  const observer = new implementation.AutomaticMerger(
+    api,
+    config,
+    { ...automaticContext, runId: "201" },
+    { sleep: async () => {}, maxPolls: 2 }
+  );
+  assert.equal((await observer.merge(10)).merged, true);
+  returnReply();
+  assert.equal((await writer).merged, true);
+  const state = (await ledger.read()).state;
+  assert.equal(state.audit.filter((r) => r.event === "automatic_merge_api_result").length, 1);
+  assert.equal(state.tickets["10"].merge.status, "merged");
+});
+
+test("a late conflicting receipt restores a held intent and preserves the earlier observation in audit", async () => {
+  const { fixture, merger, ledger, api } = await setup();
+  fixture.mergeReply = { merged: true, sha: "d".repeat(40) };
+  let putReady, returnReply;
+  const putReached = new Promise((resolve) => {
+    putReady = resolve;
+  });
+  const replyBarrier = new Promise((resolve) => {
+    returnReply = resolve;
+  });
+  fixture.beforeMergeReply = async () => {
+    putReady();
+    await replyBarrier;
+  };
+  const writerFailed = assert.rejects(merger.merge(10), /receipt|confirmation|disagree/i);
+  await putReached;
+  const observer = new implementation.AutomaticMerger(
+    api,
+    config,
+    { ...automaticContext, runId: "201" },
+    { sleep: async () => {}, maxPolls: 2 }
+  );
+  assert.equal((await observer.merge(10)).merged, true);
+  returnReply();
+  await writerFailed;
+  const state = (await ledger.read()).state;
+  assert.equal(state.tickets["10"].merge.status, "intent");
+  assert.equal(state.active.runId, "200");
+  assert.equal(
+    state.audit.find((r) => r.event === "automatic_merge_confirmation_conflict").previousMergeRecord
+      .status,
+    "merged"
+  );
+  assert.equal(
+    state.audit.find((r) => r.event === "automatic_merge_api_result").mergeCommit,
+    "d".repeat(40)
+  );
+  assert.equal(fixture.mutations().filter((call) => call.method === "PUT").length, 1);
+});
+
+test("an observer waits for the live writer's receipt before claiming terminal success", async () => {
+  const { fixture, merger, ledger, api } = await setup();
+  fixture.runStatuses.set("200", "in_progress");
+  let putReady, returnReply;
+  const putReached = new Promise((resolve) => {
+    putReady = resolve;
+  });
+  const replyBarrier = new Promise((resolve) => {
+    returnReply = resolve;
+  });
+  fixture.beforeMergeReply = async () => {
+    putReady();
+    await replyBarrier;
+  };
+  const writer = merger.merge(10);
+  await putReached;
+  const observer = new implementation.AutomaticMerger(
+    api,
+    config,
+    { ...automaticContext, runId: "201" },
+    { sleep: async () => {}, maxPolls: 2 }
+  );
+  const result = await observer.merge(10);
+  assert.equal(result.merged, false);
+  assert.equal(result.pending, true);
+  assert.equal((await ledger.read()).state.tickets["10"].merge.status, "intent");
+  returnReply();
+  assert.equal((await writer).merged, true);
+});
+
+test("read-only app confirmation does not refetch an already-approved file list", async () => {
+  const { fixture, merger } = await setup();
+  fixture.mergeResponse = "reply-only";
+  fixture.filesUnavailableAfterPut = true;
+  const result = await merger.merge(10);
+  assert.equal(result.pending, true);
+  assert.equal(result.merged, false);
+  assert.equal(fixture.mutations().filter((call) => call.method === "PUT").length, 1);
+});
+
+test("temporary PR read failure after PUT is a bounded pending confirmation", async () => {
+  const { fixture, merger, ledger } = await setup();
+  fixture.mergeResponse = "reply-only";
+  fixture.onConfirmationRead = async () => {
+    throw new Error("private network failure");
+  };
+  const result = await merger.merge(10);
+  assert.equal(result.merged, false);
+  assert.equal(result.pending, true);
+  assert.equal(result.reason, "merge_confirmation_unavailable");
+  assert.equal(fixture.confirmationReads, 2);
+  assert.equal((await ledger.read()).state.tickets["10"].merge.status, "intent");
+  assert.equal(fixture.mutations().filter((call) => call.method === "PUT").length, 1);
+});
+
+for (const change of ["stop", "approval"])
+  test(`a ${change} during confirmation prevents further work or another PUT`, async () => {
+    const { fixture, merger, ledger } = await setup();
+    fixture.mergeResponse = "reply-only";
+    fixture.onConfirmationRead = async (n) => {
+      if (n !== 1) return;
+      await ledger.update((state) => {
+        if (change === "approval") state.tickets["10"].approval = null;
+        else
+          state.stop = {
+            id: "11111111-1111-4111-8111-111111111111",
+            at: "2026-11-16T10:00:00.000Z",
+            actor: policy.OWNER,
+            reason: "Owner emergency stop",
+            previous: {
+              FACTORY_ENABLED: "true",
+              FACTORY_AUTOMATION_ENABLED: "true",
+              FACTORY_AUTOMERGE_ENABLED: "true",
+            },
+          };
+        return { state };
+      });
+    };
+    await assert.rejects(merger.merge(10), /stopped|review|approval/i);
+    assert.equal(fixture.confirmationReads, 1);
+    assert.equal(fixture.mutations().filter((call) => call.method === "PUT").length, 1);
+    assert.equal((await ledger.read()).state.tickets["10"].merge.status, "intent");
+  });
+
+test("a provably unsent preflight failure releases its intent with an audit receipt", async () => {
+  const { fixture, merger, ledger } = await setup();
+  fixture.onChecksRead = async (n) => {
+    if (n === 2) {
+      fixture.checks[1].conclusion = "failure";
+      fixture.runs.get(502).conclusion = "failure";
+    }
+  };
+  await assert.rejects(merger.merge(10), /clean|changed/i);
+  const state = (await ledger.read()).state;
+  assert.equal(state.active, null);
+  assert.equal(state.tickets["10"].merge, undefined);
+  assert.equal(
+    state.audit.some((row) => row.event === "automatic_merge_not_sent"),
+    true
+  );
+  assert.equal(fixture.mutations().filter((call) => call.method === "PUT").length, 0);
 });
 test("concurrent ticks acquire one durable intent and make at most one merge request", async () => {
   const { fixture, merger, api, ledger } = await setup();

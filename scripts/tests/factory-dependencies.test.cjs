@@ -215,7 +215,7 @@ async function reviewed(x) {
     },
   });
 }
-test("analysis, CI, one readonly review and native protected merge complete without a coding grant", async () => {
+async function protectedMergeFixture() {
   const x = await fixture();
   await reviewed(x);
   x.f.stage = "premerge";
@@ -279,10 +279,15 @@ test("analysis, CI, one readonly review and native protected merge complete with
         merged: true,
         merge_commit_sha: "d".repeat(40),
       });
-      return { merged: true };
+      return { merged: true, sha: "d".repeat(40) };
     }
     return prior(p);
   };
+  return x;
+}
+
+test("analysis, CI, one readonly review and native protected merge complete without a coding grant", async () => {
+  const x = await protectedMergeFixture();
   const merged = await new DependencyMerger(x.api, cfg, ctx, report("premerge")).merge(52);
   assert.equal(merged.merged, true);
   assert.equal(x.f.puts, 1);
@@ -291,6 +296,133 @@ test("analysis, CI, one readonly review and native protected merge complete with
   assert.equal(s.tickets["52"].coding, 0);
   assert.equal(s.tickets["52"].reviews, 1);
   assert.equal(s.tickets["52"].merge.status, "merged");
+});
+
+test("dependency confirmation tolerates advanced main while matching PR closure is delayed", async () => {
+  const x = await protectedMergeFixture();
+  const before = structuredClone((await x.ledger.read()).state);
+  const prior = x.f.route;
+  let sent = false;
+  let reads = 0;
+  x.f.route = (p, method, body) => {
+    if (p === "/pulls/52/merge" && method === "PUT") {
+      x.f.puts = (x.f.puts || 0) + 1;
+      sent = true;
+      return { merged: true, sha: "d".repeat(40) };
+    }
+    if (sent && p === "/git/ref/heads/main") return { object: { sha: "d".repeat(40) } };
+    if (sent && p === "/pulls/52" && method === "GET" && ++reads === 2)
+      Object.assign(x.f.rows[0], {
+        state: "closed",
+        merged: true,
+        merge_commit_sha: "d".repeat(40),
+      });
+    return prior(p, method, body);
+  };
+  const result = await new DependencyMerger(x.api, cfg, ctx, report("premerge"), {
+    sleep: async () => {},
+    maxPolls: 2,
+  }).merge(52);
+  assert.equal(result.merged, true);
+  assert.equal(x.f.puts, 1);
+  const after = (await x.ledger.read()).state;
+  assert.deepEqual(after.tickets["52"].approval, before.tickets["52"].approval);
+  assert.deepEqual(after.grants, before.grants);
+  assert.deepEqual(after.days, before.days);
+});
+
+for (const secondRead of ["stale-open", "unavailable"])
+  test(`dependency terminal revalidation retries ${secondRead} metadata within its observation budget`, async () => {
+    const x = await fixture();
+    await reviewed(x);
+    await retainIntent(x);
+    x.f.terminal = true;
+    const prior = x.f.route;
+    let reads = 0;
+    x.f.route = (p, ...args) => {
+      if (p === "/git/ref/heads/main") return { object: { sha: "d".repeat(40) } };
+      if (p === "/pulls/52") {
+        reads++;
+        if (reads === 2) {
+          if (secondRead === "unavailable") throw new Error("temporary private network message");
+          return pr();
+        }
+        return { ...pr(), state: "closed", merged: true, merge_commit_sha: "d".repeat(40) };
+      }
+      return prior(p, ...args);
+    };
+    const result = await new DependencyMerger(x.api, cfg, ctx, null, {
+      sleep: async () => {},
+      maxPolls: 2,
+    }).merge(52);
+    assert.equal(result.merged, true);
+    assert.equal(x.f.puts || 0, 0);
+    assert.equal((await x.ledger.read()).state.tickets["52"].reviews, 1);
+  });
+
+async function retainIntent(x) {
+  await x.ledger.update((s) => {
+    s.tickets["52"].merge = {
+      status: "intent",
+      head: pr().head.sha,
+      pr: 52,
+      runId: "100",
+      runAttempt: 1,
+      at: "2026-11-16T10:00:00.000Z",
+    };
+    s.active = { ticket: 52, runId: "100", runAttempt: 1 };
+    return { state: s };
+  });
+}
+
+test("pending dependency intent routes directly to observation after main advanced", async () => {
+  const x = await fixture();
+  await reviewed(x);
+  await retainIntent(x);
+  x.f.terminal = true;
+  const before = await x.ledger.read();
+  const prior = x.f.route;
+  x.f.route = (p, ...args) =>
+    p === "/git/ref/heads/main" ? { object: { sha: "d".repeat(40) } } : prior(p, ...args);
+  const picked = await x.coordinator.select(false);
+  assert.equal(picked.mode, "reconcile");
+  assert.equal((await x.ledger.read()).commit, before.commit);
+  const next = new DependencyMerger(x.api, cfg, { ...ctx, runId: "101" }, null, {
+    sleep: async () => {},
+    maxPolls: 2,
+  });
+  const result = await next.merge(52);
+  assert.equal(result.pending, true);
+  assert.equal(result.reason, "merge_confirmation_pending");
+  assert.equal(x.f.puts || 0, 0);
+  assert.deepEqual((await x.ledger.read()).state, before.state);
+});
+
+test("the observation path cannot authorize a fresh dependency merge on an outdated main", async () => {
+  const x = await protectedMergeFixture();
+  const before = await x.ledger.read();
+  const prior = x.f.route;
+  x.f.route = (p, ...args) =>
+    p === "/git/ref/heads/main" ? { object: { sha: "d".repeat(40) } } : prior(p, ...args);
+  await assert.rejects(
+    new DependencyMerger(x.api, cfg, ctx, report("premerge")).merge(52),
+    /rebase/i
+  );
+  assert.equal(x.f.puts || 0, 0);
+  assert.equal((await x.ledger.read()).commit, before.commit);
+});
+
+test("a changed head after an uncertain dependency PUT preserves approval for owner reconciliation", async () => {
+  const x = await fixture();
+  await reviewed(x);
+  await retainIntent(x);
+  const before = await x.ledger.read();
+  x.f.rows[0].head.sha = "c".repeat(40);
+  const picked = await x.coordinator.select(false);
+  assert.equal(picked.ready, false);
+  assert.match(picked.reason, /owner reconciliation/i);
+  assert.equal((await x.ledger.read()).commit, before.commit);
+  assert.deepEqual((await x.ledger.read()).state, before.state);
 });
 test("pending dependency merge blocks app admission and closed history reconciles without inference", async () => {
   const x = await fixture();
@@ -357,7 +489,7 @@ test("a recorded historical attempt is used to release orphan metadata after a r
   assert.equal(s.tickets["52"].reviews, 0);
   assert.equal(Object.values(s.days).flat().length, 1);
 });
-test("a bot head change cannot release a live merge intent, but terminal unmerged intent is audited", async () => {
+test("a bot head change cannot release an uncertain intent even when its owning run is terminal", async () => {
   const x = await fixture();
   await reviewed(x);
   await x.ledger.update((s) => {
@@ -393,16 +525,10 @@ test("a bot head change cannot release a live merge intent, but terminal unmerge
       : prior(p);
   assert.equal((await x.coordinator.select(false)).ready, false);
   assert.equal((await x.ledger.read()).state.tickets["52"].merge.status, "intent");
+  const before = await x.ledger.read();
   x.f.intentTerminal = true;
-  assert.equal((await x.coordinator.select(false)).mode, "review");
-  const state = (await x.ledger.read()).state;
-  assert.equal(state.tickets["52"].merge, undefined);
-  assert.equal(state.tickets["52"].reviews, 1);
-  assert.ok(
-    state.audit.some(
-      (a) => a.event === "dependency_stale_approval_retired" && a.mergeIntent?.status === "intent"
-    )
-  );
+  assert.equal((await x.coordinator.select(false)).ready, false);
+  assert.deepEqual((await x.ledger.read()).state, before.state);
 });
 test("old premerge reports and changed dependency paths never reach a merge write", async () => {
   const x = await fixture();
