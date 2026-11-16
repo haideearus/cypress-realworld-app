@@ -825,9 +825,9 @@
       "reviews": 1,
       "retries": 0,
       "origin": "dependency-pr",
-      "head": "ecdb52c85b251ba1aaf65dac0cb3c2cd3873d104",
+      "head": "0c33f0cfc987640dcbd2e65cbf919eab840024f4",
       "pr": 57,
-      "status": "blocked",
+      "status": "new",
       "approval": null,
       "branch": "dependabot/npm_and_yarn/lodash-es-4.18.1",
       "criteriaHash": "4ef07ca11761f9de9f250bf3d7c008253cd16c588da85a1a1752d552fb297b4f",
@@ -847,37 +847,18 @@
             "runAttempt": 1,
             "workflowSha": "054a0efca643bd89f0dc756448e6f26de3e3c5a5",
             "at": "2026-11-16T11:41:25.562Z"
+          },
+          {
+            "head": "0c33f0cfc987640dcbd2e65cbf919eab840024f4",
+            "base": "5425fd6207dd5d098b5396f8af9f10d389fb8cab",
+            "runId": "43870940530",
+            "runAttempt": 1,
+            "workflowSha": "5425fd6207dd5d098b5396f8af9f10d389fb8cab",
+            "at": "2026-11-16T12:55:39.528Z"
           }
         ]
       },
-      "ci": {
-        "requestId": "77423c77-1460-482c-8a1e-530cc8c4d89a",
-        "head": "ecdb52c85b251ba1aaf65dac0cb3c2cd3873d104",
-        "runId": 43860055419,
-        "passed": true
-      },
-      "analysis": {
-        "version": 2,
-        "repository": "haideearus/cypress-realworld-app",
-        "pr": 57,
-        "base": "054a0efca643bd89f0dc756448e6f26de3e3c5a5",
-        "head": "ecdb52c85b251ba1aaf65dac0cb3c2cd3873d104",
-        "workflowSha": "054a0efca643bd89f0dc756448e6f26de3e3c5a5",
-        "runId": "43859914645",
-        "runAttempt": 1,
-        "stage": "analysis",
-        "toolDigest": "f280c92eeb2f5ac163b37bbe2d1cffa0ca85a8237161c40dced67f0c8f5dffb5",
-        "at": "2026-11-16T11:41:45.194Z",
-        "result": {
-          "changed": 2,
-          "candidateVersions": 1,
-          "cleared": [
-            "GHSA-r5fr-rjxr-66jc",
-            "GHSA-xxjr-mmjv-4gpg"
-          ],
-          "remainingBaseline": []
-        }
-      },
+      "ci": null,
       "feedback": "{\"head\":\"ecdb52c85b251ba1aaf65dac0cb3c2cd3873d104\",\"verdict\":\"changes_requested\",\"summary\":\"The diff bumps the transitive dependency lodash-es from 4.17.21 to 4.18.1 in yarn.lock (pulled in via formik and yup, both used for live form/validation code in this payment demo). The dependencyFacts packet shows the new version's integrity hash matches npm's registry response and that it clears two OSV advisories (GHSA-r5fr-rjxr-66jc, fixed at 4.18.0; GHSA-xxjr-mmjv-4gpg, fixed at 4.17.23). However, matching registry integrity and advisory clearance are not proof of a safe, legitimate, compatible release, and independent review raises a real concern: lodash/lodash-es has had no publicly known 4.18.x release in its actual maintained history — the package line has sat at 4.17.21 for years. A version jump to 4.18.1 that doesn't correspond to any known upstream changelog/release is a classic indicator of possible package-takeover or supply-chain spoofing (an attacker publishing a 'fixed' version under a plausible-looking semver to get automated tooling to adopt it), not routine maintenance. I also note yarn.lock already contains an unrelated, pre-existing 'lodash@^4.17.23' entry resolved to the same unusual '4.18.1', though that line is unchanged by this PR and outside its diff scope — it is mentioned only as corroborating context, not as a finding against this change. Given the ticket's explicit instruction to hold concerns and not assume tests/OSV prove safety, and that I have no tool/network access in this read-only review to independently confirm the release's authenticity (e.g., via npm provenance, GitHub tags/changelog, or maintainer publish history), I cannot confirm this update is safe to merge as-is.\",\"findings\":[{\"severity\":\"critical\",\"message\":\"lodash-es is bumped to 4.18.1, a version number with no known precedent in the package's real release history (lodash/lodash-es have not published past 4.17.21 in their maintained lineage as far as can be independently corroborated). A sudden out-of-band '4.x.y fix' landing exactly at the boundary that clears two advisories is a classic pattern for dependency-confusion/package-takeover attacks rather than a legitimate maintainer release. Registry integrity matching and OSV clearance (as reported in dependencyFacts) only confirm the lockfile matches what the registry currently serves and that no advisory is filed against that version — neither proves the publish is from the genuine maintainer or that the code is safe/compatible. Before merging, the release's provenance should be independently verified (official GitHub release/tag, maintainer npm account history, npm provenance attestation) rather than accepted on registry-match and advisory-clearance alone.\"},{\"severity\":\"important\",\"message\":\"lodash-es is a transitive dependency of formik and yup, which this app uses directly for form handling and schema validation in user-facing (including payment-related) flows. No compatibility testing evidence (e.g., confirmation that formik/yup's usage of lodash-es APIs still behaves identically under 4.18.1) is included in the diff or ticket; a passing CI run is not sufficient assurance per the review scope, and the version's legitimacy itself is in question, so functional/regression risk in forms and validation should be treated as unresolved.\"}]}"
     },
     "60": {
@@ -1641,7 +1622,11 @@
       "outcome": "reviewed"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 57,
+    "runId": "43870940530",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -2950,6 +2935,13 @@
           "reason": "Frozen pre-job controller rejects retained drill history before admission"
         }
       ]
+    },
+    {
+      "at": "2026-11-16T12:55:39.528Z",
+      "event": "dependency_metadata_admitted",
+      "ticket": 57,
+      "head": "0c33f0cfc987640dcbd2e65cbf919eab840024f4",
+      "runId": "43870940530"
     }
   ]
 }
