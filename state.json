@@ -940,7 +940,8 @@
       "ci": {
         "requestId": "390f0d4d-c13c-4667-a38f-5944d9b43db0",
         "head": "d0451952eeedb97c14ae6ccd07e698e0c2957771",
-        "runId": null
+        "runId": 43909783877,
+        "passed": true
       },
       "analysis": {
         "version": 2,
