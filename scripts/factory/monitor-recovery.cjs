@@ -171,7 +171,8 @@ async function verifyRepair({
   now = () => new Date().toISOString(),
 }) {
   requireProof(
-    context.repository === REPOSITORY &&
+    incident.acknowledgment === undefined &&
+      context.repository === REPOSITORY &&
       context.actor === OWNER &&
       context.triggeringActor === OWNER &&
       context.ref === "refs/heads/main" &&

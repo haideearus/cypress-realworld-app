@@ -1,0 +1,61 @@
+name: Acknowledge recovered monitor incident
+on:
+  workflow_dispatch:
+    inputs:
+      issue:
+        description: Exact unadmitted standard monitor issue to acknowledge
+        type: string
+        required: true
+      dry_run:
+        description: Preview eligibility and fresh checks without closing the issue
+        type: boolean
+        required: true
+        default: true
+permissions:
+  contents: read
+concurrency:
+  group: factory-production-monitor
+  cancel-in-progress: false
+jobs:
+  acknowledge:
+    if: >-
+      ${{ github.repository == 'haideearus/cypress-realworld-app' &&
+          github.ref == 'refs/heads/main' && github.run_attempt == 1 &&
+          github.event_name == 'workflow_dispatch' &&
+          github.actor == 'haideearus' && github.triggering_actor == 'haideearus' &&
+          vars.FACTORY_ENABLED == 'false' &&
+          vars.FACTORY_AUTOMATION_ENABLED == 'false' &&
+          vars.FACTORY_AUTOMERGE_ENABLED == 'false' &&
+          vars.FACTORY_FEED_CONTRACT_CHECK_ENABLED != 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    concurrency:
+      group: factory-ledger
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      issues: write
+      actions: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+          sparse-checkout: scripts/factory
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22.20.0"
+      - name: Check standard recovery with synthetic account
+        env:
+          FACTORY_MONITOR_USERNAME: ${{ secrets.FACTORY_MONITOR_USERNAME }}
+          FACTORY_MONITOR_PASSWORD: ${{ secrets.FACTORY_MONITOR_PASSWORD }}
+        run: node scripts/factory/monitor-ack-probe.cjs
+      - name: Scan credential-free recovery report
+        run: node scripts/factory/app-checks-scan.cjs
+      - name: Preview or acknowledge recovered incident
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          ACK_SETTINGS: ${{ toJSON(vars) }}
+          ACK_ISSUE: ${{ inputs.issue }}
+          ACK_DRY_RUN: ${{ toJSON(inputs.dry_run) }}
+        run: node scripts/factory/monitor-ack.cjs

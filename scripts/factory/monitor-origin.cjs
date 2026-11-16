@@ -26,7 +26,10 @@ async function verifyMonitorIssue(api, issue, { proof, requireActive = true } = 
   if (
     !validateMonitorProof(actual) ||
     actual.criteriaHash !== criteriaHash(issue) ||
-    (requireActive && (state.active !== incident.id || incident.recovered)) ||
+    (requireActive &&
+      (state.active !== incident.id ||
+        incident.recovered ||
+        incident.acknowledgment !== undefined)) ||
     (proof && Object.keys(actual).some((key) => actual[key] !== proof[key]))
   )
     return null;
