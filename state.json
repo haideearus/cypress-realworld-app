@@ -961,7 +961,15 @@
         "runId": 43850203184,
         "passed": true
       },
-      "feedback": "{\"findings\":[{\"severity\":\"minor\",\"message\":\"The diff itself contains no written root-cause narrative (e.g., commit/PR body) explaining the Infinity→JSON null mechanism; it only shows code+test. Acceptance criterion #1 ('Explain the reproducible application failure') is presumably satisfied in the PR description/commit message, which wasn't included in the supplied diff for independent review.\"}],\"head\":\"7236781ca026ad4509f26deb62e00d3005c86edf\",\"verdict\":\"pass\",\"summary\":\"The change adds `query(\\\"page\\\").optional().isInt({min:1})` and `query(\\\"limit\\\").optional().isInt({min:1,max:50})` to `isTransactionPublicQSValidator` in backend/validators.ts, which is wired via `validateMiddleware` on `GET /transactions/public` (backend/transaction-routes.ts:97) and will produce a 422 with a non-empty `errors` array for `limit=0`, matching the incident report's required 400/422 bounded-rejection contract. Root cause checks out: express-paginate's app-wide middleware (backend/app.ts:107) treats the query string \\\"0\\\" as truthy (only \\\"\\\" is falsy) and parseInt's it to the number 0, so the pre-fix `getPaginatedItems` computed `Math.ceil(n/0)` = Infinity, which `JSON.stringify` serializes as `null` — exactly the observed `totalPages: null` 200 response. The fix is scoped to the single public-feed validator (other transaction/list endpoints and their own validators are untouched), so it doesn't affect the default limit (10) or other routes. The added regression test (src/__tests__/public-transactions-route.test.ts) builds a real Express app with the actual paginate middleware, real auth bypass only for identity, and the real transaction routes/validators (no mocked DB or route layer), seeds genuine in-memory data, and asserts the zero-limit request returns 400/422 with populated `errors`; the existing multi-page pagination regression tests in the same file are preserved untouched and remain compatible with the new bounds (page 1-3, limit 10). CI config confirms `yarn test:unit:ci` (vitest) picks up this test file by default glob, so it runs in the normal pipeline. No changes touch credentials, production config, hosting limits, or deployment/approval gates, consistent with ticket restrictions; nothing in the diff claims deployment or bypasses the named-approval requirement. I could not execute the test suite myself (read-only, no shell tools per task scope), so RED→GREEN test evidence is based on static/logical verification rather than direct execution, but the code paths and test harness are sound and the fix directly addresses the reported incident at the right boundary (input validation) without side effects.\"}"
+      "feedback": "{\"findings\":[{\"severity\":\"minor\",\"message\":\"The diff itself contains no written root-cause narrative (e.g., commit/PR body) explaining the Infinity→JSON null mechanism; it only shows code+test. Acceptance criterion #1 ('Explain the reproducible application failure') is presumably satisfied in the PR description/commit message, which wasn't included in the supplied diff for independent review.\"}],\"head\":\"7236781ca026ad4509f26deb62e00d3005c86edf\",\"verdict\":\"pass\",\"summary\":\"The change adds `query(\\\"page\\\").optional().isInt({min:1})` and `query(\\\"limit\\\").optional().isInt({min:1,max:50})` to `isTransactionPublicQSValidator` in backend/validators.ts, which is wired via `validateMiddleware` on `GET /transactions/public` (backend/transaction-routes.ts:97) and will produce a 422 with a non-empty `errors` array for `limit=0`, matching the incident report's required 400/422 bounded-rejection contract. Root cause checks out: express-paginate's app-wide middleware (backend/app.ts:107) treats the query string \\\"0\\\" as truthy (only \\\"\\\" is falsy) and parseInt's it to the number 0, so the pre-fix `getPaginatedItems` computed `Math.ceil(n/0)` = Infinity, which `JSON.stringify` serializes as `null` — exactly the observed `totalPages: null` 200 response. The fix is scoped to the single public-feed validator (other transaction/list endpoints and their own validators are untouched), so it doesn't affect the default limit (10) or other routes. The added regression test (src/__tests__/public-transactions-route.test.ts) builds a real Express app with the actual paginate middleware, real auth bypass only for identity, and the real transaction routes/validators (no mocked DB or route layer), seeds genuine in-memory data, and asserts the zero-limit request returns 400/422 with populated `errors`; the existing multi-page pagination regression tests in the same file are preserved untouched and remain compatible with the new bounds (page 1-3, limit 10). CI config confirms `yarn test:unit:ci` (vitest) picks up this test file by default glob, so it runs in the normal pipeline. No changes touch credentials, production config, hosting limits, or deployment/approval gates, consistent with ticket restrictions; nothing in the diff claims deployment or bypasses the named-approval requirement. I could not execute the test suite myself (read-only, no shell tools per task scope), so RED→GREEN test evidence is based on static/logical verification rather than direct execution, but the code paths and test harness are sound and the fix directly addresses the reported incident at the right boundary (input validation) without side effects.\"}",
+      "merge": {
+        "status": "intent",
+        "head": "7236781ca026ad4509f26deb62e00d3005c86edf",
+        "pr": 69,
+        "at": "2026-11-16T10:46:38.088Z",
+        "runId": "43849349459",
+        "runAttempt": 1
+      }
     }
   },
   "grants": {
@@ -1519,7 +1527,11 @@
       "outcome": "reviewed"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 68,
+    "runId": "43849349459",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
