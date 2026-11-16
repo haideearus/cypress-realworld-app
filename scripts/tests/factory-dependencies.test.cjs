@@ -33,6 +33,8 @@ async function fixture(config = cfg) {
     original = f.fetch;
   f.rows = [pr()];
   f.modelJobs = 0;
+  f.checks = [];
+  f.publicationStates = [];
   f.fetch = async (url, options = {}) => {
     const u = new URL(url),
       p = u.pathname.slice(ROOT.length),
@@ -40,6 +42,13 @@ async function fixture(config = cfg) {
     const response = (data) => new Response(JSON.stringify(data));
     const extra = f.route?.(p, method, options.body && JSON.parse(options.body), u);
     if (extra !== undefined) return response(extra);
+    if (method === "POST" && p === "/check-runs") {
+      const check = JSON.parse(options.body);
+      f.publicationStates.push(await ledger.read());
+      if (f.failPublication) return new Response("{}", { status: 503 });
+      f.checks.push(check);
+      return response({ id: f.checks.length, ...check });
+    }
     if (method === "GET" && p === "/pulls") return response(f.rows);
     if (method === "GET" && p === "/pulls/52") return response(f.rows[0]);
     if (method === "GET" && p === "/pulls/52/files")
@@ -176,7 +185,7 @@ const report = (stage = "analysis", now = new Date()) =>
     { changed: 2, candidateVersions: 1, cleared: [], remainingBaseline: [] },
     now
   );
-async function reviewed(x) {
+async function reviewSession(x) {
   x.f.route = (p) =>
     p === "/actions/runs/9"
       ? {
@@ -203,18 +212,119 @@ async function reviewed(x) {
     return { state: s };
   });
   const g = await x.coordinator.reserve(52);
-  await x.coordinator.assess(52, g.grantId, {
-    kind: "review",
+  return {
     grantId: g.grantId,
-    base: pr().head.sha,
-    result: {
-      head: pr().head.sha,
-      verdict: "pass",
-      summary: "Independent fixture review",
-      findings: [],
+    bundle: {
+      kind: "review",
+      grantId: g.grantId,
+      base: pr().head.sha,
+      result: {
+        head: pr().head.sha,
+        verdict: "pass",
+        summary: "Independent fixture review",
+        findings: [],
+      },
     },
-  });
+  };
 }
+async function reviewed(x) {
+  const { grantId, bundle } = await reviewSession(x);
+  await x.coordinator.assess(52, grantId, bundle);
+}
+
+test("dependency assessment refreshes evidence only after committing genuine review proof", async () => {
+  const x = await fixture();
+  const { grantId, bundle } = await reviewSession(x);
+  const before = (await x.ledger.read()).state;
+  const result = await x.coordinator.assess(52, grantId, bundle);
+  assert.equal(result.reviewed, true);
+  assert.equal(x.f.checks.length, 1);
+  assert.equal(x.f.checks[0].name, "Factory review evidence");
+  assert.equal(x.f.checks[0].head_sha, pr().head.sha);
+  assert.equal(x.f.checks[0].conclusion, "success");
+  const published = x.f.publicationStates[0];
+  const after = await x.ledger.read();
+  assert.deepEqual(after, published, "publication must not write the ledger");
+  assert.equal(policy.reviewGate(published.state, { number: 52, head: pr().head.sha }).ok, true);
+  assert.deepEqual(after.state.days, before.days);
+  for (const key of ["reviews", "coding", "retries"])
+    assert.equal(after.state.tickets["52"][key], before.tickets["52"][key]);
+});
+
+test("changes-requested dependency assessment refreshes failure without granting approval", async () => {
+  const x = await fixture();
+  const { grantId, bundle } = await reviewSession(x);
+  bundle.result.verdict = "changes_requested";
+  const result = await x.coordinator.assess(52, grantId, bundle);
+  assert.equal(result.reviewed, false);
+  assert.equal(x.f.checks.length, 1);
+  assert.equal(x.f.checks[0].conclusion, "failure");
+  const { state } = await x.ledger.read();
+  assert.equal(state.tickets["52"].status, "blocked");
+  assert.equal(state.tickets["52"].approval, null);
+  assert.equal(state.tickets["52"].reviews, 1);
+});
+
+test("invalid dependency review cannot publish a check or finish its grant", async () => {
+  const x = await fixture();
+  const { grantId, bundle } = await reviewSession(x);
+  const before = await x.ledger.read();
+  bundle.result.findings = [{ severity: "important", message: "Blocking fixture finding" }];
+  await assert.rejects(x.coordinator.assess(52, grantId, bundle), /blocking findings/);
+  assert.deepEqual(await x.ledger.read(), before);
+  assert.equal(x.f.publicationStates.length, 0);
+});
+
+test("changed dependency head cannot borrow the previous head's assessment success", async () => {
+  const x = await fixture();
+  const { grantId, bundle } = await reviewSession(x);
+  const gate = x.coordinator.controller.gate.bind(x.coordinator.controller);
+  x.coordinator.controller.gate = async (number) => {
+    x.f.rows[0].head.sha = "c".repeat(40);
+    return gate(number);
+  };
+  const result = await x.coordinator.assess(52, grantId, bundle);
+  assert.equal(result.reviewed, false);
+  assert.equal(x.f.checks.length, 1);
+  assert.equal(x.f.checks[0].head_sha, "c".repeat(40));
+  assert.equal(x.f.checks[0].conclusion, "failure");
+  const { state } = await x.ledger.read();
+  assert.equal(state.tickets["52"].approval.head, pr().head.sha);
+  assert.equal(state.tickets["52"].reviews, 1);
+});
+
+test("unavailable proof after assessment publishes failure without discarding the review", async () => {
+  const x = await fixture();
+  const { grantId, bundle } = await reviewSession(x);
+  x.coordinator.controller.ledger = {
+    read: async () => {
+      throw new Error("Fixture unavailable");
+    },
+  };
+  const result = await x.coordinator.assess(52, grantId, bundle);
+  assert.equal(result.reviewed, false);
+  assert.equal(x.f.checks[0].conclusion, "failure");
+  const committed = await x.ledger.read();
+  assert.equal(committed.state.tickets["52"].status, "reviewed");
+  assert.equal(committed.state.tickets["52"].reviews, 1);
+  assert.deepEqual(committed, x.f.publicationStates[0]);
+});
+
+test("failed status publication retains finished review and permits metadata-only recovery", async () => {
+  const x = await fixture();
+  const { grantId, bundle } = await reviewSession(x);
+  x.f.failPublication = true;
+  await assert.rejects(x.coordinator.assess(52, grantId, bundle), /503/);
+  assert.equal(x.f.publicationStates.length, 1);
+  const committed = await x.ledger.read();
+  assert.equal(committed.state.tickets["52"].status, "reviewed");
+  assert.equal(committed.state.tickets["52"].reviews, 1);
+  assert.equal(committed.state.grants[grantId].status, "finished");
+  x.f.failPublication = false;
+  assert.equal((await x.coordinator.controller.gate(52)).ok, true);
+  assert.deepEqual(await x.ledger.read(), committed);
+  assert.equal(x.f.checks[0].conclusion, "success");
+});
 async function protectedMergeFixture() {
   const x = await fixture();
   await reviewed(x);
@@ -615,6 +725,20 @@ test("workflow preserves preview, trusted source, readonly model and isolated cr
     assert.doesNotMatch(JSON.stringify(w.jobs[name]), /secrets\./);
   assert.equal(w.jobs.review.with.phase, "review");
   assert.equal(w.jobs.review.with.slot, "dependency");
+  assert.deepEqual(w.jobs.assess.permissions, {
+    contents: "write",
+    "pull-requests": "read",
+    actions: "read",
+    checks: "write",
+  });
+  assert.deepEqual(w.jobs.review.permissions, {
+    contents: "read",
+    issues: "read",
+    "pull-requests": "read",
+  });
+  assert.deepEqual(w.permissions, { contents: "read" });
+  for (const [name, job] of Object.entries(w.jobs))
+    if (name !== "assess") assert.notEqual(job.permissions?.checks, "write");
   assert.deepEqual(Object.keys(w.jobs.review.secrets), ["CLAUDE_CODE_OAUTH_TOKEN"]);
   assert.match(w.jobs.merge.if, /FACTORY_AUTOMERGE_ENABLED/);
   assert.ok(

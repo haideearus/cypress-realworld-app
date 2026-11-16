@@ -353,7 +353,8 @@ class DependencyCoordinator {
       state.tickets[String(number)].feedback = JSON.stringify(review);
       return { state };
     });
-    return { reviewed: review.verdict === "pass", ticket: number, head: t.head };
+    const gate = await this.controller.gate(number);
+    return { reviewed: review.verdict === "pass" && gate.ok, ticket: number, head: t.head };
   }
   async finalize(number) {
     this.authorize();

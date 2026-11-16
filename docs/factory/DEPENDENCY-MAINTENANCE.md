@@ -29,6 +29,22 @@ separate disposable job without Claude, production, or GitHub App credentials.
 Only the existing `CLAUDE_CODE_OAUTH_TOKEN` is supplied to the read-only model job.
 There is no paid API fallback. Subscription exhaustion blocks the attempt.
 
+After committing a dependency assessment, the trusted assessor refreshes the
+informational `Factory review evidence` check through the existing ledger-based
+checker. It can publish success only for the current head's genuine approval.
+Changes-requested reviews publish failure; changed heads or unavailable proof
+cannot authorize premerge. Only this trusted assessor gains `checks: write`;
+the Claude and candidate-testing jobs retain their existing permissions.
+
+If check publication fails, assessment fails and premerge does not start from its
+output. The completed review, approval or blocked verdict, grant and usage remain
+in the ledger. Do not rerun Claude to repair metadata. Once GitHub is available,
+the existing **Factory independent review gate** workflow can be dispatched on
+`main` with that PR number, without a model or ledger write. A later separately
+authorized merge-only recovery must still pass fresh analysis, both native
+required checks, clean mergeability, limits and stop checks. Publication alone
+does not prove merge or authorize deployment.
+
 ## Limits and holds
 
 - Native version proposals: Monday 06:15, Europe/Bucharest; one open version PR.
