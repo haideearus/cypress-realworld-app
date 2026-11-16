@@ -1677,11 +1677,7 @@
       "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 57,
-    "runId": "43877094697",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -3074,6 +3070,30 @@
       "actor": "haideearus",
       "commandId": "f80440eb-4520-4a7f-8b93-ffba7c363be3",
       "reason": "Owner emergency stop"
+    },
+    {
+      "at": "2026-11-16T13:37:33.625Z",
+      "event": "factory-stop-result",
+      "actor": "haideearus",
+      "commandId": "f80440eb-4520-4a7f-8b93-ffba7c363be3",
+      "terminalRunIds": [
+        43877094697
+      ],
+      "quarantinedRunIds": [
+        43467058965
+      ],
+      "quarantinedRuns": [
+        {
+          "id": 43467058965,
+          "runAttempt": 1,
+          "status": "queued",
+          "head": "421553c2c108dc2704ef6cec7864582b8c63ead6",
+          "containmentTicket": 38,
+          "reason": "Frozen pre-job controller rejects retained drill history before admission"
+        }
+      ],
+      "pendingRunIds": [],
+      "elapsedMs": 11747
     }
   ],
   "stop": {
