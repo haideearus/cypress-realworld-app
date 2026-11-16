@@ -3676,6 +3676,29 @@
       ],
       "pendingRunIds": [],
       "elapsedMs": 10718
+    },
+    {
+      "at": "2026-11-16T18:40:11.381Z",
+      "event": "owner_continuous_resume_profile",
+      "actor": "haideearus",
+      "main": "20f23e34f111f286b0f048ba8cb802ef277b4f86",
+      "previousStop": {
+        "id": "ab6af190-a533-456c-ad86-1aab357ef6aa",
+        "at": "2026-11-16T18:10:35.758Z",
+        "actor": "haideearus",
+        "reason": "Owner emergency stop",
+        "previous": {
+          "FACTORY_AUTOMATION_ENABLED": "false",
+          "FACTORY_AUTOMERGE_ENABLED": "false",
+          "FACTORY_ENABLED": "true"
+        }
+      },
+      "profile": {
+        "FACTORY_ENABLED": "true",
+        "FACTORY_AUTOMATION_ENABLED": "true",
+        "FACTORY_AUTOMERGE_ENABLED": "true"
+      },
+      "authorization": "Owner executed the prepared continuous activation command"
     }
   ],
   "stop": {
@@ -3684,9 +3707,9 @@
     "actor": "haideearus",
     "reason": "Owner emergency stop",
     "previous": {
-      "FACTORY_AUTOMATION_ENABLED": "false",
-      "FACTORY_AUTOMERGE_ENABLED": "false",
-      "FACTORY_ENABLED": "true"
+      "FACTORY_ENABLED": "true",
+      "FACTORY_AUTOMATION_ENABLED": "true",
+      "FACTORY_AUTOMERGE_ENABLED": "true"
     }
   }
 }
