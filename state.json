@@ -3513,6 +3513,24 @@
       "runAttempt": 1,
       "outcome": "accepted",
       "mergeCommit": "f5969ed32fbe29eaea475b958d33d30f9dd30d18"
+    },
+    {
+      "at": "2026-11-16T16:51:42.602Z",
+      "event": "factory-stop-requested",
+      "actor": "haideearus",
+      "commandId": "ea89a0b0-8179-4d9d-a180-c72bb8e889eb",
+      "reason": "Owner emergency stop"
     }
-  ]
+  ],
+  "stop": {
+    "id": "ea89a0b0-8179-4d9d-a180-c72bb8e889eb",
+    "at": "2026-11-16T16:51:41.640Z",
+    "actor": "haideearus",
+    "reason": "Owner emergency stop",
+    "previous": {
+      "FACTORY_AUTOMATION_ENABLED": "true",
+      "FACTORY_AUTOMERGE_ENABLED": "true",
+      "FACTORY_ENABLED": "true"
+    }
+  }
 }
