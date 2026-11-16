@@ -924,9 +924,9 @@
       "origin": "factory",
       "reviews": 0,
       "retries": 0,
-      "head": "a6440d30afd84958f42c1d0c4205a2a559a2460b",
-      "status": "coding",
-      "pr": null,
+      "head": "7236781ca026ad4509f26deb62e00d3005c86edf",
+      "status": "awaiting_review",
+      "pr": 69,
       "approval": null,
       "criteriaHash": "28be3497b9af479d1321b8b5d89bdd9d4c6f8e738b2f6705ccef7ddddfe81cbb",
       "automatic": {
@@ -945,7 +945,8 @@
         "runId": "43844558664",
         "runAttempt": 1,
         "workflowSha": "a6440d30afd84958f42c1d0c4205a2a559a2460b"
-      }
+      },
+      "branch": "agent/factory-68"
     }
   },
   "grants": {
@@ -1486,8 +1487,9 @@
       "runId": "43849349459",
       "runAttempt": 1,
       "head": "a6440d30afd84958f42c1d0c4205a2a559a2460b",
-      "status": "reserved",
-      "at": "2026-11-16T10:30:04.313Z"
+      "status": "finished",
+      "at": "2026-11-16T10:30:04.313Z",
+      "outcome": "awaiting_review"
     }
   },
   "active": {
@@ -2534,6 +2536,14 @@
       "phase": "code",
       "runId": "43849349459",
       "runAttempt": 1
+    },
+    {
+      "at": "2026-11-16T10:34:57.064Z",
+      "event": "finished",
+      "ticket": 68,
+      "grant": "5671a017-c5b9-4150-8c7d-b36fba7b3d69",
+      "status": "awaiting_review",
+      "head": "7236781ca026ad4509f26deb62e00d3005c86edf"
     }
   ]
 }
