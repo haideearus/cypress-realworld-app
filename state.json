@@ -3699,17 +3699,30 @@
         "FACTORY_AUTOMERGE_ENABLED": "true"
       },
       "authorization": "Owner executed the prepared continuous activation command"
+    },
+    {
+      "at": "2026-11-16T18:40:20.509Z",
+      "event": "factory-resumed",
+      "actor": "haideearus",
+      "commandId": "ab6af190-a533-456c-ad86-1aab357ef6aa",
+      "restored": {
+        "FACTORY_ENABLED": "true",
+        "FACTORY_AUTOMATION_ENABLED": "true",
+        "FACTORY_AUTOMERGE_ENABLED": "true"
+      },
+      "quarantinedRunIds": [
+        43467058965
+      ],
+      "quarantinedRuns": [
+        {
+          "id": 43467058965,
+          "runAttempt": 1,
+          "status": "queued",
+          "head": "421553c2c108dc2704ef6cec7864582b8c63ead6",
+          "containmentTicket": 38,
+          "reason": "Frozen pre-job controller rejects retained drill history before admission"
+        }
+      ]
     }
-  ],
-  "stop": {
-    "id": "ab6af190-a533-456c-ad86-1aab357ef6aa",
-    "at": "2026-11-16T18:10:35.758Z",
-    "actor": "haideearus",
-    "reason": "Owner emergency stop",
-    "previous": {
-      "FACTORY_ENABLED": "true",
-      "FACTORY_AUTOMATION_ENABLED": "true",
-      "FACTORY_AUTOMERGE_ENABLED": "true"
-    }
-  }
+  ]
 }
