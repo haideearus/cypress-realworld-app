@@ -1045,7 +1045,11 @@
       "approval": null,
       "criteriaHash": "1b3669872dbc62fcc989b1ab087f95772fafacd76cb97c0e9711d898070237c8",
       "branch": "agent/dependency-release-ci-evidence",
-      "ci": null
+      "ci": {
+        "requestId": "661c9628-35aa-4664-867c-86d5966ab82b",
+        "head": "74c6df02338f77d614159ba70bad0529f9549a50",
+        "runId": null
+      }
     }
   },
   "grants": {
