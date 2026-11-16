@@ -42,7 +42,8 @@
       66,
       68,
       57,
-      70
+      70,
+      72
     ]
   },
   "tickets": {
@@ -1084,6 +1085,19 @@
         "passed": true
       },
       "feedback": "{\"head\":\"74c6df02338f77d614159ba70bad0529f9549a50\",\"verdict\":\"pass\",\"summary\":\"PR #70 adds a bounded `dependency-review-context.cjs` adapter that supplies the dependency reviewer with (a) GitHub-verified upstream release/signed-tag facts for lodash/lodash-es from a hardcoded allowlist (never following package-supplied repository URLs), and (b) exact-head CI job/step receipts plus immutable links to existing Formik/Yup form-test source files. It is wired into `dependency-evidence.cjs` (preserving the existing time/size budgets) and `worker.cjs` (new `ci: ticket.ci` field, extended review prompt warning against npm-provenance and per-test claims, while keeping review-phase tool scope at Read/Glob/Grep with Bash/WebFetch/WebSearch denied). I verified: the FORM_STEPS literal step names match the actual `.github/workflows/factory-ci.yml` step definitions; the referenced form-test files genuinely exist and the UserSettingsForm test does cover a Formik/Yup component; `ticket.ci` is only ever supplied to `prepare()` after `reserveDependencyReview` has already confirmed `ci.passed === true` and head match, so the new `ciFacts` not-supplied branch can't be reached in production but is safely handled regardless; no changes touch `dependency-contract.cjs`, `dependency-policy.cjs`, `policy.cjs`, workflow YAML, or any FACTORY_* flags, so grants, counters, one-review-per-head, and the enabled/automation/automerge switches are untouched. New regression tests (`factory-dependency-review-context.test.cjs`) cover wrong release/tag/CI identity, unsigned tags, mismatched heads/repo/correlation id, failed/incomplete jobs, malformed job-listing counts, attacker-supplied repository URLs being ignored, and outage propagation — matching the ticket's acceptance bullet on regression coverage. Scope-disclaimer text explicitly avoids claiming npm provenance or per-test results, as required. No shell execution was performed in this review (file inspection only), so I could not independently run the test suite or confirm the doc's stated pass counts; that's a documentation claim, not a code-path risk.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"docs/factory/DEPENDENCY-RELEASE-AND-FORM-EVIDENCE.md asserts a specific test-run outcome ('538 passing and 10 optional skips') and a specific live replay result for PR #57 head ecdb52c; these are unverifiable from a static review (no code execution available) and should be treated as the agent's self-report rather than independently confirmed evidence.\"}]}"
+    },
+    "72": {
+      "coding": 0,
+      "origin": "owner-pr",
+      "reviews": 1,
+      "retries": 0,
+      "head": "f6156ea5a73d3f4b6765ea78e04cc13cb48c256d",
+      "status": "reviewing",
+      "pr": 73,
+      "approval": null,
+      "criteriaHash": "03e7c9468a652d9fc351c3b387ae82b5510af21d97b888319b514088f7df8cd5",
+      "branch": "agent/72-merge-confirmation",
+      "ci": null
     }
   },
   "grants": {
@@ -1675,9 +1689,24 @@
       "status": "finished",
       "at": "2026-11-16T13:02:59.000Z",
       "outcome": "reviewed"
+    },
+    "b2fcefcc-81d9-40a1-9466-12d89069cfe5": {
+      "id": "b2fcefcc-81d9-40a1-9466-12d89069cfe5",
+      "ticket": 72,
+      "phase": "review",
+      "slot": "existing",
+      "runId": "43887091302",
+      "runAttempt": 1,
+      "head": "f6156ea5a73d3f4b6765ea78e04cc13cb48c256d",
+      "status": "reserved",
+      "at": "2026-11-16T14:34:25.215Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 72,
+    "runId": "43887091302",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -3168,6 +3197,15 @@
           "reason": "Frozen pre-job controller rejects retained drill history before admission"
         }
       ]
+    },
+    {
+      "at": "2026-11-16T14:34:25.215Z",
+      "event": "reserved",
+      "ticket": 72,
+      "grant": "b2fcefcc-81d9-40a1-9466-12d89069cfe5",
+      "phase": "review",
+      "runId": "43887091302",
+      "runAttempt": 1
     }
   ]
 }
