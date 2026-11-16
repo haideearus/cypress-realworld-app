@@ -39,7 +39,8 @@
     ],
     "2026-11-16": [
       63,
-      66
+      66,
+      68
     ]
   },
   "tickets": {
@@ -917,6 +918,34 @@
         "passed": true
       },
       "feedback": "{\"head\":\"dfc3d95d89818e848eddf373001857674d52baa5\",\"verdict\":\"pass\",\"summary\":\"Reviewed the full diff for ticket #66 (owner acknowledgment of recovered, unadmitted monitor incidents) against the current source tree at dfc3d95. The change adds a manual-only workflow (factory-monitor-acknowledge.yml), a new eligibility/evidence contract (monitor-ack-contract.cjs), checker (monitor-ack-probe.cjs) and transactional publisher (monitor-ack.cjs), plus small, well-targeted hooks into monitor-origin.cjs, monitor-recovery.cjs, monitor-state.cjs and monitor.cjs to keep acknowledgment mutually exclusive with repair retirement/contract/drill handling. I traced the full acknowledge() state machine (intent -> revalidate -> close -> revalidate -> complete, with stop/ledger/receipt re-checks before every mutation) against the corresponding fixture-driven tests, including lost-close-response, lost-final-write, expired-evidence, pre-existing-manual-closure, and newer-incident-preservation scenarios, and the logic matches the asserted outcomes in each case. Guards for the three factory switches, durable stop, idle ledger/no reserved grants, no historical admission for the target, exact bot/criteria/receipt verification, and rejection of contract/drill/retirement targets are all present and tested. The acknowledgment report reuses the existing bounded/strict report path but is a structurally distinct, non-interchangeable format (confirmed rejected by the ordinary app-checks validator), and repair verification now explicitly refuses an acknowledged incident. The workflow is manual-dispatch only, preview-default, uses the existing pinned actions/runner/Node version, shares the same concurrency groups as the production monitor/ledger, splits credentials (checker gets account secrets, publisher gets only GITHUB_TOKEN), and passes inputs via env (not shell interpolation). No production probe, #65 mutation, model invocation, switch change, or counter reset occurs in this diff; all of that remains explicitly deferred to separately authorized future steps per the design doc and verification record. I found no critical or important defects.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"Each live (non-dry-run) acknowledge() call re-verifies the full monitor receipt (verifyMonitorIssue, which itself issues 3 GitHub API calls) inside every target() invocation, and target() is called up to 4 times during a live run, on top of 4 separate ledger reads. That is on the order of 20-40 GitHub API round trips sharing the single 60-second publisherFetch metadata/publication deadline, which is noticeably more contention than the budget doc's narrative seems to anticipate. The failure mode is safe (an eligible run is held rather than incorrectly completed), so this isn't a correctness bug, but it's worth a note/retry guidance in the operator doc in case genuine acknowledgments intermittently time out against live GitHub API latency.\"},{\"severity\":\"minor\",\"message\":\"The acknowledgment report and the ordinary app-checks report share the exact same temp file path (reportPath from app-checks-contract.cjs) by design, reused so app-checks-scan.cjs needs no changes. This is intentional and safe given each workflow run has its own RUNNER_TEMP, but it's a subtle enough coupling (two different JSON 'kind' shapes sharing one file-path function) that a future refactor of reportPath could silently break the acknowledgment flow without any test pointing directly at the shared-path assumption; consider a short comment noting the deliberate reuse.\"}]}"
+    },
+    "68": {
+      "coding": 1,
+      "origin": "factory",
+      "reviews": 0,
+      "retries": 0,
+      "head": "a6440d30afd84958f42c1d0c4205a2a559a2460b",
+      "status": "coding",
+      "pr": null,
+      "approval": null,
+      "criteriaHash": "28be3497b9af479d1321b8b5d89bdd9d4c6f8e738b2f6705ccef7ddddfe81cbb",
+      "automatic": {
+        "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-automatic.yml@refs/heads/main",
+        "workflowSha": "a6440d30afd84958f42c1d0c4205a2a559a2460b",
+        "runId": "43849349459",
+        "runAttempt": 1,
+        "appSlug": "haideearus-software-factory"
+      },
+      "monitor": {
+        "version": 2,
+        "probeMode": "feed-contract",
+        "incidentId": "c4b87394-9185-4508-bbbc-551567f91c27",
+        "issue": 68,
+        "criteriaHash": "28be3497b9af479d1321b8b5d89bdd9d4c6f8e738b2f6705ccef7ddddfe81cbb",
+        "runId": "43844558664",
+        "runAttempt": 1,
+        "workflowSha": "a6440d30afd84958f42c1d0c4205a2a559a2460b"
+      }
     }
   },
   "grants": {
@@ -1448,9 +1477,24 @@
       "status": "finished",
       "at": "2026-11-16T09:23:09.755Z",
       "outcome": "reviewed"
+    },
+    "5671a017-c5b9-4150-8c7d-b36fba7b3d69": {
+      "id": "5671a017-c5b9-4150-8c7d-b36fba7b3d69",
+      "ticket": 68,
+      "phase": "code",
+      "slot": "cycle1",
+      "runId": "43849349459",
+      "runAttempt": 1,
+      "head": "a6440d30afd84958f42c1d0c4205a2a559a2460b",
+      "status": "reserved",
+      "at": "2026-11-16T10:30:04.313Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 68,
+    "runId": "43849349459",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -2481,6 +2525,15 @@
           "reason": "Frozen pre-job controller rejects retained drill history before admission"
         }
       ]
+    },
+    {
+      "at": "2026-11-16T10:30:04.313Z",
+      "event": "reserved",
+      "ticket": 68,
+      "grant": "5671a017-c5b9-4150-8c7d-b36fba7b3d69",
+      "phase": "code",
+      "runId": "43849349459",
+      "runAttempt": 1
     }
   ]
 }
