@@ -1040,9 +1040,17 @@
       "reviews": 1,
       "retries": 0,
       "head": "74c6df02338f77d614159ba70bad0529f9549a50",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 71,
-      "approval": null,
+      "approval": {
+        "head": "74c6df02338f77d614159ba70bad0529f9549a50",
+        "pr": 71,
+        "grant": "41edc29f-7a4c-402b-9cdc-89ba2377f38c",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/43865969388"
+      },
       "criteriaHash": "1b3669872dbc62fcc989b1ab087f95772fafacd76cb97c0e9711d898070237c8",
       "branch": "agent/dependency-release-ci-evidence",
       "ci": {
@@ -1050,7 +1058,8 @@
         "head": "74c6df02338f77d614159ba70bad0529f9549a50",
         "runId": 43866051966,
         "passed": true
-      }
+      },
+      "feedback": "{\"head\":\"74c6df02338f77d614159ba70bad0529f9549a50\",\"verdict\":\"pass\",\"summary\":\"PR #70 adds a bounded `dependency-review-context.cjs` adapter that supplies the dependency reviewer with (a) GitHub-verified upstream release/signed-tag facts for lodash/lodash-es from a hardcoded allowlist (never following package-supplied repository URLs), and (b) exact-head CI job/step receipts plus immutable links to existing Formik/Yup form-test source files. It is wired into `dependency-evidence.cjs` (preserving the existing time/size budgets) and `worker.cjs` (new `ci: ticket.ci` field, extended review prompt warning against npm-provenance and per-test claims, while keeping review-phase tool scope at Read/Glob/Grep with Bash/WebFetch/WebSearch denied). I verified: the FORM_STEPS literal step names match the actual `.github/workflows/factory-ci.yml` step definitions; the referenced form-test files genuinely exist and the UserSettingsForm test does cover a Formik/Yup component; `ticket.ci` is only ever supplied to `prepare()` after `reserveDependencyReview` has already confirmed `ci.passed === true` and head match, so the new `ciFacts` not-supplied branch can't be reached in production but is safely handled regardless; no changes touch `dependency-contract.cjs`, `dependency-policy.cjs`, `policy.cjs`, workflow YAML, or any FACTORY_* flags, so grants, counters, one-review-per-head, and the enabled/automation/automerge switches are untouched. New regression tests (`factory-dependency-review-context.test.cjs`) cover wrong release/tag/CI identity, unsigned tags, mismatched heads/repo/correlation id, failed/incomplete jobs, malformed job-listing counts, attacker-supplied repository URLs being ignored, and outage propagation — matching the ticket's acceptance bullet on regression coverage. Scope-disclaimer text explicitly avoids claiming npm provenance or per-test results, as required. No shell execution was performed in this review (file inspection only), so I could not independently run the test suite or confirm the doc's stated pass counts; that's a documentation claim, not a code-path risk.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"docs/factory/DEPENDENCY-RELEASE-AND-FORM-EVIDENCE.md asserts a specific test-run outcome ('538 passing and 10 optional skips') and a specific live replay result for PR #57 head ecdb52c; these are unverifiable from a static review (no code execution available) and should be treated as the agent's self-report rather than independently confirmed evidence.\"}]}"
     }
   },
   "grants": {
@@ -1627,15 +1636,12 @@
       "runId": "43865969388",
       "runAttempt": 1,
       "head": "74c6df02338f77d614159ba70bad0529f9549a50",
-      "status": "reserved",
-      "at": "2026-11-16T12:22:35.945Z"
+      "status": "finished",
+      "at": "2026-11-16T12:22:35.945Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 70,
-    "runId": "43865969388",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -2861,6 +2867,14 @@
       "phase": "review",
       "runId": "43865969388",
       "runAttempt": 1
+    },
+    {
+      "at": "2026-11-16T12:31:27.194Z",
+      "event": "finished",
+      "ticket": 70,
+      "grant": "41edc29f-7a4c-402b-9cdc-89ba2377f38c",
+      "status": "reviewed",
+      "head": "74c6df02338f77d614159ba70bad0529f9549a50"
     }
   ]
 }
