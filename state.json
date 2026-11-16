@@ -45,7 +45,8 @@
       70,
       72,
       74,
-      58
+      58,
+      77
     ]
   },
   "tickets": {
@@ -1218,6 +1219,19 @@
         "passed": true
       },
       "feedback": "{\"head\":\"037cd10df74706f7518fcc64be1faa59a41c0d84\",\"verdict\":\"pass\",\"summary\":\"The diff adds `const gate = await this.controller.gate(number)` after the existing ledger commit in `DependencyCoordinator.assess` (scripts/factory/dependencies.cjs), reusing the pre-existing `Controller.gate`/`policy.reviewGate` checker already used by the owner-PR assessment path. `checks: write` is added only to the `assess` job in factory-dependencies.yml; the model (`review`) job, top-level workflow permissions, and other jobs are unchanged. Traced `controller.gate()` and `policy.reviewGate()`: the check is always published (pass or fail) against the PR's live head, success requires the exact approved head/verdict/grant linkage, ledger-read failures inside `gate()` are caught and downgraded to a failing check (not thrown), while a failed check-run POST itself propagates and aborts the job — all after the review ledger commit, so the completed review/approval/blocked verdict and counters are already durably written and are not touched by publication outcome. Six new regression tests cover pass, changes-requested, invalid-artifact (never publishes), changed-head (publishes failure against the new head, not the stale approved one), ledger-unavailable-at-publish, and failed-publication-with-recovery cases; a workflow-shape test asserts the exact permission sets for `assess`/`review`/top-level and that no other job gets `checks: write`. I manually verified these assertions against the actual current `.github/workflows/factory-dependencies.yml` and `scripts/factory/controller.cjs`/`policy.cjs` and they match. Docs (DEPENDENCY-MAINTENANCE.md, verification/plan/spec files) accurately describe the change and preparation-only scope; no factory-ready label, no enablement flag changes, no Claude/API invocation, and no app code touched — consistent with the ticket being a harness-only, draft-PR preparation task.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"The verification doc's reported test counts (24→25, 19 pass/5 fail → 25 pass) could not be independently executed in this read-only review; they are internally consistent with the 6 new test() blocks added across two commits as described, but are otherwise self-reported and unverified.\"},{\"severity\":\"minor\",\"message\":\"The new `assess()` return value gates `reviewed` on both `review.verdict === \\\"pass\\\"` and `gate.ok`, whereas the pre-existing, unmodified `Controller.assessPR` (owner-pr flow) still gates only on `review.verdict === \\\"pass\\\"` and ignores its own `gate()` result. This asymmetry isn't introduced by this diff and isn't in scope of the ticket, but it's worth a follow-up ticket since it means owner-PR premerge can still proceed even if evidence publication reports a non-ok gate, while the dependency flow now blocks premerge via the `reviewed` output on the same condition.\"}]}"
+    },
+    "77": {
+      "coding": 0,
+      "origin": "owner-pr",
+      "reviews": 1,
+      "retries": 0,
+      "head": "7695b2bb5f51d8424c8feae7509e60376ee01ad2",
+      "status": "reviewing",
+      "pr": 78,
+      "approval": null,
+      "criteriaHash": "c3315f2da81d7ef57ed9912992f829ad7f54ad1d9a001a1838f49787e871ef2b",
+      "branch": "agent/77-operations-evidence",
+      "ci": null
     }
   },
   "grants": {
@@ -1845,9 +1859,24 @@
       "status": "finished",
       "at": "2026-11-16T16:45:48.694Z",
       "outcome": "reviewed"
+    },
+    "9f0b9296-f2b0-458d-8ff4-0638625330d9": {
+      "id": "9f0b9296-f2b0-458d-8ff4-0638625330d9",
+      "ticket": 77,
+      "phase": "review",
+      "slot": "existing",
+      "runId": "43924222574",
+      "runAttempt": 1,
+      "head": "7695b2bb5f51d8424c8feae7509e60376ee01ad2",
+      "status": "reserved",
+      "at": "2026-11-16T18:00:26.742Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 77,
+    "runId": "43924222574",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -3590,6 +3619,15 @@
           "reason": "Frozen pre-job controller rejects retained drill history before admission"
         }
       ]
+    },
+    {
+      "at": "2026-11-16T18:00:26.742Z",
+      "event": "reserved",
+      "ticket": 77,
+      "grant": "9f0b9296-f2b0-458d-8ff4-0638625330d9",
+      "phase": "review",
+      "runId": "43924222574",
+      "runAttempt": 1
     }
   ]
 }
