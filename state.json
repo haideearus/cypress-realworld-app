@@ -36,6 +36,9 @@
       55,
       60,
       62
+    ],
+    "2026-11-16": [
+      63
     ]
   },
   "tickets": {
@@ -859,6 +862,19 @@
       },
       "criteriaHash": "0ea17b711531dc1e849625b395c7a85b80232a75ed559d9f0222fc45f1b951ff",
       "feedback": "Isolated drill verified; no production approval, PR or deployment."
+    },
+    "63": {
+      "coding": 0,
+      "origin": "owner-pr",
+      "reviews": 1,
+      "retries": 0,
+      "head": "2ab7e7164761a09f580dd0109ccb5aa4c34811ce",
+      "status": "reviewing",
+      "pr": 64,
+      "approval": null,
+      "criteriaHash": "9a3f6d7d8b53910ceb744e3b9ba2d221e9596d47fc03d0a94c08d9e3460c893a",
+      "branch": "agent/monitor-feed-contract-recovery",
+      "ci": null
     }
   },
   "grants": {
@@ -1366,9 +1382,24 @@
       "status": "finished",
       "at": "2026-11-15T21:40:03.274Z",
       "outcome": "blocked"
+    },
+    "17caa602-aa0a-446b-a63a-bf62dea44067": {
+      "id": "17caa602-aa0a-446b-a63a-bf62dea44067",
+      "ticket": 63,
+      "phase": "review",
+      "slot": "existing",
+      "runId": "43821551786",
+      "runAttempt": 1,
+      "head": "2ab7e7164761a09f580dd0109ccb5aa4c34811ce",
+      "status": "reserved",
+      "at": "2026-11-16T07:07:35.941Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 63,
+    "runId": "43821551786",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -2259,6 +2290,15 @@
           "reason": "Frozen pre-job controller rejects retained drill history before admission"
         }
       ]
+    },
+    {
+      "at": "2026-11-16T07:07:35.941Z",
+      "event": "reserved",
+      "ticket": 63,
+      "grant": "17caa602-aa0a-446b-a63a-bf62dea44067",
+      "phase": "review",
+      "runId": "43821551786",
+      "runAttempt": 1
     }
   ]
 }
