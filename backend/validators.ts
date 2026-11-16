@@ -116,6 +116,8 @@ export const isTransactionPatchValidator = [body("requestStatus").isIn(RequestSt
 
 export const isTransactionPublicQSValidator = [
   query("order").optional({ checkFalsy: true }).isIn(["default"]),
+  query("page").optional().isInt({ min: 1 }),
+  query("limit").optional().isInt({ min: 1, max: 50 }),
 ];
 
 export const isCommentValidator = body("content").isString().trim();
