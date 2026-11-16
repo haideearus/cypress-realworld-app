@@ -114,6 +114,8 @@ async function observeIncident({
   const active = state.active && state.incidents[state.active];
   if (active?.phase === "pending")
     return { outcome: "publication_needs_owner_recovery", incident: active.id, observation };
+  if (active?.acknowledgment?.phase === "intent")
+    return { outcome: "acknowledgment_needs_owner_recovery", issue: active.issue, observation };
   if (active) {
     const issue = await api.request("GET", `${ROOT}/issues/${active.issue}`);
     if (

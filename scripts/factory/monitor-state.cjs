@@ -2,6 +2,7 @@ const { ROOT } = require("./github.cjs");
 const { REPOSITORY, SHA } = require("./policy.cjs");
 const { UUID, validateMonitorProof, proofFromIncident } = require("./monitor-proof.cjs");
 const { validateRetirement } = require("./monitor-recovery-contract.cjs");
+const { validateAcknowledgment } = require("./monitor-ack-contract.cjs");
 const MAX_INCIDENTS = 180;
 const MAX_CREATIONS_PER_DAY = 2;
 const record = (value) => value && typeof value === "object" && !Array.isArray(value);
@@ -23,7 +24,9 @@ function validateMonitorState(state) {
     throw new Error("Invalid monitor registry");
   const issueIds = new Set();
   for (const [id, incident] of Object.entries(state.incidents)) {
-    const extra = ["probeMode", "retirement"].filter((key) => Object.hasOwn(incident || {}, key));
+    const extra = ["probeMode", "retirement", "acknowledgment"].filter((key) =>
+      Object.hasOwn(incident || {}, key)
+    );
     if (
       !UUID.test(id) ||
       !exact(
@@ -58,6 +61,18 @@ function validateMonitorState(state) {
         (r.phase === "intent" ? state.active !== id : !incident.recovered || state.active === id)
       )
         throw Error("Invalid monitor retirement state");
+    }
+    if (incident.acknowledgment !== undefined) {
+      const a = validateAcknowledgment(incident.acknowledgment);
+      const proof = proofFromIncident(incident);
+      if (
+        incident.phase !== "open" ||
+        incident.probeMode ||
+        incident.retirement ||
+        Object.keys(proof).some((k) => proof[k] !== a.proof[k]) ||
+        (a.phase === "intent" ? state.active !== id : !incident.recovered || state.active === id)
+      )
+        throw Error("Invalid monitor acknowledgment state");
     }
     if (incident.issue !== null) issueIds.add(incident.issue);
   }

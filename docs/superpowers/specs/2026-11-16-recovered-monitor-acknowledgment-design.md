@@ -1,8 +1,8 @@
 # Owner acknowledgment of a recovered monitor incident
 
-Status: proposed design, awaiting approval. The owner authorized preparing this
-document on 16 November 2026, Europe/Bucharest. This is not authorization to
-implement, close issue #65, change a switch, start Claude, or run a live operation.
+Status: approved by the owner on 16 November 2026, Europe/Bucharest. The owner
+subsequently authorized an implementation PR. Closing issue #65, changing switches,
+starting Claude and executing the live operation remain separately authorized steps.
 
 ## Problem and evidence
 

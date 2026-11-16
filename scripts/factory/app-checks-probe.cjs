@@ -152,6 +152,15 @@ function validFeedContract(response) {
       (page.totalPages === 0 ? data.results.length === 0 : data.results.length > 0)
   );
 }
+async function readPublicRelease(fetch, timeoutMs) {
+  const r = await request(fetch, "/healthz", "GET", undefined, undefined, timeoutMs);
+  return r?.status === 200 &&
+    r.data?.status === "ok" &&
+    typeof r.data.release === "string" &&
+    /^[a-f0-9]{40}$/.test(r.data.release)
+    ? r.data.release
+    : null;
+}
 async function attempt(fetch, username, password, timeoutMs, feedContract) {
   const checks = { login: "failed", session: "failed", feed: "failed", logout: "failed" };
   const result = {
@@ -167,16 +176,8 @@ async function attempt(fetch, username, password, timeoutMs, feedContract) {
       }
     });
   };
-  const release = async () => {
-    // Public release observations never carry the account's session cookie.
-    const r = await request(fetch, "/healthz", "GET", undefined, undefined, timeoutMs);
-    return r?.status === 200 &&
-      r.data?.status === "ok" &&
-      typeof r.data.release === "string" &&
-      /^[a-f0-9]{40}$/.test(r.data.release)
-      ? r.data.release
-      : null;
-  };
+  // Public release observations never carry the account's session cookie.
+  const release = () => readPublicRelease(fetch, timeoutMs);
   try {
     if (feedContract) {
       result.releases.before = await release();
@@ -288,4 +289,4 @@ async function probeUserJourney({
     if (healthy || count === attempts || !(await pause(sleep))) return result;
   }
 }
-module.exports = { credentials, probeUserJourney };
+module.exports = { credentials, probeUserJourney, readPublicRelease, pause };
