@@ -44,7 +44,8 @@
       57,
       70,
       72,
-      74
+      74,
+      58
     ]
   },
   "tickets": {
@@ -906,6 +907,38 @@
         "runAttempt": 1
       }
     },
+    "58": {
+      "coding": 0,
+      "reviews": 0,
+      "retries": 0,
+      "origin": "dependency-pr",
+      "head": "d0451952eeedb97c14ae6ccd07e698e0c2957771",
+      "pr": 58,
+      "status": "new",
+      "approval": null,
+      "branch": "dependabot/npm_and_yarn/postcss-selector-parser-6.1.6",
+      "criteriaHash": "87d3e6eaffefeabf091fd6a84776269d7e57824929d03646111bbe1c103d519c",
+      "dependency": {
+        "version": 1,
+        "pr": 58,
+        "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-dependencies.yml@refs/heads/main",
+        "workflowSha": "b025f9e9f33d8852aeafb85f3d4b6f7bdfb59382",
+        "runId": "43909582583",
+        "runAttempt": 1,
+        "appSlug": "haideearus-software-factory",
+        "attempts": [
+          {
+            "head": "d0451952eeedb97c14ae6ccd07e698e0c2957771",
+            "base": "b025f9e9f33d8852aeafb85f3d4b6f7bdfb59382",
+            "runId": "43909582583",
+            "runAttempt": 1,
+            "workflowSha": "b025f9e9f33d8852aeafb85f3d4b6f7bdfb59382",
+            "at": "2026-11-16T16:37:54.396Z"
+          }
+        ]
+      },
+      "ci": null
+    },
     "60": {
       "coding": 0,
       "origin": "owner-pr",
@@ -1757,7 +1790,11 @@
       "outcome": "reviewed"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 58,
+    "runId": "43909582583",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -3388,6 +3425,13 @@
           "reason": "Frozen pre-job controller rejects retained drill history before admission"
         }
       ]
+    },
+    {
+      "at": "2026-11-16T16:37:54.396Z",
+      "event": "dependency_metadata_admitted",
+      "ticket": 58,
+      "head": "d0451952eeedb97c14ae6ccd07e698e0c2957771",
+      "runId": "43909582583"
     }
   ]
 }
