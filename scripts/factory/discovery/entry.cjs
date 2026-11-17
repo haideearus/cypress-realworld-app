@@ -26,23 +26,16 @@ if (role === "health") {
       fs.cpSync(path.join("/source", entry), path.join(root, entry), { recursive: true });
   fs.symlinkSync("/source/node_modules", path.join(root, "node_modules"), "dir");
   process.chdir(root);
-  const env = {
-    PATH: "/usr/local/bin:/usr/bin:/bin",
-    HOME: "/work",
-    NODE_ENV: "test",
-    HOST: "0.0.0.0",
-    CI: "true",
-    CYPRESS_CACHE_FOLDER: "/opt/cypress",
-    CYPRESS_CRASH_REPORTS: "0",
-    CYPRESS_RECORD_KEY: "",
-    RENDER_GIT_COMMIT: fs.readFileSync("/trusted/head.txt", "utf8").trim(),
-  };
+  const env = require("/trusted/runtime.cjs").environment(
+    fs.readFileSync("/trusted/head.txt", "utf8").trim()
+  );
   if (role === "app") {
     fs.copyFileSync("data/database-seed.json", "data/database.json");
     // Fixed synthetic fixture; never uses live accounts or external auth providers.
     const seed = JSON.parse(fs.readFileSync("data/database-seed.json", "utf8"));
     for (const u of seed.users)
       u.password = require("/source/node_modules/bcryptjs").hashSync("discovery-only-password", 4);
+    fs.writeFileSync("data/database-seed.json", JSON.stringify(seed));
     fs.writeFileSync("data/database.json", JSON.stringify(seed));
     const child = spawn("yarn", ["start:ci"], { env, cwd: root, stdio: "inherit" });
     child.on("exit", (code) => {
@@ -57,7 +50,7 @@ if (role === "health") {
     if (mode === "api") {
       cmd = "node";
       args = ["--test", "discovery-tests/" + file];
-      env.DISCOVERY_API_URL = "http://app:3001";
+      env.DISCOVERY_API_URL = "http://localhost:3001";
     } else if (mode === "unit") {
       fs.writeFileSync(
         "discovery.config.mjs",
@@ -68,7 +61,7 @@ if (role === "health") {
     } else if (mode === "cypress") {
       fs.writeFileSync(
         "discovery.config.cjs",
-        `const {defineConfig}=require('cypress');module.exports=defineConfig({video:false,retries:0,screenshotsFolder:'/work/screenshots',e2e:{baseUrl:'http://app:3000',specPattern:'discovery-tests/*.cy.ts',supportFile:false},env:{apiUrl:'http://app:3001'}});`
+        `const {defineConfig}=require('cypress');module.exports=defineConfig(${JSON.stringify(require("/trusted/runtime.cjs").cypressConfig())});`
       );
       cmd = "yarn";
       args = [

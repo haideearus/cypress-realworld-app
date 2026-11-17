@@ -7,6 +7,7 @@ const s = require("../factory/discovery-sandbox.cjs");
 test("runtime containers have no public network, host secrets, writable source or socket mounts", () => {
   const args = s.containerArgs({
     name: "discovery-abc",
+    appName: "discovery-app-abc",
     network: "discovery-net",
     image: "sha256:" + "a".repeat(64),
     role: "test",

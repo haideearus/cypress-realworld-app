@@ -5,6 +5,41 @@ const os = require("node:os");
 const path = require("node:path");
 const { createBroker } = require("../factory/discovery-broker.cjs");
 const { digest } = require("../factory/discovery-contract.cjs");
+test("broker reconnection cannot execute a fifth batch and a crashed batch stays consumed", async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "discovery-restart-"));
+  const source = path.join(root, "source"),
+    out = path.join(root, "output");
+  fs.mkdirSync(source);
+  fs.mkdirSync(out);
+  let calls = 0;
+  const execute = async () => {
+    calls++;
+    throw Error("lost execution result");
+  };
+  const options = {
+    root,
+    source,
+    output: out,
+    manifest: {},
+    identity: { head: "a".repeat(40), grantId: "offline" },
+    execute,
+  };
+  try {
+    const first = createBroker(options);
+    await first.call("write_test", { file: "a.api.test.cjs", content: "// test" });
+    for (let i = 0; i < 4; i++)
+      await assert.rejects(
+        createBroker(options).call("run_batch", { mode: "api", file: "a.api.test.cjs" })
+      );
+    await assert.rejects(
+      createBroker(options).call("run_batch", { mode: "api", file: "a.api.test.cjs" }),
+      /batch limit/
+    );
+    assert.equal(calls, 4);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
 test("model tools can read only the frozen source manifest and write only new test/report output", async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "discovery-broker-"));
   const source = path.join(root, "source");

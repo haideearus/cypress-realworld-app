@@ -4,6 +4,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends libgtk-3-0 libg
 WORKDIR /source
 COPY source/ /source/
 COPY trusted/ /trusted/
-ENV CYPRESS_CACHE_FOLDER=/opt/cypress YARN_PRODUCTION=false CI=true
-RUN corepack enable && corepack prepare yarn@1.22.22 --activate && yarn install --frozen-lockfile --production=false && yarn predev:cognito:ci && yarn test:unit:ci && yarn build:ci && yarn cypress verify && chmod -R a+rX /source /trusted /opt/cypress
+ENV COREPACK_HOME=/opt/corepack CYPRESS_CACHE_FOLDER=/opt/cypress YARN_PRODUCTION=false CI=true
+RUN corepack enable && corepack prepare yarn@1.22.22 --activate && yarn install --frozen-lockfile --production=false && yarn predev:cognito:ci && yarn test:unit:ci && yarn build:ci && yarn cypress verify && chmod -R a+rX /source /trusted /opt/cypress /opt/corepack
 USER 1000:1000

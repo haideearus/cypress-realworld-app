@@ -19,6 +19,24 @@ function createBroker({ root, source, output, manifest, identity, execute }) {
   fs.mkdirSync(path.join(output, "tests"), { recursive: true });
   const budget = new s.BatchBudget(async (request, number) => {
     const test = fs.readFileSync(s.regularProposal(output, "tests/" + request.file), "utf8");
+    // Reserve durably before execution. Restarts and concurrent broker instances
+    // cannot refund an interrupted batch or execute beyond the four retained slots.
+    let slot = null;
+    for (let n = 1; n <= 4; n++) {
+      try {
+        fs.writeFileSync(
+          path.join(root, `batch-intent-${n}.json`),
+          JSON.stringify({ number: n, ...request, testHash: c.digest(test) }),
+          { flag: "wx", mode: 0o600 }
+        );
+        slot = n;
+        break;
+      } catch (error) {
+        if (error.code !== "EEXIST") throw error;
+      }
+    }
+    if (slot === null) throw Error("Discovery batch limit reached");
+    number = slot;
     const result = await execute(request);
     const receipt = { number, ...request, test, testHash: c.digest(test), result };
     fs.writeFileSync(path.join(root, `batch-${number}.json`), JSON.stringify(receipt), {

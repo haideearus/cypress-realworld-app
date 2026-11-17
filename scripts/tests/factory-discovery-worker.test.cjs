@@ -5,7 +5,7 @@ const yaml = require("js-yaml");
 const { argsFor } = require("../factory/discovery-worker.cjs");
 test("discovery model has no builtin shell/filesystem/network tool and only its pinned broker", () => {
   const args = argsFor({ turns: 200 }, "/tmp/discovery/mcp.json");
-  assert.ok(args.includes('--tools ""'));
+  assert.ok(args.includes("--tools="));
   assert.ok(args.includes("--strict-mcp-config"));
   assert.ok(args.includes('--setting-sources ""'));
   assert.ok(args.includes("mcp__discovery__run_batch"));

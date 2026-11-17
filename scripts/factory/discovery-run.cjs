@@ -8,6 +8,13 @@ const active = require("./active-tickets.cjs");
 function selectSweep({ state, registry, head, day, config, repairsWaiting = false }) {
   p.assertNotStopped(state);
   if (!config.enabled || !config.discovery) return { ready: false, reason: "Discovery disabled" };
+  const pending = Object.entries(registry.sources).find(([, source]) => source.status === "intent");
+  if (pending)
+    return {
+      ready: false,
+      reason: "Uncertain discovery source requires reconciliation",
+      reconcileKey: pending[0],
+    };
   if (repairsWaiting || active.activeEntries(state).length)
     return { ready: false, reason: "Repairs or active work take priority" };
   if ((state.days[day] || []).length >= config.daily)
@@ -129,28 +136,31 @@ async function verifyParent(api, context) {
   )
     throw Error("Discovery parent identity mismatch");
 }
-async function main(env = process.env) {
+async function main(env = process.env, dependencies = {}) {
+  const now = dependencies.now || new Date();
   p.assertSubscriptionEnv(env);
   const vars = JSON.parse(env.FACTORY_VARIABLES || "{}");
   const config = p.readConfig(vars);
   const inputs = JSON.parse(env.FACTORY_INPUTS || "{}");
   const op = env.FACTORY_OPERATION || inputs.operation || "preview";
   const context = { ...runtimeContext(env), phase: "discover", slot: "discovery" };
-  if (context.event === "schedule") {
+  const preview =
+    context.event === "workflow_dispatch" && (op !== "run" || inputs.dry_run !== false);
+  if (context.event === "schedule" && op !== "finish") {
     const hour = new Intl.DateTimeFormat("en-GB", {
       timeZone: "Europe/Bucharest",
       hour: "2-digit",
       hourCycle: "h23",
-    }).format(new Date());
+    }).format(now);
     if (!["03", "15"].includes(hour)) {
       output({ outcome: "outside-local-window", ready: false, modelCalls: 0 }, env);
       return;
     }
   }
-  const api = new GitHub({ token: env.GH_TOKEN });
+  const api = dependencies.api || new GitHub({ token: env.GH_TOKEN });
   await verifyParent(api, context);
-  const ledger = new Ledger(api);
-  const store = new DiscoveryStore(api);
+  const ledger = dependencies.ledger || new Ledger(api);
+  const store = dependencies.store || new DiscoveryStore(api);
   if (op === "initialize") {
     if (context.event !== "workflow_dispatch") throw Error("Owner setup invocation required");
     if (inputs.dry_run !== false) {
@@ -178,11 +188,23 @@ async function main(env = process.env) {
     return;
   }
   const { state } = await ledger.read();
+  if (preview && state.stop) {
+    const result = {
+      outcome: "preview",
+      ready: false,
+      eligible: false,
+      reason: "Durable stop active",
+      modelCalls: 0,
+    };
+    output(result, env);
+    return result;
+  }
   p.assertNotStopped(state);
   if (
-    !config.enabled ||
-    !config.discovery ||
-    (context.event !== "workflow_dispatch" && !config.automatic)
+    !preview &&
+    (!config.enabled ||
+      !config.discovery ||
+      (context.event !== "workflow_dispatch" && !config.automatic))
   ) {
     const r = { outcome: "disabled", ready: false, modelCalls: 0 };
     output(r, env);
@@ -195,24 +217,43 @@ async function main(env = process.env) {
   );
   const registry = (await store.read()).state;
   const queue = await api.pages(`${ROOT}/issues?state=open&labels=factory-ready&per_page=100`);
-  const day = p.dayKey(new Date(), config.timezone);
+  const day = p.dayKey(now, config.timezone);
   const choice = selectSweep({
     state,
     registry,
     head: tested.head,
     day,
-    config,
+    config: preview ? { ...config, enabled: true, discovery: true } : config,
     repairsWaiting: queue.some(
       (i) =>
         !i.pull_request && !state.tickets[String(i.number)] && i.number !== config.activityIssue
     ),
   });
+  if (choice.reconcileKey) {
+    if (!preview) await sourceFor(api, store, registry.sources[choice.reconcileKey].proof);
+    const result = {
+      outcome: preview ? "source-reconciliation-preview" : "source-reconciled",
+      ready: false,
+      modelCalls: 0,
+    };
+    output(result, env);
+    return result;
+  }
   if (!choice.ready) {
     output({ outcome: "held", ...choice, modelCalls: 0 }, env);
     return choice;
   }
-  if (context.event === "workflow_dispatch" && (op !== "run" || inputs.dry_run !== false)) {
-    const r = { outcome: "preview", ...choice, head: tested.head, modelCalls: 0, ready: false };
+  if (preview) {
+    const r = {
+      outcome: "preview",
+      ...choice,
+      eligible: choice.ready,
+      discoveryEnabled: config.discovery,
+      factoryEnabled: config.enabled,
+      head: tested.head,
+      modelCalls: 0,
+      ready: false,
+    };
     output(r, env);
     return r;
   }

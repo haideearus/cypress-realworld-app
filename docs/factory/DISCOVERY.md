@@ -28,6 +28,9 @@ Render, database, storage or provider credentials.
 Each batch starts a fresh synthetic app and separate test container. They use
 an internal bridge with an isolated gateway, read-only image roots, unprivileged
 users, dropped capabilities, bounded resources and ephemeral writable scratch.
+The test container shares only its own disposable app container's network
+namespace, preserving the unchanged browser/API localhost origins; it never
+shares the host namespace.
 Only the current proposal directory is mounted, read-only. There are no host
 network, ports, Docker socket, production URLs or unrelated mounts. Unsupported
 Docker isolation fails closed; generated tests never fall back to host execution.
@@ -99,9 +102,13 @@ Do not execute these steps merely because this document exists.
 2. Keep the discovery flag absent/false. On `main`, open **Proactive app discovery**
    and select `initialize`, dry-run checked. This previews metadata setup without
    a model or write. Actual initialization is a separate authorized owner step.
-3. After initialization, separately authorize discovery enablement and run
-   `preview` with dry-run checked. Confirm tested main, capacity and daily budget.
-4. Only after a separately authorized trial, select `run` with dry-run unchecked.
+3. After initialization, run `preview` with dry-run checked while discovery stays
+   disabled. Confirm tested main, capacity and daily budget without enabling a
+   timer or model. A durable stop is reported as a preview hold.
+4. Only after a separately authorized trial, temporarily keep automatic pickup
+   and merging off, explicitly enable discovery and the factory, and select `run`
+   with dry-run unchecked. Enabling discovery with automatic pickup already on
+   also permits later scheduled/current-main sweeps; it is a separate rollout.
    One audit source and one consumed grant cover one Claude Pro session.
 5. Inspect both original and trusted replay evidence. Finding publication stays
    unavailable until the next implementation stage is accepted.
@@ -119,8 +126,15 @@ Offline policy, broker, worker-contract, replay and stop tests run under
 `yarn test:factory`. Native Factory CI additionally executes a tiny Docker fixture
 to check read-only source, environment filtering, internal app access and denied
 public egress. It uses no model, live app or repository state writes. The local
-Windows Docker daemon was unavailable during implementation; native Docker
-results and live Claude discovery acceptance are separate evidence.
+Windows Docker daemon was unavailable during implementation. Native CI also
+builds the actual application image and tests browser login with no model.
+Native results and live Claude discovery acceptance are separate evidence.
+
+Current limitation: Cypress screenshots remain inside disposable scratch and are
+not exposed through the broker. The model can inspect bounded textual test
+results; screenshot inspection remains deferred. An uncertain source issue POST
+is reconciled as a metadata-only run before any different charter is selected;
+that reconciliation never creates a model grant.
 
 References: [MCP stdio transport](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports),
 [Cypress binary installation](https://docs.cypress.io/app/references/advanced-installation),

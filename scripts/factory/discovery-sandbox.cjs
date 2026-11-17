@@ -41,7 +41,7 @@ function regularProposal(root, name) {
     throw Error("Proposal must be bounded regular file");
   return target;
 }
-function containerArgs({ name, network, image, role, testDir, mode, file, oracleFile }) {
+function containerArgs({ name, network, image, role, testDir, mode, file, oracleFile, appName }) {
   if (
     !/^discovery-[a-z0-9-]{1,90}$/.test(name) ||
     !/^discovery-[a-z0-9-]{1,90}$/.test(network) ||
@@ -49,13 +49,17 @@ function containerArgs({ name, network, image, role, testDir, mode, file, oracle
     !["app", "test", "oracle"].includes(role)
   )
     throw Error("Invalid discovery container identity");
-  if (role === "test") validateRequest({ mode, file });
+  if (role === "test") {
+    validateRequest({ mode, file });
+    if (!/^discovery-app-[a-z0-9-]{1,80}$/.test(appName || ""))
+      throw Error("Invalid disposable app network owner");
+  }
   const args = [
     "run",
     "--name",
     name,
     "--network",
-    network,
+    role === "test" ? `container:${appName}` : network,
     "--read-only",
     "--cap-drop",
     "ALL",
@@ -141,7 +145,10 @@ async function sandbox({ image, request, tests, oracle, run = docker }) {
   };
   const checked = async (args, opts = options) => {
     const r = await boundedRun(args, opts);
-    if (r.code !== 0) throw Error("Sandbox setup failed");
+    if (r.code !== 0) {
+      const detail = String(r.stderr || "").slice(0, 700);
+      throw Error(secretLike(detail) ? "Sandbox setup failed" : `Sandbox setup failed: ${detail}`);
+    }
     return r;
   };
   try {
@@ -190,7 +197,15 @@ async function sandbox({ image, request, tests, oracle, run = docker }) {
     validateRequest(request);
     regularProposal(path.dirname(tests), "tests/" + request.file);
     const result = await boundedRun(
-      containerArgs({ name: test, network, image, role: "test", testDir: tests, ...request }),
+      containerArgs({
+        name: test,
+        network,
+        image,
+        role: "test",
+        appName: app,
+        testDir: tests,
+        ...request,
+      }),
       options
     );
     const text = (result.stdout + "\n" + result.stderr).slice(0, 120000);
