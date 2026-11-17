@@ -1506,9 +1506,17 @@
       "reviews": 1,
       "retries": 0,
       "head": "dca1bb2cb95b4cc832e3bd55bde84877f5980a3c",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 81,
-      "approval": null,
+      "approval": {
+        "head": "dca1bb2cb95b4cc832e3bd55bde84877f5980a3c",
+        "pr": 81,
+        "grant": "3506dfa9-5ab2-4a2f-ac5e-82b10c332abe",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/44074200249"
+      },
       "criteriaHash": "a5d7912d3a1c98d9c7218614d18def2438e0224035e56fdff3948569d04eb5dd",
       "branch": "agent/80-two-ticket-foundation",
       "ci": {
@@ -1516,7 +1524,8 @@
         "head": "dca1bb2cb95b4cc832e3bd55bde84877f5980a3c",
         "runId": 44074278846,
         "passed": true
-      }
+      },
+      "feedback": "{\"head\":\"dca1bb2cb95b4cc832e3bd55bde84877f5980a3c\",\"verdict\":\"pass\",\"summary\":\"This is a harness-maintenance ticket (#80) for the repo's own \\\"factory\\\" automation scripts, not the payment-demo app itself. The diff introduces a versioned usage-ledger active-ticket model (scripts/factory/active-tickets.cjs) supporting up to two concurrent tickets, a guarded owner-only migration path (concurrency-migration.cjs) requiring stopped switches/durable stop/no active work/exact expected-commit CAS, and updates policy.cjs/controller.cjs/automation.cjs/dependencies.cjs/dependency-policy.cjs/merge.cjs/stop.cjs/quarantine.cjs/recovery.cjs/monitor-recovery.cjs to read/write through the new adapter instead of the old singleton `state.active` field. I traced every remaining reference to the ledger's old `state.active` field and confirmed all call sites were migrated (the remaining `.active` hits are an unrelated, independent field in the monitor-registry module, correctly left untouched). I reviewed the capacity/CAS logic, per-ticket reentrant ownership, global single merge-writer exclusivity (`stateTicket` rejecting a second ticket's intent), emergency-stop/cleanup handling of two parents (including partial-stop and omitted-inventory-run cases), and the migration script's eligibility/execute guards; I did not find correctness defects. The workflow-level `concurrency.group` change to include `${{ github.run_id }}` intentionally removes whole-lane GitHub Actions serialization (since every run gets a unique id) while the job-level `factory-ledger` and `factory-auto-merge` groups remain shared, matching the stated intent to replace lane-level locking with the ledger's own capacity guard while keeping metadata/merge writes serialized. `FACTORY_MAX_CONCURRENT_TICKETS`'s validation ceiling was raised from 1 to 2, but actual admission of a second slot still requires `state.version === 2`, which only a successful, explicitly owner-invoked, stopped-window migration can produce; the supplied verification.json reports the live variable unchanged at \\\"1\\\" and all three switches still true, consistent with \\\"no live behavior change\\\" claimed by the ticket. Supplied RED (failing-before) and GREEN (passing-after, 605 tests/595 passed/10 skipped/0 failed) evidence logs are present and consistent with TDD practice for the acceptance criteria. I could not execute the test suite or any code myself (read-only review), so this assessment rests on static inspection of the diff and the current source tree, plus the provided logs as evidence, not independent execution.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"Both automation.cjs's pick() and dependencies.cjs's select() refuse to admit any new ticket whenever ANY ticket in either lane is 'reviewed' and not yet merged/closed (checked unconditionally, not only when it would exceed capacity). This is a conservative design choice that keeps merge reconciliation strictly serialized across lanes, and it is covered by tests, but it means the second concurrency slot can sit idle for admission purposes while a merge is pending in the other lane, which is worth the owner's awareness when evaluating actual throughput gains from two-ticket concurrency.\"},{\"severity\":\"minor\",\"message\":\"policy.reserve() calls `active.capacity(state, config.concurrent)` twice in sequence (once inside a boolean condition, once as a bare statement purely for its version/limit validation side effect). The logic is correct but relies on a non-obvious trick (discarding the first call's result when `owner` is truthy) that could be confusing to future maintainers; a short comment or refactor would improve clarity though it is not a functional defect.\"}]}"
     }
   },
   "grants": {
@@ -2201,15 +2210,12 @@
       "runId": "44074200249",
       "runAttempt": 1,
       "head": "dca1bb2cb95b4cc832e3bd55bde84877f5980a3c",
-      "status": "reserved",
-      "at": "2026-11-17T11:27:50.936Z"
+      "status": "finished",
+      "at": "2026-11-17T11:27:50.936Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 80,
-    "runId": "44074200249",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -4146,6 +4152,14 @@
       "phase": "review",
       "runId": "44074200249",
       "runAttempt": 1
+    },
+    {
+      "at": "2026-11-17T11:39:47.591Z",
+      "event": "finished",
+      "ticket": 80,
+      "grant": "3506dfa9-5ab2-4a2f-ac5e-82b10c332abe",
+      "status": "reviewed",
+      "head": "dca1bb2cb95b4cc832e3bd55bde84877f5980a3c"
     }
   ]
 }
