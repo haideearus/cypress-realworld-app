@@ -35,6 +35,36 @@
         "workflowSha": "27c4ab04c04b0ce15797577f51350ffc14be7809"
       },
       "at": "2026-11-17T18:34:05.015Z"
+    },
+    "88b1dc78c2123a63f7fcd9f6f82ecb0740a304118459f2ce8732dfcd627e45e9": {
+      "id": "88b1dc78c2123a63f7fcd9f6f82ecb0740a304118459f2ce8732dfcd627e45e9",
+      "signal": {
+        "kind": "drain",
+        "lane": "app",
+        "number": 90,
+        "head": "0cfd0fda127cdde9067394779424790366408cc8",
+        "criteriaHash": "494fe7332991591511107bc155671abbb57f1c53708ef6ea36d8970c00aa004a",
+        "revision": "1",
+        "sourceRun": "44190004332",
+        "sourceAttempt": 1,
+        "actor": {
+          "login": "haideearus",
+          "id": 101267861
+        }
+      },
+      "producer": {
+        "runId": "44192744445",
+        "runAttempt": 1,
+        "workflowSha": "0cfd0fda127cdde9067394779424790366408cc8",
+        "actor": {
+          "login": "haideearus",
+          "id": 101267861
+        },
+        "event": "workflow_run"
+      },
+      "status": "intent",
+      "receiver": null,
+      "at": "2026-11-17T22:43:16.984Z"
     }
   }
 }
