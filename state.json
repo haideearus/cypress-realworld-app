@@ -1423,9 +1423,9 @@
       "reviews": 1,
       "retries": 0,
       "origin": "dependency-pr",
-      "head": "525c84cd1b55190c7b18d9e6a722d20a312fdecf",
+      "head": "1312585bd4787c3344737b45020d94eb12c27881",
       "pr": 79,
-      "status": "blocked",
+      "status": "new",
       "approval": null,
       "branch": "dependabot/npm_and_yarn/vite-8.2.4",
       "criteriaHash": "f3945c4279419102a77af55de2af3cebe4cdec36256337cb9cf1c2f0b069f7e1",
@@ -1445,59 +1445,18 @@
             "runAttempt": 1,
             "workflowSha": "ca6f505cc724fff165977a56c5a2e75d31377125",
             "at": "2026-11-17T11:07:13.321Z"
+          },
+          {
+            "head": "1312585bd4787c3344737b45020d94eb12c27881",
+            "base": "4b75c99fb05a3a13972437c077d522f45108aed5",
+            "runId": "44077771645",
+            "runAttempt": 1,
+            "workflowSha": "4b75c99fb05a3a13972437c077d522f45108aed5",
+            "at": "2026-11-17T11:51:48.564Z"
           }
         ]
       },
-      "ci": {
-        "requestId": "f524b27e-bbde-4aa9-a2f5-35e318b42f92",
-        "head": "525c84cd1b55190c7b18d9e6a722d20a312fdecf",
-        "runId": 44071212443,
-        "passed": true
-      },
-      "analysis": {
-        "version": 2,
-        "repository": "haideearus/cypress-realworld-app",
-        "pr": 79,
-        "base": "ca6f505cc724fff165977a56c5a2e75d31377125",
-        "head": "525c84cd1b55190c7b18d9e6a722d20a312fdecf",
-        "workflowSha": "ca6f505cc724fff165977a56c5a2e75d31377125",
-        "runId": "44071040409",
-        "runAttempt": 1,
-        "stage": "analysis",
-        "toolDigest": "f280c92eeb2f5ac163b37bbe2d1cffa0ca85a8237161c40dced67f0c8f5dffb5",
-        "at": "2026-11-17T11:07:33.341Z",
-        "result": {
-          "changed": 8,
-          "candidateVersions": 9,
-          "cleared": [
-            "GHSA-6g55-p6wh-862q",
-            "GHSA-fxqj-rqcc-2cmp",
-            "GHSA-qx2v-qp2m-jg93",
-            "GHSA-r28c-9q8g-f849",
-            "GHSA-vfpm-58rq-9qcg"
-          ],
-          "remainingBaseline": [
-            "GHSA-28wg-ghj8-5hjv",
-            "GHSA-2v37-7h3g-55p8",
-            "GHSA-3v7f-55p6-f55p",
-            "GHSA-4w7w-66w2-5vf9",
-            "GHSA-587h-7wmj-h5pm",
-            "GHSA-698v-4r3x-3vcv",
-            "GHSA-93m4-6634-74q7",
-            "GHSA-9jrq-w75r-8gcw",
-            "GHSA-c2c7-rcm5-vvqj",
-            "GHSA-fx2h-pf6j-xcff",
-            "GHSA-g4jq-h2w9-997c",
-            "GHSA-jqfw-vq24-v9c3",
-            "GHSA-mwcw-c2x4-8c55",
-            "GHSA-p9ff-h696-f583",
-            "GHSA-r825-w8mm-5pxw",
-            "GHSA-rq7h-c2jc-7f22",
-            "GHSA-v6wh-96g9-6wx3",
-            "GHSA-xwg4-73v4-xw9w"
-          ]
-        }
-      },
+      "ci": null,
       "feedback": "Dependency subscription review unavailable; no automatic retry of this head"
     },
     "80": {
@@ -2215,7 +2174,11 @@
       "outcome": "reviewed"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 79,
+    "runId": "44077771645",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -4160,6 +4123,13 @@
       "grant": "3506dfa9-5ab2-4a2f-ac5e-82b10c332abe",
       "status": "reviewed",
       "head": "dca1bb2cb95b4cc832e3bd55bde84877f5980a3c"
+    },
+    {
+      "at": "2026-11-17T11:51:48.564Z",
+      "event": "dependency_metadata_admitted",
+      "ticket": 79,
+      "head": "1312585bd4787c3344737b45020d94eb12c27881",
+      "runId": "44077771645"
     }
   ]
 }
