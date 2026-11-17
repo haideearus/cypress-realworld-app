@@ -177,3 +177,5 @@ or an uncertain publication/merge stays held for the appropriate owner decision.
 
 No extended scheduled observation, final billing audit, video or PDF completion
 is claimed by this guide.
+
+The opt-in proactive testing execution foundation is documented in [Discovery](DISCOVERY.md). Preparing its code does not enable sweeps or publish findings.

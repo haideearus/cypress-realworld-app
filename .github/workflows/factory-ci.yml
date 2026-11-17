@@ -71,10 +71,23 @@ jobs:
         run: |
           (cd scripts/factory/dependency-tools && npm ci --ignore-scripts --no-audit --fund=false)
           yarn test:factory
+      - name: Verify the pinned Claude action argument boundary without a model
+        run: node --test scripts/tests/factory-discovery-action.test.cjs
+        env:
+          FACTORY_DISCOVERY_ACTION_TEST: "true"
       - name: Exercise the credential-free drill sandbox without AI or GitHub writes
         run: node --test scripts/tests/factory-drill-sandbox.test.cjs
         env:
           FACTORY_DRILL_DOCKER_TEST: "true"
+      - name: Exercise discovery isolation with a credential-free fixture and no model
+        run: node --test scripts/tests/factory-discovery-docker.test.cjs
+        env:
+          FACTORY_DISCOVERY_DOCKER_TEST: "true"
+      - name: Smoke-test actual discovery image and browser login without AI
+        timeout-minutes: 20
+        run: node --test scripts/tests/factory-discovery-image.test.cjs
+        env:
+          FACTORY_DISCOVERY_IMAGE_TEST: "true"
       - run: yarn types && yarn lint && yarn test:unit:ci
       - run: yarn build:production && yarn test:production
       - run: yarn test:production:browser

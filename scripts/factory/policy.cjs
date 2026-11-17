@@ -32,7 +32,12 @@ function integer(value, label, max = Number.MAX_SAFE_INTEGER) {
   return n;
 }
 function readConfig(vars) {
-  const config = { enabled: vars.FACTORY_ENABLED === "true" };
+  if (![undefined, "true", "false"].includes(vars.FACTORY_DISCOVERY_ENABLED))
+    throw Error("Invalid discovery opt-in");
+  const config = {
+    enabled: vars.FACTORY_ENABLED === "true",
+    discovery: vars.FACTORY_DISCOVERY_ENABLED === "true",
+  };
   if (![undefined, "true", "false"].includes(vars.FACTORY_ENABLED)) deny("Invalid enabled setting");
   for (const [key, name] of [
     ["FACTORY_AUTOMATION_ENABLED", "automatic"],
@@ -125,9 +130,12 @@ function validateState(state) {
       !ticket ||
       !SHA.test(ticket.head) ||
       !Number.isInteger(ticket.coding) ||
-      ticket.coding < (["owner-pr", "dependency-pr"].includes(ticket.origin) ? 0 : 1) ||
+      ticket.coding <
+        (["owner-pr", "dependency-pr", "discovery-sweep"].includes(ticket.origin) ? 0 : 1) ||
       ticket.coding > MAX_CODING_ATTEMPTS ||
-      ![undefined, "factory", "owner-pr", "dependency-pr", "drill"].includes(ticket.origin) ||
+      ![undefined, "factory", "owner-pr", "dependency-pr", "drill", "discovery-sweep"].includes(
+        ticket.origin
+      ) ||
       (ticket.origin === "owner-pr" &&
         (ticket.coding !== 0 || !Number.isSafeInteger(ticket.pr) || ticket.pr < 1)) ||
       !Number.isInteger(ticket.reviews) ||
@@ -139,6 +147,13 @@ function validateState(state) {
     )
       deny("Invalid ledger ticket counters");
     const grants = Object.values(state.grants).filter((g) => g?.ticket === Number(id));
+    if (ticket.origin === "discovery-sweep")
+      require("./discovery-policy.cjs").validateTicket(ticket, grants);
+    else if (
+      ticket.discovery !== undefined ||
+      ["discovering", "discovery_complete"].includes(ticket.status)
+    )
+      deny("Invalid discovery origin");
     if (ticket.origin === "dependency-pr") dependency.validateTicket(ticket, grants);
     else if (ticket.dependency !== undefined) deny("Invalid dependency ticket origin");
     if (ticket.origin === "drill") {
@@ -250,6 +265,8 @@ function validateState(state) {
         "blocked",
         "reviewed",
         "drill_complete",
+        "discovering",
+        "discovery_complete",
       ].includes(ticket.status)
     )
       deny("Invalid ledger history or admission counters");
@@ -259,7 +276,9 @@ function validateState(state) {
       !g ||
       g.id !== id ||
       !state.tickets[String(g.ticket)] ||
-      !["code", "review"].includes(g.phase) ||
+      !["code", "review", "discover"].includes(g.phase) ||
+      (g.phase === "discover") !==
+        (state.tickets[String(g.ticket)]?.origin === "discovery-sweep") ||
       !["reserved", "finished"].includes(g.status) ||
       !SHA.test(g.head) ||
       !/^[1-9]\d*$/.test(g.runId) ||
@@ -289,6 +308,12 @@ function dayKey(date, timezone) {
 }
 function authorize(request) {
   denyRetiredRun(request.runId);
+  if (require("./discovery-policy.cjs").contextOK(request)) return;
+  if (
+    request.workflowRef === require("./discovery-contract.cjs").WORKFLOW_REF ||
+    request.slot === "discovery"
+  )
+    deny("Unauthorized discovery role");
   if (
     request.repository !== REPOSITORY ||
     ((request.actor !== OWNER || request.triggeringActor !== OWNER) &&
@@ -344,6 +369,10 @@ function reserve(original, request, config, now = new Date()) {
   validateState(original);
   assertNotStopped(original);
   authorize(request);
+  if (require("./discovery-policy.cjs").contextOK(request))
+    return require("./discovery-policy.cjs").reserveSweep(original, request, config, now);
+  if (original.tickets[String(request.ticket)]?.origin === "discovery-sweep")
+    deny("Discovery cannot enter ordinary work");
   if (!config.enabled || !config.minutes || !config.turns) deny("Factory disabled");
   if (request.wake && !config.eventPickup) deny("Event pickup disabled");
   const automatic = isAutomaticContext(request);
@@ -557,6 +586,8 @@ function preflight(state, grantId, context, config) {
   validateState(state);
   assertNotStopped(state);
   authorize(context);
+  if (require("./discovery-policy.cjs").contextOK(context))
+    return require("./discovery-policy.cjs").preflightSweep(state, grantId, context, config);
   active.capacity(state, config.concurrent);
   if (active.activeEntries(state).length > config.concurrent)
     deny("Pending reservation exceeds current concurrency limit");
@@ -610,6 +641,8 @@ function preflight(state, grantId, context, config) {
 function finish(original, grantId, outcome, now = new Date()) {
   validateState(original);
   if (original.stop && outcome.status !== "blocked") assertNotStopped(original);
+  if (original.grants[grantId]?.phase === "discover")
+    return require("./discovery-policy.cjs").finishSweep(original, grantId, outcome, now);
   const state = structuredClone(original);
   const g = state.grants[grantId];
   if (!g || g.status !== "reserved" || !active.owns(active.activeFor(state, g.ticket), g))

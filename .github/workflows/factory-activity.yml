@@ -10,6 +10,7 @@ on:
         Automatic factory,
         Dependency maintenance,
         Factory agents,
+        Proactive app discovery,
         Existing owner PR subscription review,
         Approved production deployment,
         Monitor repair rehearsal,

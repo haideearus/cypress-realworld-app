@@ -2,6 +2,7 @@ const { REPOSITORY, SHA, ID, HASH, exact, digest } = require("./wake-contract.cj
 const { secretLike } = require("./artifacts.cjs");
 const WORKFLOWS = Object.freeze([
   "factory-agents.yml",
+  "factory-discovery.yml",
   "factory-automatic.yml",
   "factory-dependencies.yml",
   "factory-ci.yml",
