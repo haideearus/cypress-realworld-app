@@ -210,6 +210,18 @@ async function sandbox({ image, request, tests, oracle, run = docker }) {
       }),
       options
     );
+    let exitState = null;
+    if (result.code !== 0) {
+      const inspected = await boundedRun(["inspect", test], { ...options, timeout: 5000 });
+      if (inspected.code === 0) {
+        const value = JSON.parse(inspected.stdout)[0]?.State;
+        exitState = {
+          status: value?.Status,
+          exitCode: value?.ExitCode,
+          oomKilled: value?.OOMKilled,
+        };
+      }
+    }
     const text = (result.stdout + "\n" + result.stderr).slice(0, 120000);
     if (secretLike(text)) throw Error("Secret-bearing discovery result held");
     return {
@@ -218,6 +230,7 @@ async function sandbox({ image, request, tests, oracle, run = docker }) {
       mode: request.mode,
       file: request.file,
       code: result.code,
+      exitState,
       log: text,
       logHash: c.digest(text),
       networkIsolated: true,
