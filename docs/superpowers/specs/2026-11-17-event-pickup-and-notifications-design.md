@@ -1,10 +1,10 @@
 # Event pickup, full activity notifications and proactive testing
 
-Status: the owner approved the original event/notification design on 17 November
-2026 and requested the proactive-testing extension below. The expanded design is
-for review; implementation and live rollout have not started. The owner selected
-option 1 (GitHub events with cron fallback, no additional service or paid AI APIs)
-and selected two discovery sessions/day with up to four new bug tickets/day.
+Status: the owner approved the combined event/notification/proactive-testing
+design on 17 November 2026, then selected the two-active-ticket extension below.
+Implementation and live rollout have not started. The owner selected option 1
+(GitHub events with cron fallback, no additional service or paid AI APIs), two
+discovery sessions/day, up to four new bug tickets/day and two active tickets.
 
 ## Intent and observed problem
 
@@ -119,7 +119,7 @@ and scheduled paths and reject a bot dispatch without this complete proof.
 Workers, CI provenance, merge context and dependency ticket validation must
 recognize the same verified parent identity throughout the run. A trusted wake
 does not relax current-main ancestry, exact-head CI/review, content restrictions,
-daily/lifetime limits, stop checks or the one-ticket lock.
+daily/lifetime limits, stop checks or the approved shared ticket-capacity limit.
 
 ### Receipts, duplicate events and queue draining
 
@@ -162,6 +162,54 @@ Future Dependabot refreshes and CI completions can wake reevaluation. This path
 does not promise that all future stale branches repair themselves; automatic
 branch synchronization would need its own bounded design and authorization.
 
+## Two active tickets with isolated execution
+
+The owner selected a new ceiling of **two active tickets**, shared across app
+repairs, dependency reviews, owner PR reviews and discovery sweeps. This means
+two independently executing ticket workflows, not two open GitHub issues and
+not an allowance to spawn extra model sessions inside one ticket. Code and review
+for the same ticket remain sequential. All sessions share finite Claude Pro
+allowance; concurrency does not increase the twenty-ticket daily budget.
+
+The live controller currently accepts only one active ticket and stores one
+`state.active` object. Do not raise its live variable before the change is merged
+and migrated. Introduce a versioned usage-ledger active-ticket map keyed by ticket,
+with one producer run/attempt per active entry. Atomic compare-and-swap admission
+must count entries across every lane and reject a third ticket. A ticket cannot
+hold two active entries, and a completion/cancellation may release only its own
+entry. Readers must support retained v1 history; do not confuse usage-ledger
+entries with the monitor registry's independent active-incident field.
+
+Every ticket gets its own GitHub-hosted workspace, scratch output, synthetic data
+and disposable services. Metadata writes still serialize under `factory-ledger`.
+Whole-workflow lane concurrency must no longer serialize all worker execution;
+the authoritative two-ticket admission map supplies the limit instead. Keep one
+global protected-merge writer and one production-deployment writer. A pending or
+ambiguous merge retains its own intent/ownership and cannot be replaced by
+another ticket. A changed main/head invalidates affected premerge evidence and
+may require refreshed CI/review under existing counters; parallel work does not
+permit reusing approval for a different commit.
+
+Automatic/dependency tickets keep a slot while executing their code/test/review/
+merge lifecycle. A terminal blocked/cancelled parent releases its slot only
+after reserved sessions are safely reconciled. Owner-review completion releases
+its execution slot at the human merge handoff. A completed discovery sweep can
+release its execution slot while separately held publication metadata waits;
+publication does not retain a model slot. There is no hidden free model lane.
+
+The emergency stop must enumerate, interrupt and reconcile both active parents
+and all reservations, preserving the existing one-minute target and exact stale-
+run quarantine. One ticket's cleanup cannot clear another's live grant. A failed
+or partial stop keeps its durable marker and reports unresolved runs explicitly.
+
+Implement dual-version readers before an explicit, previewable owner migration.
+The migration requires all three switches false, a durable stop, no active parents
+or reserved grants, and a matching expected ledger commit. Preserve ticket,
+grant, day, approval and audit history, append a migration receipt, and retain the
+old commit. Only then set `FACTORY_MAX_CONCURRENT_TICKETS=2` and separately resume
+the authorized operating profile. Preparing this design/plan changes none of
+those live settings. Raising the ceiling to three is not included.
+
 ## Proactive code inspection and exploratory testing
 
 ### Purpose and daily workflow
@@ -190,7 +238,7 @@ examines a different area. An owner-requested run uses the same daily counters.
 Two sessions is a ceiling, not a promise to spend two sessions every day.
 
 Require a current-main successful CI receipt, discovery opt-in, existing master
-and automation switches enabled, no durable stop, an idle shared lock and budget
+and automation switches enabled, no durable stop, available shared capacity and budget
 before reservation. Defer behind existing eligible repairs and pending merges;
 never preempt a running repair to meet a discovery cadence. No changed main or
 test environment is silently substituted after reservation. No source workflow
@@ -245,7 +293,7 @@ Reserve one new `discover` phase grant on that source; preserve actual producer
 identity and a strict new origin/schema. Existing code/review roles retain their
 current scope. The sweep issue is a budget/audit record, not an app defect.
 
-The discovery grant consumes the shared one-ticket concurrency lock and one of
+The discovery grant consumes one of the shared two-ticket execution slots and one of
 the two daily discovery sessions, in the reservation's Bucharest day bucket.
 Interruptions, invalid output, provider rejection and failures consume that
 attempt; no automatic model retry, refunded reservation or replacement sweep
@@ -413,8 +461,10 @@ complete silence independently. No independent watchdog is added in this scope.
 ## Controls and rollout
 
 Preserve Claude Pro OAuth-only execution, zero paid AI API fallback, usage-credit
-setting off (owner-confirmed), all configured limits, counters, historical grants,
+setting off (owner-confirmed), other configured limits, counters, historical grants,
 strict protection, genuine reviews, quarantine and named production approval.
+The sole approved existing-limit change is one to two active tickets, after the
+guarded controller migration above; it is not applied by this document.
 
 Preparing/reviewing this design leaves the three live switches unchanged. At its
 preparation snapshot all three are true. Do not stop or enable them merely to
@@ -435,9 +485,10 @@ Existing cron stays as fallback throughout. Do not add factory-ready to the
 harness design/review ticket.
 
 Implement this as one approved overall design with separable rollout stages:
-first event pickup/activity publication, then the additional discovery sandbox,
-metering and finding origin. Separate focused implementation PRs may be needed
-because discovery expands the grant schema, tool capabilities and stop inventory.
+first active-ticket isolation/migration, then event pickup/activity publication,
+then the discovery sandbox/metering and verified finding-to-repair intake.
+Focused implementation PRs are needed because these change distinct admission,
+grant-schema, tool-capability and stop boundaries.
 That separation does not authorize repeated model reviews or live trials. Each
 required fresh Claude Pro review and first live discovery run needs its later
 owner authorization; no discovery switch is enabled by approving a document.
@@ -446,6 +497,11 @@ owner authorization; no discovery switch is enabled by approving a document.
 
 - Offline tests prove recognized owner/monitor/Dependabot events, actual actor
   provenance, main-only helper execution and rejection of forged/fork/stale data.
+- Two-ticket admission races cannot create a third slot or duplicate one ticket;
+  completion, cancellation and stop cannot clear a different ticket's grant.
+  Prove two isolated workers can run while merge/deployment publication remains
+  serialized. Migration refuses active work and preserves old grants/counters/
+  approval receipts; monitor active-incident semantics remain unchanged.
 - A monitor issue created with GITHUB_TOKEN is picked up through monitor completion
   without depending on a suppressed issue event.
 - Duplicate events, two receiver runs, uncertain dispatch, head changes, a busy
