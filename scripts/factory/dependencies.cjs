@@ -122,16 +122,17 @@ class DependencyCoordinator {
       await this.ledger.update(async (s) => {
         policy.assertNotStopped(s);
         const current = s.tickets[String(t.pr)];
+        const entry = slots.activeFor(s, t.pr);
+        const attempt = d.validateTicket(t);
+        const expectedOwner = {
+          ticket: t.pr,
+          runId: attempt.runId,
+          runAttempt: attempt.runAttempt,
+        };
         if (
           JSON.stringify(current) !== JSON.stringify(t) ||
           Object.values(s.grants).some((g) => g.ticket === t.pr && g.status === "reserved") ||
-          (slots.activeFor(s, t.pr) &&
-            !(
-              t.merge?.status === "intent" &&
-              slots.activeFor(s, t.pr).ticket === t.pr &&
-              slots.activeFor(s, t.pr).runId === t.merge.runId &&
-              slots.activeFor(s, t.pr).runAttempt === t.merge.runAttempt
-            ))
+          (entry && (!slots.owns(entry, expectedOwner) || !(await terminalParent(this.api, entry))))
         )
           throw new Error("Dependency history changed during stale-proof reconciliation");
         const latest = d.prOK(await this.api.request("GET", `${ROOT}/pulls/${t.pr}`));
@@ -200,6 +201,15 @@ class DependencyCoordinator {
     let { state } = await this.ledger.read();
     if (state.stop)
       return { ready: false, reason: "Factory stopped; explicit owner resume required" };
+    const intentOwner = slots.pendingIntent(state);
+    if (intentOwner) {
+      if (!intentOwner.record.dependency)
+        return { ready: false, reason: "Pending app merge intent must be reconciled" };
+      const entry = slots.activeFor(state, intentOwner.ticket);
+      if (state.version === 2 && entry && !(await terminalParent(this.api, entry)))
+        return { ready: false, reason: "Merge intent parent is still running" };
+      return this.pending(intentOwner.record, preview);
+    }
     for (const entry of slots.activeEntries(state)) {
       const t = state.tickets[String(entry.ticket)];
       if (
@@ -251,6 +261,8 @@ class DependencyCoordinator {
     if (pending) {
       if (!pending.dependency)
         return { ready: false, reason: "Pending app merge must be reconciled" };
+      if (state.version === 2 && slots.activeFor(state, pending.pr))
+        return { ready: false, reason: "Reviewed dependency parent is still running" };
       const result = await this.pending(pending, preview);
       if (result) return result;
       state = (await this.ledger.read()).state;

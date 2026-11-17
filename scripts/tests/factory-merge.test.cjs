@@ -309,6 +309,60 @@ test("v2 merge confirmation releases only A while B remains reserved", async () 
   assert.deepEqual(after.grants, before.grants);
   assert.equal(fixture.mutations().filter((call) => call.method === "PUT").length, 1);
 });
+
+test("stop/resume and stopped-v1 migration reconcile retained intent without a second PUT", async () => {
+  for (const migrate of [false, true]) {
+    const { fixture, api, ledger, merger } = await setup({
+      settings: { concurrent: migrate ? 1 : 2 },
+    });
+    if (!migrate)
+      await ledger.update((state) => {
+        state.version = 2;
+        delete state.active;
+        state.activeTickets = {};
+        return { state };
+      });
+    fixture.mergeResponse = "lost-unmerged";
+    assert.equal((await merger.merge(10)).pending, true);
+    const approval = copy((await ledger.read()).state.tickets[10].approval);
+    const values = {
+      FACTORY_ENABLED: "true",
+      FACTORY_AUTOMATION_ENABLED: "true",
+      FACTORY_AUTOMERGE_ENABLED: "true",
+    };
+    const original = api.request.bind(api);
+    api.request = async (method, route, body) => {
+      if (method === "GET" && route.includes("/actions/variables?"))
+        return { variables: Object.entries(values).map(([name, value]) => ({ name, value })) };
+      if (method === "PATCH" && route.includes("/actions/variables/")) {
+        values[body.name] = body.value;
+        return null;
+      }
+      if (method === "GET" && route.includes("/actions/runs?")) return { workflow_runs: [] };
+      if (method === "GET" && /\/actions\/runs\/200(?:\/attempts\/1)?$/.test(route))
+        return {
+          id: 200,
+          run_attempt: 1,
+          path: ".github/workflows/factory-automatic.yml",
+          status: "completed",
+        };
+      return original(method, route, body);
+    };
+    const { stopFactory, resumeFactory } = require("../factory/stop.cjs");
+    const args = { api, ledger, actor: policy.OWNER, execute: true };
+    assert.equal((await stopFactory(args)).stopped, true);
+    if (migrate) {
+      const { migrateConcurrency } = require("../factory/concurrency-migration.cjs");
+      await migrateConcurrency({ ...args, expectedCommit: (await ledger.read()).commit });
+      merger.config.concurrent = 2;
+    }
+    assert.equal((await resumeFactory(args)).resumed, true);
+    assert.deepEqual((await ledger.read()).state.activeTickets, {});
+    assert.equal((await merger.merge(10)).pending, true);
+    assert.deepEqual((await ledger.read()).state.tickets[10].approval, approval);
+    assert.equal(fixture.mutations().filter((call) => call.method === "PUT").length, 1);
+  }
+});
 test("an ambiguous v2 merge retains its own slot and blocks another merge writer", async () => {
   const { fixture, ledger, merger } = await setup({ settings: { concurrent: 2 } });
   await ledger.update((state) => {

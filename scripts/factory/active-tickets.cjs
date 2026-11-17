@@ -68,6 +68,14 @@ function releaseActive(state, entry) {
   else delete state.activeTickets[String(entry.ticket)];
   return state;
 }
+function pendingIntent(state) {
+  const intents = Object.entries(state.tickets).filter(
+    ([, ticket]) => ticket.merge?.status === "intent"
+  );
+  if (intents.length > 1)
+    throw new Error("Ambiguous global merge intents; owner reconciliation required");
+  return intents.length ? { ticket: Number(intents[0][0]), record: intents[0][1] } : null;
+}
 module.exports = {
   activeEntries,
   activeFor,
@@ -76,4 +84,5 @@ module.exports = {
   owns,
   claimActive,
   releaseActive,
+  pendingIntent,
 };

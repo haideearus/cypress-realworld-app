@@ -88,6 +88,25 @@ class AutomaticCoordinator {
         preview: dryRun,
         reason: "Factory stopped by owner; explicit resume is required",
       };
+    const intentOwner = slots.pendingIntent(state);
+    if (intentOwner) {
+      if (!intentOwner.record.automatic)
+        return {
+          ready: false,
+          preview: dryRun,
+          reason: "Pending dependency merge intent must be reconciled",
+        };
+      const entry = slots.activeFor(state, intentOwner.ticket);
+      if (state.version === 2 && entry && !(await terminalParent(this.api, entry)))
+        return { ready: false, preview: dryRun, reason: "Merge intent parent is still running" };
+      return {
+        ready: false,
+        preview: dryRun,
+        kind: "merge",
+        ticket: intentOwner.ticket,
+        reason: "Reconcile the global recorded merge intent before any other work",
+      };
+    }
     if (
       Object.values(state.tickets).some(
         (t) =>

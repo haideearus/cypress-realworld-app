@@ -232,6 +232,96 @@ async function reviewed(x) {
   await x.coordinator.assess(52, grantId, bundle);
 }
 
+async function reviewedV2() {
+  const config = { ...cfg, concurrent: 2, daily: 20 };
+  const x = await fixture(config);
+  await x.ledger.update((state) => {
+    state.version = 2;
+    delete state.active;
+    state.activeTickets = {};
+    return { state };
+  });
+  await reviewed(x);
+  x.config = config;
+  return x;
+}
+test("v2 fallback never selects another merge parent while reviewed owner is live", async () => {
+  const x = await reviewedV2();
+  const before = await x.ledger.read();
+  const observer = new DependencyCoordinator(x.api, x.config, { ...ctx, runId: "200" });
+  const result = await observer.select(false);
+  assert.equal(result.ready, false);
+  assert.deepEqual(await x.ledger.read(), before);
+});
+test("v2 terminal reviewed dependency retires stale proof and reclaims only its slot", async () => {
+  const x = await reviewedV2();
+  x.f.terminal = true;
+  x.f.rows[0].head.sha = "c".repeat(40);
+  const before = (await x.ledger.read()).state;
+  const observer = new DependencyCoordinator(x.api, x.config, { ...ctx, runId: "200" });
+  const result = await observer.select(false);
+  assert.equal(result.mode, "review");
+  const after = (await x.ledger.read()).state;
+  assert.equal(after.activeTickets[52].runId, "200");
+  assert.deepEqual(after.days, before.days);
+  assert.deepEqual(after.grants, before.grants);
+  assert.equal(after.tickets[52].reviews, before.tickets[52].reviews);
+  assert.equal(after.tickets[52].approval, null);
+  assert.equal(after.tickets[52].dependency.attempts.length, 2);
+});
+test("global app intent is routed before a different reviewed dependency", async () => {
+  const x = await reviewedV2();
+  x.f.terminal = true;
+  const appContext = {
+    ...context,
+    runId: "200",
+    workflowRef: policy.AUTOMATIC_WORKFLOW_REF,
+    workflowSha: head,
+    event: "schedule",
+  };
+  await x.ledger.update((state) => {
+    const coding = policy.reserve(state, appContext, x.config);
+    coding.state.tickets[10].automatic = {
+      workflowRef: appContext.workflowRef,
+      workflowSha: head,
+      runId: "200",
+      runAttempt: 1,
+      appSlug: x.config.appSlug,
+    };
+    let next = policy.finish(coding.state, coding.grant.id, { status: "awaiting_review", pr: 30 });
+    const review = policy.reserve(next, { ...appContext, phase: "review" }, x.config);
+    next = policy.finish(review.state, review.grant.id, {
+      status: "reviewed",
+      verdict: "pass",
+      pr: 30,
+      head,
+      evidence: `https://github.com/${policy.REPOSITORY}/actions/runs/200`,
+    });
+    next.tickets[10].merge = {
+      status: "intent",
+      head,
+      pr: 30,
+      at: new Date().toISOString(),
+      runId: "200",
+      runAttempt: 1,
+    };
+    return { state: next };
+  });
+  const before = await x.ledger.read();
+  const { AutomaticCoordinator } = require("../factory/automation.cjs");
+  const prior = x.f.route;
+  x.f.route = (p, ...args) =>
+    p === "/actions/runs/200/attempts/1"
+      ? { id: 200, run_attempt: 1, status: "completed" }
+      : prior(p, ...args);
+  const app = new AutomaticCoordinator(x.api, x.config, { ...appContext, runId: "201" });
+  const result = await app.pick();
+  assert.equal(result.kind, "merge");
+  assert.equal(result.ticket, 10);
+  assert.equal((await x.coordinator.select(false)).ready, false);
+  assert.deepEqual(await x.ledger.read(), before);
+});
+
 test("dependency assessment refreshes evidence only after committing genuine review proof", async () => {
   const x = await fixture();
   const { grantId, bundle } = await reviewSession(x);

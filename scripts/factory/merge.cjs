@@ -1,4 +1,5 @@
 const slots = require("./active-tickets.cjs");
+const { terminalParent } = require("./active-runs.cjs");
 const policy = require("./policy.cjs");
 const { Controller, criteriaHash } = require("./controller.cjs");
 const { Ledger, ROOT } = require("./github.cjs");
@@ -74,7 +75,7 @@ class AutomaticMerger {
     if (
       (state.version === 1
         ? slots.activeEntries(state).length > 0
-        : Boolean(t.merge?.status === "intent")) &&
+        : slots.activeFor(state, ticket) && t.merge?.status === "intent") &&
       !this.mergeLock(state, ticket, t.merge)
     )
       throw new Error("An active ticket holds the factory lock");
@@ -444,6 +445,24 @@ class AutomaticMerger {
     );
   }
   async permitWrite() {}
+  async restoreIntentOwnership(ticket, expected) {
+    await this.ledger.update(async (state) => {
+      const current = this.stateTicket(state, ticket, expected);
+      if (current.merge?.status !== "intent" || !same(current.merge, expected.merge))
+        throw new IntentHeld("Merge intent changed before ownership restoration");
+      const owner = { ticket, runId: current.merge.runId, runAttempt: current.merge.runAttempt };
+      const entry = slots.activeFor(state, ticket);
+      if (entry && !slots.owns(entry, owner))
+        throw new IntentHeld("Another parent owns this ticket");
+      if (!entry) {
+        if (!(await terminalParent(this.api, owner)))
+          throw new IntentHeld("Original merge owner is not confirmed terminal");
+        slots.claimActive(state, owner, this.config.concurrent);
+        policy.audit(state, "automatic_merge_ownership_restored", { ticket, ...owner });
+      }
+      return { state };
+    });
+  }
   async merge(ticket, { dryRun = false } = {}) {
     this.authorize();
     if (!Number.isSafeInteger(ticket) || ticket < 1 || typeof dryRun !== "boolean")
@@ -461,7 +480,10 @@ class AutomaticMerger {
     const t = this.stateTicket(state, ticket);
     // An existing intent may represent a completed write with a lost response.
     // Workflow terminality and still-open metadata never authorize a second PUT.
-    if (t.merge?.status === "intent") return this.confirm(ticket, t, { dryRun });
+    if (t.merge?.status === "intent") {
+      if (!dryRun && !slots.activeFor(state, ticket)) await this.restoreIntentOwnership(ticket, t);
+      return this.confirm(ticket, t, { dryRun });
+    }
     const pr = await this.pr(ticket, t);
     const terminal = await this.reconcile(ticket, t, pr, { dryRun });
     if (terminal) return terminal;
