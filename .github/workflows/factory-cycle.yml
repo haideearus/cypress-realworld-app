@@ -37,6 +37,7 @@ permissions:
 jobs:
   coding:
     permissions:
+      actions: read
       contents: read
       issues: read
       pull-requests: read
@@ -55,6 +56,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
+      actions: read
+      issues: read
       contents: write
       pull-requests: write
     concurrency:
@@ -143,6 +146,7 @@ jobs:
     needs: reserve_review
     if: ${{ needs.reserve_review.outputs.ready == 'true' }}
     permissions:
+      actions: read
       contents: read
       issues: read
       pull-requests: read

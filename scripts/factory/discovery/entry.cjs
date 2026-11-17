@@ -25,6 +25,11 @@ if (role === "health") {
     if (!["node_modules", ".git"].includes(entry))
       fs.cpSync(path.join("/source", entry), path.join(root, entry), { recursive: true });
   fs.symlinkSync("/source/node_modules", path.join(root, "node_modules"), "dir");
+  if (fs.existsSync("/repair-overlay.json"))
+    require("/trusted/overlay.cjs").applyOverlay(
+      root,
+      JSON.parse(fs.readFileSync("/repair-overlay.json", "utf8"))
+    );
   process.chdir(root);
   const env = require("/trusted/runtime.cjs").environment(
     fs.readFileSync("/trusted/head.txt", "utf8").trim()

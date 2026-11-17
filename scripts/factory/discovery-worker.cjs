@@ -43,6 +43,7 @@ async function buildImage(source, contextDir, head) {
   fs.mkdirSync(trusted);
   fs.copyFileSync(path.join(__dirname, "discovery/entry.cjs"), path.join(trusted, "entry.cjs"));
   fs.copyFileSync(path.join(__dirname, "discovery/runtime.cjs"), path.join(trusted, "runtime.cjs"));
+  fs.copyFileSync(path.join(__dirname, "discovery/overlay.cjs"), path.join(trusted, "overlay.cjs"));
   fs.copyFileSync(path.join(__dirname, "discovery-oracles.cjs"), path.join(trusted, "oracles.cjs"));
   fs.writeFileSync(path.join(trusted, "head.txt"), head);
   fs.copyFileSync(
@@ -343,7 +344,10 @@ async function replay(env, inputs, api, config) {
     path.join(env.FACTORY_DISCOVERY_BUNDLE, "evidence.json"),
     JSON.stringify(result)
   );
-  output({ verified: true, outcome: findings.length ? "candidates-assessed" : "no-findings" }, env);
+  output(
+    { assessmentComplete: true, outcome: findings.length ? "candidates-assessed" : "no-findings" },
+    env
+  );
 }
 async function main(env = process.env) {
   p.assertSubscriptionEnv(env);

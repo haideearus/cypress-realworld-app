@@ -57,6 +57,20 @@ async function collectRunActivity({ run, jobs, ledger }) {
     run.head_sha,
     `Workflow ${workflow} is ${stateFor(run.status, run.conclusion)}. Check the linked run for authoritative evidence.`
   );
+  if (workflow === "factory-discovery-intake.yml")
+    for (const job of jobs.filter((j) => ["publish", "replay", "finalize"].includes(j.name)))
+      emit(
+        "discovery",
+        stateFor(job.status, job.conclusion),
+        `finding-${job.name}`,
+        run.id,
+        run.head_sha,
+        job.name === "publish"
+          ? "Verified finding publication job observed; duplicate and quota decisions are in its receipts."
+          : job.name === "replay"
+            ? "Current-main sandbox replay job observed. This is not production or live-monitor coverage."
+            : "Finding intake assessment recorded. Observed resolution is not a factory-authored repair or production verification."
+      );
   const grants = Object.values(state.grants).filter(
     (g) => g.runId === String(run.id) && g.runAttempt === run.run_attempt
   );

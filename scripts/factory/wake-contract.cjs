@@ -29,7 +29,7 @@ const actor = (a) =>
 function validateSignal(s) {
   if (
     !exact(s, "kind,lane,number,head,criteriaHash,revision,sourceRun,sourceAttempt,actor") ||
-    !["issue", "monitor", "dependency-ci", "drain"].includes(s.kind) ||
+    !["issue", "monitor", "finding", "dependency-ci", "drain"].includes(s.kind) ||
     !LANES[s.lane] ||
     !Number.isSafeInteger(s.number) ||
     s.number < 1 ||

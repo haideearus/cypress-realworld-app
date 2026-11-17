@@ -11,6 +11,7 @@ on:
         Dependency maintenance,
         Factory agents,
         Proactive app discovery,
+        Verified discovery finding intake,
         Existing owner PR subscription review,
         Approved production deployment,
         Monitor repair rehearsal,

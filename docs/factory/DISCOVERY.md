@@ -96,9 +96,10 @@ these oracles. Unsupported expectations, inconsistent failures, setup failures
 and ambiguous behavior remain held/triage reports. A verified candidate is not
 a repair, independent review or merge approval.
 
-The next finding-intake stage will add deduplication, current-main replay,
-publication limits (four new bug tickets/day) and normal repair intake. This PR
-creates no finding issues, adds no ready labels and approves/merges nothing.
+The [finding-intake stage](DISCOVERY-INTAKE.md) connects individually verified
+evidence to deduplicated tickets, current-main replay and normal repair intake.
+It has its own explicit metadata setup and stays disabled with discovery off.
+Discovery completion alone creates no ready issue and approves/merges nothing.
 
 ## Later owner rollout
 

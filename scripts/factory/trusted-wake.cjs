@@ -20,7 +20,7 @@ function isTrustedWakeContext(context, lane) {
 async function verifySource(api, signal, bound) {
   const { criteriaHash } = require("./controller.cjs");
   const { eligibleIssue } = require("./automation.cjs");
-  if (signal.kind === "issue" || signal.kind === "monitor") {
+  if (signal.kind === "issue" || signal.kind === "monitor" || signal.kind === "finding") {
     const issue = await api.request("GET", `${ROOT}/issues/${signal.number}`);
     if (
       (!bound && issue.state !== "open") ||
@@ -42,6 +42,23 @@ async function verifySource(api, signal, bound) {
       });
       if (!proof || proof.runId !== signal.sourceRun || proof.incidentId !== signal.revision)
         throw Error("Wake monitor receipt changed");
+    }
+    if (signal.kind === "finding") {
+      const proof = await require("./discovery-origin.cjs").verifyDiscoveryIssue(api, issue, {
+        requireCurrent: !bound,
+      });
+      const record =
+        proof &&
+        (await new (require("./discovery-finding-store.cjs").FindingStore)(api).read()).state
+          .records[proof.key];
+      if (
+        !proof ||
+        record.intake.id !== signal.revision ||
+        record.intake.context.runId !== signal.sourceRun ||
+        record.intake.context.runAttempt !== signal.sourceAttempt ||
+        record.intake.head !== signal.head
+      )
+        throw Error("Wake discovery intake changed");
     }
     return;
   }

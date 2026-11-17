@@ -150,6 +150,7 @@ jobs:
     needs: [select, reserve]
     if: ${{ needs.reserve.outputs.grantId != '' && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' }}
     permissions:
+      actions: read
       contents: read
       issues: read
       pull-requests: read

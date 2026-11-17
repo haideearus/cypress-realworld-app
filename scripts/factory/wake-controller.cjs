@@ -82,6 +82,45 @@ async function classifySignal({ api, event, context, ledger = new Ledger(api) })
   const source = event.workflow_run;
   if (!source || !c.ID.test(String(source.id)) || !Number.isSafeInteger(source.run_attempt))
     return null;
+  if (source.path === ".github/workflows/factory-discovery-intake.yml") {
+    const r = await verifiedRun(
+      api,
+      String(source.id),
+      source.run_attempt,
+      "factory-discovery-intake.yml"
+    );
+    let registry;
+    try {
+      registry = (await new (require("./discovery-finding-store.cjs").FindingStore)(api).read())
+        .state;
+    } catch (error) {
+      if (error.status === 404) return null;
+      throw error;
+    }
+    for (const row of Object.values(registry.records)) {
+      if (
+        row.intake?.outcome !== "ready" ||
+        row.intake.context.runId !== String(r.id) ||
+        state.tickets[String(row.publication?.issue)]
+      )
+        continue;
+      const issue = await api.request("GET", `${ROOT}/issues/${row.publication.issue}`);
+      const proof = await require("./discovery-origin.cjs").verifyDiscoveryIssue(api, issue);
+      if (!proof || issue.state !== "open") continue;
+      return {
+        kind: "finding",
+        lane: "app",
+        number: issue.number,
+        head: row.intake.head,
+        criteriaHash: proof.criteriaHash,
+        revision: row.intake.id,
+        sourceRun: String(r.id),
+        sourceAttempt: r.run_attempt,
+        actor: { login: r.actor.login, id: r.actor.id },
+      };
+    }
+    return null;
+  }
   if (source.path === ".github/workflows/factory-monitor.yml") {
     const r = await verifiedRun(api, String(source.id), source.run_attempt, "factory-monitor.yml");
     const { state: monitor } = await new MonitorStore(api).read();
@@ -143,9 +182,12 @@ async function classifySignal({ api, event, context, ledger = new Ledger(api) })
     return null;
   }
   if (
-    !["factory-automatic.yml", "factory-dependencies.yml", "factory-agents.yml", "factory-discovery.yml"].some(
-      (f) => source.path === `.github/workflows/${f}`
-    )
+    ![
+      "factory-automatic.yml",
+      "factory-dependencies.yml",
+      "factory-agents.yml",
+      "factory-discovery.yml",
+    ].some((f) => source.path === `.github/workflows/${f}`)
   )
     return null;
   const r = await verifiedRun(

@@ -220,6 +220,34 @@ function validateState(state) {
         ticket.monitor.criteriaHash !== ticket.criteriaHash)
     )
       deny("Invalid monitor ticket provenance");
+    if (ticket.finding !== undefined) {
+      const f = require("./discovery-finding-contract.cjs");
+      const first = grants.find((g) => g.phase === "code");
+      if (
+        !record(ticket.finding) ||
+        Object.keys(ticket.finding).sort().join(",") !== "intake,origin" ||
+        ticket.origin !== "factory" ||
+        !ticket.automatic ||
+        ticket.monitor ||
+        !first
+      )
+        deny("Invalid discovery finding repair provenance");
+      f.validateOriginProof(ticket.finding.origin);
+      f.validateReplay(ticket.finding.intake);
+      if (
+        ticket.finding.origin.issue !== Number(id) ||
+        ticket.finding.origin.criteriaHash !== ticket.criteriaHash ||
+        ticket.finding.intake.key !== ticket.finding.origin.key ||
+        ticket.finding.intake.outcome !== "ready" ||
+        ticket.finding.intake.head !== first.head
+      )
+        deny("Invalid discovery finding repair receipt");
+    }
+    if (
+      ticket.findingRedHash !== undefined &&
+      (!ticket.finding || !/^[a-f0-9]{64}$/.test(ticket.findingRedHash))
+    )
+      deny("Invalid preserved finding RED");
     if (ticket.merge !== undefined) {
       const m = ticket.merge;
       const validTime =

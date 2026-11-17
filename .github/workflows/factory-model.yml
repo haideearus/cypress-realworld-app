@@ -28,6 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: ${{ fromJSON(vars.FACTORY_RUN_TIMEOUT_MINUTES || '15') }}
     permissions:
+      actions: read
       contents: read
       issues: read
       pull-requests: read
@@ -78,8 +79,32 @@ jobs:
           persist-credentials: false
       - name: Reject secrets in the reserved source before model file access
         run: node "$RUNNER_TEMP/factory-control/secret-scan.cjs" source
+      - name: Resolve receipt-backed discovery origin
+        id: finding
+        run: node "$RUNNER_TEMP/factory-control/discovery-repair.cjs"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FACTORY_VARIABLES: ${{ toJSON(vars) }}
+          FACTORY_INPUTS: ${{ toJSON(inputs) }}
+          FACTORY_OPERATION: resolve
+      - if: ${{ steps.finding.outputs.finding == 'true' }}
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: ${{ steps.finding.outputs.artifactName }}
+          run-id: ${{ steps.finding.outputs.sourceRun }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/finding-original
+      - name: Prove finding RED without model credentials
+        if: ${{ steps.finding.outputs.finding == 'true' }}
+        run: node "$RUNNER_TEMP/factory-control/discovery-repair.cjs"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FACTORY_VARIABLES: ${{ toJSON(vars) }}
+          FACTORY_INPUTS: ${{ toJSON(inputs) }}
+          FACTORY_OPERATION: red
+          FACTORY_FINDING_INPUT: ${{ runner.temp }}/finding-original
       - name: Install the locked application tools without model credentials
-        if: ${{ inputs.phase == 'code' }}
+        if: ${{ inputs.phase == 'code' && steps.finding.outputs.finding != 'true' }}
         run: |
           corepack enable && corepack prepare yarn@1.22.22 --activate
           yarn install --frozen-lockfile --production=false
@@ -92,6 +117,7 @@ jobs:
           FACTORY_VARIABLES: ${{ toJSON(vars) }}
           FACTORY_OPERATION: prepare
           FACTORY_INPUTS: ${{ toJSON(inputs) }}
+          FACTORY_FINDING_INPUT: ${{ runner.temp }}/finding-original
       - name: Reject secrets in prepared context before the model sees it
         run: node "$RUNNER_TEMP/factory-control/secret-scan.cjs" file "$GITHUB_WORKSPACE/.factory-input/context.json"
       - name: Reject secrets in dependency facts before audit upload
@@ -144,6 +170,16 @@ jobs:
           FACTORY_INPUTS: ${{ toJSON(inputs) }}
           FACTORY_REVIEW_RESULT: ${{ steps.model.outputs.structured_output }}
           FACTORY_ARTIFACT_DIR: ${{ runner.temp }}/factory-artifact
+      - name: Prove finding GREEN without model credentials
+        if: ${{ steps.finding.outputs.finding == 'true' }}
+        run: node "$RUNNER_TEMP/factory-control/discovery-repair.cjs"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FACTORY_VARIABLES: ${{ toJSON(vars) }}
+          FACTORY_INPUTS: ${{ toJSON(inputs) }}
+          FACTORY_OPERATION: green
+          FACTORY_FINDING_INPUT: ${{ runner.temp }}/finding-original
+          FACTORY_ARTIFACT_DIR: ${{ runner.temp }}/factory-artifact
       - name: Reject secret-bearing role output before upload
         run: node "$RUNNER_TEMP/factory-control/secret-scan.cjs" file "$RUNNER_TEMP/factory-artifact/bundle.json"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -152,3 +188,10 @@ jobs:
           path: ${{ runner.temp }}/factory-artifact/bundle.json
           if-no-files-found: error
           retention-days: 7
+      - if: ${{ steps.finding.outputs.finding == 'true' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: finding-repair-${{ inputs.grantId }}
+          path: ${{ runner.temp }}/factory-artifact/finding-*.json
+          if-no-files-found: error
+          retention-days: 14
