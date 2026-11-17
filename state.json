@@ -1459,7 +1459,8 @@
       "ci": {
         "requestId": "8f45f0ba-e465-4eca-8c27-5f549e0bb00f",
         "head": "1312585bd4787c3344737b45020d94eb12c27881",
-        "runId": null
+        "runId": 44077933264,
+        "passed": true
       },
       "feedback": "Dependency subscription review unavailable; no automatic retry of this head",
       "analysis": {
