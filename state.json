@@ -1564,7 +1564,11 @@
       "approval": null,
       "criteriaHash": "71fb9032726fbae0aa1820abd0ca0c5da29f087a42120917318dc79571f5a650",
       "branch": "agent/events-activity",
-      "ci": null
+      "ci": {
+        "requestId": "46f82f49-66b5-448f-ab77-748cab5e7d55",
+        "head": "47db72c611b0d7dba02e29b25aa2bc9110c03ea5",
+        "runId": null
+      }
     }
   },
   "grants": {
