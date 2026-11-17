@@ -54,7 +54,8 @@
       79,
       80,
       82,
-      85
+      85,
+      87
     ]
   },
   "tickets": {
@@ -1607,6 +1608,19 @@
         "passed": true
       },
       "feedback": "{\"head\":\"5b99dfb43375bdef1a3dadfc1b363059d757430d\",\"verdict\":\"pass\",\"summary\":\"Reviewed the stage-3 discovery implementation (ticket #85) at commit 5b99dfb, which is already applied in the working tree. The change adds an opt-in \\\"Proactive app discovery\\\" workflow/role with: a ledger-integrated reservation system (discovery-policy.cjs) that shares the existing 20-ticket daily cap and concurrency slots, caps discovery to two sessions/day/Bucharest and one grant per source, and consumes the grant on failure/interruption (verified by tests); a Docker-isolated sandbox (discovery-sandbox.cjs/Dockerfile/entry.cjs) with read-only root, dropped caps, no-new-privileges, internal-only network, env scrubbing, pids/memory/cpu ceilings, and a 4-batch × 5-minute budget; an MCP stdio broker (discovery-broker.cjs) exposing only list/read-source, write-test, run-batch, read-result and write-report (bounded to ≤8 proposals and ≤2 findings), with no shell/network/Bash/Agent tools and a checksum-pinned helper set; a credential-free replay/oracle stage (discovery-worker.cjs, discovery-oracles.cjs, discovery-evidence.cjs) that double-replays each finding against a fixed trusted oracle catalog and holds non-deterministic/unsupported/environment failures rather than treating them as confirmed; and integration with the existing stop/quarantine/wake/activity-journal infrastructure (factory-discovery.yml added to AGENT_WORKFLOWS and wake drain sources). No factory-ready labels or repair tickets are created; discovery source issues are explicitly unlabelled audit records, and publication is explicitly deferred (\\\"not-installed\\\"). Opt-in gating (FACTORY_DISCOVERY_ENABLED) blocks real reservations even when the workflow runs manually, while preview/initialize paths are proven to make zero ledger/model calls in tests. Workflow env explicitly blanks ANTHROPIC_*/API-key variables, and policy.cjs forbids any non-subscription auth env. Test coverage (scripts/tests/factory-discovery-*.test.cjs) exercises the budget/cap/duplicate-source/stop-inventory invariants, path traversal/symlink rejection, container isolation flags, credential scrubbing, MCP tool-arg parsing against the real pinned action source, and (gated behind CI-only env flags) a real Docker fixture plus a real application image smoke test (API/unit/Cypress) with no model. These are wired into `yarn test:factory` via the existing glob and into factory-ci.yml. I did not execute any code or docker commands myself (read-only review) and relied on static inspection plus the existing test files shown above.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"discovery-worker.cjs replay() emits a single top-level `verified: true` whenever the replay job itself completes without throwing, regardless of whether any individual finding was classified 'verified' vs 'held' (discovery-evidence.cjs correctly tracks per-finding status). This feeds discovery-run.cjs's finish step, which sets ticket status to 'discovery_complete' vs 'blocked' based on that flag. It does not violate this ticket's acceptance criteria (no publication happens at this stage regardless, and per-finding status is preserved in evidence.json for the next stage), but the naming is slightly misleading and worth tightening before the publication stage consumes it.\"}]}"
+    },
+    "87": {
+      "coding": 0,
+      "origin": "owner-pr",
+      "reviews": 1,
+      "retries": 0,
+      "head": "0f50c4c2fcf05b77618928bc404d7191ef1376b1",
+      "status": "reviewing",
+      "pr": 88,
+      "approval": null,
+      "criteriaHash": "e176a62a4ef2b2fd45fe09a7981538ce682b7e981daf8854003477f3cb047aa6",
+      "branch": "agent/discovery-finding-intake",
+      "ci": null
     }
   },
   "grants": {
@@ -2330,9 +2344,24 @@
       "status": "finished",
       "at": "2026-11-17T18:15:00.009Z",
       "outcome": "reviewed"
+    },
+    "ec5870bd-23c7-41e9-b7a9-d3842d09ace5": {
+      "id": "ec5870bd-23c7-41e9-b7a9-d3842d09ace5",
+      "ticket": 87,
+      "phase": "review",
+      "slot": "existing",
+      "runId": "44163988725",
+      "runAttempt": 1,
+      "head": "0f50c4c2fcf05b77618928bc404d7191ef1376b1",
+      "status": "reserved",
+      "at": "2026-11-17T19:56:57.136Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 87,
+    "runId": "44163988725",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -4347,6 +4376,16 @@
       "grant": "91d3d0da-3db0-4bf1-8270-0391f9d84aad",
       "status": "reviewed",
       "head": "5b99dfb43375bdef1a3dadfc1b363059d757430d"
+    },
+    {
+      "at": "2026-11-17T19:56:57.136Z",
+      "event": "reserved",
+      "ticket": 87,
+      "grant": "ec5870bd-23c7-41e9-b7a9-d3842d09ace5",
+      "phase": "review",
+      "runId": "44163988725",
+      "runAttempt": 1,
+      "actor": "haideearus"
     }
   ]
 }
