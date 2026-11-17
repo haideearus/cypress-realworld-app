@@ -3014,6 +3014,29 @@
       },
       "status": "published",
       "commentId": 6963040984
+    },
+    "374109d9b57db1547b22ca9d011df21be4d9a99c087b1f02902937a70b0006f5": {
+      "event": {
+        "id": "374109d9b57db1547b22ca9d011df21be4d9a99c087b1f02902937a70b0006f5",
+        "producer": {
+          "runId": "44190004332",
+          "runAttempt": 1,
+          "workflow": "factory-agents.yml",
+          "workflowSha": "0cfd0fda127cdde9067394779424790366408cc8",
+          "phase": "job-134422749973-finish",
+          "actor": "haideearus"
+        },
+        "kind": "review",
+        "state": "success",
+        "subject": 90,
+        "head": "b76b212991650e9c651efa2a9bff7b75d838dc58",
+        "summary": "Role job completed with success; trusted validation decides its result.",
+        "links": [
+          "https://github.com/haideearus/cypress-realworld-app/actions/runs/44190004332"
+        ]
+      },
+      "status": "intent",
+      "commentId": null
     }
   },
   "lastMonitor": {
