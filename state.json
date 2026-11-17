@@ -1620,7 +1620,11 @@
       "approval": null,
       "criteriaHash": "e176a62a4ef2b2fd45fe09a7981538ce682b7e981daf8854003477f3cb047aa6",
       "branch": "agent/discovery-finding-intake",
-      "ci": null
+      "ci": {
+        "requestId": "d6a6ac37-afb4-4fd0-b988-63b3dbb154b8",
+        "head": "0f50c4c2fcf05b77618928bc404d7191ef1376b1",
+        "runId": null
+      }
     }
   },
   "grants": {
