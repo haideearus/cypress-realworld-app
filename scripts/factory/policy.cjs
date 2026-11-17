@@ -38,11 +38,17 @@ function readConfig(vars) {
     ["FACTORY_AUTOMATION_ENABLED", "automatic"],
     ["FACTORY_AUTOMERGE_ENABLED", "autoMerge"],
     ["FACTORY_EVENT_PICKUP_ENABLED", "eventPickup"],
+    ["FACTORY_ACTIVITY_LOG_ENABLED", "activityLog"],
   ]) {
     if (![undefined, "true", "false"].includes(vars[key])) deny(`Invalid automatic boolean ${key}`);
     config[name] = vars[key] === "true";
   }
   config.appClientId = vars.FACTORY_GITHUB_APP_CLIENT_ID;
+  if(vars.FACTORY_ACTIVITY_ISSUE_NUMBER!==undefined) {
+    config.activityIssue=integer(vars.FACTORY_ACTIVITY_ISSUE_NUMBER,"activity journal");
+    if(config.activityIssue<1)deny("Invalid activity journal");
+  }
+  if(config.activityLog && !config.activityIssue)deny("Activity journal required");
   config.appSlug = vars.FACTORY_GITHUB_APP_SLUG;
   if (
     (config.appClientId !== undefined &&

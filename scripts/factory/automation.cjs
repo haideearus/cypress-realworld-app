@@ -56,7 +56,7 @@ class AutomaticCoordinator {
       if (!Array.isArray(rows) || rows.length > 100)
         throw new Error("Invalid bounded issue queue response");
       const candidates = rows
-        .filter((issue) => queueIssue(issue) && !state.tickets[String(issue.number)])
+        .filter((issue) => queueIssue(issue) && issue.number!==this.config.activityIssue && !state.tickets[String(issue.number)])
         .sort(
           (left, right) =>
             Date.parse(left.created_at) - Date.parse(right.created_at) || left.number - right.number
@@ -219,7 +219,12 @@ async function main(env = process.env) {
     return result;
   }
   const api = new GitHub({ token: env.GH_TOKEN });
-  const context = await require("./trusted-wake.cjs").loadWakeContext(api, runtimeContext(env), env, { bind: operation === "auto_pick" });
+  const context = await require("./trusted-wake.cjs").loadWakeContext(
+    api,
+    runtimeContext(env),
+    env,
+    { bind: operation === "auto_pick" }
+  );
   assertAutomaticContext(context);
   let result;
   if (operation === "auto_pick") {
@@ -230,6 +235,7 @@ async function main(env = process.env) {
       dryRun,
     });
   }
+  await require("./activity.cjs").recordResult(api, context, result, env);
   output(result, env);
   return result;
 }

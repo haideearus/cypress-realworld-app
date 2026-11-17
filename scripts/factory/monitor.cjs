@@ -259,6 +259,12 @@ async function main(env = process.env) {
   }
   const summary = `## Production monitor\n\n\`\`\`json\n${JSON.stringify(result, null, 2)}\n\`\`\`\n\nNo model invocation. An unhealthy app can be reported by a successful monitor run.\n`;
   if (env.GITHUB_STEP_SUMMARY) fs.appendFileSync(env.GITHUB_STEP_SUMMARY, summary);
+  await require("./activity.cjs").recordMonitorResult(
+    new GitHub({ token: env.GITHUB_TOKEN, fetch: publisherFetch() }),
+    monitorContext(env),
+    result,
+    env
+  );
   console.log(JSON.stringify(result));
   return result;
 }

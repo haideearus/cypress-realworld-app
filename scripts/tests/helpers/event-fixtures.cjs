@@ -18,7 +18,7 @@ function fixture(){
     if(method==="GET"&&path.includes("/actions/workflows/"))return {id:80,path:".github/workflows/factory-wake.yml",state:"active"};
     if(method==="GET"&&/\/actions\/runs\/800(?:\/attempts\/1)?$/.test(path))return structuredClone(s.run);
     if(method==="GET"&&path.endsWith("/git/ref/heads/main"))return {object:{sha}};
-    if(method==="POST"&&path.endsWith("/dispatches")){s.intentAtDispatch=structuredClone(Object.values(s.store.state.receipts)[0]);s.dispatches.push(body);if(s.uncertain)throw Error("transport uncertainty");return null;}
+    if(method==="POST"&&path.endsWith("/dispatches")){s.intentAtDispatch=structuredClone(Object.values((s.store.state||(await s.store.read()).state).receipts)[0]);s.dispatches.push(body);if(s.uncertain)throw Error("transport uncertainty");return null;}
     throw Error("Unexpected fixture request "+method+" "+path);
   }};
   return s;

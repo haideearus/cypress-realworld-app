@@ -1,0 +1,57 @@
+name: Factory activity
+on:
+  issues:
+    types: [opened, edited, labeled, unlabeled, reopened, closed]
+  workflow_run:
+    workflows:
+      [
+        Production monitor,
+        Factory CI,
+        Automatic factory,
+        Dependency maintenance,
+        Factory agents,
+        Existing owner PR subscription review,
+        Approved production deployment,
+        Monitor repair rehearsal,
+        Acknowledge recovered monitor incident,
+      ]
+    types: [requested, in_progress, completed]
+  workflow_dispatch:
+    inputs:
+      operation:
+        type: choice
+        options: [preview, initialize]
+        default: preview
+      preview:
+        type: boolean
+        default: true
+      run_id:
+        description: Allowlisted source run to inspect without publishing
+        type: string
+        default: ""
+permissions:
+  contents: read
+jobs:
+  observe:
+    if: ${{ github.repository == 'haideearus/cypress-realworld-app' && github.ref == 'refs/heads/main' && github.run_attempt == 1 && (github.event_name == 'workflow_dispatch' || vars.FACTORY_ACTIVITY_LOG_ENABLED == 'true') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: write
+      actions: read
+      issues: write
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+          sparse-checkout: scripts/factory
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.20.0
+      - name: Observe trusted lifecycle metadata and publish scanned activity
+        run: node scripts/factory/activity-observer.cjs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          FACTORY_VARIABLES: ${{ toJSON(vars) }}

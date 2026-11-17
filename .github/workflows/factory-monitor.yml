@@ -68,4 +68,5 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           FACTORY_MONITOR_ENABLED: ${{ vars.FACTORY_MONITOR_ENABLED }}
           MONITOR_DRY_RUN: ${{ toJSON(inputs.dry_run) }}
+          FACTORY_VARIABLES: ${{ toJSON(vars) }}
         run: node scripts/factory/monitor.cjs
