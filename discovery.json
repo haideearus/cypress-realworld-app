@@ -1,5 +1,22 @@
 {
   "version": 1,
   "repository": "haideearus/cypress-realworld-app",
-  "sources": {}
+  "sources": {
+    "664c8235ef170593584ddc7988694a1fca0296174ba02a2ed87ca97411fcf238": {
+      "proof": {
+        "version": 1,
+        "head": "0cfd0fda127cdde9067394779424790366408cc8",
+        "ciRunId": "44172085712",
+        "charter": "journeys",
+        "day": "2026-11-17",
+        "key": "664c8235ef170593584ddc7988694a1fca0296174ba02a2ed87ca97411fcf238",
+        "runId": "44179920739",
+        "runAttempt": 1,
+        "workflowSha": "0cfd0fda127cdde9067394779424790366408cc8",
+        "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-discovery.yml@refs/heads/main"
+      },
+      "status": "intent",
+      "issue": null
+    }
+  }
 }
