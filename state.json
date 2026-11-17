@@ -1511,7 +1511,11 @@
       "approval": null,
       "criteriaHash": "a5d7912d3a1c98d9c7218614d18def2438e0224035e56fdff3948569d04eb5dd",
       "branch": "agent/80-two-ticket-foundation",
-      "ci": null
+      "ci": {
+        "requestId": "f3165442-d7c7-4d1e-90f4-8da829383759",
+        "head": "dca1bb2cb95b4cc832e3bd55bde84877f5980a3c",
+        "runId": null
+      }
     }
   },
   "grants": {
