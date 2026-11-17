@@ -1425,8 +1425,16 @@
       "origin": "dependency-pr",
       "head": "1312585bd4787c3344737b45020d94eb12c27881",
       "pr": 79,
-      "status": "reviewing",
-      "approval": null,
+      "status": "reviewed",
+      "approval": {
+        "head": "1312585bd4787c3344737b45020d94eb12c27881",
+        "pr": 79,
+        "grant": "249629cf-b9b1-4106-be38-2463419d3218",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/44077771645"
+      },
       "branch": "dependabot/npm_and_yarn/vite-8.2.4",
       "criteriaHash": "f3945c4279419102a77af55de2af3cebe4cdec36256337cb9cf1c2f0b069f7e1",
       "dependency": {
@@ -1462,7 +1470,7 @@
         "runId": 44077933264,
         "passed": true
       },
-      "feedback": "Dependency subscription review unavailable; no automatic retry of this head",
+      "feedback": "{\"head\":\"1312585bd4787c3344737b45020d94eb12c27881\",\"verdict\":\"pass\",\"summary\":\"This PR (#79) is a yarn.lock-only dedupe plus a patch-level vite bump (8.2.2→8.2.4); package.json's `\\\"vite\\\": \\\"^8.2.2\\\"` constraint is unchanged and 8.2.4 satisfies it. Every new/retained resolution (fdir 6.5.0, picomatch 4.0.7, postcss 8.5.26, tinyglobby 0.2.17, vite 8.2.4) has integrity hashes in the diff that exactly match the trusted registry facts, and dependency graphs stay internally consistent (e.g. nanoid@^3.3.11 is safely dropped because its only consumer, postcss 8.5.8, was removed; postcss 8.5.26 still pulls nanoid via ^3.3.17→3.3.18). No evidence of a package-takeover or provenance issue. Security-wise, the bump fully clears GHSA-vfpm-58rq-9qcg (only affected vite 8.2.0–8.2.4, now resolved at the fix boundary). The other vite advisories in remainingBaseline also list 8.2.0-8.2.4 fix boundaries but stay \\\"remaining\\\" only because they additionally match the separate, untouched `vite@^5.0.0 || ^6.0.0 || ^7.0.0-0` entry (resolves to 7.0.6, pulled in transitively by vitest/vite-plugin-eslint) — that entry is unchanged by this diff, so those advisories are a pre-existing, out-of-scope condition, not a regression introduced here. CI at this exact head (run 44077933264) passed its full job, which includes `yarn build:ci` (actually invoking vite 8.2.4 via vite.config.ts) and the full cypress API/UI regression suite, giving reasonable indirect signal the bump didn't break the build/toolchain.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"The dependencyFacts packet's ciEvidence.testFiles/sourceReferences (UserSettingsForm.test.tsx, auth.spec.ts, bankaccounts.spec.ts, user-settings.spec.ts) are unrelated to this dependency-only change and appear carried over from a different ticket (#81). They should not be treated as targeted regression coverage for the vite/postcss/picomatch/fdir/tinyglobby bump; there is no dependency-specific test (e.g. a build smoke test asserting vite 8.2.4's output) beyond the fact that the generic `yarn build:ci` + cypress regression suite happened to pass end-to-end in the same CI job.\"},{\"severity\":\"minor\",\"message\":\"The vite 7.0.6 entry (pulled in transitively via vitest/vite-plugin-eslint's `vite@^5.0.0 || ^6.0.0 || ^7.0.0-0` peer range) still carries multiple OSV advisories (GHSA-587h-7wmj-h5pm, GHSA-698v-4r3x-3vcv, GHSA-9jrq-w75r-8gcw, GHSA-r825-w8mm-5pxw, GHSA-rq7h-c2jc-7f22, GHSA-4w7w-66w2-5vf9, GHSA-93m4-6634-74q7, GHSA-fx2h-pf6j-xcff, GHSA-g4jq-h2w9-997c, GHSA-jqfw-vq24-v9c3, GHSA-p9ff-h696-f583, GHSA-v6wh-96g9-6wx3). This PR correctly leaves that entry untouched (out of its bounded scope), but it means the app still has a vulnerable vite copy installed via the test runner's peer dependency; worth a follow-up ticket to bump vite-plugin-eslint/vitest's peer range once available upstream.\"}]}",
       "analysis": {
         "version": 2,
         "repository": "haideearus/cypress-realworld-app",
@@ -2230,15 +2238,12 @@
       "runId": "44077771645",
       "runAttempt": 1,
       "head": "1312585bd4787c3344737b45020d94eb12c27881",
-      "status": "reserved",
-      "at": "2026-11-17T11:58:49.379Z"
+      "status": "finished",
+      "at": "2026-11-17T11:58:49.379Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 79,
-    "runId": "44077771645",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -4199,6 +4204,14 @@
       "phase": "review",
       "runId": "44077771645",
       "runAttempt": 1
+    },
+    {
+      "at": "2026-11-17T12:02:54.114Z",
+      "event": "finished",
+      "ticket": 79,
+      "grant": "249629cf-b9b1-4106-be38-2463419d3218",
+      "status": "reviewed",
+      "head": "1312585bd4787c3344737b45020d94eb12c27881"
     }
   ]
 }
