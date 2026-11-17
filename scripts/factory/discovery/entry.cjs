@@ -57,7 +57,7 @@ if (role === "health") {
         `import {defineConfig} from 'vitest/config';export default defineConfig(${JSON.stringify(require("/trusted/runtime.cjs").vitestConfig())});`
       );
       cmd = "yarn";
-      args = ["vitest", "run", "--config", "discovery.config.mjs"];
+      args = ["vitest", "run", "--config", "discovery.config.mjs", "--configLoader", "native"];
     } else if (mode === "cypress") {
       fs.writeFileSync(
         "discovery.config.cjs",

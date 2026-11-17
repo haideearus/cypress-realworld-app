@@ -32,6 +32,9 @@ Test containers retain a 512-process/thread ceiling for Cypress and its Node
 workers; app and oracle containers retain 256. All keep a three-gigabyte memory
 ceiling and two-CPU quota. Unit caches use disposable `/work` scratch, keeping
 installed packages read-only. Raw output is bounded and overflow holds the batch.
+The plain JavaScript unit config uses Vite's native loader, avoiding temporary
+configuration bundles beside read-only dependencies. Native CI measured 358
+tasks during browser login, exceeding the former 256-task test ceiling.
 The test container shares only its own disposable app container's network
 namespace, preserving the unchanged browser/API localhost origins; it never
 shares the host namespace.
@@ -115,7 +118,10 @@ Do not execute these steps merely because this document exists.
    also permits later scheduled/current-main sweeps; it is a separate rollout.
    One audit source and one consumed grant cover one Claude Pro session.
 5. Inspect both original and trusted replay evidence. Finding publication stays
-   unavailable until the next implementation stage is accepted.
+   unavailable until the next implementation stage is accepted. When the entire
+   trial finishes, save `FACTORY_DISCOVERY_ENABLED=false` before restoring any
+   previous factory switches; do not leave recurring discovery enabled as a side
+   effect of a one-session trial.
 
 Do not increase live concurrency here. The existing stopped/idle owner migration
 is still required before concurrency two. Emergency stop inventories the new

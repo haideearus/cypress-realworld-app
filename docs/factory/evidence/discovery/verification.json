@@ -68,6 +68,11 @@
       "command": "node --test scripts/tests/factory-discovery-runtime.test.cjs",
       "before": "unit cache did not have an explicit disposable location",
       "after": "trusted generated unit config uses /work/vitest-cache; native image test exercises a real application import"
+    },
+    {
+      "command": "FACTORY_DISCOVERY_IMAGE_TEST=true node --test scripts/tests/factory-discovery-image.test.cjs",
+      "before": "256-task ceiling stalls Cypress; bundled Vitest config attempts read-only node_modules/.vite-temp",
+      "after": "bounded512 test tasks, writable scratch cache and native config loader; final native API/unit/browser acceptance required"
     }
   ],
   "localDocker": "daemon unavailable; no claim of local container success",
@@ -84,5 +89,18 @@
     "cpus": 2,
     "batchMinutes": 5,
     "unitCache": "disposable /work scratch"
+  },
+  "nativeRuntimeEvidence": {
+    "run": 44140418081,
+    "head": "c255ccad6025bce704c1e102be562b03e9fb8116",
+    "api": "passed",
+    "browser": "passed",
+    "browserPeakTasks": 358,
+    "unit": "RED: Vite temporary config attempted mkdir under read-only node_modules; native loader correction pending final native verification"
+  },
+  "localNativeConfigLoader": {
+    "command": "yarn vitest run --config generated-plain-JavaScript-config --configLoader native",
+    "passed": 10,
+    "failed": 0
   }
 }
