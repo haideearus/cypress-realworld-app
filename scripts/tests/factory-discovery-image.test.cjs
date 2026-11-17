@@ -33,7 +33,11 @@ test(
         request: { mode: "cypress", file: "login.cy.ts" },
       });
       // Bounded raw smoke output is synthetic and contains no provider or live credentials.
-      if (result.code !== 0) console.log(result.log.slice(-16000));
+      if (result.code !== 0) {
+        console.log(JSON.stringify({ exitState: result.exitState }));
+        console.log(result.log.slice(0, 22000));
+        console.log(result.log.slice(-6000));
+      }
       assert.equal(result.code, 0, "actual app startup, offline Yarn or browser/API login failed");
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
