@@ -1673,7 +1673,11 @@
       "approval": null,
       "criteriaHash": "62df0948926c5faea13bc8b6cd5eb6200f7bf8a9c42af2e6c050dc8bf8a26722",
       "branch": "agent/discovery-privacy-oracles",
-      "ci": null
+      "ci": {
+        "requestId": "309d4172-c1f8-408c-a26e-816b46372383",
+        "head": "b76b212991650e9c651efa2a9bff7b75d838dc58",
+        "runId": null
+      }
     }
   },
   "grants": {
