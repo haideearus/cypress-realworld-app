@@ -4,7 +4,14 @@ on:
     types: [opened, labeled, reopened, edited]
   workflow_run:
     workflows:
-      [Production monitor, Factory CI, Automatic factory, Dependency maintenance, Factory agents]
+      [
+        Production monitor,
+        Factory CI,
+        Automatic factory,
+        Dependency maintenance,
+        Factory agents,
+        Proactive app discovery,
+      ]
     types: [completed]
   workflow_dispatch:
     inputs:

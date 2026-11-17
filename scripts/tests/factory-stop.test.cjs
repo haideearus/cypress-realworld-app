@@ -14,6 +14,7 @@ function fixture({
   two = false,
   partial = false,
   omitSecond = false,
+  discovery = false,
 } = {}) {
   let elapsed = 0;
   let state = policy.reserve(
@@ -27,8 +28,35 @@ function fixture({
     delete state.active;
     state = policy.reserve(
       state,
-      { ...context, ticket: 11, runId: "101" },
-      { ...policy.readConfig(vars), concurrent: 2 }
+      discovery
+        ? (() => {
+            const d = require("../factory/discovery-contract.cjs");
+            const day = policy.dayKey(new Date(), "Europe/Bucharest");
+            return {
+              ...context,
+              ticket: 11,
+              runId: "101",
+              phase: "discover",
+              slot: "discovery",
+              origin: "discovery-sweep",
+              workflowSha: context.head,
+              workflowRef: d.WORKFLOW_REF,
+              discovery: {
+                version: 1,
+                head: context.head,
+                charter: "feed",
+                day,
+                ciRunId: "99",
+                key: d.sweepKey(context.head, "feed", day),
+                runId: "101",
+                runAttempt: 1,
+                workflowSha: context.head,
+                workflowRef: d.WORKFLOW_REF,
+              },
+            };
+          })()
+        : { ...context, ticket: 11, runId: "101" },
+      { ...policy.readConfig(vars), concurrent: 2, discovery: true }
     ).state;
   }
   if (quarantined) {
@@ -51,7 +79,14 @@ function fixture({
       status: "in_progress",
       run_attempt: 1,
     },
-    { id: 101, path: ".github/workflows/factory-automatic.yml", status: "queued", run_attempt: 1 },
+    {
+      id: 101,
+      path: discovery
+        ? ".github/workflows/factory-discovery.yml"
+        : ".github/workflows/factory-automatic.yml",
+      status: "queued",
+      run_attempt: 1,
+    },
     { id: 102, path: ".github/workflows/factory-deploy.yml", status: "waiting", run_attempt: 1 },
   ];
   const writes = [];
@@ -135,6 +170,17 @@ function fixture({
     },
   };
 }
+test("two-parent stop cancels code and discovery without refunding either", async () => {
+  const f = fixture({ two: true, discovery: true, omitSecond: true });
+  assert.equal(Object.values(f.state.grants).find((g) => g.ticket === 11).phase, "discover");
+  const result = await stopFactory({ ...f.args, execute: true });
+  assert.equal(result.stopped, true);
+  assert.deepEqual(f.state.activeTickets, {});
+  assert.deepEqual(f.state.days, f.before.days);
+  assert.equal(Object.values(f.state.grants).find((g) => g.ticket === 11).outcome, "blocked");
+  assert.deepEqual(result.terminalRunIds.sort(), [100, 101]);
+});
+
 test("two-parent stop cancels both, including an omitted inventory parent, preserving quarantine and counters", async () => {
   const f = fixture({ two: true, omitSecond: true, quarantined: true });
   const result = await stopFactory({ ...f.args, execute: true });

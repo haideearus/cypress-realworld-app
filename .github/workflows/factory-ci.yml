@@ -75,6 +75,10 @@ jobs:
         run: node --test scripts/tests/factory-drill-sandbox.test.cjs
         env:
           FACTORY_DRILL_DOCKER_TEST: "true"
+      - name: Exercise discovery isolation with a credential-free fixture and no model
+        run: node --test scripts/tests/factory-discovery-docker.test.cjs
+        env:
+          FACTORY_DISCOVERY_DOCKER_TEST: "true"
       - run: yarn types && yarn lint && yarn test:unit:ci
       - run: yarn build:production && yarn test:production
       - run: yarn test:production:browser

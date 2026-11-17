@@ -8,6 +8,7 @@ const { hasContainment, inspectQuarantine, partitionRuns } = require("./quaranti
 const AGENT_WORKFLOWS = Object.freeze(
   [
     "factory-agents.yml",
+    "factory-discovery.yml",
     "factory-automatic.yml",
     "factory-dependencies.yml",
     "factory-monitor-drill.yml",

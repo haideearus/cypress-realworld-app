@@ -61,21 +61,27 @@ async function collectRunActivity({ run, jobs, ledger }) {
     (g) => g.runId === String(run.id) && g.runAttempt === run.run_attempt
   );
   for (const job of jobs) {
-    const phase = job.name?.includes("review")
-      ? "review"
-      : job.name?.includes("code") || job.name?.includes("drill")
-        ? "coding"
-        : null;
+    const phase =
+      job.name === "discover"
+        ? "discovery"
+        : job.name?.includes("review")
+          ? "review"
+          : job.name?.includes("code") || job.name?.includes("drill")
+            ? "coding"
+            : null;
     const grant =
       phase &&
       grants.find(
         (g) =>
-          g.phase === (phase === "review" ? "review" : "code") &&
+          g.phase ===
+            (phase === "discovery" ? "discover" : phase === "review" ? "review" : "code") &&
           (!job.name.includes("cycle") || job.name.includes(g.slot))
       );
     if (grant) {
       const model = job.steps?.find(
-        (s) => s.name === "Run the one reserved Claude subscription session"
+        (s) =>
+          s.name === "Run the one reserved Claude subscription session" ||
+          s.name === "Run the one reserved Claude discovery session"
       );
       if (job.status === "in_progress" && (!model || model.status === "pending"))
         emit(

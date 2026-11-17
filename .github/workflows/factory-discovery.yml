@@ -1,0 +1,185 @@
+name: Proactive app discovery
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        type: choice
+        options: [preview, initialize, run]
+        default: preview
+      dry_run:
+        description: Preview only; no source issue, grant or Claude session
+        type: boolean
+        default: true
+  workflow_run:
+    workflows: [Factory CI]
+    types: [completed]
+    branches: [main]
+  schedule:
+    # UTC candidate windows; selector accepts only 03:12/15:12 Bucharest hours.
+    # Two UTC offsets cover DST; durable daily counters, not cron, enforce usage.
+    - cron: "12 0,1,12,13 * * *"
+permissions:
+  contents: read
+concurrency:
+  group: factory-discovery
+  cancel-in-progress: false
+jobs:
+  select:
+    if: ${{ github.repository == 'haideearus/cypress-realworld-app' && github.ref == 'refs/heads/main' && github.run_attempt == 1 && (github.event_name == 'workflow_dispatch' || (vars.FACTORY_DISCOVERY_ENABLED == 'true' && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'))) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    concurrency:
+      group: factory-ledger
+      cancel-in-progress: false
+    permissions:
+      actions: read
+      contents: write
+      issues: write
+    outputs:
+      ready: ${{ steps.select.outputs.ready }}
+      grantId: ${{ steps.select.outputs.grantId }}
+      head: ${{ steps.select.outputs.head }}
+      ticket: ${{ steps.select.outputs.ticket }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.20.0
+      - id: select
+        name: Select or preview one metered discovery source
+        run: node scripts/factory/discovery-run.cjs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FACTORY_VARIABLES: ${{ toJSON(vars) }}
+          FACTORY_INPUTS: ${{ toJSON(inputs) }}
+  discover:
+    needs: select
+    if: ${{ needs.select.outputs.ready == 'true' && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_DISCOVERY_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 65
+    permissions:
+      actions: read
+      contents: read
+      issues: read
+    env:
+      FACTORY_INPUTS: ${{ toJSON(needs.select.outputs) }}
+      FACTORY_VARIABLES: ${{ toJSON(vars) }}
+      ANTHROPIC_API_KEY: ""
+      OPENAI_API_KEY: ""
+      ANTHROPIC_AUTH_TOKEN: ""
+      ANTHROPIC_BASE_URL: ""
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.20.0
+      - name: Preserve trusted discovery helpers outside model access
+        run: node -e "require('node:fs').cpSync('scripts/factory',process.env.RUNNER_TEMP+'/factory-control',{recursive:true})"
+      - name: Install the checksum-pinned scanner without model credentials
+        run: node "$RUNNER_TEMP/factory-control/scanner-install.cjs"
+      - name: Scan exact tracked source before container installation
+        run: node "$RUNNER_TEMP/factory-control/secret-scan.cjs" source
+      - id: prepare
+        name: Verify reservation and build isolated baseline without model credentials
+        timeout-minutes: 27
+        run: node "$RUNNER_TEMP/factory-control/discovery-worker.cjs"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FACTORY_OPERATION: prepare
+      - name: Run the one reserved Claude discovery session
+        id: model
+        timeout-minutes: ${{ fromJSON(vars.FACTORY_RUN_TIMEOUT_MINUTES || '15') }}
+        uses: anthropics/claude-code-action@4fa93a88de49bbef68b10eb15aabedf28ca0e1ed
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ github.token }}
+          prompt: ${{ fromJSON(steps.prepare.outputs.promptJson) }}
+          claude_args: ${{ steps.prepare.outputs.claudeArgs }}
+          settings: '{"disableAllHooks":true,"enableAllProjectMcpServers":false}'
+          display_report: "false"
+          show_full_output: "false"
+      - name: Collect only scanned candidate evidence
+        run: node "$RUNNER_TEMP/factory-control/discovery-worker.cjs"
+        env:
+          FACTORY_OPERATION: collect
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: discovery-${{ needs.select.outputs.grantId }}
+          path: ${{ runner.temp }}/discovery-artifact/bundle.json
+          if-no-files-found: error
+          retention-days: 7
+  replay:
+    needs: [select, discover]
+    if: ${{ needs.discover.result == 'success' && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_DISCOVERY_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    permissions:
+      actions: read
+      contents: read
+      issues: read
+    outputs:
+      verified: ${{ steps.replay.outputs.verified }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.20.0
+      - run: node -e "require('node:fs').cpSync('scripts/factory',process.env.RUNNER_TEMP+'/factory-control',{recursive:true})"
+      - run: node "$RUNNER_TEMP/factory-control/scanner-install.cjs"
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: discovery-${{ needs.select.outputs.grantId }}
+          path: ${{ runner.temp }}/discovery-input
+      - name: Rebuild baseline and replay twice without a model credential
+        id: replay
+        run: node "$RUNNER_TEMP/factory-control/discovery-worker.cjs"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FACTORY_OPERATION: replay
+          FACTORY_VARIABLES: ${{ toJSON(vars) }}
+          FACTORY_INPUTS: ${{ toJSON(needs.select.outputs) }}
+          FACTORY_DISCOVERY_BUNDLE: ${{ runner.temp }}/discovery-input
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: discovery-evidence-${{ needs.select.outputs.grantId }}
+          path: ${{ runner.temp }}/discovery-input/evidence.json
+          if-no-files-found: error
+          retention-days: 14
+  finalize:
+    needs: [select, discover, replay]
+    if: ${{ always() && needs.select.outputs.grantId != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    concurrency:
+      group: factory-ledger
+      cancel-in-progress: false
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.20.0
+      - name: Finish the consumed grant without creating any repair ticket
+        run: node scripts/factory/discovery-run.cjs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FACTORY_VARIABLES: ${{ toJSON(vars) }}
+          FACTORY_INPUTS: ${{ toJSON(needs.select.outputs) }}
+          FACTORY_OPERATION: finish
+          FACTORY_DISCOVERY_VERIFIED: ${{ needs.replay.result == 'success' && needs.replay.outputs.verified == 'true' }}

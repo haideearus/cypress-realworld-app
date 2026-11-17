@@ -143,7 +143,7 @@ async function classifySignal({ api, event, context, ledger = new Ledger(api) })
     return null;
   }
   if (
-    !["factory-automatic.yml", "factory-dependencies.yml", "factory-agents.yml"].some(
+    !["factory-automatic.yml", "factory-dependencies.yml", "factory-agents.yml", "factory-discovery.yml"].some(
       (f) => source.path === `.github/workflows/${f}`
     )
   )
