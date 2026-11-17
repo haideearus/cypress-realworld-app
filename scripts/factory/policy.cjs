@@ -44,11 +44,11 @@ function readConfig(vars) {
     config[name] = vars[key] === "true";
   }
   config.appClientId = vars.FACTORY_GITHUB_APP_CLIENT_ID;
-  if(vars.FACTORY_ACTIVITY_ISSUE_NUMBER!==undefined) {
-    config.activityIssue=integer(vars.FACTORY_ACTIVITY_ISSUE_NUMBER,"activity journal");
-    if(config.activityIssue<1)deny("Invalid activity journal");
+  if (vars.FACTORY_ACTIVITY_ISSUE_NUMBER !== undefined) {
+    config.activityIssue = integer(vars.FACTORY_ACTIVITY_ISSUE_NUMBER, "activity journal");
+    if (config.activityIssue < 1) deny("Invalid activity journal");
   }
-  if(config.activityLog && !config.activityIssue)deny("Activity journal required");
+  if (config.activityLog && !config.activityIssue) deny("Activity journal required");
   config.appSlug = vars.FACTORY_GITHUB_APP_SLUG;
   if (
     (config.appClientId !== undefined &&
@@ -545,7 +545,9 @@ function reserve(original, request, config, now = new Date()) {
       runId: grant.runId,
       runAttempt: grant.runAttempt,
       actor: request.actor,
-      ...(request.wake ? { wakeReceipt: request.wake.receiptId, sourceActor: request.wake.sourceActor } : {}),
+      ...(request.wake
+        ? { wakeReceipt: request.wake.receiptId, sourceActor: request.wake.sourceActor }
+        : {}),
     },
     now
   );

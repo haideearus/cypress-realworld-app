@@ -56,7 +56,12 @@ class AutomaticCoordinator {
       if (!Array.isArray(rows) || rows.length > 100)
         throw new Error("Invalid bounded issue queue response");
       const candidates = rows
-        .filter((issue) => queueIssue(issue) && issue.number!==this.config.activityIssue && !state.tickets[String(issue.number)])
+        .filter(
+          (issue) =>
+            queueIssue(issue) &&
+            issue.number !== this.config.activityIssue &&
+            !state.tickets[String(issue.number)]
+        )
         .sort(
           (left, right) =>
             Date.parse(left.created_at) - Date.parse(right.created_at) || left.number - right.number

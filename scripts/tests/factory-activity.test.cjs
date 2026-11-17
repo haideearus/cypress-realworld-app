@@ -34,8 +34,15 @@ function setup() {
     api: {
       async request(m, p, b) {
         calls.push({ m, p, b });
-        if(p.endsWith("/git/ref/heads/factory/state"))return {object:{sha}};
-        if(p.includes("/contents/state.json"))return {type:"file",encoding:"base64",content:Buffer.from(JSON.stringify(require("../factory/policy.cjs").emptyState(repository))).toString("base64")};
+        if (p.endsWith("/git/ref/heads/factory/state")) return { object: { sha } };
+        if (p.includes("/contents/state.json"))
+          return {
+            type: "file",
+            encoding: "base64",
+            content: Buffer.from(
+              JSON.stringify(require("../factory/policy.cjs").emptyState(repository))
+            ).toString("base64"),
+          };
         if (p.endsWith("/issues/100") && m === "GET")
           return {
             number: 100,
@@ -212,13 +219,43 @@ test("a newer but already stale completion cannot be called monitoring recovery"
     "monitor-stale"
   );
 });
-test("concurrent observers report an unchanged stale interval once using the same verified monitor producer",async()=>{
- const s=setup(),base=s.api.request;
- const monitor={id:800,run_attempt:1,workflow_id:80,path:".github/workflows/factory-monitor.yml",head_sha:sha,head_branch:"main",status:"completed",conclusion:"success",updated_at:"2026-01-01T00:00:00.000Z",repository:{full_name:repository},head_repository:{full_name:repository},actor:{login:"haideearus",id:101267861},triggering_actor:{login:"haideearus",id:101267861}};
- s.api.request=(m,p,b)=>p.includes("/factory-monitor.yml/runs?")?Promise.resolve({workflow_runs:[monitor]}):p.endsWith("/actions/workflows/factory-monitor.yml")?Promise.resolve({id:80,path:monitor.path}):p.includes("/actions/runs/800/")?Promise.resolve(monitor):base(m,p,b);
- s.store.state.lastMonitor={runId:"800",at:monitor.updated_at};
- const {checkFreshness}=require("../factory/activity-observer.cjs");
- await Promise.all(["900","901"].map(runId=>checkFreshness({...s,context:{runId,runAttempt:1,workflowSha:sha,actor:"haideearus"}})));
- assert.equal(s.comments.length,1);assert.equal(s.store.state.staleFor,"800");
+test("concurrent observers report an unchanged stale interval once using the same verified monitor producer", async () => {
+  const s = setup(),
+    base = s.api.request;
+  const monitor = {
+    id: 800,
+    run_attempt: 1,
+    workflow_id: 80,
+    path: ".github/workflows/factory-monitor.yml",
+    head_sha: sha,
+    head_branch: "main",
+    status: "completed",
+    conclusion: "success",
+    updated_at: "2026-01-01T00:00:00.000Z",
+    repository: { full_name: repository },
+    head_repository: { full_name: repository },
+    actor: { login: "haideearus", id: 101267861 },
+    triggering_actor: { login: "haideearus", id: 101267861 },
+  };
+  s.api.request = (m, p, b) =>
+    p.includes("/factory-monitor.yml/runs?")
+      ? Promise.resolve({ workflow_runs: [monitor] })
+      : p.endsWith("/actions/workflows/factory-monitor.yml")
+        ? Promise.resolve({ id: 80, path: monitor.path })
+        : p.includes("/actions/runs/800/")
+          ? Promise.resolve(monitor)
+          : base(m, p, b);
+  s.store.state.lastMonitor = { runId: "800", at: monitor.updated_at };
+  const { checkFreshness } = require("../factory/activity-observer.cjs");
+  await Promise.all(
+    ["900", "901"].map((runId) =>
+      checkFreshness({
+        ...s,
+        context: { runId, runAttempt: 1, workflowSha: sha, actor: "haideearus" },
+      })
+    )
+  );
+  assert.equal(s.comments.length, 1);
+  assert.equal(s.store.state.staleFor, "800");
 });
 module.exports = { setup, producer };

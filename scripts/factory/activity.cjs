@@ -69,7 +69,8 @@ async function journal(api, number) {
     issue.labels.length
   )
     throw Error("Activity journal must be an open unlabelled owner issue");
-  if((await new Ledger(api).read()).state.tickets[String(number)])throw Error("Activity journal cannot be an admitted maintenance ticket");
+  if ((await new Ledger(api).read()).state.tickets[String(number)])
+    throw Error("Activity journal cannot be an admitted maintenance ticket");
   return issue;
 }
 async function enqueueActivity({ api, event, store = new ActivityStore(api) }) {

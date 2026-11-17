@@ -93,8 +93,15 @@ function claimDependency(original, pr, context, config, now = new Date()) {
   policy.audit(
     state,
     "dependency_metadata_admitted",
-    { ticket: pr.number, head: t.head, runId: context.runId, actor: context.actor,
-      ...(context.wake ? { wakeReceipt: context.wake.receiptId, sourceActor: context.wake.sourceActor } : {}) },
+    {
+      ticket: pr.number,
+      head: t.head,
+      runId: context.runId,
+      actor: context.actor,
+      ...(context.wake
+        ? { wakeReceipt: context.wake.receiptId, sourceActor: context.wake.sourceActor }
+        : {}),
+    },
     now
   );
   return policy.validateState(state);

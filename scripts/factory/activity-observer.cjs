@@ -244,7 +244,13 @@ async function checkFreshness({
       r.path === ".github/workflows/factory-monitor.yml"
   );
   const { state } = await store.read();
-  if(monitor)monitor=await require("./wake-controller.cjs").verifiedRun(api,String(monitor.id),1,"factory-monitor.yml");
+  if (monitor)
+    monitor = await require("./wake-controller.cjs").verifiedRun(
+      api,
+      String(monitor.id),
+      1,
+      "factory-monitor.yml"
+    );
   const before = structuredClone(state);
   const change = a.monitorFreshness(
     state,
@@ -253,8 +259,15 @@ async function checkFreshness({
   );
   if (preview) return { change, lastMonitor: state.lastMonitor };
   if (change) {
-    const source=monitor||await require("./wake-controller.cjs").verifiedRun(api,state.lastMonitor.runId,1,"factory-monitor.yml");
-    const p = producerFor(source,"freshness");
+    const source =
+      monitor ||
+      (await require("./wake-controller.cjs").verifiedRun(
+        api,
+        state.lastMonitor.runId,
+        1,
+        "factory-monitor.yml"
+      ));
+    const p = producerFor(source, "freshness");
     // Key by the verified monitor interval, not by whichever observer noticed it.
     const event = a.buildActivityEvent({
       producer: p,
@@ -268,8 +281,14 @@ async function checkFreshness({
           : "A newer successful production monitor completion was verified.",
       links: [link(state.lastMonitor.runId)],
     });
-    const publication=await a.publishActivity({ api, event, journalIssue, store, ...(scan?{scan}:{}) });
-    if(publication.outcome==="uncertain")return {change,publication:"uncertain"};
+    const publication = await a.publishActivity({
+      api,
+      event,
+      journalIssue,
+      store,
+      ...(scan ? { scan } : {}),
+    });
+    if (publication.outcome === "uncertain") return { change, publication: "uncertain" };
   }
   if (JSON.stringify(before) !== JSON.stringify(state))
     await store.update((s) => {
@@ -329,7 +348,7 @@ async function main(
   }
   const journalIssue = Number(vars.FACTORY_ACTIVITY_ISSUE_NUMBER);
   await a.journal(api, journalIssue);
-  await checkFreshness({api,context,journalIssue,store});
+  await checkFreshness({ api, context, journalIssue, store });
   if (context.event === "issues") {
     if (
       event.issue?.number === journalIssue ||

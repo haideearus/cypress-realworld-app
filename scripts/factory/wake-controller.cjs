@@ -191,7 +191,11 @@ async function handleWake({
   if (typeof preview !== "boolean") throw Error("Invalid wake preview");
   if (!preview && vars.FACTORY_EVENT_PICKUP_ENABLED !== "true") return { outcome: "disabled" };
   const producer = await verifyProducer(api, context);
-  if(context.event==="issues" && event.issue?.number===Number(vars.FACTORY_ACTIVITY_ISSUE_NUMBER))return {outcome:"ignored"};
+  if (
+    context.event === "issues" &&
+    event.issue?.number === Number(vars.FACTORY_ACTIVITY_ISSUE_NUMBER)
+  )
+    return { outcome: "ignored" };
   let signal = await classifySignal({ api, event, context, ledger });
   if (!signal) return { outcome: "ignored" };
   c.validateSignal(signal);

@@ -75,7 +75,8 @@ class Controller {
   }
   async admit(ticket, { recover = false } = {}) {
     this.authorize();
-    if(ticket===this.config.activityIssue)throw Error("Activity journal cannot enter maintenance work");
+    if (ticket === this.config.activityIssue)
+      throw Error("Activity journal cannot enter maintenance work");
     const automatic = policy.isAutomaticContext(this.context);
     if (!this.config.enabled)
       return { ready: false, reason: "Factory disabled; no model invocation" };

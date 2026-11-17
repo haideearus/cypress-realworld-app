@@ -3,7 +3,8 @@ on:
   issues:
     types: [opened, labeled, reopened, edited]
   workflow_run:
-    workflows: [Production monitor, Factory CI, Automatic factory, Dependency maintenance, Factory agents]
+    workflows:
+      [Production monitor, Factory CI, Automatic factory, Dependency maintenance, Factory agents]
     types: [completed]
   workflow_dispatch:
     inputs:
