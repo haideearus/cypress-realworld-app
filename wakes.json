@@ -1,5 +1,36 @@
 {
   "version": 1,
   "repository": "haideearus/cypress-realworld-app",
-  "receipts": {}
+  "receipts": {
+    "2cbd200df49f405ee9a9b9e59c74a36e44176b7aa6940786b387a8f7b2e77249": {
+      "id": "2cbd200df49f405ee9a9b9e59c74a36e44176b7aa6940786b387a8f7b2e77249",
+      "signal": {
+        "kind": "drain",
+        "lane": "app",
+        "number": 85,
+        "head": "27c4ab04c04b0ce15797577f51350ffc14be7809",
+        "criteriaHash": "dbe5afb64d2f60b8c95fae95a298552b16ba702a80ad8831a5cab01b1c0d3890",
+        "revision": "1",
+        "sourceRun": "44145732979",
+        "sourceAttempt": 1,
+        "actor": {
+          "login": "haideearus",
+          "id": 101267861
+        }
+      },
+      "producer": {
+        "runId": "44149193148",
+        "runAttempt": 1,
+        "workflowSha": "27c4ab04c04b0ce15797577f51350ffc14be7809",
+        "actor": {
+          "login": "haideearus",
+          "id": 101267861
+        },
+        "event": "workflow_run"
+      },
+      "status": "intent",
+      "receiver": null,
+      "at": "2026-11-17T18:34:05.015Z"
+    }
+  }
 }
