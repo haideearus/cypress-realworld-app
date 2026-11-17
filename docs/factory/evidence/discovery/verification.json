@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "issue": 85,
+  "base": "27c4ab04c04b0ce15797577f51350ffc14be7809",
+  "initialImplementation": "aadf2fef5966c1ef3bdd09e52deca36aecd49513",
+  "reviewFixes": "107abbb5d6673bb0c0a8d14702653e58d39e5054",
+  "dockerLoggingFix": "ae50de1db0ef05a5896647f9ebbe38dca7501342",
+  "localBaseline": { "passed": 633, "skipped": 10, "failed": 0 },
+  "localAfterReview": { "command": "yarn test:factory", "passed": 654, "skipped": 13, "failed": 0 },
+  "otherChecks": [
+    "yarn types",
+    "yarn lint",
+    "actionlint on four changed workflows",
+    "tracked-source secret scan",
+    "git diff --check"
+  ],
+  "redGreen": [
+    {
+      "command": "node --test scripts/tests/factory-discovery-policy.test.cjs",
+      "before": "discovery metering/origin absent",
+      "after": "two consumed sweeps; third, duplicate, changed origin, exhausted cap/capacity rejected"
+    },
+    {
+      "command": "node --test scripts/tests/factory-discovery-broker.test.cjs",
+      "before": "aadf2fe broker restart executes a fifth batch",
+      "after": "retained exclusive intent precedes execution; restart and failed batches stay consumed"
+    },
+    {
+      "command": "FACTORY_DISCOVERY_ACTION_TEST=true node --test scripts/tests/factory-discovery-action.test.cjs",
+      "before": "aadf2fe pinned action parser loses the empty required tool-list value",
+      "after": "actual checksum-pinned upstream parser preserves complete --tools= switch; no model runner imported or called"
+    },
+    {
+      "command": "node --test scripts/tests/factory-discovery-runtime.test.cjs",
+      "before": "aadf2fe runtime cache and browser/API origins do not match isolated execution",
+      "after": "shared readable prepared Corepack cache; test shares only disposable app network namespace"
+    },
+    {
+      "command": "node --test scripts/tests/factory-discovery-workflow.test.cjs",
+      "before": "aadf2fe scheduled finalization skips ledger outside admission hours; uncertain source skipped for new charter; disabled preview cannot inspect eligibility",
+      "after": "controlled-clock actual main() releases grant; uncertain source holds new selection and reconciles metadata; disabled preview never writes"
+    },
+    {
+      "command": "node --test scripts/tests/factory-discovery-evidence.test.cjs",
+      "before": "trusted discovery oracle/replay layer absent",
+      "after": "same supported failure twice verified; unsupported/flaky/startup/baseline failures held; zero findings not exhaustive coverage"
+    },
+    {
+      "command": "node --test --test-name-pattern='code and discovery' scripts/tests/factory-stop.test.cjs",
+      "before": "mixed code/discovery cleanup untested",
+      "after": "both terminal grants consumed; capacity released; days/history preserved"
+    },
+    {
+      "command": "FACTORY_DISCOVERY_DOCKER_TEST=true node --test scripts/tests/factory-discovery-docker.test.cjs",
+      "before": "native runs 44115728151 and 44119412619 reject local log-driver compression with one retained log file",
+      "after": "compression disabled while retaining one-megabyte log cap; native verification required"
+    }
+  ],
+  "localDocker": "daemon unavailable; no claim of local container success",
+  "nativeDocker": "pending verification on the final PR head",
+  "genuineClaudeReview": "not started; separate owner authorization and current-head proof required",
+  "liveDiscovery": "not started; new opt-in absent/off",
+  "settings": "all existing switches/limits/concurrency/protection and usage ledger unchanged",
+  "scope": "isolated JSON test database; PostgreSQL/storage/external IdPs skipped; finding publication is next stage",
+  "deferredMinor": "Cypress screenshots remain in container scratch; broker exposes text results only"
+}

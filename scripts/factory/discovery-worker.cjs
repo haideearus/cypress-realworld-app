@@ -61,7 +61,11 @@ async function buildImage(source, contextDir, head) {
     ],
     { env, timeout: 1500000, maxBuffer: 1000000 }
   );
-  if (result.code !== 0) throw Error("Discovery baseline build failed; no model may start");
+  if (result.code !== 0) {
+    const tail = String(result.stderr || result.stdout || "").slice(-12000);
+    await scanFiles([{ path: "discovery-build-tail.txt", content: tail }]);
+    throw Error(`Discovery baseline build failed; no model may start. ${tail}`);
+  }
   const image = fs.readFileSync(path.join(contextDir, "image.id"), "utf8").trim();
   if (!s.IMAGE.test(image)) throw Error("Immutable image identity missing");
   return image;
