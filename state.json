@@ -1304,12 +1304,12 @@
     },
     "76": {
       "coding": 0,
-      "reviews": 0,
+      "reviews": 1,
       "retries": 0,
       "origin": "dependency-pr",
       "head": "967c0f85f53bcdd9055e72005afe0e8d796971b4",
       "pr": 76,
-      "status": "new",
+      "status": "reviewing",
       "approval": null,
       "branch": "dependabot/npm_and_yarn/fast-uri-3.1.9",
       "criteriaHash": "ec032eb8af8a3f8c421fa8039d34f861c8e90774f778507aa67121972df354e7",
@@ -2048,6 +2048,17 @@
       "status": "finished",
       "at": "2026-11-17T09:29:36.672Z",
       "outcome": "reviewed"
+    },
+    "b6228065-1643-4854-ba6e-fb27bb7286f5": {
+      "id": "b6228065-1643-4854-ba6e-fb27bb7286f5",
+      "ticket": 76,
+      "phase": "review",
+      "slot": "dependency",
+      "runId": "44066263105",
+      "runAttempt": 1,
+      "head": "967c0f85f53bcdd9055e72005afe0e8d796971b4",
+      "status": "reserved",
+      "at": "2026-11-17T10:42:54.465Z"
     }
   },
   "active": {
@@ -3932,6 +3943,15 @@
       "ticket": 76,
       "head": "967c0f85f53bcdd9055e72005afe0e8d796971b4",
       "runId": "44066263105"
+    },
+    {
+      "at": "2026-11-17T10:42:54.465Z",
+      "event": "reserved",
+      "ticket": 76,
+      "grant": "b6228065-1643-4854-ba6e-fb27bb7286f5",
+      "phase": "review",
+      "runId": "44066263105",
+      "runAttempt": 1
     }
   ]
 }
