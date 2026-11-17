@@ -1450,7 +1450,8 @@
       "ci": {
         "requestId": "f524b27e-bbde-4aa9-a2f5-35e318b42f92",
         "head": "525c84cd1b55190c7b18d9e6a722d20a312fdecf",
-        "runId": null
+        "runId": 44071212443,
+        "passed": true
       },
       "analysis": {
         "version": 2,
