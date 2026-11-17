@@ -1615,9 +1615,17 @@
       "reviews": 1,
       "retries": 0,
       "head": "0f50c4c2fcf05b77618928bc404d7191ef1376b1",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 88,
-      "approval": null,
+      "approval": {
+        "head": "0f50c4c2fcf05b77618928bc404d7191ef1376b1",
+        "pr": 88,
+        "grant": "ec5870bd-23c7-41e9-b7a9-d3842d09ace5",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/44163988725"
+      },
       "criteriaHash": "e176a62a4ef2b2fd45fe09a7981538ce682b7e981daf8854003477f3cb047aa6",
       "branch": "agent/discovery-finding-intake",
       "ci": {
@@ -1625,7 +1633,8 @@
         "head": "0f50c4c2fcf05b77618928bc404d7191ef1376b1",
         "runId": 44164110774,
         "passed": true
-      }
+      },
+      "feedback": "{\"head\":\"0f50c4c2fcf05b77618928bc404d7191ef1376b1\",\"verdict\":\"pass\",\"summary\":\"Reviewed the finding-publication/intake stage of the synthetic \\\"factory\\\" discovery pipeline (scripts/factory/discovery-publication.cjs, discovery-origin.cjs, discovery-intake.cjs, discovery-finding-contract.cjs, discovery-finding-store.cjs, discovery-finding-run.cjs, discovery-repair.cjs, policy.cjs, discovery/overlay.cjs, discovery/entry.cjs, controller.cjs, activity-observer.cjs, and the factory-discovery-intake.yml workflow) against the ticket's acceptance criteria. Publication is gated on a twice-reproduced, grant/run/CI/artifact-verified candidate (candidateFromEvidence + verifySource), distinguishes report completion from a verified bug, caps publication at 4/Bucharest-day and 2/source-sweep via irreversible intents (day/source counters consumed before any issue POST, so retries/midnight never refund or double-POST), and preserves lifetime fingerprints/duplicate history (stageFinding, 30-dup cap, recurrence gated by recurrenceAllowed requiring a verified base commit ahead of the prior resolution). Intake replay enforces 2/finding/day and 8/day total caps with a 5-minute deadline and no new model session (reserveReplay/pendingReplay/canReplay), and controller.admit double-checks the finding's intake head equals current main both before and inside the ledger transaction before coding admission. Resolved/expired/broken evidence is held or marked observed-resolved with explicit non-claim language, never a factory-authored fix (noteResolution, activity-observer messages). Repair admission requires verifyRepairOrigin (chained producer/job/criteria checks) so a label or bot identity alone cannot grant eligibility, matching the dedicated test. The factory-discovery-intake.yml workflow's scheduled/workflow_run triggers remain gated on vars.FACTORY_DISCOVERY_ENABLED == 'true' (unset by this change), and policy.cjs still rejects any FACTORY_DISCOVERY_ENABLED value other than undefined/true/false, so live settings are unaffected. Test files (factory-discovery-publication/intake/origin/repair/reconciliation/intake-workflow) explicitly cover the review-focus items: duplicate fingerprints across SHAs, ambiguous/lost issue POST reconciliation without duplicate POST, midnight quota/stop handling, stale-main replay rejection, and bot/label-only origin rejection. No evidence in the source of live registry initialization, real ticket publication, Claude invocation, or live acceptance runs having occurred as part of this change.\",\"findings\":[]}"
     }
   },
   "grants": {
@@ -2358,15 +2367,12 @@
       "runId": "44163988725",
       "runAttempt": 1,
       "head": "0f50c4c2fcf05b77618928bc404d7191ef1376b1",
-      "status": "reserved",
-      "at": "2026-11-17T19:56:57.136Z"
+      "status": "finished",
+      "at": "2026-11-17T19:56:57.136Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 87,
-    "runId": "44163988725",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -4391,6 +4397,34 @@
       "runId": "44163988725",
       "runAttempt": 1,
       "actor": "haideearus"
+    },
+    {
+      "at": "2026-11-17T20:27:29.199Z",
+      "event": "finished",
+      "ticket": 87,
+      "grant": "ec5870bd-23c7-41e9-b7a9-d3842d09ace5",
+      "status": "reviewed",
+      "head": "0f50c4c2fcf05b77618928bc404d7191ef1376b1"
+    },
+    {
+      "at": "2026-11-17T20:27:29.200Z",
+      "event": "owner-assessment-recovered",
+      "actor": "haideearus",
+      "execution": "owner-local-recovery",
+      "ticket": 87,
+      "pr": 88,
+      "grant": "ec5870bd-23c7-41e9-b7a9-d3842d09ace5",
+      "sourceRunId": "44163988725",
+      "sourceRunAttempt": 1,
+      "sourceReviewJob": 134333005300,
+      "failedAssessmentJob": 134335163856,
+      "artifactId": 14364389450,
+      "artifactDigest": "sha256:a0c8cf0d3b3a8475feca483339e12a0c16f9d127ce0e2cca58e7904eb89d69bf",
+      "ciRunId": 44164110774,
+      "reviewedHead": "0f50c4c2fcf05b77618928bc404d7191ef1376b1",
+      "controllerSource": "6582c432fc5501d999b4eec426aaa82c8b4c57fb",
+      "previousLedgerCommit": "31eca09f250b675295b848f20d4845dc20ee3592",
+      "reason": "Original final assessment failed with HTTP403 after GitHub reported installation rate limiting; genuine passing artifact revalidated"
     }
   ]
 }
