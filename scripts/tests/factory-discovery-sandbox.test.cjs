@@ -22,6 +22,9 @@ test("runtime containers have no public network, host secrets, writable source o
   assert.ok(!args.includes("--network=host"));
   assert.ok(!args.join(" ").includes("docker.sock"));
   assert.ok(args.join(" ").includes("target=/proposals,readonly"));
+  // Docker local driver defaults compression on, which rejects a one-file cap.
+  const logOptions = args.flatMap((arg, i) => (arg === "--log-opt" ? [args[i + 1]] : []));
+  assert.ok(logOptions.includes("compress=false"));
   assert.throws(
     () => s.containerArgs({ name: "x", network: "host", image: "node:latest", role: "test" }),
     /Invalid/

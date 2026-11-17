@@ -85,6 +85,8 @@ function containerArgs({ name, network, image, role, testDir, mode, file, oracle
     "max-size=1m",
     "--log-opt",
     "max-file=1",
+    "--log-opt",
+    "compress=false",
   ];
   if (role === "app") args.push("--detach", "--network-alias", "app");
   if (role === "test")
