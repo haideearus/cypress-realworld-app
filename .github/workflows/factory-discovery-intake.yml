@@ -1,0 +1,168 @@
+name: Verified discovery finding intake
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        type: choice
+        options: [preview, initialize, run]
+        default: preview
+      dry_run:
+        description: Preview only; no ticket, replay reservation or repair
+        type: boolean
+        default: true
+  workflow_run:
+    workflows: [Proactive app discovery, Factory CI]
+    types: [completed]
+    branches: [main]
+  schedule:
+    - cron: "27,57 * * * *"
+permissions:
+  contents: read
+concurrency:
+  group: factory-discovery-intake
+  cancel-in-progress: false
+jobs:
+  select:
+    if: ${{ github.repository == 'haideearus/cypress-realworld-app' && github.ref == 'refs/heads/main' && github.run_attempt == 1 && (github.event_name == 'workflow_dispatch' || (vars.FACTORY_DISCOVERY_ENABLED == 'true' && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'))) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      contents: write
+    outputs:
+      ready: ${{ steps.select.outputs.ready }}
+      sourceGrant: ${{ steps.select.outputs.sourceGrant }}
+      sourceRun: ${{ steps.select.outputs.sourceRun }}
+      artifactId: ${{ steps.select.outputs.artifactId }}
+      artifactName: ${{ steps.select.outputs.artifactName }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.20.0
+      - id: select
+        run: node scripts/factory/discovery-finding-run.cjs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FACTORY_VARIABLES: ${{ toJSON(vars) }}
+          FACTORY_INPUTS: ${{ toJSON(inputs) }}
+          FACTORY_OPERATION: ${{ inputs.operation == 'initialize' && 'initialize' || 'select' }}
+  publish:
+    needs: select
+    if: ${{ needs.select.outputs.ready == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    concurrency:
+      group: factory-ledger
+      cancel-in-progress: false
+    permissions:
+      actions: read
+      contents: write
+      issues: write
+    outputs:
+      ready: ${{ steps.publish.outputs.ready }}
+      receiptId: ${{ steps.publish.outputs.receiptId }}
+      key: ${{ steps.publish.outputs.key }}
+      head: ${{ steps.publish.outputs.head }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.20.0
+      - run: node scripts/factory/scanner-install.cjs
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: ${{ needs.select.outputs.artifactName }}
+          run-id: ${{ needs.select.outputs.sourceRun }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/finding-input
+      - name: Publish verified findings without a model
+        id: publish
+        run: node scripts/factory/discovery-finding-run.cjs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FACTORY_VARIABLES: ${{ toJSON(vars) }}
+          FACTORY_OPERATION: publish
+          FACTORY_INPUTS: ${{ toJSON(needs.select.outputs) }}
+          FACTORY_FINDING_INPUT: ${{ runner.temp }}/finding-input
+  replay:
+    needs: [select, publish]
+    if: ${{ needs.publish.outputs.ready == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 32
+    permissions:
+      actions: read
+      contents: read
+      issues: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.20.0
+      - run: node scripts/factory/scanner-install.cjs
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: ${{ needs.select.outputs.artifactName }}
+          run-id: ${{ needs.select.outputs.sourceRun }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/finding-input
+      - name: Replay current main without credentials
+        run: node scripts/factory/discovery-finding-run.cjs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FACTORY_VARIABLES: ${{ toJSON(vars) }}
+          FACTORY_OPERATION: replay
+          FACTORY_INPUTS: ${{ toJSON(needs.publish.outputs) }}
+          FACTORY_FINDING_INPUT: ${{ runner.temp }}/finding-input
+          FACTORY_FINDING_OUTPUT: ${{ runner.temp }}/finding-output
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: finding-replay-${{ needs.publish.outputs.receiptId }}
+          path: ${{ runner.temp }}/finding-output/replay.json
+          if-no-files-found: error
+          retention-days: 14
+  finalize:
+    needs: [publish, replay]
+    if: ${{ always() && needs.publish.outputs.receiptId != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    concurrency:
+      group: factory-ledger
+      cancel-in-progress: false
+    permissions:
+      actions: read
+      contents: write
+      issues: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.20.0
+      - run: node scripts/factory/scanner-install.cjs
+      - if: ${{ needs.replay.result == 'success' }}
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: finding-replay-${{ needs.publish.outputs.receiptId }}
+          path: ${{ runner.temp }}/finding-output
+      - name: Retain current-head intake or a visible hold
+        run: node scripts/factory/discovery-finding-run.cjs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FACTORY_VARIABLES: ${{ toJSON(vars) }}
+          FACTORY_OPERATION: finish
+          FACTORY_INPUTS: ${{ toJSON(needs.publish.outputs) }}
+          FACTORY_FINDING_OUTPUT: ${{ runner.temp }}/finding-output
+          FACTORY_REPLAY_SUCCESS: ${{ needs.replay.result == 'success' }}

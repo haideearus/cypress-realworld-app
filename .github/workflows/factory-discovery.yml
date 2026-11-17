@@ -125,7 +125,7 @@ jobs:
       contents: read
       issues: read
     outputs:
-      verified: ${{ steps.replay.outputs.verified }}
+      assessmentComplete: ${{ steps.replay.outputs.assessmentComplete }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -182,4 +182,4 @@ jobs:
           FACTORY_VARIABLES: ${{ toJSON(vars) }}
           FACTORY_INPUTS: ${{ toJSON(needs.select.outputs) }}
           FACTORY_OPERATION: finish
-          FACTORY_DISCOVERY_VERIFIED: ${{ needs.replay.result == 'success' && needs.replay.outputs.verified == 'true' }}
+          FACTORY_DISCOVERY_ASSESSMENT_COMPLETE: ${{ needs.replay.result == 'success' && needs.replay.outputs.assessmentComplete == 'true' }}

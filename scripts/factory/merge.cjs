@@ -102,10 +102,13 @@ class AutomaticMerger {
     const monitor = t.monitor
       ? await verifyMonitorIssue(this.api, issue, { proof: t.monitor, requireActive: false })
       : null;
+    const finding =
+      t.finding &&
+      (await require("./discovery-origin.cjs").verifyRepairOrigin(this.api, issue, t.finding));
     if (
       issue.number !== ticket ||
       issue.pull_request ||
-      (t.monitor ? !monitor : issue.user?.login !== policy.OWNER) ||
+      (t.monitor ? !monitor : t.finding ? !finding : issue.user?.login !== policy.OWNER) ||
       (issue.state !== "open" && !(merged && issue.state === "closed")) ||
       criteriaHash(issue) !== t.criteriaHash
     )

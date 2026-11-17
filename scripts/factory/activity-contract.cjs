@@ -3,6 +3,7 @@ const { secretLike } = require("./artifacts.cjs");
 const WORKFLOWS = Object.freeze([
   "factory-agents.yml",
   "factory-discovery.yml",
+  "factory-discovery-intake.yml",
   "factory-automatic.yml",
   "factory-dependencies.yml",
   "factory-ci.yml",

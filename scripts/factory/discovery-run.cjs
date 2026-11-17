@@ -197,7 +197,8 @@ async function main(env = process.env, dependencies = {}) {
       output({ outcome: g.outcome }, env);
       return;
     }
-    const status = env.FACTORY_DISCOVERY_VERIFIED === "true" ? "discovery_complete" : "blocked";
+    const status =
+      env.FACTORY_DISCOVERY_ASSESSMENT_COMPLETE === "true" ? "discovery_complete" : "blocked";
     await ledger.update((s) => ({ state: p.finish(s, g.id, { status }) }));
     output({ outcome: status }, env);
     return;

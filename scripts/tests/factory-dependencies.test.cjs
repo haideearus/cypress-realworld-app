@@ -836,6 +836,7 @@ test("workflow preserves preview, trusted source, readonly model and isolated cr
     checks: "write",
   });
   assert.deepEqual(w.jobs.review.permissions, {
+    actions: "read",
     contents: "read",
     issues: "read",
     "pull-requests": "read",

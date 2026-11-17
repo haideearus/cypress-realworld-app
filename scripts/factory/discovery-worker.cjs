@@ -343,7 +343,10 @@ async function replay(env, inputs, api, config) {
     path.join(env.FACTORY_DISCOVERY_BUNDLE, "evidence.json"),
     JSON.stringify(result)
   );
-  output({ verified: true, outcome: findings.length ? "candidates-assessed" : "no-findings" }, env);
+  output(
+    { assessmentComplete: true, outcome: findings.length ? "candidates-assessed" : "no-findings" },
+    env
+  );
 }
 async function main(env = process.env) {
   p.assertSubscriptionEnv(env);

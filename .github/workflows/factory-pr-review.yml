@@ -42,6 +42,7 @@ jobs:
     needs: ci
     if: ${{ needs.ci.outputs.passed == 'true' && vars.FACTORY_ENABLED == 'true' }}
     permissions:
+      actions: read
       contents: read
       issues: read
       pull-requests: read

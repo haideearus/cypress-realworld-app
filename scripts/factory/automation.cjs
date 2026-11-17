@@ -71,7 +71,9 @@ class AutomaticCoordinator {
         if (
           issue.user?.login === "github-actions[bot]" &&
           issue.user?.type === "Bot" &&
-          (await verifyMonitorIssue(this.api, issue))
+          ((await verifyMonitorIssue(this.api, issue)) ||
+            (this.config.discovery &&
+              (await require("./discovery-origin.cjs").verifyDiscoveryIssue(this.api, issue))))
         )
           return issue;
       }

@@ -87,6 +87,7 @@ class Controller {
     const issue = await this.issue(ticket);
     await this.rejectDrillIssue(issue);
     let monitor = null;
+    let finding = null;
     if (
       automatic &&
       !issue.labels?.some(
@@ -96,9 +97,14 @@ class Controller {
       throw new Error("Automatic admission needs a trusted factory-ready issue");
     if (automatic && issue.user?.login !== policy.OWNER) {
       monitor = await verifyMonitorIssue(this.api, issue);
-      if (!monitor) throw new Error("Automatic admission needs an owner or trusted monitor issue");
+      if (!monitor && this.config.discovery)
+        finding = await require("./discovery-origin.cjs").findingForAdmission(this.api, issue);
+      if (!monitor && !finding)
+        throw new Error("Automatic admission needs an owner or verified incident/finding issue");
     }
     const main = await this.api.request("GET", `${ROOT}/branches/main`);
+    if (finding && finding.intake.head !== main.commit?.sha)
+      throw Error("Discovery finding needs a new current-main replay");
     const snapshot = await this.ledger.read();
     const previous = snapshot.state.tickets[String(ticket)];
     if (automatic && previous) throw new Error("Automatic ticket already admitted");
@@ -121,6 +127,13 @@ class Controller {
         if (!current || JSON.stringify(current) !== JSON.stringify(monitor))
           throw new Error("Monitor receipt changed before automatic admission");
       }
+      if (
+        finding &&
+        !(await require("./discovery-origin.cjs").verifyRepairOrigin(this.api, issue, finding, {
+          requireCurrent: true,
+        }))
+      )
+        throw Error("Discovery intake changed before admission");
       if (
         automatic &&
         Object.entries(state.tickets).some(
@@ -155,6 +168,7 @@ class Controller {
           appSlug: this.config.appSlug,
         };
       if (monitor) result.state.tickets[String(ticket)].monitor = monitor;
+      if (finding) result.state.tickets[String(ticket)].finding = finding;
       return result;
     });
     return this.result(saved.grant);
@@ -269,6 +283,8 @@ class Controller {
       throw new Error("Invalid coding artifact");
     validateChanges(bundle.files);
     const t = loaded.state.tickets[String(grant.ticket)];
+    if (t.finding)
+      await require("./discovery-repair.cjs").verifyPublishedRepair(this.api, t, grant, bundle);
     const branch = `agent/factory-${grant.ticket}`;
     const previousPR = t.pr ? await this.matchingPR(t) : null;
     let branchExists = false;
@@ -341,6 +357,8 @@ class Controller {
         pr: pr.number,
       });
       next.tickets[String(grant.ticket)].branch = branch;
+      if (t.finding)
+        next.tickets[String(grant.ticket)].findingRedHash = bundle.findingVerification.redHash;
       return { state: next };
     });
     return { ready: true, pr: pr.number, head: commit.sha, ticket: grant.ticket };

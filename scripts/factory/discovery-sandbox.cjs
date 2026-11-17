@@ -133,7 +133,7 @@ class BatchBudget {
     }
   }
 }
-async function sandbox({ image, request, tests, oracle, run = docker }) {
+async function sandbox({ image, request, tests, oracle, run = docker, deadlineAt = Infinity }) {
   if (!IMAGE.test(image)) throw Error("Invalid immutable sandbox image");
   const id = randomUUID();
   const network = `discovery-${id}`;
@@ -141,7 +141,7 @@ async function sandbox({ image, request, tests, oracle, run = docker }) {
   const test = `discovery-test-${id}`;
   const folder = fs.mkdtempSync(path.join(os.tmpdir(), "discovery-run-"));
   const options = { env: { ...safeEnv(), HOME: folder }, timeout: 300000 };
-  const deadline = Date.now() + 300000;
+  const deadline = Math.min(Date.now() + 300000, deadlineAt);
   const boundedRun = (args, opts = options) => {
     const remaining = deadline - Date.now();
     if (remaining < 1) throw Error("Discovery five-minute batch deadline");

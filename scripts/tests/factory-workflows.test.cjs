@@ -50,7 +50,12 @@ test("five serial cycles execute only the preceding cycle's reserved retry", () 
 test("model job token cannot publish and only the model step receives a subscription credential", () => {
   const flow = load("factory-model.yml");
   const job = flow.jobs.agent;
-  assert.deepEqual(job.permissions, { contents: "read", issues: "read", "pull-requests": "read" });
+  assert.deepEqual(job.permissions, {
+    actions: "read",
+    contents: "read",
+    issues: "read",
+    "pull-requests": "read",
+  });
   const steps = job.steps;
   const modelIndex = steps.findIndex((s) =>
     String(s.uses || "").startsWith("anthropics/claude-code-action@")
