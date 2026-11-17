@@ -1,3 +1,5 @@
+const slots = require("./active-tickets.cjs");
+const { terminalParent } = require("./active-runs.cjs");
 const policy = require("./policy.cjs");
 const d = require("./dependency-contract.cjs");
 const analysis = require("./dependency-analysis.cjs");
@@ -120,16 +122,17 @@ class DependencyCoordinator {
       await this.ledger.update(async (s) => {
         policy.assertNotStopped(s);
         const current = s.tickets[String(t.pr)];
+        const entry = slots.activeFor(s, t.pr);
+        const attempt = d.validateTicket(t);
+        const expectedOwner = {
+          ticket: t.pr,
+          runId: attempt.runId,
+          runAttempt: attempt.runAttempt,
+        };
         if (
           JSON.stringify(current) !== JSON.stringify(t) ||
-          Object.values(s.grants).some((g) => g.status === "reserved") ||
-          (s.active &&
-            !(
-              t.merge?.status === "intent" &&
-              s.active.ticket === t.pr &&
-              s.active.runId === t.merge.runId &&
-              s.active.runAttempt === t.merge.runAttempt
-            ))
+          Object.values(s.grants).some((g) => g.ticket === t.pr && g.status === "reserved") ||
+          (entry && (!slots.owns(entry, expectedOwner) || !(await terminalParent(this.api, entry))))
         )
           throw new Error("Dependency history changed during stale-proof reconciliation");
         const latest = d.prOK(await this.api.request("GET", `${ROOT}/pulls/${t.pr}`));
@@ -150,7 +153,7 @@ class DependencyCoordinator {
         current.status = "blocked";
         current.approval = null;
         delete current.merge;
-        if (s.active?.ticket === t.pr) s.active = null;
+        if (slots.activeFor(s, t.pr)) slots.releaseActive(s, slots.activeFor(s, t.pr));
         return { state: s };
       });
       return null;
@@ -198,8 +201,28 @@ class DependencyCoordinator {
     let { state } = await this.ledger.read();
     if (state.stop)
       return { ready: false, reason: "Factory stopped; explicit owner resume required" };
-    if (state.active) {
-      const t = state.tickets[String(state.active.ticket)];
+    const intentOwner = slots.pendingIntent(state);
+    if (intentOwner) {
+      if (!intentOwner.record.dependency)
+        return { ready: false, reason: "Pending app merge intent must be reconciled" };
+      const entry = slots.activeFor(state, intentOwner.ticket);
+      if (state.version === 2 && entry && !(await terminalParent(this.api, entry)))
+        return { ready: false, reason: "Merge intent parent is still running" };
+      return this.pending(intentOwner.record, preview);
+    }
+    for (const entry of slots.activeEntries(state)) {
+      const t = state.tickets[String(entry.ticket)];
+      if (
+        state.version === 2 &&
+        t?.dependency &&
+        t.status === "reviewed" &&
+        !["closed", "merged"].includes(t.merge?.status) &&
+        (await terminalParent(this.api, entry))
+      ) {
+        const result = await this.pending(t, preview);
+        if (result) return result;
+        state = (await this.ledger.read()).state;
+      }
       if (t?.dependency && t.status === "reviewed" && t.merge?.status === "intent") {
         const result = await this.pending(t, preview);
         if (result) return result;
@@ -226,8 +249,9 @@ class DependencyCoordinator {
           state = (await this.ledger.read()).state;
         }
       }
-      if (state.active) return { ready: false, reason: "An active ticket holds the factory lock" };
     }
+    if (!slots.capacity(state, this.config.concurrent))
+      return { ready: false, reason: "An active ticket holds the factory lock" };
     const pending = Object.values(state.tickets).find(
       (t) =>
         (t.automatic || t.dependency) &&
@@ -237,6 +261,8 @@ class DependencyCoordinator {
     if (pending) {
       if (!pending.dependency)
         return { ready: false, reason: "Pending app merge must be reconciled" };
+      if (state.version === 2 && slots.activeFor(state, pending.pr))
+        return { ready: false, reason: "Reviewed dependency parent is still running" };
       const result = await this.pending(pending, preview);
       if (result) return result;
       state = (await this.ledger.read()).state;
@@ -256,6 +282,7 @@ class DependencyCoordinator {
           continue;
         }
         const previous = state.tickets[String(row.number)];
+        if (slots.activeFor(state, row.number)) continue;
         if (
           previous &&
           (previous.origin !== "dependency-pr" ||
@@ -359,11 +386,7 @@ class DependencyCoordinator {
   async finalize(number) {
     this.authorize();
     const { state } = await this.ledger.read();
-    if (
-      state.active?.ticket !== number ||
-      state.active.runId !== this.context.runId ||
-      state.active.runAttempt !== this.context.runAttempt
-    )
+    if (!slots.owns(slots.activeFor(state, number), { ...this.context, ticket: number }))
       return { reason: "No preparation lease owned by this run" };
     const t = state.tickets[String(number)];
     d.matches(t, this.context, this.config);

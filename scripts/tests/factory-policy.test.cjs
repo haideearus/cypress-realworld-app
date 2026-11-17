@@ -54,7 +54,7 @@ test("invalid, missing and increased limits fail closed", () => {
   for (const value of ["21", "999", "2x", "-1", "1.5", "", undefined])
     assert.throws(() => policy.readConfig({ ...vars, FACTORY_MAX_TICKETS_PER_DAY: value }));
   assert.throws(() => policy.readConfig({ ...vars, FACTORY_TIMEZONE: "UTC" }));
-  assert.throws(() => policy.readConfig({ ...vars, FACTORY_MAX_CONCURRENT_TICKETS: "2" }));
+  assert.throws(() => policy.readConfig({ ...vars, FACTORY_MAX_CONCURRENT_TICKETS: "3" }));
 });
 test("turn budgets up to two hundred remain usable with lower configured limits", () => {
   for (const value of ["1", "20", "50", "100", "200"]) {

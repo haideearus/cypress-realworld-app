@@ -1,3 +1,4 @@
+const slots = require("./active-tickets.cjs");
 const { isDeepStrictEqual } = require("node:util");
 const { CASE } = require("./quarantine-contract.cjs");
 const { validateState } = require("./policy.cjs");
@@ -8,7 +9,7 @@ function hasContainment(state) {
     const ticket = state.tickets[38];
     const grant = state.grants["2e9200c0-e2b6-4684-ae37-80ddd128504a"];
     return Boolean(
-      String(state.active?.runId) !== String(CASE.id) &&
+      !slots.activeEntries(state).some((entry) => String(entry.runId) === String(CASE.id)) &&
         !Object.values(state.grants).some((g) => String(g.runId) === String(CASE.id)) &&
         ticket?.origin === "drill" &&
         ticket.status === "drill_complete" &&

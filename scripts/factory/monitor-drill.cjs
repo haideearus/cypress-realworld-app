@@ -1,3 +1,4 @@
+const slots = require("./active-tickets.cjs");
 const fs = require("node:fs");
 const { createHash } = require("node:crypto");
 const policy = require("./policy.cjs");
@@ -103,7 +104,7 @@ class DrillCoordinator {
         factoryEnabled: this.config.enabled,
         automaticPickupOff: !this.config.automatic,
         automaticMergeOff: !this.config.autoMerge,
-        ledgerIdle: state.active === null,
+        ledgerIdle: slots.activeEntries(state).length === 0,
         drillRegistryIdle: registry.active === null,
         dailyAvailable: counters(state, null, this.now()).daily < this.config.daily,
       },
@@ -115,7 +116,7 @@ class DrillCoordinator {
   available(state, at) {
     policy.assertNotStopped(state);
     if (
-      state.active ||
+      slots.activeEntries(state).length ||
       !this.config.coding ||
       !this.config.minutes ||
       !this.config.turns ||

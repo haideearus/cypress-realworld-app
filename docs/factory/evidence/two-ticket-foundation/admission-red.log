@@ -1,0 +1,155 @@
+TAP version 13
+# Subtest: two distinct v2 claims fit; third claim is rejected without changing history
+not ok 1 - two distinct v2 claims fit; third claim is rejected without changing history
+  ---
+  duration_ms: 1.4512
+  type: 'test'
+  location: 'C:\\Users\\haide\\Documents\\Codex\\2026-11-03\\c\\cypress-realworld-app\\scripts\\tests\\factory-concurrency.test.cjs:18:1'
+  failureType: 'testCodeFailure'
+  error: 'Invalid factory ledger state'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    deny (<repo>\scripts\factory\policy.cjs:25:9)
+    validateState (<repo>\scripts\factory\policy.cjs:98:5)
+    Object.reserve (<repo>\scripts\factory\policy.cjs:348:3)
+    TestContext.<anonymous> (<repo>\scripts\tests\factory-concurrency.test.cjs:19:24)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.start (node:internal/test_runner/test:944:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
+  ...
+# Subtest: v1 remains capacity one and refuses premature concurrency two
+not ok 2 - v1 remains capacity one and refuses premature concurrency two
+  ---
+  duration_ms: 17.4008
+  type: 'test'
+  location: 'C:\\Users\\haide\\Documents\\Codex\\2026-11-03\\c\\cypress-realworld-app\\scripts\\tests\\factory-concurrency.test.cjs:28:1'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected exception.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  operator: 'throws'
+  stack: |-
+    TestContext.<anonymous> (<repo>\scripts\tests\factory-concurrency.test.cjs:32:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: configuration accepts two but rejects zero and three
+not ok 3 - configuration accepts two but rejects zero and three
+  ---
+  duration_ms: 0.1501
+  type: 'test'
+  location: 'C:\\Users\\haide\\Documents\\Codex\\2026-11-03\\c\\cypress-realworld-app\\scripts\\tests\\factory-concurrency.test.cjs:34:1'
+  failureType: 'testCodeFailure'
+  error: 'Invalid FACTORY_MAX_CONCURRENT_TICKETS: above approved limit'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    deny (<repo>\scripts\factory\policy.cjs:25:9)
+    integer (<repo>\scripts\factory\policy.cjs:30:44)
+    Object.readConfig (<repo>\scripts\factory\policy.cjs:57:20)
+    TestContext.<anonymous> (<repo>\scripts\tests\factory-concurrency.test.cjs:35:23)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: duplicate ticket cannot claim twice, including same parent phase overlap
+not ok 4 - duplicate ticket cannot claim twice, including same parent phase overlap
+  ---
+  duration_ms: 0.1148
+  type: 'test'
+  location: 'C:\\Users\\haide\\Documents\\Codex\\2026-11-03\\c\\cypress-realworld-app\\scripts\\tests\\factory-concurrency.test.cjs:39:1'
+  failureType: 'testCodeFailure'
+  error: 'Invalid factory ledger state'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    deny (<repo>\scripts\factory\policy.cjs:25:9)
+    validateState (<repo>\scripts\factory\policy.cjs:98:5)
+    Object.reserve (<repo>\scripts\factory\policy.cjs:348:3)
+    TestContext.<anonymous> (<repo>\scripts\tests\factory-concurrency.test.cjs:40:24)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: release A preserves B and its preflight reservation
+not ok 5 - release A preserves B and its preflight reservation
+  ---
+  duration_ms: 0.1217
+  type: 'test'
+  location: 'C:\\Users\\haide\\Documents\\Codex\\2026-11-03\\c\\cypress-realworld-app\\scripts\\tests\\factory-concurrency.test.cjs:44:1'
+  failureType: 'testCodeFailure'
+  error: 'Invalid factory ledger state'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    deny (<repo>\scripts\factory\policy.cjs:25:9)
+    validateState (<repo>\scripts\factory\policy.cjs:98:5)
+    Object.reserve (<repo>\scripts\factory\policy.cjs:348:3)
+    TestContext.<anonymous> (<repo>\scripts\tests\factory-concurrency.test.cjs:45:20)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: mixed schemas and malformed owner entries are rejected
+not ok 6 - mixed schemas and malformed owner entries are rejected
+  ---
+  duration_ms: 0.1219
+  type: 'test'
+  location: 'C:\\Users\\haide\\Documents\\Codex\\2026-11-03\\c\\cypress-realworld-app\\scripts\\tests\\factory-concurrency.test.cjs:53:1'
+  failureType: 'testCodeFailure'
+  error: 'Invalid factory ledger state'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    deny (<repo>\scripts\factory\policy.cjs:25:9)
+    validateState (<repo>\scripts\factory\policy.cjs:98:5)
+    Object.reserve (<repo>\scripts\factory\policy.cjs:348:3)
+    TestContext.<anonymous> (<repo>\scripts\tests\factory-concurrency.test.cjs:54:24)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: two reserved phases for one ticket are rejected even with spare global capacity
+not ok 7 - two reserved phases for one ticket are rejected even with spare global capacity
+  ---
+  duration_ms: 0.1044
+  type: 'test'
+  location: 'C:\\Users\\haide\\Documents\\Codex\\2026-11-03\\c\\cypress-realworld-app\\scripts\\tests\\factory-concurrency.test.cjs:67:1'
+  failureType: 'testCodeFailure'
+  error: 'Invalid factory ledger state'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    deny (<repo>\scripts\factory\policy.cjs:25:9)
+    validateState (<repo>\scripts\factory\policy.cjs:98:5)
+    Object.reserve (<repo>\scripts\factory\policy.cjs:348:3)
+    TestContext.<anonymous> (<repo>\scripts\tests\factory-concurrency.test.cjs:68:24)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 0
+# fail 7
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 100.3413

@@ -1,3 +1,4 @@
+const slots = require("./active-tickets.cjs");
 const ID = "issue-11-once-2026-11-13";
 const DECISION = "https://github.com/haideearus/cypress-realworld-app/issues/18";
 const CRITERIA = "d295d714446efad9eaa6b3bd3c0c25706756dcc2d26160a191f0253438279387";
@@ -77,7 +78,7 @@ function assertEligible(state, request, config) {
     t.status !== "blocked" ||
     t.pr ||
     t.approval ||
-    state.active ||
+    slots.activeEntries(state).length ||
     config.coding !== 2 ||
     config.retries !== 1 ||
     config.reviews !== 2 ||

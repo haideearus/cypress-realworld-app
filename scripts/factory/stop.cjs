@@ -1,3 +1,4 @@
+const slots = require("./active-tickets.cjs");
 const { randomUUID } = require("node:crypto");
 const { execFileSync } = require("node:child_process");
 const policy = require("./policy.cjs");
@@ -65,8 +66,8 @@ async function settings(api) {
 }
 function cleanup(state, terminalIds) {
   const next = structuredClone(state);
-  if (next.active && terminalIds.has(Number(next.active.runId))) {
-    const active = next.active;
+  for (const active of slots.activeEntries(next)) {
+    if (!terminalIds.has(Number(active.runId))) continue;
     for (const grant of Object.values(next.grants)) {
       if (
         grant.ticket === active.ticket &&
@@ -83,7 +84,7 @@ function cleanup(state, terminalIds) {
       ticket.status = "blocked";
       ticket.approval = null;
     }
-    next.active = null;
+    slots.releaseActive(next, active);
   }
   return next;
 }
@@ -175,8 +176,8 @@ async function stopFactory({
       );
       const loaded = await ledger.read();
       if (loaded.state.stop?.id !== stop.id) throw new Error("Durable stop marker changed");
-      if (loaded.state.active) {
-        const activeId = Number(loaded.state.active.runId);
+      for (const active of slots.activeEntries(loaded.state)) {
+        const activeId = Number(active.runId);
         if (!byId.has(activeId)) {
           const activeRun = await api.request("GET", `${ROOT}/actions/runs/${activeId}`);
           if (!agent(activeRun))
@@ -195,15 +196,14 @@ async function stopFactory({
           const run = await api.request("GET", `${ROOT}/actions/runs/${id}`);
           if (!agent(run) || run.id !== id) throw new Error("Agent cancellation identity changed");
           if (run.status === "completed") {
-            if (Number(loaded.state.active?.runId) === id) {
+            for (const active of slots
+              .activeEntries(loaded.state)
+              .filter((e) => Number(e.runId) === id)) {
               const attempt = await api.request(
                 "GET",
-                `${ROOT}/actions/runs/${id}/attempts/${loaded.state.active.runAttempt}`
+                `${ROOT}/actions/runs/${id}/attempts/${active.runAttempt}`
               );
-              if (
-                attempt.run_attempt !== loaded.state.active.runAttempt ||
-                attempt.status !== "completed"
-              )
+              if (attempt.run_attempt !== active.runAttempt || attempt.status !== "completed")
                 throw new Error("Active reservation attempt is not confirmed terminal");
             }
             terminalIds.add(id);
@@ -287,7 +287,7 @@ async function resumeFactory({ api, actor, execute = false, ledger = new Ledger(
   if (!state.stop) throw new Error("Factory has no durable stop marker to resume");
   validateStop(state.stop);
   let inventory = await partitionRuns(api, state, await runs(api));
-  if (state.active || inventory.pending.length)
+  if (slots.activeEntries(state).length || inventory.pending.length)
     throw new Error("Active or running agents must be terminal before resume");
   if (!execute)
     return {
@@ -308,7 +308,7 @@ async function resumeFactory({ api, actor, execute = false, ledger = new Ledger(
   if (SWITCHES.some((name) => actual[name] !== state.stop.previous[name]))
     throw new Error("Resume switches were not acknowledged; durable stop retained");
   await ledger.update(async (current) => {
-    if (current.stop?.id !== state.stop.id || current.active)
+    if (current.stop?.id !== state.stop.id || slots.activeEntries(current).length)
       throw new Error("Factory state changed before resume");
     inventory = await partitionRuns(api, current, await runs(api));
     if (inventory.pending.length) throw new Error("Running agents changed before resume");
@@ -395,4 +395,4 @@ if (require.main === module)
     );
     process.exitCode = 1;
   });
-module.exports = { AGENT_WORKFLOWS, stopFactory, resumeFactory, main };
+module.exports = { AGENT_WORKFLOWS, stopFactory, resumeFactory, runs, settings, main };
