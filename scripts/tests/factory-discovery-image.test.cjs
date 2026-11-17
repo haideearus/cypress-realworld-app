@@ -37,6 +37,9 @@ test(
         console.log(JSON.stringify({ exitState: result.exitState }));
         console.log(result.log);
       }
+      console.log(
+        result.log.split("\n").filter((line) => line.includes("Discovery resource summary:"))
+      );
       assert.equal(result.code, 0, "actual app startup, offline Yarn or browser/API login failed");
     } finally {
       fs.rmSync(root, { recursive: true, force: true });

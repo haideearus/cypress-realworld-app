@@ -76,6 +76,13 @@ if (role === "health") {
       ];
     } else throw Error("Unknown discovery mode");
     const r = spawnSync(cmd, args, { env, cwd: root, stdio: "inherit", timeout: 270000 });
+    const resources = {};
+    for (const name of ["pids.peak", "pids.events", "memory.events"]) {
+      try {
+        resources[name] = fs.readFileSync("/sys/fs/cgroup/" + name, "utf8").trim();
+      } catch {}
+    }
+    console.log("Discovery resource summary:", JSON.stringify(resources));
     process.exitCode = r.status === null ? 124 : r.status;
   } else throw Error("Unknown isolated role");
 }

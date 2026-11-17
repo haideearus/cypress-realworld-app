@@ -66,7 +66,7 @@ function containerArgs({ name, network, image, role, testDir, mode, file, oracle
     "--security-opt",
     "no-new-privileges=true",
     "--pids-limit",
-    "256",
+    role === "test" ? "512" : "256",
     "--memory",
     "3g",
     "--memory-swap",

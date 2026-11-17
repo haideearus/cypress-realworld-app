@@ -14,7 +14,7 @@ function environment(release) {
     CYPRESS_CRASH_REPORTS: "0",
     CYPRESS_RECORD_KEY: "",
     DEBUG:
-      "cypress:cli,cypress:server:*,-cypress:server:util:process_profiler,cypress:internal-stderr",
+      "cypress:cli,cypress:server:*,-cypress:server:util:process_profiler,cypress:lifecycle:*,cypress:data-context*,cypress:config*,cypress:internal-stderr",
     ELECTRON_ENABLE_LOGGING: "1",
     RENDER_GIT_COMMIT: release,
   };
