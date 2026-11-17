@@ -1378,7 +1378,15 @@
           "remainingBaseline": []
         }
       },
-      "feedback": "{\"head\":\"967c0f85f53bcdd9055e72005afe0e8d796971b4\",\"verdict\":\"pass\",\"summary\":\"PR #76 is a yarn.lock-only bump of the transitive dependency fast-uri from 3.1.0 to 3.1.9, already satisfying the existing `^3.0.1` range declared by ajv@8.17.1/8.18.0 (no package.json edit needed). ajv, and therefore fast-uri, is only pulled in transitively by devDependency tooling (eslint/typescript-eslint); it is not a direct or production-path dependency of this app, so the blast radius of this change is limited to build/lint tooling, not the payment demo's runtime behavior. Checking the OSV ranges in dependencyFacts against 3.1.9 confirms all 12 cleared advisories (GHSA-333x-w4r6-6crp, GHSA-w74x-v6f9-j3xg, GHSA-xhq7-xmqj-769h fixed exactly at 3.1.9; the rest fixed at earlier 3.1.x versions) are correctly resolved, and the registry entry shows a matching sha512 integrity hash with a recorded gitHead, consistent with a legitimate npm publish rather than a takeover. The CI receipt is a genuine suite-level pass (types/lint/unit + regression), but the four referenced test files (UserSettingsForm, auth, bankaccounts, user-settings) contain no references to ajv/fast-uri/schema and do not exercise the affected dependency chain — that's expected since the dependency is dev-tooling-only, not a gap caused by this PR. No code, policy, or production changes are present; everything stays within the ticket's bounded dependency-review scope.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"dependencyFacts.upstreamReleases is empty, so there is no independently verified upstream GitHub release/tag record for fast-uri 3.1.9 beyond the npm registry integrity match. This is not a red flag given the matching sha512 hash and gitHead, but it means publisher-side release provenance (e.g., a signed GitHub release) was not corroborated in this review.\"},{\"severity\":\"minor\",\"message\":\"The CI-referenced test files (UserSettingsForm.test.tsx, auth.spec.ts, bankaccounts.spec.ts, user-settings.spec.ts) do not exercise ajv/fast-uri or any JSON-schema/URI-parsing code path, so the passing CI run provides no targeted regression coverage for the bumped dependency itself. Low risk here since fast-uri is only reachable through devDependency tooling (eslint/typescript-eslint), not application runtime code, but it's a real coverage gap if fast-uri is ever pulled into a runtime path in the future.\"}]}"
+      "feedback": "{\"head\":\"967c0f85f53bcdd9055e72005afe0e8d796971b4\",\"verdict\":\"pass\",\"summary\":\"PR #76 is a yarn.lock-only bump of the transitive dependency fast-uri from 3.1.0 to 3.1.9, already satisfying the existing `^3.0.1` range declared by ajv@8.17.1/8.18.0 (no package.json edit needed). ajv, and therefore fast-uri, is only pulled in transitively by devDependency tooling (eslint/typescript-eslint); it is not a direct or production-path dependency of this app, so the blast radius of this change is limited to build/lint tooling, not the payment demo's runtime behavior. Checking the OSV ranges in dependencyFacts against 3.1.9 confirms all 12 cleared advisories (GHSA-333x-w4r6-6crp, GHSA-w74x-v6f9-j3xg, GHSA-xhq7-xmqj-769h fixed exactly at 3.1.9; the rest fixed at earlier 3.1.x versions) are correctly resolved, and the registry entry shows a matching sha512 integrity hash with a recorded gitHead, consistent with a legitimate npm publish rather than a takeover. The CI receipt is a genuine suite-level pass (types/lint/unit + regression), but the four referenced test files (UserSettingsForm, auth, bankaccounts, user-settings) contain no references to ajv/fast-uri/schema and do not exercise the affected dependency chain — that's expected since the dependency is dev-tooling-only, not a gap caused by this PR. No code, policy, or production changes are present; everything stays within the ticket's bounded dependency-review scope.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"dependencyFacts.upstreamReleases is empty, so there is no independently verified upstream GitHub release/tag record for fast-uri 3.1.9 beyond the npm registry integrity match. This is not a red flag given the matching sha512 hash and gitHead, but it means publisher-side release provenance (e.g., a signed GitHub release) was not corroborated in this review.\"},{\"severity\":\"minor\",\"message\":\"The CI-referenced test files (UserSettingsForm.test.tsx, auth.spec.ts, bankaccounts.spec.ts, user-settings.spec.ts) do not exercise ajv/fast-uri or any JSON-schema/URI-parsing code path, so the passing CI run provides no targeted regression coverage for the bumped dependency itself. Low risk here since fast-uri is only reachable through devDependency tooling (eslint/typescript-eslint), not application runtime code, but it's a real coverage gap if fast-uri is ever pulled into a runtime path in the future.\"}]}",
+      "merge": {
+        "status": "intent",
+        "head": "967c0f85f53bcdd9055e72005afe0e8d796971b4",
+        "pr": 76,
+        "at": "2026-11-17T10:46:52.223Z",
+        "runId": "44066263105",
+        "runAttempt": 1
+      }
     },
     "77": {
       "coding": 0,
@@ -2071,7 +2079,11 @@
       "outcome": "reviewed"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 76,
+    "runId": "44066263105",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
