@@ -51,7 +51,8 @@
     "2026-11-17": [
       59,
       76,
-      79
+      79,
+      80
     ]
   },
   "tickets": {
@@ -1498,6 +1499,19 @@
         }
       },
       "feedback": "Dependency subscription review unavailable; no automatic retry of this head"
+    },
+    "80": {
+      "coding": 0,
+      "origin": "owner-pr",
+      "reviews": 1,
+      "retries": 0,
+      "head": "dca1bb2cb95b4cc832e3bd55bde84877f5980a3c",
+      "status": "reviewing",
+      "pr": 81,
+      "approval": null,
+      "criteriaHash": "a5d7912d3a1c98d9c7218614d18def2438e0224035e56fdff3948569d04eb5dd",
+      "branch": "agent/80-two-ticket-foundation",
+      "ci": null
     }
   },
   "grants": {
@@ -2173,9 +2187,24 @@
       "status": "finished",
       "at": "2026-11-17T11:13:20.184Z",
       "outcome": "blocked"
+    },
+    "3506dfa9-5ab2-4a2f-ac5e-82b10c332abe": {
+      "id": "3506dfa9-5ab2-4a2f-ac5e-82b10c332abe",
+      "ticket": 80,
+      "phase": "review",
+      "slot": "existing",
+      "runId": "44074200249",
+      "runAttempt": 1,
+      "head": "dca1bb2cb95b4cc832e3bd55bde84877f5980a3c",
+      "status": "reserved",
+      "at": "2026-11-17T11:27:50.936Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 80,
+    "runId": "44074200249",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -4103,6 +4132,15 @@
       "event": "blocked",
       "ticket": 79,
       "reason": "Dependency subscription review unavailable; no automatic retry of this head"
+    },
+    {
+      "at": "2026-11-17T11:27:50.936Z",
+      "event": "reserved",
+      "ticket": 80,
+      "grant": "3506dfa9-5ab2-4a2f-ac5e-82b10c332abe",
+      "phase": "review",
+      "runId": "44074200249",
+      "runAttempt": 1
     }
   ]
 }
