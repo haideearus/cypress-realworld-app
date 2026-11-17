@@ -59,6 +59,34 @@ test(
         ],
         "actual isolated API, unit or browser execution failed"
       );
+      // Unmerged setup code runs only under uid1000 in a runtime overlay.
+      const overlayFile = path.join(root, "repair-overlay.json");
+      const setup =
+        fs.readFileSync(path.join(source, "src/setup-tests.js"), "utf8") +
+        `\nimport overlayFs from 'node:fs';for(const target of ['/trusted/oracles.cjs','/trusted/entry.cjs','/usr/local/bin/node']){let denied=false;try{overlayFs.writeFileSync(target,'forged verifier');}catch{denied=true;}if(!denied)throw Error('untrusted overlay replaced trusted image');}globalThis.__factoryOverlayLocked=true;\n`;
+      fs.writeFileSync(
+        overlayFile,
+        JSON.stringify([
+          { path: "src/setup-tests.js", mode: "100644", content: setup },
+          {
+            path: "src/discovery-overlay-marker.ts",
+            mode: "100644",
+            content: "export const marker='runtime-overlay';",
+          },
+        ])
+      );
+      fs.writeFileSync(
+        path.join(tests, "overlay.unit.test.ts"),
+        `import {it,expect} from 'vitest';import {marker} from '../src/discovery-overlay-marker';it('runtime overlay leaves trusted image immutable',()=>{expect(marker).toBe('runtime-overlay');expect(globalThis.__factoryOverlayLocked).toBe(true);});`
+      );
+      const overlay = await s.sandbox({
+        image,
+        tests,
+        overlayFile,
+        request: { mode: "unit", file: "overlay.unit.test.ts" },
+      });
+      if (overlay.code !== 0) console.log(overlay.log);
+      assert.equal(overlay.code, 0, "unmerged source did not stay isolated from the trusted image");
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }

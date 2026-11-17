@@ -170,7 +170,9 @@ async function verifyDiscoveryIssue(
   const r = matches[0];
   if (
     !require("./discovery-publication.cjs").issueMatches(issue, r) ||
-    !["published", "held-evidence"].includes(r.status) ||
+    !["published", "held-evidence", ...(!requireCurrent ? ["repair-merged"] : [])].includes(
+      r.status
+    ) ||
     !(await verify(api, r.candidate))
   )
     return null;

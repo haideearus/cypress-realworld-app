@@ -15,6 +15,7 @@ const STATES = [
   "rejected",
   "observed-resolved",
   "held-evidence",
+  "repair-merged",
 ];
 function fingerprintFinding({ component, symptom, contract }) {
   return c.digest([contract, component, symptom]);
@@ -222,6 +223,9 @@ function validateFindings(s) {
             "duplicates",
             "intake",
             "comment",
+            "resolution",
+            "resolutionClosed",
+            "resolutionHeld",
           ].includes(k)
       )
     )
@@ -277,6 +281,22 @@ function validateFindings(s) {
         throw Error("Invalid duplicate fingerprint");
     }
     if (r.comment !== undefined) validateComment(r.comment);
+    if (typeof r.resolutionClosed !== "boolean" || typeof r.resolutionHeld !== "boolean")
+      throw Error("Invalid finding closure state");
+    if (r.resolution !== null) {
+      c.exact(r.resolution, ["kind", "pr", "head", "mergeCommit", "context"]);
+      if (
+        r.resolution.kind !== "protected-merge" ||
+        !Number.isSafeInteger(r.resolution.pr) ||
+        r.resolution.pr < 1 ||
+        !c.SHA.test(r.resolution.head) ||
+        !c.SHA.test(r.resolution.mergeCommit) ||
+        !contextOK(r.resolution.context)
+      )
+        throw Error("Invalid protected finding resolution");
+    }
+    if (r.status === "repair-merged" && !r.resolution)
+      throw Error("Missing merged finding resolution");
   }
   for (const [id, receipt] of Object.entries(s.replays)) {
     validateReplay(receipt);
@@ -284,11 +304,13 @@ function validateFindings(s) {
       throw Error("Invalid retained replay identity");
   }
   for (const [grant, entry] of Object.entries(s.imports)) {
-    c.exact(entry, ["runId", "evidenceHash", "findings"]);
+    c.exact(entry, ["runId", "evidenceHash", "findings", "status"]);
     if (
       !UUID.test(grant) ||
       !/^[1-9]\d*$/.test(entry.runId) ||
-      !c.HASH.test(entry.evidenceHash) ||
+      !["complete", "held-evidence"].includes(entry.status) ||
+      (entry.evidenceHash !== null && !c.HASH.test(entry.evidenceHash)) ||
+      (entry.status === "complete" && entry.evidenceHash === null) ||
       !Array.isArray(entry.findings) ||
       entry.findings.length > 2 ||
       entry.findings.some((x) => !s.sources[grant]?.includes(x))

@@ -2,7 +2,7 @@ const f = require("./discovery-finding-contract.cjs");
 const p = require("./policy.cjs");
 const { ROOT } = require("./github.cjs");
 const c = require("./discovery-contract.cjs");
-function stageFinding(s, candidate) {
+function stageFinding(s, candidate, { allowRecurrence = false, recurrenceOf } = {}) {
   f.validateCandidate(candidate);
   if (s.records[candidate.key])
     return { status: s.records[candidate.key].status, record: candidate.key };
@@ -17,8 +17,13 @@ function stageFinding(s, candidate) {
   const previous = Object.values(s.records)
     .filter((r) => r.candidate.fingerprint === candidate.fingerprint)
     .sort((a, b) => b.generation - a.generation)[0];
+  if (allowRecurrence && recurrenceOf !== undefined && previous?.candidate.key !== recurrenceOf)
+    throw Error("Finding recurrence state changed; retry verification");
   s.sources[candidate.source.grantId] = [...used, candidate.key];
-  if (previous && previous.status !== "observed-resolved") {
+  if (
+    previous &&
+    (!allowRecurrence || !["observed-resolved", "repair-merged"].includes(previous.status))
+  ) {
     if (previous.duplicates.length >= 30)
       throw Error("Finding duplicate history full; owner maintenance required");
     previous.duplicates.push({ ...structuredClone(candidate), comment: null });
@@ -33,6 +38,9 @@ function stageFinding(s, candidate) {
     publication: null,
     duplicates: [],
     intake: null,
+    resolution: null,
+    resolutionClosed: false,
+    resolutionHeld: false,
   };
   return { status: "verified", record: candidate.key };
 }
@@ -274,11 +282,14 @@ async function appendDuplicates(options) {
 }
 async function noteResolution(options) {
   const row = (await options.store.read()).state.records[options.key];
-  if (row.status !== "observed-resolved") return;
+  if (!["observed-resolved", "repair-merged"].includes(row.status)) return;
   await commentOnce({
     ...options,
     select: (r) => r,
-    body: `Observed resolved on tested main ${row.intake.head}: the original reproducer passed and two isolated oracle checks no longer found the violation. No factory-authored repair or production verification is claimed.\nReceipt ${row.intake.id}; evidence https://github.com/${c.REPOSITORY}/actions/runs/${row.intake.context.runId}.\n<!-- discovery-observed-resolved:${row.candidate.key} -->`,
+    body:
+      row.status === "repair-merged"
+        ? `Protected repair PR #${row.resolution.pr} merged as ${row.resolution.mergeCommit}. This records a reviewed code repair, not production deployment or live-monitor verification.\n<!-- discovery-repair-merged:${row.candidate.key} -->`
+        : `Observed resolved on tested main ${row.intake.head}: the original reproducer passed and two isolated oracle checks no longer found the violation. No factory-authored repair or production verification is claimed.\nReceipt ${row.intake.id}; evidence https://github.com/${c.REPOSITORY}/actions/runs/${row.intake.context.runId}.\n<!-- discovery-observed-resolved:${row.candidate.key} -->`,
   });
   const saved = (await options.store.read()).state.records[options.key];
   if (!saved.comment?.id || (await options.ledger.read()).state.stop) return;
@@ -289,6 +300,105 @@ async function noteResolution(options) {
       state: "closed",
       state_reason: "completed",
     });
+  const confirmed = await options.api.request("GET", `${ROOT}/issues/${issue.number}`);
+  if (confirmed.state !== "closed" || !issueMatches(confirmed, saved))
+    throw Error("Finding closure response uncertain");
+  await options.store.update((s) => {
+    s.records[options.key].resolutionClosed = true;
+    s.records[options.key].resolutionHeld = false;
+    return { state: s };
+  });
+}
+async function recordMergedRepairs({ api, store, ledger, context }) {
+  if (!f.contextOK(context)) throw Error("Untrusted merge reconciliation");
+  const state = (await ledger.read()).state;
+  if (state.stop) return;
+  const rows = Object.values((await store.read()).state.records).filter(
+    (r) => r.status === "published"
+  );
+  for (const row of rows) {
+    const t = state.tickets[String(row.publication.issue)];
+    if (
+      t?.merge?.status !== "merged" ||
+      t.finding?.origin.key !== row.candidate.key ||
+      t.finding.origin.candidateHash !== c.digest(row.candidate) ||
+      t.criteriaHash !== row.publication.criteriaHash ||
+      !t.approval ||
+      t.approval.head !== t.head ||
+      !t.ci?.passed
+    )
+      continue;
+    const pr = await api.request("GET", `${ROOT}/pulls/${t.pr}`);
+    if (
+      pr.merged !== true ||
+      pr.state !== "closed" ||
+      pr.number !== t.pr ||
+      pr.head?.sha !== t.head ||
+      pr.merge_commit_sha !== t.merge.mergeCommit ||
+      !c.SHA.test(pr.merge_commit_sha) ||
+      pr.base?.ref !== "main" ||
+      pr.base.repo?.full_name !== c.REPOSITORY ||
+      pr.head.repo?.full_name !== c.REPOSITORY
+    )
+      continue;
+    await store.update((s) => {
+      const r = s.records[row.candidate.key];
+      if (r.status === "published") {
+        r.status = "repair-merged";
+        r.resolution = {
+          kind: "protected-merge",
+          pr: t.pr,
+          head: t.head,
+          mergeCommit: pr.merge_commit_sha,
+          context: structuredClone(context),
+        };
+      }
+      return { state: s };
+    });
+  }
+}
+async function recurrenceAllowed(api, previous, candidate) {
+  if (!previous || !["observed-resolved", "repair-merged"].includes(previous.status)) return false;
+  const base =
+    previous.status === "repair-merged" ? previous.resolution?.mergeCommit : previous.intake?.head;
+  if (!c.SHA.test(base || "")) return false;
+  const comparison = await api.request("GET", `${ROOT}/compare/${base}...${candidate.source.head}`);
+  return (
+    ["ahead", "identical"].includes(comparison.status) && comparison.merge_base_commit?.sha === base
+  );
+}
+async function reconcileResolutions(options, { key } = {}) {
+  const rows = Object.values((await options.store.read()).state.records)
+    .filter(
+      (r) =>
+        ["observed-resolved", "repair-merged"].includes(r.status) &&
+        !r.resolutionClosed &&
+        (key ? r.candidate.key === key : !r.resolutionHeld)
+    )
+    .slice(0, 4);
+  for (const row of rows) {
+    try {
+      if (row.status === "observed-resolved") {
+        const origin = require("./discovery-origin.cjs");
+        await origin.producer(options.api, row.intake.context);
+        if (
+          !(await origin.successfulJob(
+            options.api,
+            row.intake.context.runId,
+            "replay",
+            "Replay current main without credentials"
+          ))
+        )
+          throw Error("Unverified resolution replay");
+      }
+      await noteResolution({ ...options, key: row.candidate.key });
+    } catch {
+      await options.store.update((s) => {
+        s.records[row.candidate.key].resolutionHeld = true;
+        return { state: s };
+      });
+    }
+  }
 }
 module.exports = {
   fingerprintFinding: f.fingerprintFinding,
@@ -298,4 +408,7 @@ module.exports = {
   publishFinding,
   appendDuplicates,
   noteResolution,
+  recordMergedRepairs,
+  recurrenceAllowed,
+  reconcileResolutions,
 };

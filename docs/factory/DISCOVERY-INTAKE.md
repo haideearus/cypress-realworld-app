@@ -36,6 +36,9 @@ source sweep** are accepted. A fingerprint uses the trusted contract, route and
 symptom, independent of commit or model title. Duplicate evidence is appended
 in comments; frozen ticket criteria are never rewritten. An observed-resolved
 finding retains its history and a later recurrence gets a new generation.
+Protected factory merges are recorded separately as **repair merged**, preserving
+the admitted origin receipt. New recurrence evidence must descend from the
+recorded resolution or merge commit; older source evidence stays a duplicate.
 
 Issue/comment intent is retained before a non-idempotent request. An unknown
 response is reconciled against exact bot-authored content within five pages;
@@ -64,6 +67,13 @@ checked before replay and again before ordinary coding admission.
 - Broken, missing, expired, changed or inconsistent evidence produces a visible
   hold. New main commits do not bypass replay limits.
 
+An exhausted sibling or expired source cannot block other eligible findings.
+Interrupted resolution comments/closures are reconciled from retained intentions.
+If reconciliation stays ambiguous, that closure is held instead of blocking the
+queue; the owner can use `reconcile` with its exact `finding_key` and preview
+checked before authorizing another metadata-only attempt. Preview never changes
+the issue or starts a model.
+
 The successful intake completion reaches the existing event wake through a
 typed, independently revalidated finding receipt. The repair consumes an
 ordinary maintenance ticket and ordinary coding/review/retry allowances.
@@ -71,8 +81,11 @@ Discovery evidence is never an independent review pass.
 
 For these repairs Claude has file-editing tools and no shell. Trusted jobs run
 the original reproducer and oracle in isolated Docker before and after coding.
-GREEN is checked on a fresh archive plus the exact validated files to publish,
-not on arbitrary workspace contents. Publication requires that exact file hash,
+Only the original admission-main baseline is built into the image. Unmerged
+patches and prior retry edits are applied as read-only runtime overlays inside
+fresh copies under uid1000; generated code cannot replace the image's trusted
+oracle, entrypoint or interpreter during a privileged build. GREEN checks the
+exact validated files to publish, not arbitrary workspace contents. Publication requires that exact file hash,
 source/grant identity, preserved RED, GREEN and the successful trusted coding
 job. Later normal retries may preserve the first trusted RED while checking an
 already-correct baseline; they do not refund attempts. Original tests and raw

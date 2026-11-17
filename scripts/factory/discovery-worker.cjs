@@ -43,6 +43,7 @@ async function buildImage(source, contextDir, head) {
   fs.mkdirSync(trusted);
   fs.copyFileSync(path.join(__dirname, "discovery/entry.cjs"), path.join(trusted, "entry.cjs"));
   fs.copyFileSync(path.join(__dirname, "discovery/runtime.cjs"), path.join(trusted, "runtime.cjs"));
+  fs.copyFileSync(path.join(__dirname, "discovery/overlay.cjs"), path.join(trusted, "overlay.cjs"));
   fs.copyFileSync(path.join(__dirname, "discovery-oracles.cjs"), path.join(trusted, "oracles.cjs"));
   fs.writeFileSync(path.join(trusted, "head.txt"), head);
   fs.copyFileSync(

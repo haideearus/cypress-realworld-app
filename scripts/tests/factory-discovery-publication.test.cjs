@@ -13,6 +13,20 @@ function candidate(route = "/users", grant = f.grant, kind = "protected-route") 
   );
 }
 const enabled = { enabled: true, automatic: true, discovery: true, timezone: "Europe/Bucharest" };
+test("a verified merged repair can recur while old source evidence remains a duplicate", () => {
+  const s = contract().emptyFindings(),
+    p = publication(),
+    one = candidate();
+  p.stageFinding(s, one);
+  s.records[one.key].status = "repair-merged";
+  const two = candidate("/users", "88888888-8888-4888-8888-888888888888");
+  assert.equal(p.stageFinding(s, two, { allowRecurrence: true }).status, "verified");
+  assert.equal(s.records[two.key].generation, 2);
+  assert.equal(s.records[one.key].status, "repair-merged");
+  const old = candidate("/users", "99999999-9999-4999-8999-999999999999");
+  s.records[two.key].status = "repair-merged";
+  assert.equal(p.stageFinding(s, old, { allowRecurrence: false }).status, "duplicate");
+});
 test("a stop between intent and issue POST can resume without refund or duplicate POST", async () => {
   const store = f.memoryStore(contract().emptyFindings()),
     row = candidate(),
@@ -181,7 +195,7 @@ test("fingerprints span commits; duplicates retain evidence and never rewrite fr
   assert.equal(s.records[one.key].duplicates.length, 1);
   s.records[one.key].status = "observed-resolved";
   const third = candidate("/users", "99999999-9999-4999-8999-999999999999");
-  assert.equal(p.stageFinding(s, third).status, "verified");
+  assert.equal(p.stageFinding(s, third, { allowRecurrence: true }).status, "verified");
   assert.equal(Object.keys(s.records).length, 2);
 });
 test("lost issue response is reconciled without a second POST; owner stop blocks new writes", async () => {

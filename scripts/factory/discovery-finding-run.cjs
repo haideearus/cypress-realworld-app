@@ -28,6 +28,70 @@ function readBounded(file) {
     throw Error("Secret-bearing finding artifact");
   return value;
 }
+async function chooseSource({ api, store, controls, registry, day, head, preview = false }) {
+  const pending = intake.pendingReplay(registry, controls, { day, head });
+  const ids = [
+    ...new Set([
+      ...(pending ? [pending.candidate.source.grantId] : []),
+      ...Object.values(registry.records)
+        .filter((r) =>
+          ["verified", "held-stop", "held-quota", "publishing-intent"].includes(r.status)
+        )
+        .map((r) => r.candidate.source.grantId),
+      ...Object.values(controls.grants)
+        .filter(
+          (g) =>
+            g.phase === "discover" &&
+            g.status === "finished" &&
+            g.outcome === "discovery_complete" &&
+            !registry.imports[g.id]
+        )
+        .map((g) => g.id),
+    ]),
+  ].slice(0, 20);
+  const held = [];
+  for (const id of ids) {
+    const source = controls.grants[id];
+    if (
+      !source ||
+      source.phase !== "discover" ||
+      source.status !== "finished" ||
+      source.outcome !== "discovery_complete"
+    )
+      throw Error("Discovery source is no longer publishable");
+    const artifacts = await api.pages(
+      `${ROOT}/actions/runs/${source.runId}/artifacts?per_page=100`,
+      "artifacts"
+    );
+    const matches = artifacts.filter((a) => a.name === `discovery-evidence-${id}` && !a.expired);
+    if (matches.length === 1)
+      return {
+        sourceGrant: id,
+        sourceRun: source.runId,
+        artifactId: matches[0].id,
+        artifactName: matches[0].name,
+        heldSources: held.length,
+      };
+    held.push(id);
+    if (!preview)
+      await store.update((s) => {
+        for (const r of Object.values(s.records))
+          if (
+            r.candidate.source.grantId === id &&
+            !["observed-resolved", "repair-merged"].includes(r.status)
+          )
+            r.status = "held-evidence";
+        s.imports[id] = {
+          runId: source.runId,
+          evidenceHash: s.imports[id]?.evidenceHash || null,
+          findings: s.imports[id]?.findings || [],
+          status: "held-evidence",
+        };
+        return { state: s };
+      });
+  }
+  return { heldSources: held.length };
+}
 async function main(env = process.env, dependencies = {}) {
   p.assertSubscriptionEnv(env);
   const api = dependencies.api || new GitHub({ token: env.GH_TOKEN });
@@ -49,7 +113,7 @@ async function main(env = process.env, dependencies = {}) {
   const preview =
     op === "select" &&
     context.event === "workflow_dispatch" &&
-    (inputs.operation !== "run" || inputs.dry_run !== false);
+    (!["run", "reconcile"].includes(inputs.operation) || inputs.dry_run !== false);
   const controls = (await ledger.read()).state;
   if (
     op !== "finish" &&
@@ -66,55 +130,71 @@ async function main(env = process.env, dependencies = {}) {
     throw error;
   }
   if (op === "select") {
-    const pending = Object.values(registry.records).find(
-      (r) =>
-        r.status === "published" &&
-        !controls.tickets[String(r.publication.issue)] &&
-        Object.values(registry.replays).filter((x) => x.key === r.candidate.key && x.day === day)
-          .length < 2 &&
-        (!r.intake || r.intake.outcome !== "ready" || r.intake.head !== context.workflowSha)
-    );
-    const unfinished = Object.values(registry.records).find((r) =>
-      ["verified", "held-stop", "held-quota", "publishing-intent"].includes(r.status)
-    );
-    const grant = Object.values(controls.grants).find(
-      (g) =>
-        g.phase === "discover" &&
-        g.status === "finished" &&
-        g.outcome === "discovery_complete" &&
-        !registry.imports[g.id]
-    );
-    const selected = unfinished?.candidate || pending?.candidate;
-    const id = selected?.source.grantId || grant?.id;
-    if (!id)
+    if (inputs.operation === "reconcile") {
+      if (!c.HASH.test(inputs.finding_key || "") || !registry.records[inputs.finding_key])
+        throw Error("Exact retained finding key required");
+      if (preview)
+        return output(
+          {
+            outcome: "resolution_reconciliation_preview",
+            key: inputs.finding_key,
+            ready: false,
+            modelCalls: 0,
+          },
+          env
+        );
+      await pub.reconcileResolutions(
+        { api, store, ledger, context, config },
+        { key: inputs.finding_key }
+      );
+      const r = (await store.read()).state.records[inputs.finding_key];
       return output(
-        { outcome: preview ? "preview-empty" : "no-pending-findings", ready: false, modelCalls: 0 },
+        {
+          outcome: r.resolutionClosed ? "resolution_reconciled" : "resolution_held",
+          key: inputs.finding_key,
+          ready: false,
+          modelCalls: 0,
+        },
         env
       );
-    const source = controls.grants[id];
-    if (
-      !source ||
-      source.phase !== "discover" ||
-      source.status !== "finished" ||
-      source.outcome !== "discovery_complete"
-    )
-      throw Error("Discovery source is no longer publishable");
-    const artifacts = await api.pages(
-      `${ROOT}/actions/runs/${source.runId}/artifacts?per_page=100`,
-      "artifacts"
-    );
-    const matches = artifacts.filter((a) => a.name === `discovery-evidence-${id}` && !a.expired);
-    if (matches.length !== 1)
-      throw Error("Discovery evidence expired or ambiguous; no repair admitted");
+    }
+    if (!preview) {
+      await pub.recordMergedRepairs({ api, store, ledger, context });
+      await pub.reconcileResolutions(
+        { api, store, ledger, context, config },
+        { key: inputs.operation === "reconcile" ? inputs.finding_key : undefined }
+      );
+      registry = (await store.read()).state;
+    }
+    const choice = await chooseSource({
+      api,
+      store,
+      controls,
+      registry,
+      day,
+      head: context.workflowSha,
+      preview,
+    });
+    if (!choice.sourceGrant)
+      return output(
+        {
+          outcome: preview
+            ? "preview-empty"
+            : choice.heldSources
+              ? "evidence-held"
+              : "no-pending-findings",
+          ready: false,
+          modelCalls: 0,
+          ...choice,
+        },
+        env
+      );
     return output(
       {
         outcome: preview ? "preview" : "selected",
         ready: !preview,
         modelCalls: 0,
-        sourceGrant: id,
-        sourceRun: source.runId,
-        artifactId: matches[0].id,
-        artifactName: matches[0].name,
+        ...choice,
       },
       env
     );
@@ -151,12 +231,26 @@ async function main(env = process.env, dependencies = {}) {
       if (!(await origin.verifySource(api, candidate))) throw Error("Source proof rejected");
       candidates.push(candidate);
     }
+    const previous = (await store.read()).state;
+    const recurrence = {};
+    for (const candidate of candidates) {
+      const last = Object.values(previous.records)
+        .filter((r) => r.candidate.fingerprint === candidate.fingerprint)
+        .sort((a, b) => b.generation - a.generation)[0];
+      recurrence[candidate.key] = {
+        allowRecurrence: await pub.recurrenceAllowed(api, last, candidate),
+        recurrenceOf: last?.candidate.key,
+      };
+    }
     const staged = await store.update((s) => {
-      const keys = candidates.map((candidate) => pub.stageFinding(s, candidate).record);
+      const keys = candidates.map(
+        (candidate) => pub.stageFinding(s, candidate, recurrence[candidate.key]).record
+      );
       s.imports[g.id] = {
         runId: g.runId,
         evidenceHash: c.digest(bundle),
         findings: candidates.map((x) => x.key),
+        status: "complete",
       };
       return { state: s, keys };
     });
@@ -178,13 +272,7 @@ async function main(env = process.env, dependencies = {}) {
       { ...context, event: "workflow_dispatch" },
       {}
     );
-    const row = Object.values(after.records).find(
-      (r) =>
-        r.candidate.source.grantId === g.id &&
-        r.status === "published" &&
-        !controls.tickets[String(r.publication.issue)] &&
-        (!r.intake || r.intake.outcome !== "ready" || r.intake.head !== head.head)
-    );
+    const row = intake.pendingReplay(after, controls, { day, head: head.head, sourceGrant: g.id });
     if (!row || !intake.canReplay((await ledger.read()).state, config, day))
       return output({ outcome: "published-or-held", ready: false, modelCalls: 0 }, env);
     const receipt = await store.update((s) => ({
@@ -288,4 +376,4 @@ if (require.main === module)
     );
     process.exitCode = 1;
   });
-module.exports = { main, readBounded };
+module.exports = { main, readBounded, chooseSource };

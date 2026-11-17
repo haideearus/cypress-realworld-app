@@ -6,6 +6,20 @@ const f = require("./discovery-finding-contract.cjs");
 const s = require("./discovery-sandbox.cjs");
 const o = require("./discovery-oracles.cjs");
 const p = require("./policy.cjs");
+function pendingReplay(registry, controls, { day, head, sourceGrant } = {}) {
+  const attempts = Object.values(registry.replays).filter((x) => x.day === day);
+  if (attempts.length >= 8) return null;
+  return (
+    Object.values(registry.records).find(
+      (r) =>
+        r.status === "published" &&
+        (!sourceGrant || r.candidate.source.grantId === sourceGrant) &&
+        !controls.tickets[String(r.publication.issue)] &&
+        attempts.filter((x) => x.key === r.candidate.key).length < 2 &&
+        (!r.intake || r.intake.outcome !== "ready" || r.intake.head !== head)
+    ) || null
+  );
+}
 function canReplay(state, config, day) {
   return (
     !state.stop &&
@@ -104,6 +118,7 @@ async function replayForIntake({
   tests,
   run = s.sandbox,
   now = Date.now,
+  overlayFile,
 }) {
   const proof = f.sourceProof(candidate.source);
   const index = bundle.findings?.findIndex((x) => c.digest(x.finding) === candidate.findingHash);
@@ -128,9 +143,10 @@ async function replayForIntake({
         tests,
         request: { mode: candidate.mode, file: candidate.file },
         deadlineAt,
+        overlayFile,
       })
     );
-    observations.push(await run({ image, oracle: candidate.oracle, deadlineAt }));
+    observations.push(await run({ image, oracle: candidate.oracle, deadlineAt, overlayFile }));
   }
   return {
     version: 1,
@@ -143,6 +159,8 @@ async function replayForIntake({
   };
 }
 async function buildBaseline({ cwd, head, root, files = [] }) {
+  if (files.length)
+    throw Error("Unmerged patches must use a runtime overlay, never the image build");
   if (!c.SHA.test(head)) throw Error("Invalid replay source");
   const { validateChanges } = require("./artifacts.cjs");
   if (files.length) validateChanges(files);
@@ -169,14 +187,6 @@ async function buildBaseline({ cwd, head, root, files = [] }) {
     input: archive,
     maxBuffer: 1000000,
   });
-  for (const file of files) {
-    const target = path.join(source, file.path);
-    if (file.deleted) fs.unlinkSync(target);
-    else {
-      fs.mkdirSync(path.dirname(target), { recursive: true });
-      fs.writeFileSync(target, file.content, { mode: 0o644 });
-    }
-  }
   const manifest = require("./discovery-worker.cjs").manifestFor(source);
   await require("./secret-scan.cjs").scanFiles(
     Object.keys(manifest).map((name) => ({
@@ -194,4 +204,5 @@ module.exports = {
   assessReplay,
   replayForIntake,
   buildBaseline,
+  pendingReplay,
 };

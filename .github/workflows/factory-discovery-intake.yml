@@ -4,12 +4,16 @@ on:
     inputs:
       operation:
         type: choice
-        options: [preview, initialize, run]
+        options: [preview, initialize, run, reconcile]
         default: preview
       dry_run:
         description: Preview only; no ticket, replay reservation or repair
         type: boolean
         default: true
+      finding_key:
+        description: Exact finding key for explicit held resolution reconciliation
+        type: string
+        default: ""
   workflow_run:
     workflows: [Proactive app discovery, Factory CI]
     types: [completed]
@@ -29,6 +33,7 @@ jobs:
     permissions:
       actions: read
       contents: write
+      issues: write
     outputs:
       ready: ${{ steps.select.outputs.ready }}
       sourceGrant: ${{ steps.select.outputs.sourceGrant }}

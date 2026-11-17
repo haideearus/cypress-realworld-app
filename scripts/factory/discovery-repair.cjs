@@ -8,6 +8,40 @@ const { GitHub, Ledger, ROOT } = require("./github.cjs");
 const { FindingStore } = require("./discovery-finding-store.cjs");
 const { runtimeContext, output, readJson } = require("./controller.cjs");
 const intake = require("./discovery-intake.cjs");
+function priorOverlay(cwd, base, head) {
+  if (!c.SHA.test(base) || !c.SHA.test(head)) throw Error("Invalid immutable repair base");
+  const git = (args) =>
+    require("node:child_process").execFileSync("git", ["-c", "core.fsmonitor=false", ...args], {
+      cwd,
+      env: require("./discovery-sandbox.cjs").safeEnv(),
+      encoding: "utf8",
+      maxBuffer: 1000000,
+      windowsHide: true,
+    });
+  git(["merge-base", "--is-ancestor", base, head]);
+  const names = git([
+    "diff",
+    "--no-ext-diff",
+    "--no-textconv",
+    "--name-only",
+    "-z",
+    base,
+    head,
+    "--",
+  ])
+    .split("\0")
+    .filter(Boolean);
+  const files = names.map((name) => {
+    if (!require("./artifacts.cjs").validPath(name))
+      throw Error("Untrusted repair baseline changed harness files");
+    const entry = git(["ls-tree", head, "--", name]);
+    if (!entry) return { path: name, deleted: true };
+    if (!entry.startsWith("100644 blob ")) throw Error("Nonregular repair overlay");
+    return { path: name, mode: "100644", content: git(["show", `${head}:${name}`]) };
+  });
+  if (files.length) require("./artifacts.cjs").validateChanges(files);
+  return files;
+}
 function repairProof(ticket, grant, bundle, red, green) {
   if (red.outcome !== "ready" || green.outcome !== "observed-resolved")
     throw Error("Trusted discovery repair RED/GREEN incomplete");
@@ -130,19 +164,43 @@ async function main(env = process.env) {
   const code = op === "green" ? readJson(path.join(env.FACTORY_ARTIFACT_DIR, "bundle.json")) : null;
   if (code && (code.grantId !== grant.id || code.base !== grant.head || code.kind !== "code"))
     throw Error("Code artifact identity changed");
+  const cwd = env.GITHUB_WORKSPACE || process.cwd(),
+    base = ticket.finding.intake.head;
+  const prior = priorOverlay(cwd, base, head);
+  const files = [
+    ...new Map([...prior, ...(code?.files || [])].map((file) => [file.path, file])).values(),
+  ];
+  if (files.length) require("./artifacts.cjs").validateChanges(files);
+  let image;
+  if (op === "red") {
+    image = await intake.buildBaseline({ cwd, head: base, root: path.join(root, "baseline") });
+    fs.writeFileSync(
+      path.join(root, "baseline.json"),
+      JSON.stringify({ image, base, head, grantId: grant.id }),
+      { flag: "wx" }
+    );
+  } else {
+    const baseline = readJson(path.join(root, "baseline.json"));
+    if (
+      baseline.base !== base ||
+      baseline.head !== head ||
+      baseline.grantId !== grant.id ||
+      !require("./discovery-sandbox.cjs").IMAGE.test(baseline.image)
+    )
+      throw Error("Immutable repair baseline changed");
+    image = baseline.image;
+  }
   const build = path.join(root, op);
-  const image = await intake.buildBaseline({
-    cwd: env.GITHUB_WORKSPACE || process.cwd(),
-    head,
-    root: build,
-    files: code?.files || [],
-  });
+  fs.mkdirSync(build);
+  const overlayFile = path.join(build, "overlay.json");
+  fs.writeFileSync(overlayFile, JSON.stringify(files), { flag: "wx", mode: 0o644 });
   p.preflight((await new Ledger(api).read()).state, grant.id, context, config);
   const result = await intake.replayForIntake({
     candidate,
     bundle,
     image,
     tests: path.join(build, "tests"),
+    overlayFile,
   });
   const evidenceHash = c.digest(result);
   if (op === "red") {
@@ -193,4 +251,4 @@ if (require.main === module)
     );
     process.exitCode = 1;
   });
-module.exports = { repairProof, validRepairProof, verifyPublishedRepair, main };
+module.exports = { repairProof, validRepairProof, verifyPublishedRepair, priorOverlay, main };

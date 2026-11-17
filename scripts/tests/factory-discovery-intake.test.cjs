@@ -126,3 +126,57 @@ test("eight total attempts/day are retained; stop and capacity block replay, not
   );
 });
 module.exports = { setup };
+test("an exhausted first finding cannot starve a second finding from the same sweep", () => {
+  const { state, candidate } = setup();
+  const second = f.candidateFromEvidence(
+    fx.evidence("protected-route", "/bankAccounts"),
+    0,
+    fx.artifact,
+    fx.proof()
+  );
+  pub.stageFinding(state, second);
+  pub.claimPublication(
+    state,
+    second.key,
+    "2026-11-17",
+    fx.context,
+    { enabled: true, automatic: true, discovery: true },
+    false
+  );
+  state.records[second.key].publication.issue = 124;
+  state.records[second.key].status = "published";
+  intake.reserveReplay(state, candidate.key, "2026-11-17", fx.context, fx.head);
+  intake.reserveReplay(
+    state,
+    candidate.key,
+    "2026-11-17",
+    { ...fx.context, runId: "201" },
+    fx.head
+  );
+  assert.equal(
+    intake.pendingReplay(
+      state,
+      { tickets: {} },
+      { day: "2026-11-17", head: fx.head, sourceGrant: fx.grant }
+    ).candidate.key,
+    second.key
+  );
+});
+test("unmerged model patches are refused by the image builder, not executed during privileged image construction", async () => {
+  await assert.rejects(
+    () =>
+      intake.buildBaseline({
+        cwd: "unused",
+        head: fx.head,
+        root: "unused",
+        files: [
+          {
+            path: "src/__tests__/hostile.test.ts",
+            mode: "100644",
+            content: "require('node:fs').writeFileSync('/trusted/oracles.cjs','forged')",
+          },
+        ],
+      }),
+    /overlay|unmerged|patch.*image/i
+  );
+});
