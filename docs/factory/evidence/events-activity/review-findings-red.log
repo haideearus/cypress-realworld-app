@@ -1,0 +1,350 @@
+TAP version 13
+# Subtest: disabled and dry-run dependency selection never mutate the ledger or reserve inference
+ok 1 - disabled and dry-run dependency selection never mutate the ledger or reserve inference
+  ---
+  duration_ms: 31.4215
+  type: 'test'
+  ...
+# Subtest: stale genuine dependency proposals produce a typed refresh hold, never an idle claim or grant
+not ok 2 - stale genuine dependency proposals produce a typed refresh hold, never an idle claim or grant
+  ---
+  duration_ms: 6.293
+  type: 'test'
+  location: 'C:\\Users\\haide\\Documents\\Codex\\2026-11-03\\c\\cypress-realworld-app\\scripts\\tests\\factory-dependencies.test.cjs:116:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    undefined !== 52
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 52
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\tests\factory-dependencies.test.cjs:119:42)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: genuine dependency intake reserves metadata only and forged authors are ignored
+ok 3 - genuine dependency intake reserves metadata only and forged authors are ignored
+  ---
+  duration_ms: 26.8613
+  type: 'test'
+  ...
+# Subtest: foreign producer and wrong-head report cannot authorize dependency analysis
+ok 4 - foreign producer and wrong-head report cannot authorize dependency analysis
+  ---
+  duration_ms: 13.2044
+  type: 'test'
+  ...
+# Subtest: terminal metadata-only preparation can be finalized without resetting its admission
+ok 5 - terminal metadata-only preparation can be finalized without resetting its admission
+  ---
+  duration_ms: 6.4822
+  type: 'test'
+  ...
+# Subtest: dependency merge cannot use ordinary owner context or bypass its dedicated provenance
+ok 6 - dependency merge cannot use ordinary owner context or bypass its dedicated provenance
+  ---
+  duration_ms: 1.1178
+  type: 'test'
+  ...
+# Subtest: v2 fallback never selects another merge parent while reviewed owner is live
+ok 7 - v2 fallback never selects another merge parent while reviewed owner is live
+  ---
+  duration_ms: 18.8142
+  type: 'test'
+  ...
+# Subtest: v2 terminal reviewed dependency retires stale proof and reclaims only its slot
+ok 8 - v2 terminal reviewed dependency retires stale proof and reclaims only its slot
+  ---
+  duration_ms: 16.1408
+  type: 'test'
+  ...
+# Subtest: global app intent is routed before a different reviewed dependency
+ok 9 - global app intent is routed before a different reviewed dependency
+  ---
+  duration_ms: 18.0038
+  type: 'test'
+  ...
+# Subtest: dependency assessment refreshes evidence only after committing genuine review proof
+ok 10 - dependency assessment refreshes evidence only after committing genuine review proof
+  ---
+  duration_ms: 12.2769
+  type: 'test'
+  ...
+# Subtest: changes-requested dependency assessment refreshes failure without granting approval
+ok 11 - changes-requested dependency assessment refreshes failure without granting approval
+  ---
+  duration_ms: 9.5664
+  type: 'test'
+  ...
+# Subtest: invalid dependency review cannot publish a check or finish its grant
+ok 12 - invalid dependency review cannot publish a check or finish its grant
+  ---
+  duration_ms: 13.6015
+  type: 'test'
+  ...
+# Subtest: changed dependency head cannot borrow the previous head's assessment success
+ok 13 - changed dependency head cannot borrow the previous head's assessment success
+  ---
+  duration_ms: 9.561
+  type: 'test'
+  ...
+# Subtest: unavailable proof after assessment publishes failure without discarding the review
+ok 14 - unavailable proof after assessment publishes failure without discarding the review
+  ---
+  duration_ms: 8.7695
+  type: 'test'
+  ...
+# Subtest: failed status publication retains finished review and permits metadata-only recovery
+ok 15 - failed status publication retains finished review and permits metadata-only recovery
+  ---
+  duration_ms: 9.2239
+  type: 'test'
+  ...
+# Subtest: analysis, CI, one readonly review and native protected merge complete without a coding grant
+ok 16 - analysis, CI, one readonly review and native protected merge complete without a coding grant
+  ---
+  duration_ms: 22.8301
+  type: 'test'
+  ...
+# Subtest: dependency confirmation tolerates advanced main while matching PR closure is delayed
+ok 17 - dependency confirmation tolerates advanced main while matching PR closure is delayed
+  ---
+  duration_ms: 19.292
+  type: 'test'
+  ...
+# Subtest: dependency terminal revalidation retries stale-open metadata within its observation budget
+ok 18 - dependency terminal revalidation retries stale-open metadata within its observation budget
+  ---
+  duration_ms: 14.19
+  type: 'test'
+  ...
+# Subtest: dependency terminal revalidation retries unavailable metadata within its observation budget
+ok 19 - dependency terminal revalidation retries unavailable metadata within its observation budget
+  ---
+  duration_ms: 11.5012
+  type: 'test'
+  ...
+# Subtest: pending dependency intent routes directly to observation after main advanced
+ok 20 - pending dependency intent routes directly to observation after main advanced
+  ---
+  duration_ms: 12.7273
+  type: 'test'
+  ...
+# Subtest: the observation path cannot authorize a fresh dependency merge on an outdated main
+ok 21 - the observation path cannot authorize a fresh dependency merge on an outdated main
+  ---
+  duration_ms: 13.7806
+  type: 'test'
+  ...
+# Subtest: a changed head after an uncertain dependency PUT preserves approval for owner reconciliation
+ok 22 - a changed head after an uncertain dependency PUT preserves approval for owner reconciliation
+  ---
+  duration_ms: 9.5785
+  type: 'test'
+  ...
+# Subtest: pending dependency merge blocks app admission and closed history reconciles without inference
+ok 23 - pending dependency merge blocks app admission and closed history reconciles without inference
+  ---
+  duration_ms: 9.9302
+  type: 'test'
+  ...
+# Subtest: a bot rebase retires stale approval and admits a bounded new head without resetting history
+ok 24 - a bot rebase retires stale approval and admits a bounded new head without resetting history
+  ---
+  duration_ms: 10.9884
+  type: 'test'
+  ...
+# Subtest: a recorded historical attempt is used to release orphan metadata after a rerun
+ok 25 - a recorded historical attempt is used to release orphan metadata after a rerun
+  ---
+  duration_ms: 4.1248
+  type: 'test'
+  ...
+# Subtest: a bot head change cannot release an uncertain intent even when its owning run is terminal
+ok 26 - a bot head change cannot release an uncertain intent even when its owning run is terminal
+  ---
+  duration_ms: 13.0754
+  type: 'test'
+  ...
+# Subtest: old premerge reports and changed dependency paths never reach a merge write
+ok 27 - old premerge reports and changed dependency paths never reach a merge write
+  ---
+  duration_ms: 9.0945
+  type: 'test'
+  ...
+# Subtest: analysis reads immutable package files and consumes OSV before authorizing review
+ok 28 - analysis reads immutable package files and consumes OSV before authorizing review
+  ---
+  duration_ms: 51.9005
+  type: 'test'
+  ...
+# Subtest: workflow preserves preview, trusted source, readonly model and isolated credentials
+ok 29 - workflow preserves preview, trusted source, readonly model and isolated credentials
+  ---
+  duration_ms: 27.0155
+  type: 'test'
+  ...
+# Subtest: a real ledger approval, merged repair, named-approved deployment and matching live mode verify read-only
+ok 30 - a real ledger approval, merged repair, named-approved deployment and matching live mode verify read-only
+  ---
+  duration_ms: 30.9606
+  type: 'test'
+  ...
+# Subtest: unreviewed, wrong-source, wrong-release or unapproved repairs cannot close an issue
+ok 31 - unreviewed, wrong-source, wrong-release or unapproved repairs cannot close an issue
+  ---
+  duration_ms: 26.3301
+  type: 'test'
+  ...
+# Subtest: retirement records intent before close and confirms completed state before clearing the active pointer
+ok 32 - retirement records intent before close and confirms completed state before clearing the active pointer
+  ---
+  duration_ms: 2.7854
+  type: 'test'
+  ...
+# Subtest: lost issue-close or final registry responses retain intent and reconcile without duplicate publication
+ok 33 - lost issue-close or final registry responses retain intent and reconcile without duplicate publication
+  ---
+  duration_ms: 7.234
+  type: 'test'
+  ...
+# Subtest: a manually closed issue with missing deployment evidence does not retire or reset budget
+ok 34 - a manually closed issue with missing deployment evidence does not retire or reset budget
+  ---
+  duration_ms: 1.5288
+  type: 'test'
+  ...
+# Subtest: signed-in checks from a different release cannot retire the later availability release
+ok 35 - signed-in checks from a different release cannot retire the later availability release
+  ---
+  duration_ms: 0.8709
+  type: 'test'
+  ...
+# Subtest: unbound legacy journey remains observable but cannot certify a repaired deployment
+ok 36 - unbound legacy journey remains observable but cannot certify a repaired deployment
+  ---
+  duration_ms: 0.6767
+  type: 'test'
+  ...
+# Subtest: another ticket's approval cannot mask a wrong review grant on this incident
+ok 37 - another ticket's approval cannot mask a wrong review grant on this incident
+  ---
+  duration_ms: 1.3497
+  type: 'test'
+  ...
+# Subtest: production monitor retires once and repeated healthy observations keep history without further writes
+ok 38 - production monitor retires once and repeated healthy observations keep history without further writes
+  ---
+  duration_ms: 5.9203
+  type: 'test'
+  ...
+# Subtest: a receipt-bound bot repair retains all verified closure checks
+not ok 39 - a receipt-bound bot repair retains all verified closure checks
+  ---
+  duration_ms: 3.5286
+  type: 'test'
+  location: 'C:\\Users\\haide\\Documents\\Codex\\2026-11-03\\c\\cypress-realworld-app\\scripts\\tests\\factory-monitor-recovery.test.cjs:421:1'
+  failureType: 'testCodeFailure'
+  error: 'Monitor repair proof unavailable or inconsistent'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    requireProof (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\factory\monitor-recovery.cjs:14:18)
+    verifyRepair (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\factory\monitor-recovery.cjs:221:3)
+    async TestContext.<anonymous> (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\tests\factory-monitor-recovery.test.cjs:431:16)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: wake receipts have a trusted implementation
+ok 40 - wake receipts have a trusted implementation
+  ---
+  duration_ms: 0.922
+  type: 'test'
+  ...
+# Subtest: owner issue wake records intent before one dispatch; duplicate events never dispatch twice
+ok 41 - owner issue wake records intent before one dispatch; duplicate events never dispatch twice
+  ---
+  duration_ms: 5.5911
+  type: 'test'
+  ...
+# Subtest: preview and absent opt-in cannot dispatch or initialize metadata
+ok 42 - preview and absent opt-in cannot dispatch or initialize metadata
+  ---
+  duration_ms: 0.5652
+  type: 'test'
+  ...
+# Subtest: foreign issues, comment events, closed issues and edited admitted criteria cannot wake coding
+ok 43 - foreign issues, comment events, closed issues and edited admitted criteria cannot wake coding
+  ---
+  duration_ms: 0.6872
+  type: 'test'
+  ...
+# Subtest: full capacity retains a pending signal without dispatch or a model reservation
+ok 44 - full capacity retains a pending signal without dispatch or a model reservation
+  ---
+  duration_ms: 0.8725
+  type: 'test'
+  ...
+# Subtest: an uncertain POST is retained and never retried blindly
+ok 45 - an uncertain POST is retained and never retried blindly
+  ---
+  duration_ms: 0.8267
+  type: 'test'
+  ...
+# Subtest: stop blocks wake and never changes usage state
+ok 46 - stop blocks wake and never changes usage state
+  ---
+  duration_ms: 0.4574
+  type: 'test'
+  ...
+# Subtest: only a real bot dispatch can bind an intent and survive policy reservation without impersonating owner
+ok 47 - only a real bot dispatch can bind an intent and survive policy reservation without impersonating owner
+  ---
+  duration_ms: 21.127
+  type: 'test'
+  ...
+# Subtest: forged actor, rerun, workflow path/SHA, changed source and failed producer fail closed
+ok 48 - forged actor, rerun, workflow path/SHA, changed source and failed producer fail closed
+  ---
+  duration_ms: 4.8571
+  type: 'test'
+  ...
+# Subtest: a receipt admits one receiver only, including when receiver beats producer acknowledgment
+ok 49 - a receipt admits one receiver only, including when receiver beats producer acknowledgment
+  ---
+  duration_ms: 2.1697
+  type: 'test'
+  ...
+# Subtest: retained bound provenance remains verifiable after its issue closes, without admitting a new receiver
+ok 50 - retained bound provenance remains verifiable after its issue closes, without admitting a new receiver
+  ---
+  duration_ms: 0.9109
+  type: 'test'
+  ...
+# Subtest: an activity observer sees an early receipt as pending without binding or authorizing it
+not ok 51 - an activity observer sees an early receipt as pending without binding or authorizing it
+  ---
+  duration_ms: 0.5065
+  type: 'test'
+  location: 'C:\\Users\\haide\\Documents\\Codex\\2026-11-03\\c\\cypress-realworld-app\\scripts\\tests\\factory-wake.test.cjs:171:1'
+  failureType: 'testCodeFailure'
+  error: 'observeWakeBinding is not a function'
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    TestContext.<anonymous> (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\tests\factory-wake.test.cjs:175:21)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..51
+# tests 51
+# suites 0
+# pass 48
+# fail 3
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 553.9825

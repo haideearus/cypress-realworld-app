@@ -37,11 +37,18 @@ function readConfig(vars) {
   for (const [key, name] of [
     ["FACTORY_AUTOMATION_ENABLED", "automatic"],
     ["FACTORY_AUTOMERGE_ENABLED", "autoMerge"],
+    ["FACTORY_EVENT_PICKUP_ENABLED", "eventPickup"],
+    ["FACTORY_ACTIVITY_LOG_ENABLED", "activityLog"],
   ]) {
     if (![undefined, "true", "false"].includes(vars[key])) deny(`Invalid automatic boolean ${key}`);
     config[name] = vars[key] === "true";
   }
   config.appClientId = vars.FACTORY_GITHUB_APP_CLIENT_ID;
+  if (vars.FACTORY_ACTIVITY_ISSUE_NUMBER !== undefined) {
+    config.activityIssue = integer(vars.FACTORY_ACTIVITY_ISSUE_NUMBER, "activity journal");
+    if (config.activityIssue < 1) deny("Invalid activity journal");
+  }
+  if (config.activityLog && !config.activityIssue) deny("Activity journal required");
   config.appSlug = vars.FACTORY_GITHUB_APP_SLUG;
   if (
     (config.appClientId !== undefined &&
@@ -284,8 +291,8 @@ function authorize(request) {
   denyRetiredRun(request.runId);
   if (
     request.repository !== REPOSITORY ||
-    request.actor !== OWNER ||
-    request.triggeringActor !== OWNER ||
+    ((request.actor !== OWNER || request.triggeringActor !== OWNER) &&
+      !require("./trusted-wake.cjs").isTrustedWakeContext(request)) ||
     request.ref !== "refs/heads/main" ||
     (request.workflowRef === DRILL_WORKFLOW_REF && !isDrillContext(request)) ||
     ((request.event !== "workflow_dispatch" || request.workflowRef === AUTOMATIC_WORKFLOW_REF) &&
@@ -309,8 +316,8 @@ function isAutomaticContext(request) {
   return Boolean(
     request &&
       request.repository === REPOSITORY &&
-      request.actor === OWNER &&
-      request.triggeringActor === OWNER &&
+      ((request.actor === OWNER && request.triggeringActor === OWNER) ||
+        require("./trusted-wake.cjs").isTrustedWakeContext(request, "app")) &&
       request.ref === "refs/heads/main" &&
       ["schedule", "workflow_dispatch"].includes(request.event) &&
       request.workflowRef === AUTOMATIC_WORKFLOW_REF &&
@@ -338,6 +345,7 @@ function reserve(original, request, config, now = new Date()) {
   assertNotStopped(original);
   authorize(request);
   if (!config.enabled || !config.minutes || !config.turns) deny("Factory disabled");
+  if (request.wake && !config.eventPickup) deny("Event pickup disabled");
   const automatic = isAutomaticContext(request);
   if (automatic && !config.automatic) deny("Automatic factory disabled");
   const recovering = request.recovery !== undefined;
@@ -536,6 +544,10 @@ function reserve(original, request, config, now = new Date()) {
       phase: grant.phase,
       runId: grant.runId,
       runAttempt: grant.runAttempt,
+      actor: request.actor,
+      ...(request.wake
+        ? { wakeReceipt: request.wake.receiptId, sourceActor: request.wake.sourceActor }
+        : {}),
     },
     now
   );

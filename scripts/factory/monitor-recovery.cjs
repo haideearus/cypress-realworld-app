@@ -218,11 +218,29 @@ async function verifyRepair({
     "GET",
     `${ROOT}/actions/runs/${grant.runId}/attempts/${grant.runAttempt}`
   );
+  let boundBot = false;
+  if (parent.actor?.login === "github-actions[bot]") {
+    const verified = await require("./trusted-wake.cjs").loadWakeContext(
+      api,
+      {
+        repository: REPOSITORY,
+        actor: parent.actor.login,
+        triggeringActor: parent.triggering_actor?.login,
+        ref: "refs/heads/main",
+        event: parent.event,
+        workflowRef: `${REPOSITORY}/.github/workflows/factory-automatic.yml@refs/heads/main`,
+        workflowSha: parent.head_sha,
+        runId: String(parent.id),
+        runAttempt: parent.run_attempt,
+      },
+      {}
+    );
+    boundBot = require("./trusted-wake.cjs").isTrustedWakeContext(verified, "app");
+  }
   requireProof(
     String(parent.id) === grant.runId &&
       parent.run_attempt === grant.runAttempt &&
-      parent.actor?.login === OWNER &&
-      parent.triggering_actor?.login === OWNER
+      ((parent.actor?.login === OWNER && parent.triggering_actor?.login === OWNER) || boundBot)
   );
   await workflowRun(api, parent, "factory-automatic.yml", t.automatic.workflowSha, {
     event: ["schedule", "workflow_dispatch"],

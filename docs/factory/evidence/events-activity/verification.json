@@ -1,0 +1,64 @@
+{
+  "at": "2026-11-17T13:39:50.116Z",
+  "issue": 82,
+  "base": "1195b52a1851ee9acee2af31b72a93c2714814ff",
+  "factoryTests": {
+    "command": "yarn test:factory",
+    "total": 643,
+    "passed": 633,
+    "skipped": 10,
+    "failed": 0
+  },
+  "types": "passed",
+  "lint": "passed",
+  "formatting": "passed",
+  "actionlint": "passed",
+  "completeSourceScan": {
+    "clean": true,
+    "files": 494
+  },
+  "localReview": {
+    "type": "fresh-context local code review",
+    "critical": 0,
+    "important": 4,
+    "fixed": [
+      "receipt-bound monitor incident closure",
+      "early observer waits without binding or authorizing",
+      "command-keyed stop/result/resume audit outbox",
+      "typed dependency refresh holds with affected PR links"
+    ],
+    "validation": "regression tests and full green factory suite; no second review"
+  },
+  "genuineClaudeReview": "not run; separate owner authorization required",
+  "liveRollout": "not started",
+  "settingsChanged": false,
+  "countersReset": false,
+  "migrationExecuted": false,
+  "claudeRunStarted": false,
+  "paidAiApiCalls": 0,
+  "newFlags": {
+    "FACTORY_EVENT_PICKUP_ENABLED": "absent/off",
+    "FACTORY_ACTIVITY_LOG_ENABLED": "absent/off"
+  },
+  "existingControls": {
+    "FACTORY_ENABLED": "true",
+    "FACTORY_AUTOMATION_ENABLED": "true",
+    "FACTORY_AUTOMERGE_ENABLED": "true",
+    "FACTORY_MAX_CONCURRENT_TICKETS": "1"
+  },
+  "rulings": [
+    {
+      "decision": "Reuse clean checkout on feature branch",
+      "cost": "No tracked work was present; former branch preserved"
+    },
+    {
+      "decision": "Observe GitHub phase metadata every 20 seconds for up to 80 minutes plus completion delivery",
+      "cost": "Observer Actions minutes and notification latency; no model job permission expansion"
+    },
+    {
+      "decision": "Retain bounded wake/activity receipts without automatic deletion",
+      "cost": "Explicit metadata maintenance at saturation"
+    }
+  ],
+  "unproven": ["live event/permission acceptance", "actual email/inbox delivery"]
+}

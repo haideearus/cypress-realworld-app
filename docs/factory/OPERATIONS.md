@@ -32,6 +32,12 @@ scheduled runs. No eligible work means no model reservation. Old unlabelled
 issues are not automatically admitted. A monitor label alone cannot replace a
 valid receipt, and dependency PRs do not need `factory-ready`.
 
+Optional event pickup and full activity notifications are documented in
+[Events and activity](EVENTS-AND-ACTIVITY.md). The new enable flags default off;
+merge alone does not initialize metadata, create a journal, activate a feature,
+change the existing operating profile or prove email delivery. Follow that guide's
+separately authorized preview and rollout after the protected implementation PR.
+
 The synthetic journey uses a dedicated account. It creates/destroys its own
 session, reads a bounded feed and checks pagination. It does not make payments,
 edit profiles, create users or provide full rendered-browser coverage.

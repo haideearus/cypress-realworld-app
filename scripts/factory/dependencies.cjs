@@ -33,6 +33,23 @@ async function trustedRun(api, context, historical = false) {
     "GET",
     `${ROOT}/actions/runs/${context.runId}${historical ? `/attempts/${context.runAttempt}` : ""}`
   );
+  if (historical && run.actor?.login === "github-actions[bot]") {
+    await require("./trusted-wake.cjs").loadWakeContext(
+      api,
+      {
+        repository: policy.REPOSITORY,
+        actor: run.actor.login,
+        triggeringActor: run.triggering_actor?.login,
+        ref: "refs/heads/main",
+        event: run.event,
+        workflowRef: d.WORKFLOW,
+        workflowSha: run.head_sha,
+        runId: String(run.id),
+        runAttempt: run.run_attempt,
+      },
+      {}
+    );
+  }
   if (
     run.id !== Number(context.runId) ||
     run.path !== ".github/workflows/factory-dependencies.yml" ||
@@ -40,8 +57,9 @@ async function trustedRun(api, context, historical = false) {
     run.head_branch !== "main" ||
     run.repository?.full_name !== policy.REPOSITORY ||
     run.head_repository?.full_name !== policy.REPOSITORY ||
-    run.actor?.login !== policy.OWNER ||
-    run.triggering_actor?.login !== policy.OWNER ||
+    ((!historical || run.actor?.login !== "github-actions[bot]") &&
+      (run.actor?.login !== context.actor ||
+        run.triggering_actor?.login !== context.triggeringActor)) ||
     run.run_attempt !== context.runAttempt ||
     !(historical
       ? ["schedule", "workflow_dispatch"].includes(run.event)
@@ -268,6 +286,7 @@ class DependencyCoordinator {
       state = (await this.ledger.read()).state;
     }
     let candidate;
+    const holds = [];
     for (let page = 1; page <= 5 && !candidate; page++) {
       const rows = await this.api.request(
         "GET",
@@ -295,14 +314,30 @@ class DependencyCoordinator {
         try {
           candidate = await this.pr(row.number);
           break;
-        } catch {
-          /* unsafe or outdated candidates remain held */
+        } catch (error) {
+          if (holds.length < 5)
+            holds.push({
+              pr: row.number,
+              head: row.head.sha,
+              code:
+                error.message === "Dependency PR requires a current-main rebase"
+                  ? "requires-current-main-rebase"
+                  : "prerequisites-unavailable",
+            });
         }
       }
       if (rows.length < 100) break;
     }
     if (!candidate)
-      return { ready: false, reason: "No eligible Dependabot PR in the bounded queue" };
+      return holds.length
+        ? {
+            ready: false,
+            ticket: holds[0].pr,
+            head: holds[0].head,
+            holds,
+            reason: "Dependabot proposals held; refresh or prerequisite verification required",
+          }
+        : { ready: false, reason: "No eligible Dependabot PR in the bounded queue" };
     if (preview)
       return {
         ready: false,
