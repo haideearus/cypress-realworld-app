@@ -1,0 +1,713 @@
+TAP version 13
+# Subtest: disabled and dry-run dependency selection never mutate the ledger or reserve inference
+ok 1 - disabled and dry-run dependency selection never mutate the ledger or reserve inference
+  ---
+  duration_ms: 22.8499
+  type: 'test'
+  ...
+# Subtest: genuine dependency intake reserves metadata only and forged authors are ignored
+ok 2 - genuine dependency intake reserves metadata only and forged authors are ignored
+  ---
+  duration_ms: 22.9548
+  type: 'test'
+  ...
+# Subtest: foreign producer and wrong-head report cannot authorize dependency analysis
+ok 3 - foreign producer and wrong-head report cannot authorize dependency analysis
+  ---
+  duration_ms: 11.4194
+  type: 'test'
+  ...
+# Subtest: terminal metadata-only preparation can be finalized without resetting its admission
+ok 4 - terminal metadata-only preparation can be finalized without resetting its admission
+  ---
+  duration_ms: 7.2353
+  type: 'test'
+  ...
+# Subtest: dependency merge cannot use ordinary owner context or bypass its dedicated provenance
+ok 5 - dependency merge cannot use ordinary owner context or bypass its dedicated provenance
+  ---
+  duration_ms: 1.2087
+  type: 'test'
+  ...
+# Subtest: v2 fallback never selects another merge parent while reviewed owner is live
+not ok 6 - v2 fallback never selects another merge parent while reviewed owner is live
+  ---
+  duration_ms: 20.4859
+  type: 'test'
+  location: 'C:\\Users\\haide\\Documents\\Codex\\2026-11-03\\c\\cypress-realworld-app\\scripts\\tests\\factory-dependencies.test.cjs:248:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+
+    true !== false
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: false
+  actual: true
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (<repo>\scripts\tests\factory-dependencies.test.cjs:253:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: v2 terminal reviewed dependency retires stale proof and reclaims only its slot
+not ok 7 - v2 terminal reviewed dependency retires stale proof and reclaims only its slot
+  ---
+  duration_ms: 13.6891
+  type: 'test'
+  location: 'C:\\Users\\haide\\Documents\\Codex\\2026-11-03\\c\\cypress-realworld-app\\scripts\\tests\\factory-dependencies.test.cjs:256:1'
+  failureType: 'testCodeFailure'
+  error: 'Dependency history changed during stale-proof reconciliation'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    <repo>\scripts\factory\dependencies.cjs:136:17
+    Ledger.update (<repo>\scripts\factory\github.cjs:111:28)
+    async DependencyCoordinator.pending (<repo>\scripts\factory\dependencies.cjs:122:7)
+    async DependencyCoordinator.select (<repo>\scripts\factory\dependencies.cjs:212:24)
+    async TestContext.<anonymous> (<repo>\scripts\tests\factory-dependencies.test.cjs:262:18)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: global app intent is routed before a different reviewed dependency
+not ok 8 - global app intent is routed before a different reviewed dependency
+  ---
+  duration_ms: 16.8588
+  type: 'test'
+  location: 'C:\\Users\\haide\\Documents\\Codex\\2026-11-03\\c\\cypress-realworld-app\\scripts\\tests\\factory-dependencies.test.cjs:272:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+
+    + undefined
+    - 'merge'
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'merge'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (<repo>\scripts\tests\factory-dependencies.test.cjs:292:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: dependency assessment refreshes evidence only after committing genuine review proof
+ok 9 - dependency assessment refreshes evidence only after committing genuine review proof
+  ---
+  duration_ms: 11.7802
+  type: 'test'
+  ...
+# Subtest: changes-requested dependency assessment refreshes failure without granting approval
+ok 10 - changes-requested dependency assessment refreshes failure without granting approval
+  ---
+  duration_ms: 13.4776
+  type: 'test'
+  ...
+# Subtest: invalid dependency review cannot publish a check or finish its grant
+ok 11 - invalid dependency review cannot publish a check or finish its grant
+  ---
+  duration_ms: 8.4219
+  type: 'test'
+  ...
+# Subtest: changed dependency head cannot borrow the previous head's assessment success
+ok 12 - changed dependency head cannot borrow the previous head's assessment success
+  ---
+  duration_ms: 14.9462
+  type: 'test'
+  ...
+# Subtest: unavailable proof after assessment publishes failure without discarding the review
+ok 13 - unavailable proof after assessment publishes failure without discarding the review
+  ---
+  duration_ms: 10.1413
+  type: 'test'
+  ...
+# Subtest: failed status publication retains finished review and permits metadata-only recovery
+ok 14 - failed status publication retains finished review and permits metadata-only recovery
+  ---
+  duration_ms: 12.542
+  type: 'test'
+  ...
+# Subtest: analysis, CI, one readonly review and native protected merge complete without a coding grant
+ok 15 - analysis, CI, one readonly review and native protected merge complete without a coding grant
+  ---
+  duration_ms: 24.828
+  type: 'test'
+  ...
+# Subtest: dependency confirmation tolerates advanced main while matching PR closure is delayed
+ok 16 - dependency confirmation tolerates advanced main while matching PR closure is delayed
+  ---
+  duration_ms: 25.2639
+  type: 'test'
+  ...
+# Subtest: dependency terminal revalidation retries stale-open metadata within its observation budget
+ok 17 - dependency terminal revalidation retries stale-open metadata within its observation budget
+  ---
+  duration_ms: 14.0108
+  type: 'test'
+  ...
+# Subtest: dependency terminal revalidation retries unavailable metadata within its observation budget
+ok 18 - dependency terminal revalidation retries unavailable metadata within its observation budget
+  ---
+  duration_ms: 15.1605
+  type: 'test'
+  ...
+# Subtest: pending dependency intent routes directly to observation after main advanced
+ok 19 - pending dependency intent routes directly to observation after main advanced
+  ---
+  duration_ms: 19.4335
+  type: 'test'
+  ...
+# Subtest: the observation path cannot authorize a fresh dependency merge on an outdated main
+ok 20 - the observation path cannot authorize a fresh dependency merge on an outdated main
+  ---
+  duration_ms: 14.9961
+  type: 'test'
+  ...
+# Subtest: a changed head after an uncertain dependency PUT preserves approval for owner reconciliation
+ok 21 - a changed head after an uncertain dependency PUT preserves approval for owner reconciliation
+  ---
+  duration_ms: 12.5088
+  type: 'test'
+  ...
+# Subtest: pending dependency merge blocks app admission and closed history reconciles without inference
+ok 22 - pending dependency merge blocks app admission and closed history reconciles without inference
+  ---
+  duration_ms: 10.7769
+  type: 'test'
+  ...
+# Subtest: a bot rebase retires stale approval and admits a bounded new head without resetting history
+ok 23 - a bot rebase retires stale approval and admits a bounded new head without resetting history
+  ---
+  duration_ms: 14.307
+  type: 'test'
+  ...
+# Subtest: a recorded historical attempt is used to release orphan metadata after a rerun
+ok 24 - a recorded historical attempt is used to release orphan metadata after a rerun
+  ---
+  duration_ms: 7.4569
+  type: 'test'
+  ...
+# Subtest: a bot head change cannot release an uncertain intent even when its owning run is terminal
+ok 25 - a bot head change cannot release an uncertain intent even when its owning run is terminal
+  ---
+  duration_ms: 10.4347
+  type: 'test'
+  ...
+# Subtest: old premerge reports and changed dependency paths never reach a merge write
+ok 26 - old premerge reports and changed dependency paths never reach a merge write
+  ---
+  duration_ms: 10.538
+  type: 'test'
+  ...
+# Subtest: analysis reads immutable package files and consumes OSV before authorizing review
+ok 27 - analysis reads immutable package files and consumes OSV before authorizing review
+  ---
+  duration_ms: 59.8327
+  type: 'test'
+  ...
+# Subtest: workflow preserves preview, trusted source, readonly model and isolated credentials
+ok 28 - workflow preserves preview, trusted source, readonly model and isolated credentials
+  ---
+  duration_ms: 29.4558
+  type: 'test'
+  ...
+# Subtest: automatic merging uses protected expected-head API and keeps review/counters unchanged
+ok 29 - automatic merging uses protected expected-head API and keeps review/counters unchanged
+  ---
+  duration_ms: 56.9789
+  type: 'test'
+  ...
+# Subtest: v2 merge confirmation releases only A while B remains reserved
+ok 30 - v2 merge confirmation releases only A while B remains reserved
+  ---
+  duration_ms: 15.4585
+  type: 'test'
+  ...
+# Subtest: stop/resume and stopped-v1 migration reconcile retained intent without a second PUT
+not ok 31 - stop/resume and stopped-v1 migration reconcile retained intent without a second PUT
+  ---
+  duration_ms: 19.701
+  type: 'test'
+  location: 'C:\\Users\\haide\\Documents\\Codex\\2026-11-03\\c\\cypress-realworld-app\\scripts\\tests\\factory-merge.test.cjs:313:1'
+  failureType: 'testCodeFailure'
+  error: 'An active ticket holds the factory lock'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    AutomaticMerger.stateTicket (<repo>\scripts\factory\merge.cjs:80:13)
+    AutomaticMerger.merge (<repo>\scripts\factory\merge.cjs:461:20)
+    async TestContext.<anonymous> (<repo>\scripts\tests\factory-merge.test.cjs:346:19)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: an ambiguous v2 merge retains its own slot and blocks another merge writer
+ok 32 - an ambiguous v2 merge retains its own slot and blocks another merge writer
+  ---
+  duration_ms: 9.7513
+  type: 'test'
+  ...
+# Subtest: main advance invalidating clean mergeability releases only the unsent intent
+ok 33 - main advance invalidating clean mergeability releases only the unsent intent
+  ---
+  duration_ms: 7.4365
+  type: 'test'
+  ...
+# Subtest: disabled enabled causes no mutations
+ok 34 - disabled enabled causes no mutations
+  ---
+  duration_ms: 1.7993
+  type: 'test'
+  ...
+# Subtest: disabled automatic causes no mutations
+ok 35 - disabled automatic causes no mutations
+  ---
+  duration_ms: 1.7192
+  type: 'test'
+  ...
+# Subtest: disabled autoMerge causes no mutations
+ok 36 - disabled autoMerge causes no mutations
+  ---
+  duration_ms: 1.8191
+  type: 'test'
+  ...
+# Subtest: dry run bypasses disabled flags but never changes ledger, refreshes checks or merges
+ok 37 - dry run bypasses disabled flags but never changes ledger, refreshes checks or merges
+  ---
+  duration_ms: 4.1333
+  type: 'test'
+  ...
+# Subtest: rejects foreign workflow in live and preview modes
+ok 38 - rejects foreign workflow in live and preview modes
+  ---
+  duration_ms: 2.2968
+  type: 'test'
+  ...
+# Subtest: rejects missing workflow SHA in live and preview modes
+ok 39 - rejects missing workflow SHA in live and preview modes
+  ---
+  duration_ms: 1.7561
+  type: 'test'
+  ...
+# Subtest: rejects foreign actor in live and preview modes
+ok 40 - rejects foreign actor in live and preview modes
+  ---
+  duration_ms: 2.5563
+  type: 'test'
+  ...
+# Subtest: refuses changed criteria before a merge or metadata refresh
+ok 41 - refuses changed criteria before a merge or metadata refresh
+  ---
+  duration_ms: 1.9495
+  type: 'test'
+  ...
+# Subtest: refuses closed issue before a merge or metadata refresh
+ok 42 - refuses closed issue before a merge or metadata refresh
+  ---
+  duration_ms: 3.1975
+  type: 'test'
+  ...
+# Subtest: refuses foreign issue author before a merge or metadata refresh
+ok 43 - refuses foreign issue author before a merge or metadata refresh
+  ---
+  duration_ms: 3.5807
+  type: 'test'
+  ...
+# Subtest: refuses changed PR head before a merge or metadata refresh
+ok 44 - refuses changed PR head before a merge or metadata refresh
+  ---
+  duration_ms: 2.7902
+  type: 'test'
+  ...
+# Subtest: refuses foreign PR author before a merge or metadata refresh
+ok 45 - refuses foreign PR author before a merge or metadata refresh
+  ---
+  duration_ms: 1.9407
+  type: 'test'
+  ...
+# Subtest: refuses foreign PR repository before a merge or metadata refresh
+ok 46 - refuses foreign PR repository before a merge or metadata refresh
+  ---
+  duration_ms: 1.9467
+  type: 'test'
+  ...
+# Subtest: refuses foreign base repository before a merge or metadata refresh
+ok 47 - refuses foreign base repository before a merge or metadata refresh
+  ---
+  duration_ms: 3.1314
+  type: 'test'
+  ...
+# Subtest: refuses wrong branch before a merge or metadata refresh
+ok 48 - refuses wrong branch before a merge or metadata refresh
+  ---
+  duration_ms: 2.5551
+  type: 'test'
+  ...
+# Subtest: refuses wrong base before a merge or metadata refresh
+ok 49 - refuses wrong base before a merge or metadata refresh
+  ---
+  duration_ms: 1.8585
+  type: 'test'
+  ...
+# Subtest: refuses draft before a merge or metadata refresh
+ok 50 - refuses draft before a merge or metadata refresh
+  ---
+  duration_ms: 2.377
+  type: 'test'
+  ...
+# Subtest: refuses conflicts before a merge or metadata refresh
+ok 51 - refuses conflicts before a merge or metadata refresh
+  ---
+  duration_ms: 3.0566
+  type: 'test'
+  ...
+# Subtest: refuses unknown mergeability before a merge or metadata refresh
+ok 52 - refuses unknown mergeability before a merge or metadata refresh
+  ---
+  duration_ms: 2.5358
+  type: 'test'
+  ...
+# Subtest: refuses blocked merge state before a merge or metadata refresh
+ok 53 - refuses blocked merge state before a merge or metadata refresh
+  ---
+  duration_ms: 7.4558
+  type: 'test'
+  ...
+# Subtest: refuses missing native verify before a merge or metadata refresh
+ok 54 - refuses missing native verify before a merge or metadata refresh
+  ---
+  duration_ms: 2.69
+  type: 'test'
+  ...
+# Subtest: refuses missing native gate before a merge or metadata refresh
+ok 55 - refuses missing native gate before a merge or metadata refresh
+  ---
+  duration_ms: 3.1361
+  type: 'test'
+  ...
+# Subtest: refuses foreign native verify source before a merge or metadata refresh
+ok 56 - refuses foreign native verify source before a merge or metadata refresh
+  ---
+  duration_ms: 2.1747
+  type: 'test'
+  ...
+# Subtest: refuses stale native check before a merge or metadata refresh
+ok 57 - refuses stale native check before a merge or metadata refresh
+  ---
+  duration_ms: 2.3425
+  type: 'test'
+  ...
+# Subtest: refuses latest failed native verify before a merge or metadata refresh
+ok 58 - refuses latest failed native verify before a merge or metadata refresh
+  ---
+  duration_ms: 2.9222
+  type: 'test'
+  ...
+# Subtest: refuses unrelated native workflow before a merge or metadata refresh
+ok 59 - refuses unrelated native workflow before a merge or metadata refresh
+  ---
+  duration_ms: 4.0496
+  type: 'test'
+  ...
+# Subtest: refuses dispatch check in place of PR CI before a merge or metadata refresh
+ok 60 - refuses dispatch check in place of PR CI before a merge or metadata refresh
+  ---
+  duration_ms: 2.6551
+  type: 'test'
+  ...
+# Subtest: refuses wrong PR check association before a merge or metadata refresh
+ok 61 - refuses wrong PR check association before a merge or metadata refresh
+  ---
+  duration_ms: 2.523
+  type: 'test'
+  ...
+# Subtest: refuses wrong PR run association before a merge or metadata refresh
+ok 62 - refuses wrong PR run association before a merge or metadata refresh
+  ---
+  duration_ms: 2.7568
+  type: 'test'
+  ...
+# Subtest: refuses foreign native repository before a merge or metadata refresh
+ok 63 - refuses foreign native repository before a merge or metadata refresh
+  ---
+  duration_ms: 2.5955
+  type: 'test'
+  ...
+# Subtest: refuses foreign check suite before a merge or metadata refresh
+ok 64 - refuses foreign check suite before a merge or metadata refresh
+  ---
+  duration_ms: 2.3462
+  type: 'test'
+  ...
+# Subtest: refuses uncorrelated durable CI before a merge or metadata refresh
+ok 65 - refuses uncorrelated durable CI before a merge or metadata refresh
+  ---
+  duration_ms: 2.3755
+  type: 'test'
+  ...
+# Subtest: refuses harness file before a merge or metadata refresh
+ok 66 - refuses harness file before a merge or metadata refresh
+  ---
+  duration_ms: 4.073
+  type: 'test'
+  ...
+# Subtest: refuses renamed harness file before a merge or metadata refresh
+ok 67 - refuses renamed harness file before a merge or metadata refresh
+  ---
+  duration_ms: 2.0008
+  type: 'test'
+  ...
+# Subtest: refuses manual ticket without a merge
+ok 68 - refuses manual ticket without a merge
+  ---
+  duration_ms: 2.3368
+  type: 'test'
+  ...
+# Subtest: refuses owner PR ticket without a merge
+ok 69 - refuses owner PR ticket without a merge
+  ---
+  duration_ms: 2.3037
+  type: 'test'
+  ...
+# Subtest: refuses other configured App without a merge
+ok 70 - refuses other configured App without a merge
+  ---
+  duration_ms: 2.6042
+  type: 'test'
+  ...
+# Subtest: refuses stale approval without a merge
+ok 71 - refuses stale approval without a merge
+  ---
+  duration_ms: 2.4529
+  type: 'test'
+  ...
+# Subtest: refuses fixture approval without a merge
+ok 72 - refuses fixture approval without a merge
+  ---
+  duration_ms: 4.7996
+  type: 'test'
+  ...
+# Subtest: an active ticket prevents a merge even when review and all required checks pass
+ok 73 - an active ticket prevents a merge even when review and all required checks pass
+  ---
+  duration_ms: 5.8207
+  type: 'test'
+  ...
+# Subtest: only the exact failed native metadata gate is refreshed after genuine approval
+ok 74 - only the exact failed native metadata gate is refreshed after genuine approval
+  ---
+  duration_ms: 8.4515
+  type: 'test'
+  ...
+# Subtest: metadata refresh has a bounded wait and never reruns model or unrelated checks
+ok 75 - metadata refresh has a bounded wait and never reruns model or unrelated checks
+  ---
+  duration_ms: 7.7881
+  type: 'test'
+  ...
+# Subtest: repeated successful ticks reconcile the closed merged PR without another PUT
+ok 76 - repeated successful ticks reconcile the closed merged PR without another PUT
+  ---
+  duration_ms: 6.6171
+  type: 'test'
+  ...
+# Subtest: uncertain successful merge is reconciled from actual PR state and merge commit
+ok 77 - uncertain successful merge is reconciled from actual PR state and merge commit
+  ---
+  duration_ms: 11.1155
+  type: 'test'
+  ...
+# Subtest: uncertain unmerged response retains intent and duplicate ticks do not retry
+ok 78 - uncertain unmerged response retains intent and duplicate ticks do not retry
+  ---
+  duration_ms: 6.3183
+  type: 'test'
+  ...
+# Subtest: a later tick never repeats an ambiguous PUT even after the previous run completed
+ok 79 - a later tick never repeats an ambiguous PUT even after the previous run completed
+  ---
+  duration_ms: 9.8325
+  type: 'test'
+  ...
+# Subtest: delayed GitHub closure is confirmed in one bounded attempt without another PUT
+ok 80 - delayed GitHub closure is confirmed in one bounded attempt without another PUT
+  ---
+  duration_ms: 11.0807
+  type: 'test'
+  ...
+# Subtest: an accepted response is audited without raw data and cannot alone claim a merge
+ok 81 - an accepted response is audited without raw data and cannot alone claim a merge
+  ---
+  duration_ms: 15.8538
+  type: 'test'
+  ...
+# Subtest: malformed merge replies retain a bounded audit outcome and never prove merged
+ok 82 - malformed merge replies retain a bounded audit outcome and never prove merged
+  ---
+  duration_ms: 6.0821
+  type: 'test'
+  ...
+# Subtest: rejected merge replies retain a bounded audit outcome and never prove merged
+ok 83 - rejected merge replies retain a bounded audit outcome and never prove merged
+  ---
+  duration_ms: 5.0457
+  type: 'test'
+  ...
+# Subtest: a lost transport response is retained as unknown without exception contents
+ok 84 - a lost transport response is retained as unknown without exception contents
+  ---
+  duration_ms: 6.4643
+  type: 'test'
+  ...
+# Subtest: a retained accepted receipt must agree with closed GitHub merge metadata
+ok 85 - a retained accepted receipt must agree with closed GitHub merge metadata
+  ---
+  duration_ms: 5.8355
+  type: 'test'
+  ...
+# Subtest: terminal persistence rechecks a receipt that arrived during an observer's PR read
+ok 86 - terminal persistence rechecks a receipt that arrived during an observer's PR read
+  ---
+  duration_ms: 10.8923
+  type: 'test'
+  ...
+# Subtest: a late merge receipt survives another observer's terminal reconciliation
+ok 87 - a late merge receipt survives another observer's terminal reconciliation
+  ---
+  duration_ms: 8.1272
+  type: 'test'
+  ...
+# Subtest: a late conflicting receipt restores a held intent and preserves the earlier observation in audit
+ok 88 - a late conflicting receipt restores a held intent and preserves the earlier observation in audit
+  ---
+  duration_ms: 6.9302
+  type: 'test'
+  ...
+# Subtest: an observer waits for the live writer's receipt before claiming terminal success
+ok 89 - an observer waits for the live writer's receipt before claiming terminal success
+  ---
+  duration_ms: 6.7035
+  type: 'test'
+  ...
+# Subtest: read-only app confirmation does not refetch an already-approved file list
+ok 90 - read-only app confirmation does not refetch an already-approved file list
+  ---
+  duration_ms: 10.4169
+  type: 'test'
+  ...
+# Subtest: temporary PR read failure after PUT is a bounded pending confirmation
+ok 91 - temporary PR read failure after PUT is a bounded pending confirmation
+  ---
+  duration_ms: 5.3081
+  type: 'test'
+  ...
+# Subtest: a stop during confirmation prevents further work or another PUT
+ok 92 - a stop during confirmation prevents further work or another PUT
+  ---
+  duration_ms: 6.431
+  type: 'test'
+  ...
+# Subtest: a approval during confirmation prevents further work or another PUT
+ok 93 - a approval during confirmation prevents further work or another PUT
+  ---
+  duration_ms: 7.12
+  type: 'test'
+  ...
+# Subtest: a provably unsent preflight failure releases its intent with an audit receipt
+ok 94 - a provably unsent preflight failure releases its intent with an audit receipt
+  ---
+  duration_ms: 7.4208
+  type: 'test'
+  ...
+# Subtest: concurrent ticks acquire one durable intent and make at most one merge request
+ok 95 - concurrent ticks acquire one durable intent and make at most one merge request
+  ---
+  duration_ms: 8.5793
+  type: 'test'
+  ...
+# Subtest: closed unmerged PR becomes terminal without merging or resetting approval
+ok 96 - closed unmerged PR becomes terminal without merging or resetting approval
+  ---
+  duration_ms: 2.7352
+  type: 'test'
+  ...
+# Subtest: head race at merge API never records a false merge
+ok 97 - head race at merge API never records a false merge
+  ---
+  duration_ms: 4.8989
+  type: 'test'
+  ...
+# Subtest: the newer exact correlated dispatch verify does not replace native PR verification
+ok 98 - the newer exact correlated dispatch verify does not replace native PR verification
+  ---
+  duration_ms: 7.128
+  type: 'test'
+  ...
+# Subtest: a pending merge durably prevents manual coding from consuming another reservation
+ok 99 - a pending merge durably prevents manual coding from consuming another reservation
+  ---
+  duration_ms: 9.1015
+  type: 'test'
+  ...
+# Subtest: ledger lock is held before PUT and released on confirmed merge
+ok 100 - ledger lock is held before PUT and released on confirmed merge
+  ---
+  duration_ms: 5.9178
+  type: 'test'
+  ...
+# Subtest: ordinary coding ticket with PR=false exits without a merge or false failure
+ok 101 - ordinary coding ticket with PR=false exits without a merge or false failure
+  ---
+  duration_ms: 3.2457
+  type: 'test'
+  ...
+# Subtest: ordinary blocked ticket with PR=false exits without a merge or false failure
+ok 102 - ordinary blocked ticket with PR=false exits without a merge or false failure
+  ---
+  duration_ms: 2.8535
+  type: 'test'
+  ...
+# Subtest: ordinary blocked ticket with PR=true exits without a merge or false failure
+ok 103 - ordinary blocked ticket with PR=true exits without a merge or false failure
+  ---
+  duration_ms: 2.6359
+  type: 'test'
+  ...
+# Subtest: ordinary retry ticket with PR=true exits without a merge or false failure
+ok 104 - ordinary retry ticket with PR=true exits without a merge or false failure
+  ---
+  duration_ms: 2.6092
+  type: 'test'
+  ...
+# Subtest: ordinary awaiting_review ticket with PR=true exits without a merge or false failure
+ok 105 - ordinary awaiting_review ticket with PR=true exits without a merge or false failure
+  ---
+  duration_ms: 2.9904
+  type: 'test'
+  ...
+# Subtest: ordinary reviewing ticket with PR=true exits without a merge or false failure
+ok 106 - ordinary reviewing ticket with PR=true exits without a merge or false failure
+  ---
+  duration_ms: 11.1554
+  type: 'test'
+  ...
+# Subtest: the unreviewed no-op still refuses absent or foreign automatic provenance
+ok 107 - the unreviewed no-op still refuses absent or foreign automatic provenance
+  ---
+  duration_ms: 11.7095
+  type: 'test'
+  ...
+# Subtest: an unreviewed ticket with merge intent is refused instead of hiding an uncertain merge
+ok 108 - an unreviewed ticket with merge intent is refused instead of hiding an uncertain merge
+  ---
+  duration_ms: 5.3191
+  type: 'test'
+  ...
+1..108
+# tests 108
+# suites 0
+# pass 104
+# fail 4
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 607.5846

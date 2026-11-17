@@ -101,9 +101,13 @@ class Ledger {
     await this.api.request("POST", `${ROOT}/git/refs`, { ref: "refs/heads/factory/state", sha });
     return this.read();
   }
-  async update(mutator) {
+  async update(mutator, { expectedCommit } = {}) {
+    if (expectedCommit !== undefined && !/^[a-f0-9]{40}$/.test(expectedCommit))
+      throw new Error("Invalid expected ledger commit");
     for (let attempt = 0; attempt < 3; attempt++) {
       const { state, commit } = await this.read();
+      if (expectedCommit !== undefined && commit !== expectedCommit)
+        throw new Error("Expected ledger commit changed; preview again");
       const result = await mutator(state);
       if (!result?.state) throw new Error("Ledger mutation must return state");
       const next = await this.commit(result.state, commit);
@@ -115,6 +119,7 @@ class Ledger {
         if (saved.object?.sha !== next) throw new Error("Ledger write was not acknowledged");
         return { ...result, commit: next };
       } catch (error) {
+        if (expectedCommit !== undefined) throw error;
         if (![409, 422].includes(error.status) || attempt === 2) throw error;
       }
     }

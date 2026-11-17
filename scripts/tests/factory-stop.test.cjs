@@ -11,6 +11,9 @@ function fixture({
   variableReadError = false,
   inventoryError = false,
   quarantined = false,
+  two = false,
+  partial = false,
+  omitSecond = false,
 } = {}) {
   let elapsed = 0;
   let state = policy.reserve(
@@ -18,6 +21,16 @@ function fixture({
     context,
     policy.readConfig(vars)
   ).state;
+  if (two) {
+    state.version = 2;
+    state.activeTickets = { [state.active.ticket]: state.active };
+    delete state.active;
+    state = policy.reserve(
+      state,
+      { ...context, ticket: 11, runId: "101" },
+      { ...policy.readConfig(vars), concurrent: 2 }
+    ).state;
+  }
   if (quarantined) {
     state.tickets[38] = structuredClone(evidence.sentinel.ticket);
     Object.assign(state.grants, structuredClone(evidence.sentinel.grants));
@@ -78,7 +91,8 @@ function fixture({
       }
       if (method === "GET" && url.includes("/actions/runs?")) {
         if (inventoryError) throw new Error("private inventory error");
-        return { workflow_runs: structuredClone(runs), total_count: runs.length };
+        const listed = runs.filter((run) => !omitSecond || run.id !== 101);
+        return { workflow_runs: structuredClone(listed), total_count: listed.length };
       }
       if (method === "GET" && quarantined) {
         if (url.includes(`/runs/${evidence.run.id}/jobs?`)) return facts.jobs;
@@ -94,7 +108,8 @@ function fixture({
       if (method === "POST" && id) {
         if (cancellationError)
           throw Object.assign(new Error("private cancellation error"), { status: 409 });
-        if (!stuck) runs.find((run) => run.id === id).status = "completed";
+        if (!stuck && !(partial && id === 101))
+          runs.find((run) => run.id === id).status = "completed";
         return {};
       }
       throw new Error(`Unexpected ${method} ${url}`);
@@ -120,6 +135,25 @@ function fixture({
     },
   };
 }
+test("two-parent stop cancels both, including an omitted inventory parent, preserving quarantine and counters", async () => {
+  const f = fixture({ two: true, omitSecond: true, quarantined: true });
+  const result = await stopFactory({ ...f.args, execute: true });
+  assert.equal(result.stopped, true);
+  assert.deepEqual(f.state.activeTickets, {});
+  assert.deepEqual(f.state.days, f.before.days);
+  assert.deepEqual(f.state.tickets[38], f.before.tickets[38]);
+  assert.equal(Object.values(f.state.grants).filter((g) => g.status === "reserved").length, 0);
+  assert.equal(result.pendingRunIds.length, 0);
+});
+test("partial two-parent stop keeps B reserved and cannot resume", async () => {
+  const f = fixture({ two: true, partial: true });
+  const result = await stopFactory({ ...f.args, execute: true });
+  assert.equal(result.stopped, false);
+  assert.ok(f.state.stop);
+  assert.ok(f.state.activeTickets["11"]);
+  assert.equal(Object.values(f.state.grants).find((g) => g.ticket === 11).status, "reserved");
+  await assert.rejects(resumeFactory({ ...f.args, execute: true }), /active|running/i);
+});
 test("stop preview is read-only and targets all agent parents, not deployments", async () => {
   const f = fixture();
   const result = await stopFactory(f.args);

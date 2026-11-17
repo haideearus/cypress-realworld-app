@@ -1,3 +1,4 @@
+const slots = require("./active-tickets.cjs");
 const { Ledger, ROOT } = require("./github.cjs");
 const { REPOSITORY, OWNER, SHA, reviewGate } = require("./policy.cjs");
 const { verifyMonitorIssue } = require("./monitor-origin.cjs");
@@ -139,8 +140,10 @@ async function ledgerTicket(api, incident) {
     t?.origin === "factory" &&
       t.automatic &&
       t.status === "reviewed" &&
-      state.active === null &&
-      !Object.values(state.grants).some((g) => g.status === "reserved") &&
+      !slots.activeFor(state, incident.issue) &&
+      !Object.values(state.grants).some(
+        (g) => g.ticket === incident.issue && g.status === "reserved"
+      ) &&
       same(t.monitor, proofFromIncident(incident)) &&
       reviewGate(state, { number: t.pr, head: t.head }).ok &&
       t.approval?.head === t.head &&

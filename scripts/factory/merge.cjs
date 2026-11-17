@@ -1,3 +1,5 @@
+const slots = require("./active-tickets.cjs");
+const { terminalParent } = require("./active-runs.cjs");
 const policy = require("./policy.cjs");
 const { Controller, criteriaHash } = require("./controller.cjs");
 const { Ledger, ROOT } = require("./github.cjs");
@@ -43,10 +45,10 @@ class AutomaticMerger {
   mergeLock(state, ticket, merge) {
     return (
       merge?.status === "intent" &&
-      state.active?.ticket === ticket &&
-      state.active.runId === merge.runId &&
-      state.active.runAttempt === merge.runAttempt &&
-      !Object.values(state.grants).some((grant) => grant.status === "reserved")
+      slots.owns(slots.activeFor(state, ticket), { ticket, ...merge }) &&
+      !Object.values(state.grants).some(
+        (grant) => grant.ticket === ticket && grant.status === "reserved"
+      )
     );
   }
   automaticTicket(state, ticket) {
@@ -70,8 +72,19 @@ class AutomaticMerger {
     policy.assertNotStopped(state);
     this.authorize();
     const t = this.automaticTicket(state, ticket);
-    if (state.active && !this.mergeLock(state, ticket, t.merge))
+    if (
+      (state.version === 1
+        ? slots.activeEntries(state).length > 0
+        : slots.activeFor(state, ticket) && t.merge?.status === "intent") &&
+      !this.mergeLock(state, ticket, t.merge)
+    )
       throw new Error("An active ticket holds the factory lock");
+    if (
+      Object.entries(state.tickets).some(
+        ([id, other]) => Number(id) !== ticket && other.merge?.status === "intent"
+      )
+    )
+      throw new Error("Another merge intent holds the global merge writer");
     if (!Number.isSafeInteger(t.pr) || t.pr < 1)
       throw new Error("Ticket lacks matching automatic factory provenance");
     const review = policy.reviewGate(state, { number: t.pr, head: t.head });
@@ -250,15 +263,30 @@ class AutomaticMerger {
   }
   async persist(ticket, expected, record, previous) {
     if (!this.enabled()) throw new Error("Automatic merge disabled");
-    return this.ledger.update((state) => {
+    return this.ledger.update(async (state) => {
       const t = this.stateTicket(state, ticket, expected);
       if (!same(t.merge, previous)) throw new IntentHeld("Merge intent changed concurrently");
       // Recheck within the CAS mutation: a receipt can arrive while a different
       // observer is waiting for GitHub's PR metadata.
       this.checkReceipt(state, ticket, t, record);
-      if (record.status === "intent")
-        state.active = { ticket, runId: record.runId, runAttempt: record.runAttempt };
-      else if (this.mergeLock(state, ticket, previous)) state.active = null;
+      const entry = slots.activeFor(state, ticket);
+      if (record.status === "intent") {
+        const nextOwner = { ticket, runId: record.runId, runAttempt: record.runAttempt };
+        if (entry && !slots.owns(entry, nextOwner)) {
+          const parent = await this.api.request(
+            "GET",
+            `${ROOT}/actions/runs/${entry.runId}/attempts/${entry.runAttempt}`
+          );
+          if (parent.status !== "completed" || parent.run_attempt !== entry.runAttempt)
+            throw new IntentHeld("Existing ticket parent is not confirmed terminal");
+          slots.releaseActive(state, entry);
+        }
+        slots.claimActive(state, nextOwner, this.config.concurrent);
+      } else if (entry) {
+        if (Object.values(state.grants).some((g) => g.ticket === ticket && g.status === "reserved"))
+          throw new IntentHeld("Ticket still has a reserved model grant");
+        slots.releaseActive(state, entry);
+      }
       t.merge = record;
       return { state, merge: record };
     });
@@ -310,7 +338,7 @@ class AutomaticMerger {
       const t = this.stateTicket(state, ticket, expected);
       if (!same(t.merge, intent) || !this.mergeLock(state, ticket, intent))
         throw new IntentHeld("Cannot release another merge lock");
-      state.active = null;
+      slots.releaseActive(state, { ticket, runId: intent.runId, runAttempt: intent.runAttempt });
       // This method is called only before the PUT can be issued. Preserve the
       // unsent intent in audit so the next run may try fresh preflight checks.
       state.audit.push({
@@ -350,7 +378,11 @@ class AutomaticMerger {
           previousMergeRecord: t.merge,
         });
         t.merge = intent;
-        state.active = { ticket, runId: intent.runId, runAttempt: intent.runAttempt };
+        slots.claimActive(
+          state,
+          { ticket, runId: intent.runId, runAttempt: intent.runAttempt },
+          this.config.concurrent
+        );
       }
       return { state };
     });
@@ -413,6 +445,24 @@ class AutomaticMerger {
     );
   }
   async permitWrite() {}
+  async restoreIntentOwnership(ticket, expected) {
+    await this.ledger.update(async (state) => {
+      const current = this.stateTicket(state, ticket, expected);
+      if (current.merge?.status !== "intent" || !same(current.merge, expected.merge))
+        throw new IntentHeld("Merge intent changed before ownership restoration");
+      const owner = { ticket, runId: current.merge.runId, runAttempt: current.merge.runAttempt };
+      const entry = slots.activeFor(state, ticket);
+      if (entry && !slots.owns(entry, owner))
+        throw new IntentHeld("Another parent owns this ticket");
+      if (!entry) {
+        if (!(await terminalParent(this.api, owner)))
+          throw new IntentHeld("Original merge owner is not confirmed terminal");
+        slots.claimActive(state, owner, this.config.concurrent);
+        policy.audit(state, "automatic_merge_ownership_restored", { ticket, ...owner });
+      }
+      return { state };
+    });
+  }
   async merge(ticket, { dryRun = false } = {}) {
     this.authorize();
     if (!Number.isSafeInteger(ticket) || ticket < 1 || typeof dryRun !== "boolean")
@@ -430,7 +480,10 @@ class AutomaticMerger {
     const t = this.stateTicket(state, ticket);
     // An existing intent may represent a completed write with a lost response.
     // Workflow terminality and still-open metadata never authorize a second PUT.
-    if (t.merge?.status === "intent") return this.confirm(ticket, t, { dryRun });
+    if (t.merge?.status === "intent") {
+      if (!dryRun && !slots.activeFor(state, ticket)) await this.restoreIntentOwnership(ticket, t);
+      return this.confirm(ticket, t, { dryRun });
+    }
     const pr = await this.pr(ticket, t);
     const terminal = await this.reconcile(ticket, t, pr, { dryRun });
     if (terminal) return terminal;

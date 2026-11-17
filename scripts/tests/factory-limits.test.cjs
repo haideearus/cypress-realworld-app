@@ -49,7 +49,7 @@ test("existing configuration remains valid and values above approved ceilings ar
     ["FACTORY_MAX_CODING_ATTEMPTS_PER_TICKET", "6"],
     ["FACTORY_MAX_REVIEWS_PER_TICKET", "11"],
     ["FACTORY_MAX_AUTOMATIC_RETRIES", "5"],
-    ["FACTORY_MAX_CONCURRENT_TICKETS", "2"],
+    ["FACTORY_MAX_CONCURRENT_TICKETS", "3"],
     ["FACTORY_RUN_TIMEOUT_MINUTES", "31"],
     ["FACTORY_MAX_TURNS_PER_RUN", "201"],
   ])

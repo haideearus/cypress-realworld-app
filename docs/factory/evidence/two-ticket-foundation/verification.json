@@ -1,0 +1,60 @@
+{
+  "scope": "Concurrency foundation for issue #80; not a live rollout",
+  "baseline": "55d7a87",
+  "testCommand": "yarn test:factory",
+  "tests": 605,
+  "passed": 595,
+  "failed": 0,
+  "skipped": 10,
+  "redEvidence": [
+    {
+      "file": "admission-red.log",
+      "sha256": "f099627d190f412f70c909cc93d0a2b965fc25abe64bb17b66a1ad2159c93f10"
+    },
+    {
+      "file": "review-findings-red.log",
+      "sha256": "db4b838f7d8dc0728fbc7a8f10fb6fb5eef012db5262744105d4e4411ab32f11"
+    }
+  ],
+  "independentLocalReview": {
+    "reviewedCommit": "4f280ef",
+    "critical": 0,
+    "important": 4,
+    "minor": 0,
+    "fixes": "All four reproduced before fixes; new regressions and full suite passed afterward. Local review does not satisfy Claude gate."
+  },
+  "live": {
+    "migrationExecuted": false,
+    "modelRunsStartedByImplementation": 0,
+    "paidAiApisUsed": false,
+    "switchesChanged": false,
+    "concurrencyChanged": false,
+    "controlsSnapshot": "2026-11-17T10:05:58.512Z",
+    "concurrency": "1",
+    "allThreeSwitches": "true",
+    "protectionHash": "135a5f5d6c1cd801fdbe6ae67b78a96af585f23b2303ccbe10c941b366d4c10d"
+  },
+  "rulings": [
+    {
+      "decision": "Reuse clean checkout on dedicated branch",
+      "reason": "Existing desktop workspace and no requested new worktree",
+      "costIfWrong": "Concurrent local edits could interfere; no implementing subagent was used"
+    },
+    {
+      "decision": "Keep v1 runtime behavior until stopped migration; retain automatic/dependency reviewed slots only in v2",
+      "reason": "Preserve live singleton compatibility",
+      "costIfWrong": "Mixed-version bugs could hold work; migration and dual-version tests cover it"
+    },
+    {
+      "decision": "Recover terminal reviewed parents before checking capacity, and route existing merge intents before other reviewed work",
+      "reason": "Prevent occupied-slot and cross-lane deadlocks",
+      "costIfWrong": "Incorrect parent proof could duplicate metadata work; exact-attempt identity and no-second-PUT regressions cover it"
+    },
+    {
+      "decision": "Discovery/event/activity code and live acceptance stay in later approved stages",
+      "reason": "This focused PR is the concurrency foundation",
+      "costIfWrong": "The factory expansion is not complete until those later stages and acceptance pass"
+    }
+  ],
+  "deferredMinors": []
+}

@@ -1,3 +1,4 @@
+const slots = require("./active-tickets.cjs");
 const policy = require("./policy.cjs");
 const d = require("./dependency-contract.cjs");
 function pending(state, except) {
@@ -17,7 +18,11 @@ function claimDependency(original, pr, context, config, now = new Date()) {
   if (!d.contextOK(context)) throw new Error("Unauthorized dependency workflow");
   if (!config.enabled || !config.automatic || !config.minutes || !config.turns || !config.reviews)
     throw new Error("Dependency factory disabled");
-  if (original.active || pending(original, pr.number))
+  if (
+    !slots.capacity(original, config.concurrent) ||
+    slots.activeFor(original, pr.number) ||
+    pending(original, pr.number)
+  )
     throw new Error("An active ticket or pending merge holds the factory lock");
   const state = structuredClone(original),
     id = String(pr.number),
@@ -79,7 +84,11 @@ function claimDependency(original, pr, context, config, now = new Date()) {
   t.approval = null;
   t.ci = null;
   delete t.analysis;
-  state.active = { ticket: pr.number, runId: context.runId, runAttempt: context.runAttempt };
+  slots.claimActive(
+    state,
+    { ticket: pr.number, runId: context.runId, runAttempt: context.runAttempt },
+    config.concurrent
+  );
   policy.audit(
     state,
     "dependency_metadata_admitted",
@@ -89,7 +98,10 @@ function claimDependency(original, pr, context, config, now = new Date()) {
   return policy.validateState(state);
 }
 function reserveDependencyReview(state, context, config) {
-  const t = state.tickets[String(state.active?.ticket)];
+  const entry = slots
+    .activeEntries(state)
+    .find((e) => e.runId === context.runId && e.runAttempt === context.runAttempt);
+  const t = state.tickets[String(entry?.ticket)];
   d.matches(t, context, config);
   if (
     !t.analysis ||
@@ -120,10 +132,7 @@ function finishPreparation(original, ticket, context) {
   if (
     !t ||
     t.origin !== "dependency-pr" ||
-    !state.active ||
-    state.active.ticket !== ticket ||
-    state.active.runId !== context.runId ||
-    state.active.runAttempt !== context.runAttempt ||
+    !slots.owns(slots.activeFor(state, ticket), { ...context, ticket }) ||
     Object.values(state.grants).some((g) => g.ticket === ticket && g.status === "reserved") ||
     t.merge
   )
@@ -131,7 +140,7 @@ function finishPreparation(original, ticket, context) {
   t.status = "blocked";
   t.approval = null;
   t.feedback = "Dependency preparation held; no model invocation";
-  state.active = null;
+  slots.releaseActive(state, { ticket, runId: context.runId, runAttempt: context.runAttempt });
   policy.audit(state, "dependency_preparation_blocked", {
     ticket,
     head: t.head,

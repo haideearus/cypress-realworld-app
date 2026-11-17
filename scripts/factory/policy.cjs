@@ -1,3 +1,4 @@
+const active = require("./active-tickets.cjs");
 const { randomUUID } = require("node:crypto");
 const dependency = require("./dependency-contract.cjs");
 const recovery = require("./recovery.cjs");
@@ -16,7 +17,7 @@ const LIMITS = {
   FACTORY_MAX_CODING_ATTEMPTS_PER_TICKET: ["coding", 5],
   FACTORY_MAX_REVIEWS_PER_TICKET: ["reviews", 10],
   FACTORY_MAX_AUTOMATIC_RETRIES: ["retries", 4],
-  FACTORY_MAX_CONCURRENT_TICKETS: ["concurrent", 1],
+  FACTORY_MAX_CONCURRENT_TICKETS: ["concurrent", 2],
   FACTORY_RUN_TIMEOUT_MINUTES: ["minutes", 30],
   FACTORY_MAX_TURNS_PER_RUN: ["turns", 200],
 };
@@ -55,7 +56,7 @@ function readConfig(vars) {
     deny("Invalid or missing GitHub App identity");
   for (const [key, [name, max]] of Object.entries(LIMITS))
     config[name] = integer(vars[key], key, max);
-  if (config.concurrent !== 1) deny("Invalid concurrency: must be one");
+  if (![1, 2].includes(config.concurrent)) deny("Invalid concurrency: must be one or two");
   if (vars.FACTORY_TIMEZONE !== "Europe/Bucharest") deny("Invalid factory timezone");
   if (vars.FACTORY_APP_URL !== "https://haide-software-factory.onrender.com")
     deny("Invalid app URL");
@@ -88,7 +89,7 @@ function validateState(state) {
   const record = (value) => value && typeof value === "object" && !Array.isArray(value);
   if (
     !state ||
-    state.version !== 1 ||
+    ![1, 2].includes(state.version) ||
     state.repository !== REPOSITORY ||
     !record(state.days) ||
     !record(state.tickets) ||
@@ -96,6 +97,7 @@ function validateState(state) {
     !Array.isArray(state.audit)
   )
     deny("Invalid factory ledger state");
+  const entries = active.validateActive(state);
   validateStop(state.stop);
   for (const [day, ids] of Object.entries(state.days)) {
     if (
@@ -156,7 +158,7 @@ function validateState(state) {
           ? g.status !== "reserved"
           : g.status !== "finished" ||
             g.outcome !== ticket.status ||
-            state.active?.ticket === Number(id)) ||
+            active.activeFor(state, Number(id))) ||
         drillRuns.has(d.runId) ||
         drillIncidents.has(d.incidentId)
       )
@@ -259,24 +261,11 @@ function validateState(state) {
     )
       deny("Invalid ledger reservation");
   }
-  if (
-    state.active &&
-    (!state.tickets[String(state.active.ticket)] ||
-      !/^[1-9]\d*$/.test(state.active.runId) ||
-      !Number.isInteger(state.active.runAttempt) ||
-      state.active.runAttempt < 1)
-  )
-    deny("Invalid ledger active ticket");
   const pending = Object.values(state.grants).filter((g) => g.status === "reserved");
   if (
-    pending.length > 1 ||
-    pending.some(
-      (g) =>
-        !state.active ||
-        state.active.ticket !== g.ticket ||
-        state.active.runId !== g.runId ||
-        state.active.runAttempt !== g.runAttempt
-    )
+    pending.length > entries.length ||
+    new Set(pending.map((g) => g.ticket)).size !== pending.length ||
+    pending.some((g) => !active.owns(active.activeFor(state, g.ticket), g))
   )
     deny("Invalid ledger active reservation history");
   return state;
@@ -445,13 +434,13 @@ function reserve(original, request, config, now = new Date()) {
     (existing?.origin === "owner-pr" && !ownerReview)
   )
     deny("Ticket origin cannot change between owner review and coding");
+  const owner = active.activeFor(state, request.ticket);
   if (
-    state.active &&
-    (state.active.ticket !== request.ticket ||
-      state.active.runId !== request.runId ||
-      state.active.runAttempt !== request.runAttempt)
+    (owner && !active.owns(owner, request)) ||
+    (!owner && !active.capacity(state, config.concurrent))
   )
     deny("Another active ticket/run holds the factory lock");
+  active.capacity(state, config.concurrent);
   if (
     Object.values(state.grants).some((g) => g.ticket === request.ticket && g.status === "reserved")
   )
@@ -461,7 +450,7 @@ function reserve(original, request, config, now = new Date()) {
     !ownerReview &&
     !dependencyReview &&
     (!existing ||
-      !state.active ||
+      !owner ||
       existing.status !== "awaiting_review" ||
       existing.head !== request.head ||
       !existing.pr)
@@ -533,7 +522,11 @@ function reserve(original, request, config, now = new Date()) {
       now
     );
   }
-  state.active = { ticket: request.ticket, runId: request.runId, runAttempt: request.runAttempt };
+  active.claimActive(
+    state,
+    { ticket: request.ticket, runId: request.runId, runAttempt: request.runAttempt },
+    config.concurrent
+  );
   audit(
     state,
     "reserved",
@@ -552,6 +545,9 @@ function preflight(state, grantId, context, config) {
   validateState(state);
   assertNotStopped(state);
   authorize(context);
+  active.capacity(state, config.concurrent);
+  if (active.activeEntries(state).length > config.concurrent)
+    deny("Pending reservation exceeds current concurrency limit");
   if (!config.enabled || !config.minutes || !config.turns) deny("Factory disabled");
   const automatic = isAutomaticContext(context);
   if (automatic && !config.automatic) deny("Automatic factory disabled");
@@ -590,13 +586,11 @@ function preflight(state, grantId, context, config) {
   if (
     !grant ||
     grant.status !== "reserved" ||
-    !state.active ||
+    !active.activeFor(state, grant.ticket) ||
     ["ticket", "phase", "slot", "runId", "runAttempt", "head"].some(
       (k) => grant[k] !== context[k]
     ) ||
-    state.active.ticket !== grant.ticket ||
-    state.active.runId !== grant.runId ||
-    state.active.runAttempt !== grant.runAttempt
+    !active.owns(active.activeFor(state, grant.ticket), grant)
   )
     deny("Invalid or stale model reservation");
   return grant;
@@ -606,7 +600,7 @@ function finish(original, grantId, outcome, now = new Date()) {
   if (original.stop && outcome.status !== "blocked") assertNotStopped(original);
   const state = structuredClone(original);
   const g = state.grants[grantId];
-  if (!g || g.status !== "reserved" || !state.active || state.active.ticket !== g.ticket)
+  if (!g || g.status !== "reserved" || !active.owns(active.activeFor(state, g.ticket), g))
     deny("Invalid finished reservation");
   if (
     !["blocked", "retry", "awaiting_review", "reviewed", "drill_complete"].includes(outcome.status)
@@ -654,7 +648,11 @@ function finish(original, grantId, outcome, now = new Date()) {
   t.pr = outcome.pr || t.pr;
   t.status = outcome.status;
   if (outcome.status !== "reviewed") t.approval = null;
-  if (["blocked", "reviewed", "drill_complete"].includes(outcome.status)) state.active = null;
+  if (
+    ["blocked", "reviewed", "drill_complete"].includes(outcome.status) &&
+    !(state.version === 2 && outcome.status === "reviewed" && (t.automatic || t.dependency))
+  )
+    active.releaseActive(state, g);
   audit(
     state,
     "finished",

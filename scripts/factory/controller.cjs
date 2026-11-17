@@ -1,3 +1,4 @@
+const slots = require("./active-tickets.cjs");
 const fs = require("node:fs");
 const { createHash, randomUUID } = require("node:crypto");
 const policy = require("./policy.cjs");
@@ -343,12 +344,7 @@ class Controller {
     return { ready: true, pr: pr.number, head: commit.sha, ticket: grant.ticket };
   }
   activeRun(state, ticket) {
-    if (
-      !state.active ||
-      state.active.ticket !== ticket ||
-      state.active.runId !== this.context.runId ||
-      state.active.runAttempt !== this.context.runAttempt
-    )
+    if (!slots.owns(slots.activeFor(state, ticket), { ...this.context, ticket }))
       throw new Error("Operation belongs to another active run");
   }
   async validateCI(runId, head, reservation) {
@@ -451,7 +447,7 @@ class Controller {
   async block(ticket, reason) {
     await this.ledger.update((original) => {
       const state = structuredClone(original);
-      const active = state.active;
+      const active = slots.activeFor(state, ticket);
       if (
         !active ||
         active.ticket !== ticket ||
@@ -468,7 +464,7 @@ class Controller {
       t.status = "blocked";
       t.approval = null;
       t.feedback = reason;
-      state.active = null;
+      slots.releaseActive(state, active);
       policy.audit(state, "blocked", { ticket, reason });
       return { state };
     });
@@ -522,7 +518,7 @@ class Controller {
     } else {
       await this.ledger.update((original) => {
         const state = structuredClone(original);
-        const active = state.active;
+        const active = slots.activeFor(state, ticket);
         if (
           !active ||
           active.ticket !== ticket ||
@@ -553,10 +549,15 @@ class Controller {
       throw error;
     }
   }
-  async cancel() {
+  async cancel(ticket) {
     this.authorize();
     const { state } = await this.ledger.read();
-    const active = state.active;
+    const entries = slots.activeEntries(state);
+    if (ticket === undefined && entries.length > 1)
+      throw new Error("Choose an explicit ticket to cancel");
+    if (ticket !== undefined && (!Number.isSafeInteger(ticket) || ticket < 1))
+      throw new Error("Invalid cancellation ticket");
+    const active = ticket === undefined ? entries[0] : slots.activeFor(state, ticket);
     if (!active) return { canceled: false, reason: "No active ticket" };
     if (active.runId === this.context.runId)
       throw new Error("Cancellation must run separately from the active factory run");
@@ -574,7 +575,7 @@ class Controller {
       throw new Error("Run is still active; retaining the ticket lock");
     await this.ledger.update((original) => {
       const next = structuredClone(original);
-      if (JSON.stringify(next.active) !== JSON.stringify(active))
+      if (JSON.stringify(slots.activeFor(next, active.ticket)) !== JSON.stringify(active))
         throw new Error("Active ticket changed during cancellation");
       for (const grant of Object.values(next.grants))
         if (grant.ticket === active.ticket && grant.status === "reserved") {
@@ -583,7 +584,7 @@ class Controller {
         }
       next.tickets[String(active.ticket)].status = "blocked";
       next.tickets[String(active.ticket)].approval = null;
-      next.active = null;
+      slots.releaseActive(next, active);
       policy.audit(next, "owner-canceled", {
         ticket: active.ticket,
         actor: this.context.actor,
@@ -748,7 +749,7 @@ async function main(env = process.env) {
       );
       break;
     case "cancel":
-      result = await controller.cancel();
+      result = await controller.cancel(inputs.ticket ? Number(inputs.ticket) : undefined);
       break;
     case "assess_pr":
       result = await controller.assessPR(
