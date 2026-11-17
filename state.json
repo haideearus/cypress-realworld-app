@@ -47,6 +47,9 @@
       74,
       58,
       77
+    ],
+    "2026-11-17": [
+      59
     ]
   },
   "tickets": {
@@ -985,6 +988,38 @@
         "mergeCommit": "f5969ed32fbe29eaea475b958d33d30f9dd30d18"
       }
     },
+    "59": {
+      "coding": 0,
+      "reviews": 0,
+      "retries": 0,
+      "origin": "dependency-pr",
+      "head": "fc1ed9af6c1becb7d2a96d16df8a93d70120defc",
+      "pr": 59,
+      "status": "new",
+      "approval": null,
+      "branch": "dependabot/npm_and_yarn/systeminformation-5.33.23",
+      "criteriaHash": "35653b8ac179974666d866b44ad51a23ad6b0e3bf4fcb3d073b1d4c557e59a82",
+      "dependency": {
+        "version": 1,
+        "pr": 59,
+        "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-dependencies.yml@refs/heads/main",
+        "workflowSha": "20f23e34f111f286b0f048ba8cb802ef277b4f86",
+        "runId": "44055009718",
+        "runAttempt": 1,
+        "appSlug": "haideearus-software-factory",
+        "attempts": [
+          {
+            "head": "fc1ed9af6c1becb7d2a96d16df8a93d70120defc",
+            "base": "20f23e34f111f286b0f048ba8cb802ef277b4f86",
+            "runId": "44055009718",
+            "runAttempt": 1,
+            "workflowSha": "20f23e34f111f286b0f048ba8cb802ef277b4f86",
+            "at": "2026-11-17T09:22:54.212Z"
+          }
+        ]
+      },
+      "ci": null
+    },
     "60": {
       "coding": 0,
       "origin": "owner-pr",
@@ -1887,7 +1922,11 @@
       "outcome": "reviewed"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 59,
+    "runId": "44055009718",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -3723,6 +3762,13 @@
           "reason": "Frozen pre-job controller rejects retained drill history before admission"
         }
       ]
+    },
+    {
+      "at": "2026-11-17T09:22:54.212Z",
+      "event": "dependency_metadata_admitted",
+      "ticket": 59,
+      "head": "fc1ed9af6c1becb7d2a96d16df8a93d70120defc",
+      "runId": "44055009718"
     }
   ]
 }
