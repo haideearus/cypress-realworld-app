@@ -2,12 +2,19 @@
 
 Implementation ticket: [#50](https://github.com/haideearus/cypress-realworld-app/issues/50).
 Local preparation evidence: [verification record](dependency-maintenance-verification-2026-11-15.md).
-This lane is installed. Controlled trials of Dependabot PR #52 have been held by
-analysis or independent review; a completed dependency merge/deployment trial is
-still pending. The retained-version/reporting repair is tracked in
+This lane is installed. On 16 November 2026, [PR #58](https://github.com/haideearus/cypress-realworld-app/pull/58)
+completed analysis, CI, fresh Claude Pro review, evidence refresh, fresh premerge,
+protected App-backed merge and ledger confirmation in
+[43909582583](https://github.com/haideearus/cypress-realworld-app/actions/runs/43909582583).
+Its named-approved [deployment](https://github.com/haideearus/cypress-realworld-app/actions/runs/43913104368)
+verified live release `f5969ed32fbe29eaea475b958d33d30f9dd30d18`.
+The three switches were restored false and both pickup workflows re-enabled.
+See the [operations guide](OPERATIONS.md) and [acceptance index](ACCEPTANCE-2026-11-16.md).
+
+Earlier PR #52 analysis/review holds remain historical evidence. The retained-version/reporting repair is tracked in
 [#60](https://github.com/haideearus/cypress-realworld-app/issues/60) and its
 [verification record](retained-advisory-fix-verification-2026-11-15.md).
-All three factory switches remain false during this repair.
+No extended scheduled-operation acceptance is claimed by that controlled run.
 
 ## What happens
 
@@ -129,7 +136,11 @@ combined removed/candidate package-version queries, 500 path comparisons and at
 most 500 pending comparisons, five OSV batches of 100, 1 MiB per response and
 15 seconds per public request. Analysis jobs time out after eight minutes.
 
-## Installation after this PR is reviewed and merged
+## Original installation procedure (completed setup)
+
+These steps describe installation under ticket #50. Do not reapply initial-off
+defaults to the installed monitoring configuration. Use the operations guide for
+the current paused state and separately authorized activation.
 
 1. Leave the factory switches false. In this fork's **Settings → Advanced Security**
    (GitHub may label this **Code security**), enable the dependency graph,
