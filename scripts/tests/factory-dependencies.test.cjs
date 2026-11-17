@@ -113,6 +113,20 @@ test("disabled and dry-run dependency selection never mutate the ledger or reser
   assert.equal((await x.coordinator.select(true)).ticket, 52);
   assert.equal((await x.ledger.read()).commit, before);
 });
+test("stale genuine dependency proposals produce a typed refresh hold, never an idle claim or grant", async () => {
+  const x = await fixture();
+  x.f.route = (path) =>
+    path.startsWith("/compare/")
+      ? { behind_by: 1, merge_base_commit: { sha: "f".repeat(40) } }
+      : undefined;
+  const before = (await x.ledger.read()).state,
+    result = await x.coordinator.select(false);
+  assert.equal(result.ready, false);
+  assert.equal(result.ticket, 52);
+  assert.equal(result.holds[0].code, "requires-current-main-rebase");
+  assert.match(result.reason, /refresh/i);
+  assert.deepEqual((await x.ledger.read()).state, before);
+});
 test("genuine dependency intake reserves metadata only and forged authors are ignored", async () => {
   const x = await fixture();
   const picked = await x.coordinator.select(false);

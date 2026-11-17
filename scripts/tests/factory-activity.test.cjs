@@ -22,6 +22,7 @@ function setup() {
     events: {},
     lastMonitor: null,
     staleFor: null,
+    controlAfter: "2026-11-17T00:00:00.000Z",
   });
   const comments = [],
     calls = [];
@@ -94,7 +95,6 @@ test("each lifecycle kind is typed and duplicate publication sends one bounded j
     "ci",
     "merge",
     "deployment",
-    "stop",
     "budget",
     "monitor-stale",
     "monitor-recovered",
@@ -259,3 +259,97 @@ test("concurrent observers report an unchanged stale interval once using the sam
   assert.equal(s.store.state.staleFor, "800");
 });
 module.exports = { setup, producer };
+test("idle stop and resume are recovered from durable command history once, with unresolved results retained", () => {
+  const { controlEvents } = require("../factory/activity-controls.cjs");
+  const id = "12345678-1234-4123-8123-123456789abc";
+  const state = require("../factory/policy.cjs").emptyState(repository);
+  state.audit = [
+    {
+      event: "factory-stop-requested",
+      actor: "haideearus",
+      commandId: id,
+      at: "2026-11-17T10:00:00.000Z",
+    },
+    {
+      event: "factory-stop-result",
+      actor: "haideearus",
+      commandId: id,
+      at: "2026-11-17T10:00:10.000Z",
+      switchesOff: true,
+      inventoryComplete: true,
+      pendingRunIds: [123],
+      terminalRunIds: [],
+      elapsedMs: 10000,
+    },
+    {
+      event: "factory-resumed",
+      actor: "haideearus",
+      commandId: id,
+      at: "2026-11-17T10:05:00.000Z",
+    },
+  ];
+  const first = controlEvents({ state, commit: sha }, producer, "2026-11-17T09:00:00.000Z");
+  const second = controlEvents(
+    { state, commit: "b".repeat(40) },
+    { ...producer, runId: "801" },
+    "2026-11-17T09:00:00.000Z"
+  );
+  assert.equal(first.length, 3);
+  assert.deepEqual(
+    first.map((e) => e.id),
+    second.map((e) => e.id)
+  );
+  assert.equal(first[1].state, "held");
+  assert.match(first[1].summary, /123/);
+  assert.equal(state.stop, undefined);
+  assert.equal(
+    controlEvents({ state, commit: sha }, producer, "2026-11-17T10:06:00.000Z").length,
+    0
+  );
+});
+test("a stop journal entry must match an ancestral command snapshot and cannot fabricate a successful result", async () => {
+  const s = setup(),
+    base = s.api.request,
+    state = require("../factory/policy.cjs").emptyState(repository);
+  state.audit = [
+    {
+      event: "factory-stop-result",
+      actor: "haideearus",
+      commandId: "12345678-1234-4123-8123-123456789abc",
+      at: "2026-11-17T10:00:00.000Z",
+      pendingRunIds: [123],
+      switchesOff: true,
+      inventoryComplete: true,
+      elapsedMs: 1000,
+    },
+  ];
+  s.api.request = (m, p, b) =>
+    p.includes("/contents/state.json")
+      ? Promise.resolve({
+          type: "file",
+          encoding: "base64",
+          content: Buffer.from(JSON.stringify(state)).toString("base64"),
+        })
+      : base(m, p, b);
+  const event = require("../factory/activity-controls.cjs").controlEvents(
+    { state, commit: sha },
+    producer,
+    "2026-11-17T09:00:00.000Z"
+  )[0];
+  await assert.rejects(
+    a.publishActivity({ ...s, event: { ...event, state: "completed" } }),
+    /command history/
+  );
+  assert.equal(s.comments.length, 0);
+  await a.publishActivity({ ...s, event });
+  await a.publishActivity({ ...s, event });
+  assert.equal(s.comments.length, 1);
+  const saved = s.api.request;
+  s.api.request = (m, p, b) =>
+    p.endsWith("/git/ref/heads/factory/state")
+      ? Promise.resolve({ object: { sha: "b".repeat(40) } })
+      : p.includes("/compare/")
+        ? Promise.resolve({ merge_base_commit: { sha: "c".repeat(40) }, behind_by: 1 })
+        : saved(m, p, b);
+  await assert.rejects(a.verifyActivityProducer(s.api, event), /ancestry/);
+});

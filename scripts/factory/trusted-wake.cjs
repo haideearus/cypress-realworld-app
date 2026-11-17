@@ -4,6 +4,7 @@ const { ROOT } = require("./github.cjs");
 const { WakeStore } = require("./wake-store.cjs");
 // A JSON field is not authorization. Only this API-verifying module can mint a proof.
 const proofs = new WeakMap();
+class PendingWakeBinding extends Error {}
 function isTrustedWakeContext(context, lane) {
   const proof = context?.wake,
     binding = proof && proofs.get(proof);
@@ -150,7 +151,7 @@ async function verifyWake({
   if (receipt.receiver && JSON.stringify(receipt.receiver) !== JSON.stringify(expected))
     throw Error("Wake already bound to another receiver");
   if (!receipt.receiver) {
-    if (!bind) throw Error("Wake receiver has not been bound");
+    if (!bind) throw new PendingWakeBinding("Wake receiver has not been bound");
     await store.update((s) => {
       const r = c.validateReceipt(s.receipts[receiptId]);
       if (r.receiver && JSON.stringify(r.receiver) !== JSON.stringify(expected))
@@ -184,7 +185,8 @@ async function loadWakeContext(api, context, env = process.env, { bind = false }
     const rows = Object.values(state.receipts).filter(
       (r) => r.receiver?.runId === context.runId && r.receiver?.runAttempt === context.runAttempt
     );
-    if (rows.length !== 1) throw Error("Missing bound wake receipt");
+    if (rows.length === 0) throw new PendingWakeBinding("Missing bound wake receipt");
+    if (rows.length !== 1) throw Error("Ambiguous bound wake receipt");
     receiptId = rows[0].id;
   }
   const lane = Object.keys(c.LANES).find(
@@ -192,4 +194,10 @@ async function loadWakeContext(api, context, env = process.env, { bind = false }
   );
   return { ...context, wake: await verifyWake({ api, context, receiptId, lane, bind }) };
 }
-module.exports = { isTrustedWakeContext, verifySource, verifyWake, loadWakeContext };
+module.exports = {
+  PendingWakeBinding,
+  isTrustedWakeContext,
+  verifySource,
+  verifyWake,
+  loadWakeContext,
+};

@@ -127,6 +127,19 @@ GitHub delivery. Only allowlisted source workflows are observed: neither the wak
 nor activity workflow is a `workflow_run` source, and issue comments are never a
 wake source. Explicit dispatch separates repeated handoffs from observer chaining.
 
+An early observer waits for receiver binding without binding or authorizing it.
+A receiver that finishes before binding is reported as held, never as a model or
+review result. Stale dependency candidates produce typed refresh holds with PR
+links rather than an idle-queue claim.
+
+Stop request, result and resume notifications come from the retained owner-command
+audit, keyed by command identity. They remain reportable after resume and are not
+repeated per subsequently observed run. Ancestral ledger snapshots verify those
+entries; unresolved runs remain explicit holds. This adds no network requests to
+the time-critical stop command. The logger starts with an initialization watermark
+so enabling it does not send the entire historical stop backlog. GitHub must still
+deliver an observer before a journal entry can appear.
+
 A last verified monitor completion older than 90 minutes produces one warning per
 unchanged stale interval; a newer verified completion reports recovery only if
 it is actually fresh. This does not claim the application is healthy. With no

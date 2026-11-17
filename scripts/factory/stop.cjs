@@ -250,6 +250,9 @@ async function stopFactory({
           quarantinedRunIds: [...quarantined.keys()],
           quarantinedRuns: [...quarantined.values()],
           pendingRunIds: pending.map((run) => run.id),
+          switchesOff,
+          inventoryComplete,
+          errorCount,
           elapsedMs: Math.ceil(clock() - started),
         });
         return { state: next };

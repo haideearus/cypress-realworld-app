@@ -104,7 +104,10 @@ function buildActivityEvent({ producer, kind, state, subject, head, summary, lin
     summary,
     links: [...links],
   };
-  return { id: digest(event), ...event };
+  return {
+    id: kind === "stop" ? digest(["owner-control", producer.phase]) : digest(event),
+    ...event,
+  };
 }
 function validateEvent(e) {
   if (
@@ -115,13 +118,22 @@ function validateEvent(e) {
   return e;
 }
 function emptyActivity() {
-  return { version: 1, repository: REPOSITORY, events: {}, lastMonitor: null, staleFor: null };
+  return {
+    version: 1,
+    repository: REPOSITORY,
+    events: {},
+    lastMonitor: null,
+    staleFor: null,
+    controlAfter: new Date().toISOString(),
+  };
 }
 function validateActivity(s) {
   if (
-    !exact(s, "version,repository,events,lastMonitor,staleFor") ||
+    !exact(s, "version,repository,events,lastMonitor,staleFor,controlAfter") ||
     s.version !== 1 ||
     s.repository !== REPOSITORY ||
+    typeof s.controlAfter !== "string" ||
+    !Number.isFinite(Date.parse(s.controlAfter)) ||
     !s.events ||
     typeof s.events !== "object" ||
     Array.isArray(s.events) ||
@@ -153,7 +165,7 @@ function validateActivity(s) {
 function renderEvent(event) {
   validateEvent(event);
   const p = event.producer;
-  const body = `<!-- factory-activity:${event.id} -->\n**${event.kind}: ${event.state}**\n\n${event.summary}\n\nSubject #${event.subject}; head \`${event.head}\`.\nProducer: ${p.workflow}, run ${p.runId}, attempt ${p.runAttempt}, phase ${p.phase}; actor ${p.actor}.\n\n${event.links.map((l) => `- ${l}`).join("\n")}\n`;
+  const body = `<!-- factory-activity:${event.id} -->\n**${event.kind}: ${event.state}**\n\n${event.summary}\n\nReference ${event.subject}; head \`${event.head}\`.\nProducer: ${p.workflow}, run ${p.runId}, attempt ${p.runAttempt}, phase ${p.phase}; actor ${p.actor}.\n\n${event.links.map((l) => `- ${l}`).join("\n")}\n`;
   if (Buffer.byteLength(body) > 8000 || secretLike(body)) throw Error("Activity body rejected");
   return body;
 }

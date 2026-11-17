@@ -28,30 +28,46 @@ async function verifyActivityProducer(
     p.workflow === "factory-activity.yml" &&
     !(
       (event.kind === "issue" && r.event === "issues" && owner) ||
+      (event.kind === "stop" && ["issues", "workflow_run"].includes(r.event)) ||
       (["monitor-stale", "monitor-recovered"].includes(event.kind) &&
         p.phase === "freshness" &&
         ["issues", "workflow_run"].includes(r.event))
     )
   )
     throw Error("Activity observer cannot notify about itself");
+  if (event.kind === "stop")
+    await require("./activity-controls.cjs").verifyControlEvent(api, event);
   if (p.workflow !== "factory-ci.yml" && r.head_branch !== "main")
     throw Error("Activity requires trusted main source");
   if (bot && ["factory-automatic.yml", "factory-dependencies.yml"].includes(p.workflow)) {
-    await require("./trusted-wake.cjs").loadWakeContext(
-      api,
-      {
-        repository: REPOSITORY,
-        actor: BOT,
-        triggeringActor: BOT,
-        ref: "refs/heads/main",
-        event: r.event,
-        workflowRef: `${REPOSITORY}/.github/workflows/${p.workflow}@refs/heads/main`,
-        workflowSha: r.head_sha,
-        runId: String(r.id),
-        runAttempt: r.run_attempt,
-      },
-      {}
-    );
+    try {
+      await require("./trusted-wake.cjs").loadWakeContext(
+        api,
+        {
+          repository: REPOSITORY,
+          actor: BOT,
+          triggeringActor: BOT,
+          ref: "refs/heads/main",
+          event: r.event,
+          workflowRef: `${REPOSITORY}/.github/workflows/${p.workflow}@refs/heads/main`,
+          workflowSha: r.head_sha,
+          runId: String(r.id),
+          runAttempt: r.run_attempt,
+        },
+        {}
+      );
+    } catch (e) {
+      if (
+        !(e instanceof require("./trusted-wake.cjs").PendingWakeBinding) ||
+        r.status !== "completed" ||
+        event.kind !== "queue" ||
+        event.state !== "held" ||
+        p.phase !== "binding-held" ||
+        event.summary !==
+          "Receiver finished without a verified wake binding; no model or review outcome is asserted."
+      )
+        throw e;
+    }
   }
   return r;
 }
@@ -228,7 +244,7 @@ async function recordResult(api, context, result, env = process.env) {
             : result.ready === false
               ? "held"
               : "completed";
-    const summary = JSON.stringify(
+    let summary = JSON.stringify(
       Object.fromEntries(
         Object.entries(result).filter(
           ([k, v]) =>
@@ -247,6 +263,11 @@ async function recordResult(api, context, result, env = process.env) {
         )
       )
     );
+    if (Array.isArray(result.holds))
+      summary = JSON.stringify({
+        result: JSON.parse(summary),
+        holds: result.holds.slice(0, 5).map((h) => ({ pr: h.pr, code: h.code })),
+      });
     const event = c.buildActivityEvent({
       producer: {
         runId: context.runId,
@@ -261,7 +282,12 @@ async function recordResult(api, context, result, env = process.env) {
       subject,
       head: result.head && /^[a-f0-9]{40}$/.test(result.head) ? result.head : context.workflowSha,
       summary: summary || "Trusted operation completed",
-      links: [`https://github.com/${REPOSITORY}/actions/runs/${context.runId}`],
+      links: [
+        `https://github.com/${REPOSITORY}/actions/runs/${context.runId}`,
+        ...(Array.isArray(result.holds)
+          ? result.holds.slice(0, 4).map((h) => `https://github.com/${REPOSITORY}/pull/${h.pr}`)
+          : []),
+      ],
     });
     await enqueueActivity({ api, event });
   } catch {

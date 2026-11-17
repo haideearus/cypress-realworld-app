@@ -168,3 +168,33 @@ test("retained bound provenance remains verifiable after its issue closes, witho
   await verifyWake({ ...s, lane: "app", bind: false });
   assert.equal(s.store.state.receipts[s.receiptId].receiver.runId, "900");
 });
+test("an activity observer sees an early receipt as pending without binding or authorizing it", async () => {
+  const { isTrustedWakeContext } = require("../factory/trusted-wake.cjs");
+  const { observeRun } = require("../factory/activity-observer.cjs");
+  const s = await receiverSetup();
+  s.store.state.receipts[s.receiptId].status = "intent";
+  const base = s.api.request;
+  s.api.request = (m, p, b) =>
+    p.endsWith("/git/ref/heads/factory/wakes")
+      ? Promise.resolve({ object: { sha: "b".repeat(40) } })
+      : p.includes("/contents/wakes.json")
+        ? Promise.resolve({
+            type: "file",
+            encoding: "base64",
+            content: Buffer.from(JSON.stringify(s.store.state)).toString("base64"),
+          })
+        : base(m, p, b);
+  s.api.pages = async () => [];
+  const writes = s.store.writes;
+  assert.equal(
+    (await observeRun({ ...s, runId: 900, runAttempt: 1, preview: true })).outcome,
+    "awaiting_binding"
+  );
+  assert.equal(s.store.writes, writes);
+  assert.equal(isTrustedWakeContext(s.context), false);
+  await require("../factory/trusted-wake.cjs").verifyWake({ ...s, lane: "app", bind: true });
+  assert.equal(
+    (await observeRun({ ...s, runId: 900, runAttempt: 1, preview: true })).outcome,
+    "preview"
+  );
+});

@@ -286,6 +286,7 @@ class DependencyCoordinator {
       state = (await this.ledger.read()).state;
     }
     let candidate;
+    const holds = [];
     for (let page = 1; page <= 5 && !candidate; page++) {
       const rows = await this.api.request(
         "GET",
@@ -313,14 +314,30 @@ class DependencyCoordinator {
         try {
           candidate = await this.pr(row.number);
           break;
-        } catch {
-          /* unsafe or outdated candidates remain held */
+        } catch (error) {
+          if (holds.length < 5)
+            holds.push({
+              pr: row.number,
+              head: row.head.sha,
+              code:
+                error.message === "Dependency PR requires a current-main rebase"
+                  ? "requires-current-main-rebase"
+                  : "prerequisites-unavailable",
+            });
         }
       }
       if (rows.length < 100) break;
     }
     if (!candidate)
-      return { ready: false, reason: "No eligible Dependabot PR in the bounded queue" };
+      return holds.length
+        ? {
+            ready: false,
+            ticket: holds[0].pr,
+            head: holds[0].head,
+            holds,
+            reason: "Dependabot proposals held; refresh or prerequisite verification required",
+          }
+        : { ready: false, reason: "No eligible Dependabot PR in the bounded queue" };
     if (preview)
       return {
         ready: false,

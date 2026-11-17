@@ -148,15 +148,6 @@ async function collectRunActivity({ run, jobs, ledger }) {
         "Protected merge confirmed in the retained usage ledger."
       );
   }
-  if (state.stop)
-    emit(
-      "stop",
-      "stopped",
-      `stop-${state.stop.id}`,
-      run.id,
-      run.head_sha,
-      "A durable owner stop is active. Event pickup cannot bypass it."
-    );
   return events;
 }
 async function observeRun({
@@ -178,7 +169,25 @@ async function observeRun({
     summary: "Verifying observed source",
     links: [link(run.id)],
   });
-  await a.verifyActivityProducer(api, probe);
+  try {
+    await a.verifyActivityProducer(api, probe);
+  } catch (e) {
+    if (!(e instanceof require("./trusted-wake.cjs").PendingWakeBinding)) throw e;
+    if (run.status === "completed" && !preview) {
+      const held = a.buildActivityEvent({
+        producer: producerFor(run, "binding-held"),
+        kind: "queue",
+        state: "held",
+        subject: run.id,
+        head: run.head_sha,
+        summary:
+          "Receiver finished without a verified wake binding; no model or review outcome is asserted.",
+        links: [link(run.id)],
+      });
+      await a.publishActivity({ api, event: held, journalIssue, store });
+    }
+    return { outcome: "awaiting_binding", events: 0, status: run.status, modelCalls: 0 };
+  }
   const jobs = await api.pages(
     `${ROOT}/actions/runs/${run.id}/attempts/${run.run_attempt}/jobs`,
     "jobs"
@@ -348,6 +357,21 @@ async function main(
   }
   const journalIssue = Number(vars.FACTORY_ACTIVITY_ISSUE_NUMBER);
   await a.journal(api, journalIssue);
+  const controlRegistry = (await store.read()).state;
+  const commandEvents = require("./activity-controls.cjs").controlEvents(
+    await new Ledger(api).read(),
+    {
+      runId: context.runId,
+      runAttempt: context.runAttempt,
+      workflow: "factory-activity.yml",
+      workflowSha: context.workflowSha,
+      phase: "control",
+      actor: context.actor,
+    },
+    controlRegistry.controlAfter
+  );
+  for (const control of commandEvents)
+    await a.publishActivity({ api, event: control, journalIssue, store });
   await checkFreshness({ api, context, journalIssue, store });
   if (context.event === "issues") {
     if (

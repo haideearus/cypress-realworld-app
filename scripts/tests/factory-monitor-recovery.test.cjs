@@ -418,3 +418,64 @@ test("production monitor retires once and repeated healthy observations keep his
   assert.equal(Object.keys(f.registry.incidents).length, 1);
   assert.equal(JSON.stringify(f.state), before);
 });
+test("a receipt-bound bot repair retains all verified closure checks", async () => {
+  const { verifyRepair } = require("../factory/monitor-recovery.cjs");
+  const { createWake, emptyWakes } = require("../factory/wake-contract.cjs");
+  const f = fixture(),
+    registry = emptyWakes(),
+    workflow = f.auto.head_sha;
+  f.auto.actor = { login: "github-actions[bot]", id: 41898282 };
+  f.auto.triggering_actor = { ...f.auto.actor };
+  f.auto.event = "workflow_dispatch";
+  f.monitorRun.actor.id = 101267861;
+  const receipt = createWake({
+    signal: {
+      kind: "monitor",
+      lane: "app",
+      number: 64,
+      head: source,
+      criteriaHash: f.incident.criteriaHash,
+      revision: f.incident.id,
+      sourceRun: "700",
+      sourceAttempt: 1,
+      actor: { login: "haideearus", id: 101267861 },
+    },
+    producer: {
+      runId: "800",
+      runAttempt: 1,
+      workflowSha: workflow,
+      actor: { login: "haideearus", id: 101267861 },
+      event: "workflow_run",
+    },
+  });
+  receipt.status = "bound";
+  receipt.receiver = { runId: "100", runAttempt: 1, workflowSha: workflow };
+  registry.receipts[receipt.id] = receipt;
+  f.auto.display_title = `Automatic factory / wake ${receipt.id}`;
+  const base = f.api.request;
+  f.api.request = async (m, p, b) =>
+    p.endsWith("/git/ref/heads/factory/wakes")
+      ? { object: { sha: "9".repeat(40) } }
+      : p.includes("/contents/wakes.json")
+        ? {
+            type: "file",
+            encoding: "base64",
+            content: Buffer.from(JSON.stringify(registry)).toString("base64"),
+          }
+        : p.endsWith("/actions/workflows/factory-wake.yml")
+          ? { id: 55, path: ".github/workflows/factory-wake.yml" }
+          : p.includes("/actions/runs/800/attempts/1")
+            ? {
+                ...f.auto,
+                id: 800,
+                workflow_id: 55,
+                path: ".github/workflows/factory-wake.yml",
+                actor: { login: "haideearus", id: 101267861 },
+                triggering_actor: { login: "haideearus", id: 101267861 },
+                event: "workflow_run",
+              }
+            : base(m, p, b);
+  assert.equal((await verifyRepair(f)).mergeCommit, merge);
+  delete registry.receipts[receipt.id];
+  await assert.rejects(verifyRepair(f));
+});

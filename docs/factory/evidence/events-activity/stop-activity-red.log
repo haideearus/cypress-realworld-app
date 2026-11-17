@@ -1,0 +1,130 @@
+TAP version 13
+# Subtest: activity publisher exists
+ok 1 - activity publisher exists
+  ---
+  duration_ms: 0.7866
+  type: 'test'
+  ...
+# Subtest: each lifecycle kind is typed and duplicate publication sends one bounded journal entry
+not ok 2 - each lifecycle kind is typed and duplicate publication sends one bounded journal entry
+  ---
+  duration_ms: 9.0211
+  type: 'test'
+  location: 'C:\\Users\\haide\\Documents\\Codex\\2026-11-03\\c\\cypress-realworld-app\\scripts\\tests\\factory-activity.test.cjs:87:1'
+  failureType: 'testCodeFailure'
+  error: 'Invalid activity registry'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    Object.validateActivity (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\factory\activity-contract.cjs:130:11)
+    Object.publishActivity (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\factory\activity.cjs:121:5)
+    async TestContext.<anonymous> (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\tests\factory-activity.test.cjs:112:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: comment committed before response loss is reconciled without posting again
+not ok 3 - comment committed before response loss is reconciled without posting again
+  ---
+  duration_ms: 0.3778
+  type: 'test'
+  location: 'C:\\Users\\haide\\Documents\\Codex\\2026-11-03\\c\\cypress-realworld-app\\scripts\\tests\\factory-activity.test.cjs:119:1'
+  failureType: 'testCodeFailure'
+  error: 'Invalid activity registry'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    Object.validateActivity (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\factory\activity-contract.cjs:130:11)
+    Object.publishActivity (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\factory\activity.cjs:121:5)
+    async TestContext.<anonymous> (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\tests\factory-activity.test.cjs:131:17)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: unknown publication remains held when lookup cannot prove a committed comment
+not ok 4 - unknown publication remains held when lookup cannot prove a committed comment
+  ---
+  duration_ms: 0.5365
+  type: 'test'
+  location: 'C:\\Users\\haide\\Documents\\Codex\\2026-11-03\\c\\cypress-realworld-app\\scripts\\tests\\factory-activity.test.cjs:135:1'
+  failureType: 'testCodeFailure'
+  error: 'Invalid activity registry'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    Object.validateActivity (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\factory\activity-contract.cjs:130:11)
+    Object.publishActivity (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\factory\activity.cjs:121:5)
+    async TestContext.<anonymous> (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\tests\factory-activity.test.cjs:147:17)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: secret-bearing data, arbitrary links and oversized reports are rejected before POST
+ok 5 - secret-bearing data, arbitrary links and oversized reports are rejected before POST
+  ---
+  duration_ms: 0.3347
+  type: 'test'
+  ...
+# Subtest: journal cannot be a factory-ready ticket and forged run producers never publish
+ok 6 - journal cannot be a factory-ready ticket and forged run producers never publish
+  ---
+  duration_ms: 0.6063
+  type: 'test'
+  ...
+# Subtest: 90-minute monitor staleness is deduplicated and later verified recovery is reported
+ok 7 - 90-minute monitor staleness is deduplicated and later verified recovery is reported
+  ---
+  duration_ms: 0.1651
+  type: 'test'
+  ...
+# Subtest: a newer but already stale completion cannot be called monitoring recovery
+ok 8 - a newer but already stale completion cannot be called monitoring recovery
+  ---
+  duration_ms: 0.0855
+  type: 'test'
+  ...
+# Subtest: concurrent observers report an unchanged stale interval once using the same verified monitor producer
+not ok 9 - concurrent observers report an unchanged stale interval once using the same verified monitor producer
+  ---
+  duration_ms: 2.4611
+  type: 'test'
+  location: 'C:\\Users\\haide\\Documents\\Codex\\2026-11-03\\c\\cypress-realworld-app\\scripts\\tests\\factory-activity.test.cjs:222:1'
+  failureType: 'testCodeFailure'
+  error: 'Invalid activity registry'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    Object.validateActivity (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\factory\activity-contract.cjs:130:11)
+    Object.publishActivity (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\factory\activity.cjs:121:5)
+    async checkFreshness (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\factory\activity-observer.cjs:291:25)
+    async Promise.all (index 0)
+    async TestContext.<anonymous> (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\tests\factory-activity.test.cjs:250:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: idle stop and resume are recovered from durable command history once, with unresolved results retained
+not ok 10 - idle stop and resume are recovered from durable command history once, with unresolved results retained
+  ---
+  duration_ms: 0.5278
+  type: 'test'
+  location: 'C:\\Users\\haide\\Documents\\Codex\\2026-11-03\\c\\cypress-realworld-app\\scripts\\tests\\factory-activity.test.cjs:262:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Cannot find module '../factory/activity-controls.cjs'
+    Require stack:
+    - C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\tests\factory-activity.test.cjs
+  code: 'MODULE_NOT_FOUND'
+  stack: |-
+    Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+    defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+    resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+    Function._load (node:internal/modules/cjs/loader:1192:37)
+    TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+    Module.require (node:internal/modules/cjs/loader:1463:12)
+    require (node:internal/modules/helpers:147:16)
+    TestContext.<anonymous> (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\tests\factory-activity.test.cjs:263:24)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 5
+# fail 5
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 97.857
