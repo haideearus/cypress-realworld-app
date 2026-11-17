@@ -1668,9 +1668,17 @@
       "reviews": 1,
       "retries": 0,
       "head": "b76b212991650e9c651efa2a9bff7b75d838dc58",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 91,
-      "approval": null,
+      "approval": {
+        "head": "b76b212991650e9c651efa2a9bff7b75d838dc58",
+        "pr": 91,
+        "grant": "ff2ddfcf-b324-4481-bfbc-bb13829f280a",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/44190004332"
+      },
       "criteriaHash": "62df0948926c5faea13bc8b6cd5eb6200f7bf8a9c42af2e6c050dc8bf8a26722",
       "branch": "agent/discovery-privacy-oracles",
       "ci": {
@@ -1678,7 +1686,8 @@
         "head": "b76b212991650e9c651efa2a9bff7b75d838dc58",
         "runId": 44190107940,
         "passed": true
-      }
+      },
+      "feedback": "{\"head\":\"b76b212991650e9c651efa2a9bff7b75d838dc58\",\"verdict\":\"pass\",\"summary\":\"The PR adds a bounded, trusted verification harness for two new discovery oracle kinds (`bank-account-isolation`, `private-transaction-isolation`) without fixing the underlying IDOR bugs in `GET /bankAccounts/:bankAccountId` and `GET /transactions/:transactionId` (both of which still fetch by id with no ownership/participant check, confirmed in backend/bankaccount-routes.ts and backend/transaction-routes.ts) — which matches the ticket's intent that this is only an owner-authorized harness change, not a repair. I traced the new oracle validation (`validateOracle`), probe (`privacyProbe`/`privacyFixture`), observation (`observe`/`project`/`privacyContext`), and health logic (`privacyHealthy`) against the real route/response shapes (`{account}`/`{transaction}` with `...transaction` spread) and the fixed seed data, and against the new adversarial test suite (`factory-discovery-privacy.test.cjs`). RED is only emitted on an exact-field disclosure to a non-owner/non-participant after two verified owner/participant 200 reads with distinct sessions; GREEN (`privacyHealthy`) only accepts 401/403/404 with no resource payload and a canonical denial token, otherwise results stay held — this correctly satisfies the \\\"only exact disclosure is RED / clean denial can be GREEN / everything else stays held\\\" acceptance criterion, including wrong-record, redacted-control, broken-session, and ambiguous-payload adversarial cases I checked by hand. The historical `oracle: null` findings from run 44179920739 are untouched and a dedicated test asserts they remain `held`/`unsupported-oracle` and cannot be fabricated into a verified candidate. The privacy-finding \\\"separate proposal file\\\" rule in `discovery-evidence.cjs` only applies when `oracle.kind` is one of the new privacy kinds, so historical null-oracle reports can still share a file, matching the explicit test for that. No runtime settings, workflows, CI gates, dedup/counter logic (`discovery-intake.cjs` pendingReplay/canReplay/reserveReplay), or public/contacts transaction routes were touched, and the model prompt text only documents the new bounded contracts without granting the model any id/URL/expectation authority (oracle schema still strictly `{kind,route,authenticated,query}` with query required empty for the two new kinds). I did not execute code or Docker (file tools only, as instructed), so I could not independently run the new/adversarial tests; this assessment is based on careful manual tracing of the logic against the actual route handlers and seed fixtures.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"In scripts/factory/discovery-oracles.cjs's privacyContext, the 'amount' field is validated with `Number.isSafeInteger(expected[key]) && expected[key] >= 0`, which happens to hold for the current fixed seed data but is a narrower assumption than the app's general Transaction type (amounts elsewhere aren't guaranteed non-negative integers). Not exploitable today since the seed is immutable and already satisfies it, but worth a one-line comment if the seed is ever regenerated.\"},{\"severity\":\"minor\",\"message\":\"scripts/factory/discovery-oracles.cjs probe() still declares `let cookie = \\\"\\\";` and a `base` constant before the `if (PRIVACY[o.kind]) return privacyProbe(...)` early return, both unused on the privacy path — harmless dead code, not a correctness issue.\"}]}"
     }
   },
   "grants": {
@@ -2435,15 +2444,12 @@
       "runId": "44190004332",
       "runAttempt": 1,
       "head": "b76b212991650e9c651efa2a9bff7b75d838dc58",
-      "status": "reserved",
-      "at": "2026-11-17T22:26:15.045Z"
+      "status": "finished",
+      "at": "2026-11-17T22:26:15.045Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 90,
-    "runId": "44190004332",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -4524,6 +4530,14 @@
       "runId": "44190004332",
       "runAttempt": 1,
       "actor": "haideearus"
+    },
+    {
+      "at": "2026-11-17T22:42:57.238Z",
+      "event": "finished",
+      "ticket": 90,
+      "grant": "ff2ddfcf-b324-4481-bfbc-bb13829f280a",
+      "status": "reviewed",
+      "head": "b76b212991650e9c651efa2a9bff7b75d838dc58"
     }
   ]
 }
