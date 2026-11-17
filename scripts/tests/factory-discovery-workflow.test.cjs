@@ -244,3 +244,18 @@ test("two charter sweeps on unchanged main are distinct; global cap and busy cap
     false
   );
 });
+
+test("duplicate main-CI delivery cannot spend the second charter session", () => {
+  const registryState = emptyDiscovery();
+  registryState.sources[proof.key] = { proof, status: "created", issue: 900 };
+  const choice = selectSweep({
+    state: p.emptyState(p.REPOSITORY),
+    registry: registryState,
+    head,
+    day: proof.day,
+    config: { ...p.readConfig(vars), discovery: true },
+    ciSignal: "99",
+  });
+  assert.equal(choice.ready, false);
+  assert.match(choice.reason, /Duplicate main CI/);
+});

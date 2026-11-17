@@ -5,7 +5,15 @@ const { GitHub, Ledger, ROOT } = require("./github.cjs");
 const { DiscoveryStore } = require("./discovery-store.cjs");
 const { runtimeContext, output } = require("./controller.cjs");
 const active = require("./active-tickets.cjs");
-function selectSweep({ state, registry, head, day, config, repairsWaiting = false }) {
+function selectSweep({
+  state,
+  registry,
+  head,
+  day,
+  config,
+  repairsWaiting = false,
+  ciSignal = null,
+}) {
   p.assertNotStopped(state);
   if (!config.enabled || !config.discovery) return { ready: false, reason: "Discovery disabled" };
   const pending = Object.entries(registry.sources).find(([, source]) => source.status === "intent");
@@ -15,6 +23,13 @@ function selectSweep({ state, registry, head, day, config, repairsWaiting = fals
       reason: "Uncertain discovery source requires reconciliation",
       reconcileKey: pending[0],
     };
+  if (
+    ciSignal &&
+    Object.values(registry.sources).some(
+      (source) => source.proof.head === head && source.proof.ciRunId === ciSignal
+    )
+  )
+    return { ready: false, reason: "Duplicate main CI discovery signal" };
   if (repairsWaiting || active.activeEntries(state).length)
     return { ready: false, reason: "Repairs or active work take priority" };
   if ((state.days[day] || []).length >= config.daily)
@@ -224,6 +239,7 @@ async function main(env = process.env, dependencies = {}) {
     head: tested.head,
     day,
     config: preview ? { ...config, enabled: true, discovery: true } : config,
+    ciSignal: context.event === "workflow_run" ? tested.ciRunId : null,
     repairsWaiting: queue.some(
       (i) =>
         !i.pull_request && !state.tickets[String(i.number)] && i.number !== config.activityIssue

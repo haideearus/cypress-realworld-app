@@ -13,6 +13,8 @@ function environment(release) {
     CYPRESS_CACHE_FOLDER: "/opt/cypress",
     CYPRESS_CRASH_REPORTS: "0",
     CYPRESS_RECORD_KEY: "",
+    DEBUG: "cypress:cli,cypress:internal-stderr",
+    ELECTRON_ENABLE_LOGGING: "1",
     RENDER_GIT_COMMIT: release,
   };
 }
