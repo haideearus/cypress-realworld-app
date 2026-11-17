@@ -288,6 +288,66 @@ test("automatic merging uses protected expected-head API and keeps review/counte
     false
   );
 });
+
+test("v2 merge confirmation releases only A while B remains reserved", async () => {
+  const { fixture, ledger, merger } = await setup({ settings: { concurrent: 2 } });
+  await ledger.update((state) => {
+    state.version = 2;
+    delete state.active;
+    state.activeTickets = { 10: { ticket: 10, runId: "200", runAttempt: 1 } };
+    return policy.reserve(
+      state,
+      { ...context, ticket: 11, runId: "300" },
+      { ...config, concurrent: 2 }
+    );
+  });
+  const before = (await ledger.read()).state;
+  assert.equal((await merger.merge(10)).merged, true);
+  const after = (await ledger.read()).state;
+  assert.deepEqual(Object.keys(after.activeTickets), ["11"]);
+  assert.deepEqual(after.tickets[11], before.tickets[11]);
+  assert.deepEqual(after.grants, before.grants);
+  assert.equal(fixture.mutations().filter((call) => call.method === "PUT").length, 1);
+});
+test("an ambiguous v2 merge retains its own slot and blocks another merge writer", async () => {
+  const { fixture, ledger, merger } = await setup({ settings: { concurrent: 2 } });
+  await ledger.update((state) => {
+    state.version = 2;
+    delete state.active;
+    state.activeTickets = { 10: { ticket: 10, runId: "200", runAttempt: 1 } };
+    return policy.reserve(
+      state,
+      { ...context, ticket: 11, runId: "300" },
+      { ...config, concurrent: 2 }
+    );
+  });
+  fixture.mergeResponse = "lost-unmerged";
+  assert.equal((await merger.merge(10)).pending, true);
+  const { state } = await ledger.read();
+  assert.equal(Object.keys(state.activeTickets).length, 2);
+  assert.equal(state.tickets[10].merge.status, "intent");
+  // A second writer with otherwise eligible provenance cannot supersede A's intent.
+  const competing = Object.create(merger);
+  competing.automaticTicket = () => ({ pr: 21 });
+  assert.throws(() => competing.stateTicket(state, 11), /global merge writer/i);
+});
+test("main advance invalidating clean mergeability releases only the unsent intent", async () => {
+  const { fixture, ledger, merger } = await setup({ settings: { concurrent: 2 } });
+  await ledger.update((state) => {
+    state.version = 2;
+    delete state.active;
+    state.activeTickets = {};
+    return policy.reserve(
+      state,
+      { ...context, ticket: 11, runId: "300" },
+      { ...config, concurrent: 2 }
+    );
+  });
+  fixture.pr.mergeable_state = "behind";
+  await assert.rejects(merger.merge(10), /mergeab|clean/i);
+  assert.equal(fixture.mutations().filter((call) => call.method === "PUT").length, 0);
+  assert.deepEqual(Object.keys((await ledger.read()).state.activeTickets), ["11"]);
+});
 for (const flag of ["enabled", "automatic", "autoMerge"])
   test(`disabled ${flag} causes no mutations`, async () => {
     const { fixture, merger } = await setup({ settings: { [flag]: false } });

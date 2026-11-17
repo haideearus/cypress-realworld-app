@@ -42,6 +42,74 @@ test("configuration accepts two but rejects zero and three", () => {
   for (const value of ["0", "3"])
     assert.throws(() => policy.readConfig({ ...vars, FACTORY_MAX_CONCURRENT_TICKETS: value }));
 });
+test("lowering concurrency refuses starting a pending model above the current cap", () => {
+  const a = policy.reserve(v2(), request(10), config(), now);
+  const b = policy.reserve(a.state, request(11), config(), now);
+  assert.throws(
+    () => policy.preflight(b.state, b.grant.id, request(11), { ...config(), concurrent: 1 }),
+    /limit|capacity/i
+  );
+});
+test("CAS retries admit at most two of three concurrent parents", async () => {
+  const api = new GitHub({ token: "fixture-only", fetch: new GitHubFixture().fetch });
+  const ledger = new Ledger(api);
+  await ledger.initialize();
+  await ledger.update(() => ({ state: v2() }));
+  const results = await Promise.allSettled(
+    [10, 11, 12].map((ticket) =>
+      ledger.update((state) => policy.reserve(state, request(ticket), config(), now))
+    )
+  );
+  assert.equal(results.filter((r) => r.status === "fulfilled").length, 2);
+  const { state } = await ledger.read();
+  assert.equal(Object.keys(state.activeTickets).length, 2);
+  assert.equal(Object.keys(state.grants).length, 2);
+  assert.equal(state.days["2026-11-17"].length, 2);
+});
+test("automatic review keeps its v2 execution slot until merge; owner review hands off", () => {
+  const cfg = appConfig();
+  const ctx = {
+    ...request(10),
+    event: "schedule",
+    workflowRef: policy.AUTOMATIC_WORKFLOW_REF,
+    workflowSha: context.head,
+  };
+  const coding = policy.reserve(v2(), ctx, cfg, now);
+  coding.state.tickets[10].automatic = {
+    workflowRef: ctx.workflowRef,
+    workflowSha: ctx.workflowSha,
+    runId: ctx.runId,
+    runAttempt: ctx.runAttempt,
+    appSlug: cfg.appSlug,
+  };
+  const published = policy.finish(coding.state, coding.grant.id, {
+    status: "awaiting_review",
+    pr: 30,
+  });
+  const review = policy.reserve(published, { ...ctx, phase: "review" }, cfg, now);
+  const reviewed = policy.finish(review.state, review.grant.id, {
+    status: "reviewed",
+    verdict: "pass",
+    head: ctx.head,
+    pr: 30,
+    evidence: `https://github.com/${policy.REPOSITORY}/actions/runs/${ctx.runId}`,
+  });
+  assert.equal(reviewed.activeTickets[10].runId, ctx.runId);
+  const owner = policy.reserve(
+    reviewed,
+    { ...request(11), phase: "review", origin: "owner-pr", pr: 31 },
+    cfg,
+    now
+  );
+  const done = policy.finish(owner.state, owner.grant.id, {
+    status: "reviewed",
+    verdict: "pass",
+    head: ctx.head,
+    pr: 31,
+    evidence: `https://github.com/${policy.REPOSITORY}/actions/runs/${owner.grant.runId}`,
+  });
+  assert.deepEqual(Object.keys(done.activeTickets), ["10"]);
+});
 test("duplicate ticket cannot claim twice, including same parent phase overlap", () => {
   const first = policy.reserve(v2(), request(10), config(), now);
   assert.throws(
@@ -93,4 +161,103 @@ test("two reserved phases for one ticket are rejected even with spare global cap
   assert.throws(() => policy.validateState(state), /reservation/i);
 });
 
-module.exports = { v2, request, config };
+const { Controller } = require("../factory/controller.cjs");
+const dep = require("../factory/dependency-policy.cjs");
+const depContract = require("../factory/dependency-contract.cjs");
+const { AutomaticMerger } = require("../factory/merge.cjs");
+const { GitHub, Ledger } = require("../factory/github.cjs");
+const { GitHubFixture } = require("./helpers/factory-fixtures.cjs");
+const appConfig = () => ({
+  ...config(),
+  automatic: true,
+  autoMerge: true,
+  appSlug: "factory-example",
+});
+const depContext = () => ({
+  ...request(52, "152"),
+  event: "schedule",
+  workflowRef: depContract.WORKFLOW,
+  workflowSha: context.head,
+});
+const depPR = () => ({
+  number: 52,
+  state: "open",
+  draft: false,
+  user: { login: "dependabot[bot]", type: "Bot", id: 49699333 },
+  head: {
+    sha: "b".repeat(40),
+    ref: "dependabot/npm_and_yarn/foo-1.0.1",
+    repo: { full_name: policy.REPOSITORY },
+  },
+  base: { ref: "main", sha: context.head, repo: { full_name: policy.REPOSITORY } },
+});
+test("app and dependency share two slots; finishing preparation preserves the app grant", () => {
+  const app = policy.reserve(v2(), request(10), appConfig(), now);
+  const state = dep.claimDependency(app.state, depPR(), depContext(), appConfig(), now);
+  assert.equal(Object.keys(state.activeTickets).length, 2);
+  assert.equal(state.tickets[52].reviews, 0);
+  assert.throws(
+    () => policy.reserve(state, request(12), appConfig(), now),
+    /active|capacity|lock/i
+  );
+  const done = dep.finishPreparation(state, 52, depContext());
+  assert.deepEqual(Object.keys(done.activeTickets), ["10"]);
+  assert.equal(done.grants[app.grant.id].status, "reserved");
+});
+test("controller block for A preserves B in the persisted ledger", async () => {
+  const api = new GitHub({ token: "fixture-only", fetch: new GitHubFixture().fetch });
+  const ledger = new Ledger(api);
+  await ledger.initialize();
+  const a = policy.reserve(v2(), request(10), config(), now);
+  const b = policy.reserve(a.state, request(11), config(), now);
+  await ledger.update(() => ({ state: b.state }));
+  await new Controller(api, config(), request(10)).block(10, "Fixture stop A");
+  const { state } = await ledger.read();
+  assert.deepEqual(Object.keys(state.activeTickets), ["11"]);
+  assert.equal(state.grants[b.grant.id].status, "reserved");
+});
+test("cancellation requires explicit ticket with two parents and leaves B untouched", async () => {
+  let state = policy.reserve(v2(), request(10), config(), now).state;
+  state = policy.reserve(state, request(11), config(), now).state;
+  const calls = [];
+  const api = {
+    request: async (_m, route) => {
+      calls.push(route);
+      return { status: "completed" };
+    },
+  };
+  const controller = new Controller(api, config(), request(99, "999"));
+  controller.ledger = {
+    read: async () => ({ state: structuredClone(state) }),
+    update: async (fn) => {
+      const result = await fn(structuredClone(state));
+      state = policy.validateState(result.state);
+      return result;
+    },
+  };
+  await assert.rejects(controller.cancel(), /ticket|ambiguous/i);
+  await controller.cancel(10);
+  assert.deepEqual(Object.keys(state.activeTickets), ["11"]);
+  assert.ok(calls.every((route) => route.includes("/110")));
+});
+test("merge ownership ignores B's reservation but never ignores another merge intent", () => {
+  const state = policy.reserve(v2(), request(10), config(), now).state;
+  const second = policy.reserve(state, request(11), config(), now).state;
+  const intent = { status: "intent", runId: "110", runAttempt: 1 };
+  second.grants[Object.keys(second.grants)[0]].status = "finished";
+  const merger = new AutomaticMerger({}, appConfig(), request(10));
+  assert.equal(merger.mergeLock(second, 10, intent), true);
+});
+test("worker workflow groups allow distinct runs while merge jobs share one writer", () => {
+  const fs = require("node:fs");
+  for (const name of ["automatic", "dependencies"]) {
+    const text = fs.readFileSync(
+      require("node:path").join(__dirname, `../../.github/workflows/factory-${name}.yml`),
+      "utf8"
+    );
+    assert.match(text, /group: factory-(?:automatic|dependencies)-\$\{\{ github.run_id \}\}/);
+    assert.match(text, /group: factory-auto-merge/);
+    assert.match(text, /group: factory-ledger/);
+    assert.match(text, /cancel-in-progress: false/);
+  }
+});

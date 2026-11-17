@@ -12,7 +12,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: factory-automatic
+  group: factory-automatic-${{ github.run_id }}
   cancel-in-progress: false
 jobs:
   pick:

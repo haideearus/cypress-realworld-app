@@ -1,3 +1,5 @@
+const slots = require("./active-tickets.cjs");
+const { terminalParent } = require("./active-runs.cjs");
 const policy = require("./policy.cjs");
 const { GitHub, Ledger, ROOT } = require("./github.cjs");
 const { Controller, runtimeContext, output } = require("./controller.cjs");
@@ -97,32 +99,48 @@ class AutomaticCoordinator {
         preview: dryRun,
         reason: "Pending dependency merge must be reconciled",
       };
-    if (state.active) {
-      const held = state.tickets[String(state.active.ticket)];
+    for (const entry of slots.activeEntries(state)) {
+      const held = state.tickets[String(entry.ticket)];
       const intent = held?.merge;
+      if (
+        state.version === 2 &&
+        held?.automatic &&
+        held.status === "reviewed" &&
+        !["merged", "closed"].includes(intent?.status) &&
+        (await terminalParent(this.api, entry))
+      )
+        return {
+          ready: false,
+          preview: dryRun,
+          kind: "merge",
+          ticket: entry.ticket,
+          reason: "Reconcile the completed reviewed parent before admitting new work",
+        };
       if (
         held?.automatic &&
         held.status === "reviewed" &&
         intent?.status === "intent" &&
-        intent.runId === state.active.runId &&
-        intent.runAttempt === state.active.runAttempt &&
+        intent.runId === entry.runId &&
+        intent.runAttempt === entry.runAttempt &&
         !Object.values(state.grants).some((grant) => grant.status === "reserved")
       )
         return {
           ready: false,
           preview: dryRun,
           kind: "merge",
-          ticket: state.active.ticket,
+          ticket: entry.ticket,
           reason: "Reconcile the recorded merge before admitting new work",
         };
-      return { ready: false, preview: dryRun, reason: "Another active ticket holds the lock" };
     }
+    if (!slots.capacity(state, this.config.concurrent))
+      return { ready: false, preview: dryRun, reason: "Another active ticket holds the lock" };
     const pending = Object.entries(state.tickets)
       .filter(
-        ([, ticket]) =>
+        ([id, ticket]) =>
           ticket.automatic &&
           ticket.origin === "factory" &&
           ticket.status === "reviewed" &&
+          (state.version === 1 || !slots.activeFor(state, Number(id))) &&
           !["merged", "closed"].includes(ticket.merge?.status)
       )
       .sort(([left], [right]) => Number(left) - Number(right))[0];

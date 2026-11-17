@@ -545,6 +545,9 @@ function preflight(state, grantId, context, config) {
   validateState(state);
   assertNotStopped(state);
   authorize(context);
+  active.capacity(state, config.concurrent);
+  if (active.activeEntries(state).length > config.concurrent)
+    deny("Pending reservation exceeds current concurrency limit");
   if (!config.enabled || !config.minutes || !config.turns) deny("Factory disabled");
   const automatic = isAutomaticContext(context);
   if (automatic && !config.automatic) deny("Automatic factory disabled");

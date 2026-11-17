@@ -63,6 +63,54 @@ async function setup(changes = {}, ctx = automaticContext) {
 
 test("automatic pickup coordinator exists", () => assert.ok(implementation));
 
+test("v2 pickup admits a second distinct app parent and refuses a third", async () => {
+  const s = await setup({ FACTORY_MAX_CONCURRENT_TICKETS: "2", FACTORY_MAX_TICKETS_PER_DAY: "20" });
+  await s.ledger.update((state) => {
+    state.version = 2;
+    delete state.active;
+    state.activeTickets = {};
+    return { state };
+  });
+  s.fixture.issues.set(11, issue(11));
+  s.fixture.issues.set(12, issue(12));
+  assert.equal((await s.coordinator.pick()).ticket, 10);
+  const second = new implementation.AutomaticCoordinator(s.api, s.config, {
+    ...automaticContext,
+    runId: "101",
+  });
+  assert.equal((await second.pick()).ticket, 11);
+  const third = new implementation.AutomaticCoordinator(s.api, s.config, {
+    ...automaticContext,
+    runId: "102",
+  });
+  assert.equal((await third.pick()).ready, false);
+  assert.equal(Object.keys((await s.ledger.read()).state.activeTickets).length, 2);
+});
+
+test("v2 completed reviewed parent is recoverable even when both slots are occupied", async () => {
+  const s = await setup({ FACTORY_MAX_CONCURRENT_TICKETS: "2", FACTORY_MAX_TICKETS_PER_DAY: "20" });
+  await s.ledger.update((state) => {
+    state.version = 2;
+    delete state.active;
+    state.activeTickets = {};
+    return { state };
+  });
+  await reviewedAutomatic(s);
+  await s.ledger.update((state) =>
+    policy.reserve(state, { ...context, ticket: 11, runId: "101" }, s.config)
+  );
+  const before = (await s.ledger.read()).state;
+  const apiRequest = s.api.request.bind(s.api);
+  s.api.request = async (method, route, body) =>
+    route.endsWith("/runs/100/attempts/1")
+      ? { id: 100, run_attempt: 1, status: "completed" }
+      : apiRequest(method, route, body);
+  const result = await s.coordinator.pick();
+  assert.equal(result.kind, "merge");
+  assert.equal(result.ticket, 10);
+  assert.deepEqual((await s.ledger.read()).state, before);
+});
+
 test("disabled pickup returns before network access and creates no reservation", async () => {
   for (const changes of [{ FACTORY_ENABLED: "false" }, { FACTORY_AUTOMATION_ENABLED: "false" }]) {
     const { coordinator, fixture } = await setup(changes);
