@@ -1420,12 +1420,12 @@
     },
     "79": {
       "coding": 0,
-      "reviews": 1,
+      "reviews": 2,
       "retries": 0,
       "origin": "dependency-pr",
       "head": "1312585bd4787c3344737b45020d94eb12c27881",
       "pr": 79,
-      "status": "new",
+      "status": "reviewing",
       "approval": null,
       "branch": "dependabot/npm_and_yarn/vite-8.2.4",
       "criteriaHash": "f3945c4279419102a77af55de2af3cebe4cdec36256337cb9cf1c2f0b069f7e1",
@@ -2221,6 +2221,17 @@
       "status": "finished",
       "at": "2026-11-17T11:27:50.936Z",
       "outcome": "reviewed"
+    },
+    "249629cf-b9b1-4106-be38-2463419d3218": {
+      "id": "249629cf-b9b1-4106-be38-2463419d3218",
+      "ticket": 79,
+      "phase": "review",
+      "slot": "dependency",
+      "runId": "44077771645",
+      "runAttempt": 1,
+      "head": "1312585bd4787c3344737b45020d94eb12c27881",
+      "status": "reserved",
+      "at": "2026-11-17T11:58:49.379Z"
     }
   },
   "active": {
@@ -4179,6 +4190,15 @@
       "ticket": 79,
       "head": "1312585bd4787c3344737b45020d94eb12c27881",
       "runId": "44077771645"
+    },
+    {
+      "at": "2026-11-17T11:58:49.379Z",
+      "event": "reserved",
+      "ticket": 79,
+      "grant": "249629cf-b9b1-4106-be38-2463419d3218",
+      "phase": "review",
+      "runId": "44077771645",
+      "runAttempt": 1
     }
   ]
 }
