@@ -50,7 +50,8 @@
     ],
     "2026-11-17": [
       59,
-      76
+      76,
+      79
     ]
   },
   "tickets": {
@@ -1415,6 +1416,38 @@
         "passed": true
       },
       "feedback": "{\"head\":\"7695b2bb5f51d8424c8feae7509e60376ee01ad2\",\"verdict\":\"pass\",\"summary\":\"The diff touches only documentation and sanitized JSON evidence under docs/ (CLAUDE-FACTORY.md, FACTORY.md, docs/factory/{APP-CHECKS,DEPENDENCY-MAINTENANCE,PRODUCTION-MONITORING}.md, new OPERATIONS.md and ACCEPTANCE-2026-11-16.md plus its evidence JSON, and two superpowers plan/spec files) — no workflow, script, dependency, permission, branch-protection, or secret files were modified, matching the ticket's \\\"documentation and sanitized evidence only\\\" scope. All three FACTORY_* switches are consistently documented as unchanged (false), and the new evidence JSON mirrors that state. Cross-checked the evidence against actual repo history (e.g. merge commit f5969ed cited for PR #58 matches the real git log entry for the postcss-selector-parser bump), and local markdown links to referenced files (OPERATIONS.md, ACCEPTANCE-2026-11-16.md, MONITOR-TO-REPAIR-ACCEPTANCE.md, DEPLOYMENT.md, AGENTS.md, README.md, quarantine evidence README, etc.) resolve to real files. No credential patterns, API keys, or secret values appear anywhere in the diff — only secret *names* (FACTORY_MONITOR_USERNAME/PASSWORD) are referenced, consistent with the \\\"sanitized\\\" requirement. The documents are heavily hedged, distinguishing owner-reported facts (e.g. PC-off interval) from independently observed ones, and explicitly state this ticket does not admit itself as factory-ready or authorize any live action, matching the ticket's acceptance criteria.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"The acceptance evidence (hashes, run outcomes, timestamps in docs/factory/evidence/acceptance-2026-11-16.json and ACCEPTANCE-2026-11-16.md) is self-reported by the authoring agent; as a read-only reviewer without network/shell access I could not independently re-verify the cited GitHub run IDs, protection/variable hashes, or artifact digests against live GitHub state. This is an inherent limitation of this review pass, not a defect in the PR, and the documents themselves are appropriately candid about being a 'curated' rather than 'complete' audit.\"}]}"
+    },
+    "79": {
+      "coding": 0,
+      "reviews": 0,
+      "retries": 0,
+      "origin": "dependency-pr",
+      "head": "525c84cd1b55190c7b18d9e6a722d20a312fdecf",
+      "pr": 79,
+      "status": "new",
+      "approval": null,
+      "branch": "dependabot/npm_and_yarn/vite-8.2.4",
+      "criteriaHash": "f3945c4279419102a77af55de2af3cebe4cdec36256337cb9cf1c2f0b069f7e1",
+      "dependency": {
+        "version": 1,
+        "pr": 79,
+        "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-dependencies.yml@refs/heads/main",
+        "workflowSha": "ca6f505cc724fff165977a56c5a2e75d31377125",
+        "runId": "44071040409",
+        "runAttempt": 1,
+        "appSlug": "haideearus-software-factory",
+        "attempts": [
+          {
+            "head": "525c84cd1b55190c7b18d9e6a722d20a312fdecf",
+            "base": "ca6f505cc724fff165977a56c5a2e75d31377125",
+            "runId": "44071040409",
+            "runAttempt": 1,
+            "workflowSha": "ca6f505cc724fff165977a56c5a2e75d31377125",
+            "at": "2026-11-17T11:07:13.321Z"
+          }
+        ]
+      },
+      "ci": null
     }
   },
   "grants": {
@@ -2080,7 +2113,11 @@
       "outcome": "reviewed"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 79,
+    "runId": "44071040409",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -3986,6 +4023,13 @@
       "runAttempt": 1,
       "outcome": "accepted",
       "mergeCommit": "ca6f505cc724fff165977a56c5a2e75d31377125"
+    },
+    {
+      "at": "2026-11-17T11:07:13.321Z",
+      "event": "dependency_metadata_admitted",
+      "ticket": 79,
+      "head": "525c84cd1b55190c7b18d9e6a722d20a312fdecf",
+      "runId": "44071040409"
     }
   ]
 }
