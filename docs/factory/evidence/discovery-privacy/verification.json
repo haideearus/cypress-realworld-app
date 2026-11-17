@@ -1,0 +1,96 @@
+{
+  "version": 1,
+  "scope": "PR preparation; no discovery, repair or live application run",
+  "ownerHarnessIssue": 90,
+  "originalDiscovery": {
+    "runId": "44179920739",
+    "head": "0cfd0fda127cdde9067394779424790366408cc8",
+    "grantId": "9f88c957-1770-4970-bc12-3d6893289e9a",
+    "artifactId": 14373575849,
+    "artifactDigest": "sha256:bad1027bdaf6e324b26b3c6ef4185c71885fdce48386f1cccfdc78fb442cfad2",
+    "originalNullOraclesPreserved": true,
+    "status": "held; not retroactively promoted"
+  },
+  "localApiInspection": {
+    "method": "real Express auth and detail routes; disposable synthetic in-memory adapter; loopback-only transport",
+    "observations": [
+      {
+        "kind": "bank-account-isolation",
+        "status": 200,
+        "symptom": "other-bank-account-access",
+        "replays": 2,
+        "legitimateControls": [200],
+        "storage": "synthetic-in-memory",
+        "appSource": "0cfd0fda127cdde9067394779424790366408cc8",
+        "liveProbed": false,
+        "modelCalls": 0
+      },
+      {
+        "kind": "private-transaction-isolation",
+        "status": 200,
+        "symptom": "private-transaction-access",
+        "replays": 2,
+        "legitimateControls": [200, 200],
+        "storage": "synthetic-in-memory",
+        "appSource": "0cfd0fda127cdde9067394779424790366408cc8",
+        "liveProbed": false,
+        "modelCalls": 0
+      }
+    ],
+    "logSha256": "545b45105e52904850696000f450f3e3af24450b3ad6c7bd4f55cb80a19fb19e"
+  },
+  "tests": {
+    "initialCatalogRed": {
+      "tests": 9,
+      "passed": 1,
+      "failed": 8,
+      "logSha256": "c549aaef5a8f5ad91d6aa7e90d096c12108c519e37bb4821060d76bef18acc15"
+    },
+    "ambiguousDenialRed": {
+      "tests": 10,
+      "passed": 7,
+      "failed": 3,
+      "logSha256": "900dc9e297d48cdc63460719956dd7f05f78460ed5046c5ff6d6bc308db07879"
+    },
+    "ownerPayloadRed": {
+      "tests": 10,
+      "passed": 8,
+      "failed": 2,
+      "logSha256": "0c2f728428f2e0c2537e3f2e50778150497e340df9ec789001d7b7b0d9242278"
+    },
+    "sessionLossRed": {
+      "tests": 10,
+      "passed": 6,
+      "failed": 4,
+      "logSha256": "6272c349a80172a8d11c9e9e352a6c48fe3986c60f94230f581f305aa290b013"
+    },
+    "final": {
+      "command": "node --test scripts/tests/factory-*.test.cjs",
+      "tests": 705,
+      "passed": 691,
+      "failed": 0,
+      "skipped": 14,
+      "logSha256": "c4f3d412f1ad521af63736af9efeb4f5bb7fdba05eac27a4e25825ba73ddadbe"
+    }
+  },
+  "nativeDocker": {
+    "local": "blocked: Linux Docker daemon unavailable",
+    "requiredCi": "pending; existing Factory CI real-image smoke now probes both privacy contracts without a model"
+  },
+  "review": {
+    "localFreshContext": "Codex security review; false-GREEN denial finding corrected and rechecked with no remaining critical/important findings",
+    "requiredClaudePro": "pending separate authorization; no session started"
+  },
+  "settings": {
+    "factoryEnabled": true,
+    "automaticPickup": true,
+    "automaticMerge": true,
+    "discoveryEnabled": false,
+    "unchanged": true
+  },
+  "limitsAndCountersPreserved": true,
+  "usageLedgerCommit": "40165b6d5e72f271f5a698e8ee7ed003f2ec3f51",
+  "modelCallsDuringPreparation": 0,
+  "paidAiApiCalls": 0,
+  "repairTicketsPublished": 0
+}

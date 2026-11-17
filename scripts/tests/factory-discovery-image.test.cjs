@@ -87,6 +87,40 @@ test(
       });
       if (overlay.code !== 0) console.log(overlay.log);
       assert.equal(overlay.code, 0, "unmerged source did not stay isolated from the trusted image");
+      // Exercise the real, credential-free privacy oracle against the image.
+      // A later app repair may turn RED into a proper denial; both are valid
+      // smoke results, while a broken owner control or malformed route is not.
+      const oracleTools = require("../factory/discovery-oracles.cjs");
+      const intake = require("../factory/discovery-intake.cjs");
+      for (const oracle of [
+        {
+          kind: "bank-account-isolation",
+          route: "/bankAccounts/:other",
+          authenticated: true,
+          query: {},
+        },
+        {
+          kind: "private-transaction-isolation",
+          route: "/transactions/:private",
+          authenticated: true,
+          query: {},
+        },
+      ]) {
+        const result = await s.sandbox({ image, oracle });
+        assert.equal(intake.validObservation(result, oracle), true);
+        assert.ok(
+          require("../factory/discovery-evidence.cjs").observationMatches(
+            result.observation,
+            oracle
+          ) ||
+            oracleTools.privacyHealthy(
+              oracle,
+              result.observation.status,
+              JSON.parse(result.observation.response)
+            ),
+          "real privacy oracle must produce a typed disclosure or controlled denial"
+        );
+      }
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }

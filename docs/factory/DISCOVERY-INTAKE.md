@@ -18,6 +18,21 @@ Unsupported expectations and ambiguous, flaky, environment or startup failures
 remain held. Fixture evidence cannot enter production finding publication.
 Discovery is bounded exploration; it does not prove complete app coverage.
 
+The bank-account and private-transaction isolation contracts additionally require
+verified distinct synthetic sessions and successful owner/participant reads.
+They use fixed seed records, authenticated readers and empty oracle queries.
+The existing current-head intake and repair RED/GREEN use the same trusted
+contracts: denying all users, returning a wrong record or losing authentication
+cannot establish a repair. Public/contacts transaction policy is not inferred
+from the private-transaction contract.
+
+Historical evidence with `oracle: null`, including both candidates from discovery
+run 44179920739, stays held. Its artifact, report, test hashes and consumed grant
+are not replaced, reinterpreted or refunded. A future, separately authorized
+discovery report can select a supported privacy contract, preserve its actual
+failing proposal and earn independent replay proof before ordinary publication.
+That later run and any repair are not started when this PR is prepared or merged.
+
 ## Publication and history
 
 **Verified discovery finding intake** uses GitHub-hosted runners and no model
