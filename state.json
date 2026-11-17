@@ -49,7 +49,8 @@
       77
     ],
     "2026-11-17": [
-      59
+      59,
+      76
     ]
   },
   "tickets": {
@@ -1301,6 +1302,38 @@
       },
       "feedback": "{\"head\":\"037cd10df74706f7518fcc64be1faa59a41c0d84\",\"verdict\":\"pass\",\"summary\":\"The diff adds `const gate = await this.controller.gate(number)` after the existing ledger commit in `DependencyCoordinator.assess` (scripts/factory/dependencies.cjs), reusing the pre-existing `Controller.gate`/`policy.reviewGate` checker already used by the owner-PR assessment path. `checks: write` is added only to the `assess` job in factory-dependencies.yml; the model (`review`) job, top-level workflow permissions, and other jobs are unchanged. Traced `controller.gate()` and `policy.reviewGate()`: the check is always published (pass or fail) against the PR's live head, success requires the exact approved head/verdict/grant linkage, ledger-read failures inside `gate()` are caught and downgraded to a failing check (not thrown), while a failed check-run POST itself propagates and aborts the job — all after the review ledger commit, so the completed review/approval/blocked verdict and counters are already durably written and are not touched by publication outcome. Six new regression tests cover pass, changes-requested, invalid-artifact (never publishes), changed-head (publishes failure against the new head, not the stale approved one), ledger-unavailable-at-publish, and failed-publication-with-recovery cases; a workflow-shape test asserts the exact permission sets for `assess`/`review`/top-level and that no other job gets `checks: write`. I manually verified these assertions against the actual current `.github/workflows/factory-dependencies.yml` and `scripts/factory/controller.cjs`/`policy.cjs` and they match. Docs (DEPENDENCY-MAINTENANCE.md, verification/plan/spec files) accurately describe the change and preparation-only scope; no factory-ready label, no enablement flag changes, no Claude/API invocation, and no app code touched — consistent with the ticket being a harness-only, draft-PR preparation task.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"The verification doc's reported test counts (24→25, 19 pass/5 fail → 25 pass) could not be independently executed in this read-only review; they are internally consistent with the 6 new test() blocks added across two commits as described, but are otherwise self-reported and unverified.\"},{\"severity\":\"minor\",\"message\":\"The new `assess()` return value gates `reviewed` on both `review.verdict === \\\"pass\\\"` and `gate.ok`, whereas the pre-existing, unmodified `Controller.assessPR` (owner-pr flow) still gates only on `review.verdict === \\\"pass\\\"` and ignores its own `gate()` result. This asymmetry isn't introduced by this diff and isn't in scope of the ticket, but it's worth a follow-up ticket since it means owner-PR premerge can still proceed even if evidence publication reports a non-ok gate, while the dependency flow now blocks premerge via the `reviewed` output on the same condition.\"}]}"
     },
+    "76": {
+      "coding": 0,
+      "reviews": 0,
+      "retries": 0,
+      "origin": "dependency-pr",
+      "head": "967c0f85f53bcdd9055e72005afe0e8d796971b4",
+      "pr": 76,
+      "status": "new",
+      "approval": null,
+      "branch": "dependabot/npm_and_yarn/fast-uri-3.1.9",
+      "criteriaHash": "ec032eb8af8a3f8c421fa8039d34f861c8e90774f778507aa67121972df354e7",
+      "dependency": {
+        "version": 1,
+        "pr": 76,
+        "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-dependencies.yml@refs/heads/main",
+        "workflowSha": "55d7a87b7e47bc8244dcb96d5eb114be1020b062",
+        "runId": "44066263105",
+        "runAttempt": 1,
+        "appSlug": "haideearus-software-factory",
+        "attempts": [
+          {
+            "head": "967c0f85f53bcdd9055e72005afe0e8d796971b4",
+            "base": "55d7a87b7e47bc8244dcb96d5eb114be1020b062",
+            "runId": "44066263105",
+            "runAttempt": 1,
+            "workflowSha": "55d7a87b7e47bc8244dcb96d5eb114be1020b062",
+            "at": "2026-11-17T10:35:53.013Z"
+          }
+        ]
+      },
+      "ci": null
+    },
     "77": {
       "coding": 0,
       "origin": "owner-pr",
@@ -1980,7 +2013,11 @@
       "outcome": "reviewed"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 76,
+    "runId": "44066263105",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -3851,6 +3888,13 @@
       "runAttempt": 1,
       "outcome": "accepted",
       "mergeCommit": "55d7a87b7e47bc8244dcb96d5eb114be1020b062"
+    },
+    {
+      "at": "2026-11-17T10:35:53.013Z",
+      "event": "dependency_metadata_admitted",
+      "ticket": 76,
+      "head": "967c0f85f53bcdd9055e72005afe0e8d796971b4",
+      "runId": "44066263105"
     }
   ]
 }
