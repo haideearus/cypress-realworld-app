@@ -47,7 +47,7 @@ async function verifyWake({api,context,receiptId,lane,bind=false,store=new WakeS
   const {state}=await store.read();
   const receipt=state.receipts[receiptId];
   c.validateReceipt(receipt);
-  if(receipt.signal.lane!==lane || receipt.status==="pending")throw Error("Wake dispatch intent missing");
+  if(receipt.signal.lane!==lane || !["intent","sent","bound"].includes(receipt.status))throw Error("Wake dispatch intent missing");
   const {verifiedRun}=require("./wake-controller.cjs");
   const producer=await verifiedRun(api,receipt.producer.runId,1,"factory-wake.yml",{terminal:false});
   if(producer.head_branch!=="main" || producer.head_sha!==receipt.producer.workflowSha || producer.actor?.login!==receipt.producer.actor.login || producer.actor?.id!==receipt.producer.actor.id || producer.event!==receipt.producer.event)throw Error("Wake producer identity changed");

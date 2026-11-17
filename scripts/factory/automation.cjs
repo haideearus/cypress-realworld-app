@@ -207,19 +207,20 @@ function dryRunInput(value) {
 async function main(env = process.env) {
   const config = policy.readConfig(JSON.parse(env.FACTORY_VARIABLES || "{}"));
   policy.assertSubscriptionEnv(env);
-  const context = runtimeContext(env);
-  assertAutomaticContext(context);
   const inputs = JSON.parse(env.FACTORY_INPUTS || "{}");
   const dryRun = dryRunInput(inputs.dry_run);
   const operation = env.FACTORY_OPERATION;
   if (!["auto_pick", "auto_merge"].includes(operation))
     throw new Error("Unknown automatic factory operation");
   if (!dryRun && (!config.enabled || !config.automatic)) {
+    assertAutomaticContext(runtimeContext(env));
     const result = { ready: false, reason: "Automatic factory disabled; no model invocation" };
     output(result, env);
     return result;
   }
   const api = new GitHub({ token: env.GH_TOKEN });
+  const context = await require("./trusted-wake.cjs").loadWakeContext(api, runtimeContext(env), env, { bind: operation === "auto_pick" });
+  assertAutomaticContext(context);
   let result;
   if (operation === "auto_pick") {
     result = await new AutomaticCoordinator(api, config, context).pick({ dryRun });

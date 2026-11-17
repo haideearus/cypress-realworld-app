@@ -69,7 +69,7 @@ async function handleWake({api,context,event,vars,preview=false,store=new WakeSt
   if(typeof preview!=="boolean")throw Error("Invalid wake preview");
   if(!preview && vars.FACTORY_EVENT_PICKUP_ENABLED!=="true")return {outcome:"disabled"};
   const producer=await verifyProducer(api,context);
-  const signal=await classifySignal({api,event,context,ledger});
+  let signal=await classifySignal({api,event,context,ledger});
   if(!signal)return {outcome:"ignored"};
   c.validateSignal(signal);
   if(preview)return {outcome:"preview",lane:signal.lane,number:signal.number};
@@ -78,6 +78,13 @@ async function handleWake({api,context,event,vars,preview=false,store=new WakeSt
   if(vars.FACTORY_ENABLED!=="true"||vars.FACTORY_AUTOMATION_ENABLED!=="true")return {outcome:"disabled"};
   const concurrent=Number(vars.FACTORY_MAX_CONCURRENT_TICKETS);
   if(![1,2].includes(concurrent))throw Error("Invalid wake capacity setting");
+  let pendingId;
+  if(signal.kind==="drain") {
+    const {state}=await store.read();
+    if(Object.values(state.receipts).some(r=>r.signal.kind==="drain"&&r.signal.sourceRun===signal.sourceRun&&r.signal.sourceAttempt===signal.sourceAttempt&&r.status!=="pending"))return {outcome:"duplicate"};
+    const pending=Object.values(state.receipts).find(r=>r.status==="pending"&&r.signal.kind!=="drain");
+    if(pending) { signal={...signal,lane:pending.signal.lane};pendingId=pending.id; }
+  }
   const receipt=c.createWake({signal,producer});
   const busy=!slots.capacity(controls,concurrent);
   const claim=await store.update(state=>{
@@ -86,7 +93,7 @@ async function handleWake({api,context,event,vars,preview=false,store=new WakeSt
     if(old && old.status!=="pending")return {state,duplicate:true};
     if(!old && Object.keys(state.receipts).length>=c.MAX_RECEIPTS)throw Error("Wake registry full; retained receipts require owner maintenance");
     state.receipts[receipt.id]=old||receipt;
-    if(!busy) {state.receipts[receipt.id].status="intent";state.receipts[receipt.id].producer=producer;}
+    if(!busy) {state.receipts[receipt.id].status="intent";state.receipts[receipt.id].producer=producer;if(pendingId && state.receipts[pendingId]?.status==="pending")state.receipts[pendingId].status="observed";}
     return {state,duplicate:false};
   });
   if(claim.duplicate)return {outcome:"duplicate",receiptId:receipt.id};

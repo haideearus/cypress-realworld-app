@@ -144,6 +144,7 @@ async function prepare(
   { grantId, cwd, environment = process.env, transport = fetch }
 ) {
   policy.assertSubscriptionEnv(environment);
+  context = await require("./trusted-wake.cjs").loadWakeContext(api, context, environment);
   const { state } = await new Ledger(api).read();
   const grant = policy.preflight(state, grantId, context, config);
   if (git(cwd, ["rev-parse", "HEAD"]).trim() !== grant.head)

@@ -79,9 +79,9 @@ async function analyze(coordinator, number, stage, { transport = fetch } = {}) {
 async function main(env = process.env) {
   policy.assertSubscriptionEnv(env);
   const config = policy.readConfig(JSON.parse(env.FACTORY_VARIABLES || "{}"));
-  const context = runtimeContext(env),
-    inputs = JSON.parse(env.FACTORY_INPUTS || "{}");
+  const inputs = JSON.parse(env.FACTORY_INPUTS || "{}");
   const api = new GitHub({ token: env.GH_TOKEN });
+  const context = await require("./trusted-wake.cjs").loadWakeContext(api, runtimeContext(env), env, { bind: env.FACTORY_OPERATION === "dep_select" });
   const c = new DependencyCoordinator(api, config, context);
   c.authorize();
   const n = Number(inputs.ticket),

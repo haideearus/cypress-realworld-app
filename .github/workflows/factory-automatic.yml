@@ -1,9 +1,15 @@
 name: Automatic factory
+run-name: ${{ inputs.wake_id && format('Automatic factory / wake {0}', inputs.wake_id) || 'Automatic factory' }}
 on:
   schedule:
     - cron: "17,47 * * * *"
   workflow_dispatch:
     inputs:
+      wake_id:
+        description: Receipt from the trusted event bridge (never authorization by itself)
+        type: string
+        required: false
+        default: ""
       dry_run:
         description: Preview the queue without reservations, model calls or merges
         type: boolean

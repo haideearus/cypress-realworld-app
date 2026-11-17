@@ -1,9 +1,15 @@
 name: Dependency maintenance
+run-name: ${{ inputs.wake_id && format('Dependency maintenance / wake {0}', inputs.wake_id) || 'Dependency maintenance' }}
 on:
   schedule:
     - cron: "29 * * * *"
   workflow_dispatch:
     inputs:
+      wake_id:
+        description: Receipt from the trusted event bridge (never authorization by itself)
+        type: string
+        required: false
+        default: ""
       preview:
         description: Preview Dependabot eligibility without state changes or model calls
         type: boolean

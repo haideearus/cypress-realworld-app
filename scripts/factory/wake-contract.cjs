@@ -31,7 +31,7 @@ function createWake({ signal, lane = signal.lane, producer }) {
   return { id: sourceKey(signal), signal, producer, status:"pending", receiver:null, at:new Date().toISOString() };
 }
 function validateReceipt(r) {
-  if (!exact(r,"id,signal,producer,status,receiver,at") || !HASH.test(r.id) || sourceKey(r.signal) !== r.id || !["pending","intent","sent","bound"].includes(r.status) || !time(r.at)) throw Error("Invalid wake receipt");
+  if (!exact(r,"id,signal,producer,status,receiver,at") || !HASH.test(r.id) || sourceKey(r.signal) !== r.id || !["pending","observed","intent","sent","bound"].includes(r.status) || !time(r.at)) throw Error("Invalid wake receipt");
   validateProducer(r.producer);
   if (r.receiver !== null && (!exact(r.receiver,"runId,runAttempt,workflowSha") || !ID.test(r.receiver.runId) || r.receiver.runAttempt !== 1 || !SHA.test(r.receiver.workflowSha) || r.status !== "bound")) throw Error("Invalid wake receiver");
   if (r.status === "bound" && r.receiver === null) throw Error("Missing bound receiver");

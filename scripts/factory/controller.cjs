@@ -712,7 +712,7 @@ async function main(env = process.env) {
     return result;
   }
   const api = new GitHub({ token: env.GH_TOKEN });
-  const context = runtimeContext(env);
+  const context = await require("./trusted-wake.cjs").loadWakeContext(api, runtimeContext(env), env);
   const controller = new Controller(api, config, context);
   const ticket = Number(inputs.ticket);
   let result;
