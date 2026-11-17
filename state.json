@@ -990,12 +990,12 @@
     },
     "59": {
       "coding": 0,
-      "reviews": 0,
+      "reviews": 1,
       "retries": 0,
       "origin": "dependency-pr",
       "head": "fc1ed9af6c1becb7d2a96d16df8a93d70120defc",
       "pr": 59,
-      "status": "new",
+      "status": "reviewing",
       "approval": null,
       "branch": "dependabot/npm_and_yarn/systeminformation-5.33.23",
       "criteriaHash": "35653b8ac179974666d866b44ad51a23ad6b0e3bf4fcb3d073b1d4c557e59a82",
@@ -1948,6 +1948,17 @@
       "status": "finished",
       "at": "2026-11-16T18:00:26.742Z",
       "outcome": "reviewed"
+    },
+    "0edb5736-762c-414c-854e-5b6814070fb8": {
+      "id": "0edb5736-762c-414c-854e-5b6814070fb8",
+      "ticket": 59,
+      "phase": "review",
+      "slot": "dependency",
+      "runId": "44055009718",
+      "runAttempt": 1,
+      "head": "fc1ed9af6c1becb7d2a96d16df8a93d70120defc",
+      "status": "reserved",
+      "at": "2026-11-17T09:29:36.672Z"
     }
   },
   "active": {
@@ -3797,6 +3808,15 @@
       "ticket": 59,
       "head": "fc1ed9af6c1becb7d2a96d16df8a93d70120defc",
       "runId": "44055009718"
+    },
+    {
+      "at": "2026-11-17T09:29:36.672Z",
+      "event": "reserved",
+      "ticket": 59,
+      "grant": "0edb5736-762c-414c-854e-5b6814070fb8",
+      "phase": "review",
+      "runId": "44055009718",
+      "runAttempt": 1
     }
   ]
 }
