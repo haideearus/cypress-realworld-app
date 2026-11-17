@@ -1057,12 +1057,13 @@
       },
       "feedback": "{\"head\":\"fc1ed9af6c1becb7d2a96d16df8a93d70120defc\",\"verdict\":\"pass\",\"summary\":\"The diff is a single-line yarn.lock bump of the transitive devDependency `systeminformation` (pulled in only by `cypress`, which is itself a devDependency — not shipped in the production bundle) from 5.31.7 to 5.33.23, satisfying the existing unchanged `^5.31.1` range from cypress's own manifest; package.json is untouched. Registry metadata matches (integrity hash and resolved tarball align with npm registry facts, gitHead present), and the three advisories affecting 5.31.7 (GHSA-3f7j-7jwc-fxfj fixed in 5.33.16, GHSA-4vjg-vx72-qq4g fixed in 5.33.14, GHSA-7648-jmwf-vw7j fixed in 5.33.13) are all below 5.33.23 and correctly cleared per the supplied OSV facts; no new advisories are reported for 5.33.23 in the trusted packet, and upstreamReleases is empty, giving no basis to assert a package-takeover/compromised-release finding from memory. CI ran yarn types/lint/unit plus Cypress UI regression (auth, bankaccounts, user-settings, UserSettingsForm) successfully at this exact head, but I verified by reading those test files directly that none of them exercise systeminformation's functionality (OS/CPU/network diagnostics used internally by Cypress's own tooling) — this CI receipt only proves the broader app/test suite still runs with the new lockfile, not that systeminformation's changed behavior was specifically exercised. Given the change is confined to a nested dev-only diagnostic dependency of the test runner with no applicable application code path, this residual gap does not rise to a blocking concern for this bounded, low-blast-radius update.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"The CI evidence (auth.spec.ts, bankaccounts.spec.ts, user-settings.spec.ts, UserSettingsForm.test.tsx) is generic application-level coverage and does not specifically exercise systeminformation's behavior; it only demonstrates the overall suite still passes with the bumped transitive lockfile entry. No test targets the OS/hardware-diagnostics code path that systeminformation provides to Cypress internally. Low impact here since the package is a dev-only, non-shipped transitive dependency, but worth noting as a real coverage gap rather than treating the green CI run as proof of compatibility for this specific package.\"}]}",
       "merge": {
-        "status": "intent",
+        "status": "merged",
         "head": "fc1ed9af6c1becb7d2a96d16df8a93d70120defc",
         "pr": 59,
-        "at": "2026-11-17T09:33:09.285Z",
+        "at": "2026-11-17T09:33:27.123Z",
         "runId": "44055009718",
-        "runAttempt": 1
+        "runAttempt": 1,
+        "mergeCommit": "55d7a87b7e47bc8244dcb96d5eb114be1020b062"
       }
     },
     "60": {
@@ -1979,11 +1980,7 @@
       "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 59,
-    "runId": "44055009718",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
