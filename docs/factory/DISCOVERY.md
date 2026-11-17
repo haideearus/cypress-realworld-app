@@ -133,6 +133,33 @@ report preparation, actual model startup and completion without claiming approva
 
 ## Verification
 
+The trusted catalog includes `bank-account-isolation` (`/bankAccounts/:other`)
+and `private-transaction-isolation` (`/transactions/:private`). Both require
+`authenticated: true` and `query: {}`. IDs and expectations come from the
+immutable synthetic seed, never model arguments. The first checks a nondeleted
+bank account using its owner and another user. The second checks a private
+transaction using both participants and an unrelated reader; it does not
+change the public/contacts visibility contract.
+
+Every identity must log in with a distinct session and pass `/checkAuth` before
+and after its read. Legitimate users must read the exact fixture, including its
+data fields, successfully before an unrelated reader's response counts.
+Only a matching record disclosure is RED; a resource-free 401/403/404 with
+successful legitimate controls is GREEN. GREEN accepts only error-only JSON
+with `Unauthorized`, `Forbidden`, `Not Found` or `denied`, or exact canonical
+plain text from the same list. Extra fields, alternate wrappers and unrecognized
+denial bodies remain held. Wrong records, missing/deleted/nonprivate fixtures,
+broken sessions, server errors and ambiguous payloads also stay held.
+Typed observations retain synthetic IDs and control statuses, never cookies or
+passwords. Two matching trusted replays are still required.
+Each privacy finding requires its own proposal file; a shared failing suite
+cannot establish an independent repair's GREEN while a sibling bug remains.
+
+The two original privacy candidates from run 44179920739 remain historical
+`unsupported-oracle` holds: their reports contain `oracle: null`. Adding catalog
+support does not rewrite an original report or grant it retroactive provenance.
+See [finding intake](DISCOVERY-INTAKE.md) for a later authorized supported source.
+
 Offline policy, broker, worker-contract, replay and stop tests run under
 `yarn test:factory`. Native Factory CI additionally executes a tiny Docker fixture
 to check read-only source, environment filtering, internal app access and denied

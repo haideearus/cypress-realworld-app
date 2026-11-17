@@ -21,6 +21,11 @@ function validateCandidateReport(r, { head, grantId }) {
       throw Error("Invalid discovery finding");
     s.validateRequest({ mode: f.mode, file: f.test });
     if (f.oracle !== null) o.validateOracle(f.oracle);
+    if (
+      ["bank-account-isolation", "private-transaction-isolation"].includes(f.oracle?.kind) &&
+      r.findings.filter((other) => other.test === f.test).length !== 1
+    )
+      throw Error("Privacy findings require separate proposal files, never shared RED/GREEN");
   }
   if (secretLike(JSON.stringify(r))) throw Error("Discovery report contains secret-like content");
   return r;
@@ -36,9 +41,23 @@ function observationMatches(value, oracle) {
     value.status <= 599 &&
     typeof value.signature === "string" &&
     value.signature.length < 300 &&
-    ["server-error", "unauthenticated-access", "other-account-access", "feed-contract"].includes(
-      value.symptom
-    ) &&
+    [
+      "server-error",
+      "unauthenticated-access",
+      "other-account-access",
+      "feed-contract",
+      "other-bank-account-access",
+      "private-transaction-access",
+    ].includes(value.symptom) &&
+    (!["bank-account-isolation", "private-transaction-isolation"].includes(oracle.kind) ||
+      (() => {
+        try {
+          const actual = o.observe(oracle, value.status, JSON.parse(value.response));
+          return c.digest(actual) === c.digest(value) && actual.symptom !== "none";
+        } catch {
+          return false;
+        }
+      })()) &&
     !secretLike(JSON.stringify(value))
   );
 }

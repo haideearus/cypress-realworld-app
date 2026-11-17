@@ -77,6 +77,8 @@ function validObservation(result, oracle) {
 function healthy(result, oracle) {
   if (!validObservation(result, oracle) || result.observation.symptom !== "none") return false;
   const code = result.observation.status;
+  if (["bank-account-isolation", "private-transaction-isolation"].includes(oracle.kind))
+    return o.privacyHealthy(oracle, code, JSON.parse(result.observation.response));
   if (oracle.kind === "protected-route") return code === 401 || code === 403;
   if (oracle.kind === "account-isolation") return code === 403 || code === 404;
   return code >= 200 && code < 300;
