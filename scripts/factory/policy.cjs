@@ -37,6 +37,7 @@ function readConfig(vars) {
   for (const [key, name] of [
     ["FACTORY_AUTOMATION_ENABLED", "automatic"],
     ["FACTORY_AUTOMERGE_ENABLED", "autoMerge"],
+    ["FACTORY_EVENT_PICKUP_ENABLED", "eventPickup"],
   ]) {
     if (![undefined, "true", "false"].includes(vars[key])) deny(`Invalid automatic boolean ${key}`);
     config[name] = vars[key] === "true";
@@ -284,8 +285,8 @@ function authorize(request) {
   denyRetiredRun(request.runId);
   if (
     request.repository !== REPOSITORY ||
-    request.actor !== OWNER ||
-    request.triggeringActor !== OWNER ||
+    ((request.actor !== OWNER || request.triggeringActor !== OWNER) &&
+      !require("./trusted-wake.cjs").isTrustedWakeContext(request)) ||
     request.ref !== "refs/heads/main" ||
     (request.workflowRef === DRILL_WORKFLOW_REF && !isDrillContext(request)) ||
     ((request.event !== "workflow_dispatch" || request.workflowRef === AUTOMATIC_WORKFLOW_REF) &&
@@ -309,8 +310,8 @@ function isAutomaticContext(request) {
   return Boolean(
     request &&
       request.repository === REPOSITORY &&
-      request.actor === OWNER &&
-      request.triggeringActor === OWNER &&
+      ((request.actor === OWNER && request.triggeringActor === OWNER) ||
+        require("./trusted-wake.cjs").isTrustedWakeContext(request, "app")) &&
       request.ref === "refs/heads/main" &&
       ["schedule", "workflow_dispatch"].includes(request.event) &&
       request.workflowRef === AUTOMATIC_WORKFLOW_REF &&
@@ -338,6 +339,7 @@ function reserve(original, request, config, now = new Date()) {
   assertNotStopped(original);
   authorize(request);
   if (!config.enabled || !config.minutes || !config.turns) deny("Factory disabled");
+  if (request.wake && !config.eventPickup) deny("Event pickup disabled");
   const automatic = isAutomaticContext(request);
   if (automatic && !config.automatic) deny("Automatic factory disabled");
   const recovering = request.recovery !== undefined;
@@ -536,6 +538,8 @@ function reserve(original, request, config, now = new Date()) {
       phase: grant.phase,
       runId: grant.runId,
       runAttempt: grant.runAttempt,
+      actor: request.actor,
+      ...(request.wake ? { wakeReceipt: request.wake.receiptId, sourceActor: request.wake.sourceActor } : {}),
     },
     now
   );

@@ -40,8 +40,7 @@ async function trustedRun(api, context, historical = false) {
     run.head_branch !== "main" ||
     run.repository?.full_name !== policy.REPOSITORY ||
     run.head_repository?.full_name !== policy.REPOSITORY ||
-    run.actor?.login !== policy.OWNER ||
-    run.triggering_actor?.login !== policy.OWNER ||
+    (run.actor?.login !== context.actor || run.triggering_actor?.login !== context.triggeringActor) ||
     run.run_attempt !== context.runAttempt ||
     !(historical
       ? ["schedule", "workflow_dispatch"].includes(run.event)

@@ -16,8 +16,8 @@ function contextOK(c) {
   return !!(
     c &&
     c.repository === REPOSITORY &&
-    c.actor === "haideearus" &&
-    c.triggeringActor === "haideearus" &&
+    ((c.actor === "haideearus" && c.triggeringActor === "haideearus") ||
+      require("./trusted-wake.cjs").isTrustedWakeContext(c, "dependency")) &&
     c.ref === "refs/heads/main" &&
     ["schedule", "workflow_dispatch"].includes(c.event) &&
     c.workflowRef === WORKFLOW &&
