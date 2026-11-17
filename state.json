@@ -1592,7 +1592,11 @@
       "approval": null,
       "criteriaHash": "5808e15a6a6b79b9206e37ad64c996582cf83b8266363c88113d3cc556cac2a2",
       "branch": "agent/proactive-discovery",
-      "ci": null
+      "ci": {
+        "requestId": "18a40945-42a8-4740-9da9-793316a35ae2",
+        "head": "5b99dfb43375bdef1a3dadfc1b363059d757430d",
+        "runId": null
+      }
     }
   },
   "grants": {
