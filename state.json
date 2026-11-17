@@ -1424,7 +1424,7 @@
       "origin": "dependency-pr",
       "head": "525c84cd1b55190c7b18d9e6a722d20a312fdecf",
       "pr": 79,
-      "status": "reviewing",
+      "status": "blocked",
       "approval": null,
       "branch": "dependabot/npm_and_yarn/vite-8.2.4",
       "criteriaHash": "f3945c4279419102a77af55de2af3cebe4cdec36256337cb9cf1c2f0b069f7e1",
@@ -1496,7 +1496,8 @@
             "GHSA-xwg4-73v4-xw9w"
           ]
         }
-      }
+      },
+      "feedback": "Dependency subscription review unavailable; no automatic retry of this head"
     }
   },
   "grants": {
@@ -2169,15 +2170,12 @@
       "runId": "44071040409",
       "runAttempt": 1,
       "head": "525c84cd1b55190c7b18d9e6a722d20a312fdecf",
-      "status": "reserved",
-      "at": "2026-11-17T11:13:20.184Z"
+      "status": "finished",
+      "at": "2026-11-17T11:13:20.184Z",
+      "outcome": "blocked"
     }
   },
-  "active": {
-    "ticket": 79,
-    "runId": "44071040409",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -4099,6 +4097,12 @@
       "phase": "review",
       "runId": "44071040409",
       "runAttempt": 1
+    },
+    {
+      "at": "2026-11-17T11:14:00.843Z",
+      "event": "blocked",
+      "ticket": 79,
+      "reason": "Dependency subscription review unavailable; no automatic retry of this head"
     }
   ]
 }
