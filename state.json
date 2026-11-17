@@ -53,7 +53,8 @@
       76,
       79,
       80,
-      82
+      82,
+      85
     ]
   },
   "tickets": {
@@ -1579,6 +1580,19 @@
         "passed": true
       },
       "feedback": "{\"head\":\"47db72c611b0d7dba02e29b25aa2bc9110c03ea5\",\"verdict\":\"pass\",\"summary\":\"Reviewed the stage-2 \\\"factory events and activity\\\" implementation (ticket #82): new opt-in event-pickup workflow/scripts (factory-wake.yml, wake.cjs, wake-controller.cjs, wake-contract.cjs, wake-store.cjs, trusted-wake.cjs) and opt-in activity journal (factory-activity.yml, activity-observer.cjs, activity.cjs, activity-contract.cjs, activity-store.cjs, activity-controls.cjs), plus integration touch-points in policy.cjs, automation.cjs, dependencies.cjs, dependency-contract.cjs, monitor.cjs, monitor-recovery.cjs, worker.cjs, controller.cjs, stop.cjs.\\n\\nBoth new workflows gate on `vars.FACTORY_EVENT_PICKUP_ENABLED`/`FACTORY_ACTIVITY_LOG_ENABLED == 'true'` (absent ⇒ off by default), restrict to `main`/first attempt/the exact repo, pin checkout to `github.workflow_sha`, use `persist-credentials: false`, and carry no `secrets.*` references (confirmed by workflow-shape tests). The wake pipeline verifies producer/receiver identity via live GitHub API calls (exact head SHA, workflow path/id, actor/triggering-actor, single first-attempt receiver bound via CAS-protected metadata store) before any dispatch, and `policy.cjs#authorize` only trusts a bot actor through this verified `isTrustedWakeContext` path — the named owner actor is never spoofable. Concurrency/budget/stop checks from the existing ledger are preserved unchanged (`FACTORY_MAX_CONCURRENT_TICKETS` still restricted to 1/2; `vars.FACTORY_ENABLED`/`FACTORY_AUTOMATION_ENABLED` still required). Dependabot CI admission requires exact-head, success-only, native `pull_request` runs and rejects forked heads/stale heads/failed CI (explicitly tested).\\n\\nThe activity journal scans every rendered comment body for secrets/credentials/mentions before posting (`secretLike`, bearer/token/password regex, no `<>@` or newlines), validates the journal issue is an open, unlabelled owner issue not itself an admitted ticket, and renders \\\"review passed\\\" only when a genuine `claude-subscription`/non-fixture/pass approval is on the ledger — it never asserts results it can't verify (role-prep vs. model-start vs. actual review verdict are distinguished). Notification failures are swallowed and explicitly proven (by test) not to mutate ledger/usage/approval state. The 90-minute staleness check is framed in docs/code as \\\"no verified completion for 90 minutes,\\\" not as an independent out-of-band watchdog, matching the ticket's constraint. CAS races are tested against a realistic git-ref-aware in-memory fixture (concurrent `handleWake` calls → exactly one dispatch). Duplicate/busy/stop/uncertain-POST/drain-once scenarios, forged-actor/rerun/wrong-SHA/changed-source rejections, and \\\"one receiver only\\\" binding are all covered by passing tests, with \\\"red\\\" TAP logs retained as pre-fix evidence. `FACTORY_EVENT_PICKUP_ENABLED`/`FACTORY_ACTIVITY_LOG_ENABLED` default off, no AI-provider fallback is introduced (both new entry points call the existing `assertSubscriptionEnv` guard), \\\"discovery\\\" is reserved in the type enum but unused (deferred scope honored), and the PR evidence file records 0 critical/4 important findings from the agent's own prior review round, all listed as fixed, plus an explicit \\\"genuine Claude review not run; separate owner authorization required\\\" — consistent with the ticket requiring a further, separately authorized review before merge.\\n\\nNo correctness, security, or scope-boundary issues were found in the reviewed code paths.\",\"findings\":[]}"
+    },
+    "85": {
+      "coding": 0,
+      "origin": "owner-pr",
+      "reviews": 1,
+      "retries": 0,
+      "head": "5b99dfb43375bdef1a3dadfc1b363059d757430d",
+      "status": "reviewing",
+      "pr": 86,
+      "approval": null,
+      "criteriaHash": "5808e15a6a6b79b9206e37ad64c996582cf83b8266363c88113d3cc556cac2a2",
+      "branch": "agent/proactive-discovery",
+      "ci": null
     }
   },
   "grants": {
@@ -2290,9 +2304,24 @@
       "status": "finished",
       "at": "2026-11-17T13:52:39.150Z",
       "outcome": "reviewed"
+    },
+    "91d3d0da-3db0-4bf1-8270-0391f9d84aad": {
+      "id": "91d3d0da-3db0-4bf1-8270-0391f9d84aad",
+      "ticket": 85,
+      "phase": "review",
+      "slot": "existing",
+      "runId": "44145732979",
+      "runAttempt": 1,
+      "head": "5b99dfb43375bdef1a3dadfc1b363059d757430d",
+      "status": "reserved",
+      "at": "2026-11-17T18:15:00.009Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 85,
+    "runId": "44145732979",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -4289,6 +4318,16 @@
       "grant": "93fecf32-fb4a-48c5-a6e4-91f91df98fbb",
       "status": "reviewed",
       "head": "47db72c611b0d7dba02e29b25aa2bc9110c03ea5"
+    },
+    {
+      "at": "2026-11-17T18:15:00.009Z",
+      "event": "reserved",
+      "ticket": 85,
+      "grant": "91d3d0da-3db0-4bf1-8270-0391f9d84aad",
+      "phase": "review",
+      "runId": "44145732979",
+      "runAttempt": 1,
+      "actor": "haideearus"
     }
   ]
 }
