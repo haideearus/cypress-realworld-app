@@ -1018,7 +1018,30 @@
           }
         ]
       },
-      "ci": null
+      "ci": null,
+      "analysis": {
+        "version": 2,
+        "repository": "haideearus/cypress-realworld-app",
+        "pr": 59,
+        "base": "20f23e34f111f286b0f048ba8cb802ef277b4f86",
+        "head": "fc1ed9af6c1becb7d2a96d16df8a93d70120defc",
+        "workflowSha": "20f23e34f111f286b0f048ba8cb802ef277b4f86",
+        "runId": "44055009718",
+        "runAttempt": 1,
+        "stage": "analysis",
+        "toolDigest": "f280c92eeb2f5ac163b37bbe2d1cffa0ca85a8237161c40dced67f0c8f5dffb5",
+        "at": "2026-11-17T09:23:16.046Z",
+        "result": {
+          "changed": 2,
+          "candidateVersions": 1,
+          "cleared": [
+            "GHSA-3f7j-7jwc-fxfj",
+            "GHSA-4vjg-vx72-qq4g",
+            "GHSA-7648-jmwf-vw7j"
+          ],
+          "remainingBaseline": []
+        }
+      }
     },
     "60": {
       "coding": 0,
