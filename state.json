@@ -1514,6 +1514,14 @@
             "GHSA-xwg4-73v4-xw9w"
           ]
         }
+      },
+      "merge": {
+        "status": "intent",
+        "head": "1312585bd4787c3344737b45020d94eb12c27881",
+        "pr": 79,
+        "at": "2026-11-17T12:04:13.219Z",
+        "runId": "44077771645",
+        "runAttempt": 1
       }
     },
     "80": {
@@ -2243,7 +2251,11 @@
       "outcome": "reviewed"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 79,
+    "runId": "44077771645",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
