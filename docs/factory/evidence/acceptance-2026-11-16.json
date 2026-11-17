@@ -1,0 +1,265 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-11-16",
+  "displayTimezone": "Europe/Bucharest",
+  "receiptTimestamps": "UTC unless explicitly labelled",
+  "scope": "Curated evidence index, not live authorization or a complete billing audit",
+  "snapshot": {
+    "observedAt": "2026-11-16T17:24:32.440Z",
+    "repository": "haideearus/cypress-realworld-app",
+    "sourceCommit": "f5969ed32fbe29eaea475b958d33d30f9dd30d18",
+    "snapshotNotAuthorization": true,
+    "variables": {
+      "FACTORY_ENABLED": "false",
+      "FACTORY_AUTOMATION_ENABLED": "false",
+      "FACTORY_AUTOMERGE_ENABLED": "false",
+      "FACTORY_MONITOR_ENABLED": "true",
+      "FACTORY_APP_CHECKS_ENABLED": "true",
+      "FACTORY_FEED_CONTRACT_CHECK_ENABLED": "true"
+    },
+    "limits": {
+      "ticketsPerDay": 20,
+      "codingAttemptsPerTicket": 5,
+      "reviewsPerTicket": 10,
+      "automaticRetries": 4,
+      "concurrentTickets": 1,
+      "turnsPerSession": 200,
+      "minutesPerSession": 30,
+      "timezone": "Europe/Bucharest"
+    },
+    "workflows": {
+      ".github/workflows/factory-automatic.yml": "active",
+      ".github/workflows/factory-dependencies.yml": "active",
+      ".github/workflows/factory-monitor.yml": "active",
+      ".github/workflows/factory-agents.yml": "active",
+      ".github/workflows/factory-ci.yml": "active",
+      ".github/workflows/factory-deploy.yml": "active"
+    },
+    "ledger": {
+      "commit": "f13e17489e1d2ad6c28408ef495b93bc98e8e592",
+      "stopId": "ea89a0b0-8179-4d9d-a180-c72bb8e889eb",
+      "resumeProfile": {
+        "FACTORY_AUTOMATION_ENABLED": "true",
+        "FACTORY_AUTOMERGE_ENABLED": "true",
+        "FACTORY_ENABLED": "true"
+      },
+      "active": null,
+      "reservedGrants": 0,
+      "day": "2026-11-16",
+      "admittedTickets": 8
+    },
+    "variablesHash": "1a6253bcdc4d919cd08c1412382eae119fe4b959234f75919254273e4a052b6f",
+    "protectionHash": "135a5f5d6c1cd801fdbe6ae67b78a96af585f23b2303ccbe10c941b366d4c10d"
+  },
+  "appRepair": {
+    "issue": 68,
+    "pr": 69,
+    "runId": 43849349459,
+    "runEvent": "workflow_dispatch",
+    "runConclusion": "success",
+    "mergeCommit": "054a0efca643bd89f0dc756448e6f26de3e3c5a5",
+    "productionDeploymentRun": 43852606480,
+    "recoveryMonitorRun": 43855263870,
+    "incident": "c4b87394-9185-4508-bbbc-551567f91c27",
+    "verifiedIncidentRetirement": true,
+    "ownerReportedPcOff": {
+      "date": "2026-11-16",
+      "timezone": "Europe/Bucharest",
+      "shutdown": "12:25",
+      "startup": "12:50",
+      "durationMinutes": 25,
+      "precision": "Reported to the minute by owner; physical shutdown not independently verified"
+    },
+    "regressionEvidence": {
+      "source": "Coding-agent report in PR #69",
+      "reportedRed": "yarn test:unit:ci: expected [400,422] to include 200",
+      "reportedGreen": "79 passed, 10 skipped",
+      "independentRawRedTranscriptVerified": false
+    },
+    "originalArtifacts": [
+      {
+        "id": 14218011440,
+        "name": "review-e5ecdf4f-03d9-4206-a2cc-47a835dfdfb3",
+        "digest": "sha256:754817782d9cee3242cbc1454e11e0ed9c34f0886015b4ef76d5dc83d2839025",
+        "workflowRunId": 43849349459
+      },
+      {
+        "id": 14215694678,
+        "name": "code-5671a017-c5b9-4150-8c7d-b36fba7b3d69",
+        "digest": "sha256:932fa687cf6354c823d2a6b191ae5f3e2ddaa9e88405915ed17280910edd696c",
+        "workflowRunId": 43849349459
+      }
+    ],
+    "artifactDigestsMatchedLocalCopies": true
+  },
+  "activeStop": {
+    "runId": 43764916721,
+    "runConclusion": "cancelled",
+    "modelJobId": 132969639305,
+    "lifecycle": {
+      "initializedAt": "2026-11-15T21:46:52.9245981Z",
+      "stopStartedAt": "2026-11-15T21:47:03.967Z",
+      "modelCancelledAt": "2026-11-15T21:47:26.1748192Z",
+      "stopFinishedAt": "2026-11-15T21:47:33.984Z"
+    },
+    "wallElapsedMs": 30018,
+    "commandElapsedMs": 29837,
+    "errorCount": 0,
+    "initializedBeforeStopAndCancelledAfter": true,
+    "countersAndDailyHistoryPreserved": true,
+    "retainedQuarantinedRuns": [
+      {
+        "id": 43467058965,
+        "runAttempt": 1,
+        "status": "queued",
+        "head": "421553c2c108dc2704ef6cec7864582b8c63ead6",
+        "containmentTicket": 38,
+        "reason": "Frozen pre-job controller rejects retained drill history before admission"
+      }
+    ],
+    "observerPostStopReportError": true,
+    "independentReadOnlyRecovery": true,
+    "localArchiveSha256": "06f03357d57bbbd94082ca92be051fc925096e945305adc51f340ec4b56e7db9",
+    "archiveScope": "Local observer archive, not asserted to be a GitHub Actions artifact; sanitized verification only is represented here"
+  },
+  "dependencyTrial": {
+    "pr": 58,
+    "runId": 43909582583,
+    "runEvent": "workflow_dispatch",
+    "runConclusion": "success",
+    "approvedHead": "d0451952eeedb97c14ae6ccd07e698e0c2957771",
+    "merge": {
+      "status": "merged",
+      "head": "d0451952eeedb97c14ae6ccd07e698e0c2957771",
+      "pr": 58,
+      "at": "2026-11-16T16:50:13.587Z",
+      "runId": "43909582583",
+      "runAttempt": 1,
+      "mergeCommit": "f5969ed32fbe29eaea475b958d33d30f9dd30d18"
+    },
+    "mergedBy": "haideearus-software-factory[bot]",
+    "approval": {
+      "head": "d0451952eeedb97c14ae6ccd07e698e0c2957771",
+      "pr": 58,
+      "grant": "d981d282-21f2-4c51-b9d6-c19dc762d227",
+      "verdict": "pass",
+      "source": "claude-subscription",
+      "fixture": false,
+      "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/43909582583"
+    },
+    "usage": {
+      "reviews": 1,
+      "coding": 0,
+      "retries": 0
+    },
+    "ci": {
+      "requestId": "390f0d4d-c13c-4667-a38f-5944d9b43db0",
+      "head": "d0451952eeedb97c14ae6ccd07e698e0c2957771",
+      "runId": 43909783877,
+      "passed": true
+    },
+    "successfulStages": [
+      "select",
+      "analysis",
+      "ci",
+      "reserve",
+      "review / agent",
+      "assess",
+      "premerge",
+      "merge",
+      "finalize"
+    ],
+    "manualPreparation": {
+      "action": "Owner used Update branch with merge commit before the trial",
+      "actor": "haideearus",
+      "commit": "d0451952eeedb97c14ae6ccd07e698e0c2957771",
+      "parents": [
+        "be69ab33ab245282d239895b6e3aeea941e2344e",
+        "b025f9e9f33d8852aeafb85f3d4b6f7bdfb59382"
+      ],
+      "source": "https://github.com/haideearus/cypress-realworld-app/commit/d0451952eeedb97c14ae6ccd07e698e0c2957771",
+      "scope": "Preparation action; no manual intervention inside the successful dependency run"
+    },
+    "historyPreservation": true,
+    "paidAiApiAuthenticationOrFallbackUsed": false
+  },
+  "approvedDeployment": {
+    "version": 1,
+    "outcome": "verified",
+    "phase": "complete",
+    "hookAttempted": true,
+    "repository": "haideearus/cypress-realworld-app",
+    "appUrl": "https://haide-software-factory.onrender.com",
+    "deploymentRunId": "43913104368",
+    "deploymentRunAttempt": 1,
+    "candidate": {
+      "sha": "f5969ed32fbe29eaea475b958d33d30f9dd30d18",
+      "ciRunId": "43911865144",
+      "ciAttempt": 1
+    },
+    "startedAt": "2026-11-16T17:03:51.926Z",
+    "approval": {
+      "actor": "haideearus",
+      "environment": "production",
+      "environmentId": 27231852704,
+      "observedAt": "2026-11-16T17:03:52.114Z"
+    },
+    "hookAttemptedAt": "2026-11-16T17:03:53.100Z",
+    "render": {
+      "httpStatus": 200,
+      "deployId": "dep-dbtjeuei0phs73dhov00"
+    },
+    "live": {
+      "release": "f5969ed32fbe29eaea475b958d33d30f9dd30d18",
+      "health": true,
+      "ready": true,
+      "frontend": true,
+      "observedAt": "2026-11-16T17:07:01.735Z"
+    },
+    "finishedAt": "2026-11-16T17:07:01.735Z"
+  },
+  "deploymentArtifact": {
+    "id": 14249845987,
+    "name": "deployment-evidence-43913104368-1",
+    "sha256": "4c4f084dfdaf979955b8b4596ee5d3b5ebe387ddb73092af7326683be949e2c9",
+    "digestMatchedDownloadedArchive": true
+  },
+  "independentLiveVerification": {
+    "outcome": "independently-verified",
+    "release": "f5969ed32fbe29eaea475b958d33d30f9dd30d18",
+    "health": true,
+    "ready": true,
+    "frontend": true,
+    "observedAt": "2026-11-16T17:06:58.781Z",
+    "source": "Public unauthenticated GET healthz, readyz, frontend and repeat healthz; no deployment hook or model calls"
+  },
+  "documentationControlComparison": {
+    "issue": 77,
+    "beforeObservedAt": "2026-11-16T17:24:32.440Z",
+    "afterObservedAt": "2026-11-16T17:41:15.459Z",
+    "beforeProtectionHash": "135a5f5d6c1cd801fdbe6ae67b78a96af585f23b2303ccbe10c941b366d4c10d",
+    "afterProtectionHash": "135a5f5d6c1cd801fdbe6ae67b78a96af585f23b2303ccbe10c941b366d4c10d",
+    "beforeVariablesHash": "1a6253bcdc4d919cd08c1412382eae119fe4b959234f75919254273e4a052b6f",
+    "afterVariablesHash": "1a6253bcdc4d919cd08c1412382eae119fe4b959234f75919254273e4a052b6f",
+    "beforeLedgerCommit": "f13e17489e1d2ad6c28408ef495b93bc98e8e592",
+    "afterLedgerCommit": "f13e17489e1d2ad6c28408ef495b93bc98e8e592",
+    "workflowEnablementPreserved": true,
+    "allLiveControlsAndLedgerUnchanged": true,
+    "scope": "Owner-authenticated read-only metadata comparison during documentation preparation, not a provider billing audit"
+  },
+  "remainingAcceptance": [
+    "Extended scheduled 12-24-hour PC-off observation",
+    "Current provider allowance, billing/extra-usage and notification preflight",
+    "Audit/archive original raw failing-before console evidence or label any later reproduction separately",
+    "Complete human action log, narrated video and one A4 course PDF"
+  ],
+  "limitations": [
+    "Physical PC shutdown is owner-reported, not independently observed",
+    "Synthetic API checks do not cover every rendered browser/payment interaction",
+    "Historical run 43467058965 remains queued under narrow audited quarantine, not cancelled",
+    "Manual branch synchronization preceded the dependency run; this does not prove Dependabot comment handling",
+    "Active stop was observed within one minute once; future GitHub cancellation latency is not guaranteed",
+    "Provider account balances, extra-usage state and account-wide zero-overage settings were not independently audited",
+    "This index is not a complete human action log or a declaration that every course acceptance item is complete"
+  ]
+}

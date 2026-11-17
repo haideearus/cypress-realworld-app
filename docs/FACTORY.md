@@ -12,7 +12,7 @@ review its maintenance tickets.
 | [This repository](https://github.com/haideearus/cypress-realworld-app)         | Our application code and maintenance changes             |
 | [Our Issues](https://github.com/haideearus/cypress-realworld-app/issues)       | Bugs, improvements, and failures found by monitoring     |
 | [Our pull requests](https://github.com/haideearus/cypress-realworld-app/pulls) | Proposed fixes and their review evidence                 |
-| [Our Actions](https://github.com/haideearus/cypress-realworld-app/actions)     | Test runs and future factory jobs                        |
+| [Our Actions](https://github.com/haideearus/cypress-realworld-app/actions)     | CI, monitoring, maintenance and approved deployment jobs |
 | [Original project](https://github.com/cypress-io/cypress-realworld-app)        | Upstream changes we may incorporate through reviewed PRs |
 | [Agent instructions](../AGENTS.md)                                             | How agents work in this repository                       |
 | [Source record](factory/baseline.json)                                         | The original revision used to start this fork            |
@@ -43,7 +43,49 @@ again must add the `upstream` remote as shown below.
 
 ## Current setup status
 
-Latest update, 2026-11-15: the app, Claude coding/CI/independent review, App-backed
+Snapshot, **16 November 2026**: the installed cloud factory is deliberately
+paused. `FACTORY_ENABLED`, `FACTORY_AUTOMATION_ENABLED` and
+`FACTORY_AUTOMERGE_ENABLED` are all false and the durable owner stop is active.
+The automatic/dependency workflows are enabled; enabled workflows do not override
+those controls. Production monitoring, synthetic-user API checks and the feed
+contract check are enabled independently.
+
+The app is live at https://haide-software-factory.onrender.com. Its approved
+release is `f5969ed32fbe29eaea475b958d33d30f9dd30d18`. The following paths have
+demonstrated runs:
+
+- Monitor incident [#68](https://github.com/haideearus/cypress-realworld-app/issues/68)
+  led to Claude coding, CI, independent review and protected merge of
+  [PR #69](https://github.com/haideearus/cypress-realworld-app/pull/69). After named
+  deployment approval, a matching recovery observation automatically completed
+  the incident. The owner reported the core run occurred with the PC off.
+- Dependency [PR #58](https://github.com/haideearus/cypress-realworld-app/pull/58)
+  passed analysis, exact-head CI, a fresh Claude Pro review, evidence refresh,
+  fresh premerge checks and an App-backed protected merge. Its approved
+  deployment and independent public release checks passed.
+- An initialized Claude review was interrupted in **30,018 ms wall time** by
+  the owner stop command. The separately contained historical queued record
+  remains quarantined; it is not falsely described as cancelled.
+
+Use the [operations guide](factory/OPERATIONS.md) for controls and recovery, and
+the [dated acceptance index](factory/ACCEPTANCE-2026-11-16.md) for source links,
+receipt hashes, manual actions and evidence limitations. These are observations,
+not authorization to start a session or change live settings. No remaining
+provider quota, uninterrupted availability or future cancellation latency is
+guaranteed by a past successful run.
+
+Still outstanding: final operating preflight and notifications, a separately
+authorized **scheduled 12–24-hour PC-off observation**, and the course video,
+one-page PDF and complete human log. A manually dispatched cloud success does not
+establish ongoing scheduler delivery. The synthetic traffic currently covers API
+login/session/feed/pagination/logout, not every rendered UI interaction.
+
+### Historical update, 2026-11-15
+
+The following paragraphs preserve the status at that date; they do not override
+the current snapshot above.
+
+On 2026-11-15 the app, Claude coding/CI/independent review, App-backed
 automatic merging and named human-approved deployment have demonstrated runs
 linked below. Production monitoring is installed and enabled. The isolated cloud
 repair rehearsal passed in
@@ -115,20 +157,20 @@ and adds a single read-only `Factory CI` job without Cypress Cloud recording.
 Its remote result and required-branch-check configuration must be verified
 separately. An existing upstream badge is not evidence that this fork passes.
 
-## Production preparation (ticket #2)
+## Historical production preparation (ticket #2, 2026-11-11)
 
 The production change builds the frontend and compiled API for one origin,
 persists demo data and sessions in PostgreSQL, removes password hashes from user
 responses, and includes real database restart, concurrency, and failure checks.
 The [deployment guide](DEPLOYMENT.md) has exact free-plan setup instructions.
 
-Committed configuration is not a completed cloud deployment. The public URL,
-provider quotas, named production approval, protected branch, cost guard, kill
-switch, and unattended maintenance dispatcher still require installation and
-verification. Until then, this session's agent work demonstrates the intended
-maintenance process but is not an always-running software factory.
+At this foundation milestone, the public URL, provider quotas, named production
+approval, protected branch, cost guard, kill switch and unattended dispatcher
+still required installation and verification. The current snapshot and acceptance
+index above supersede those installation-status claims; provider billing and
+ongoing availability still require operator attention.
 
-## Local verification on 2026-11-11
+## Historical local verification on 2026-11-11
 
 The locked dependency installation, TypeScript check, lint, and CI frontend build
 passed. Unit tests finished with 44 passed and 10 skipped. Cypress API and desktop
@@ -169,7 +211,7 @@ Create an issue in **our Issues**, describing the problem, how to reproduce it,
 and the expected behavior. An upstream issue can be linked as the source; it is
 not automatically copied into our backlog by forking.
 
-Each repair will follow this path once the automation is installed:
+When live operation is authorized and its controls allow work, app repairs use:
 
 ```text
 Issue -> coding agent -> failing test -> fix -> PR -> checks
@@ -180,6 +222,12 @@ Issue -> coding agent -> failing test -> fix -> PR -> checks
 Each PR must target `haideearus/cypress-realworld-app:main`. GitHub may suggest the
 original project as the target when working with a fork, so check the base
 repository before opening a PR.
+
+The installed picker takes eligible owner issues labelled `factory-ready` and
+receipt-verified monitor incidents. Monitor publication supplies its own label;
+an arbitrary old issue or a label without the required provenance is not enough.
+The separate dependency lane selects eligible genuine Dependabot PRs without
+that label. See the operations guide before creating or changing queue entries.
 
 ## Incorporating upstream changes
 
