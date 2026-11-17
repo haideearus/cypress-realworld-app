@@ -1,5 +1,12 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+
+test("unit runtime writes caches only to disposable scratch, not read-only installed packages", () => {
+  const config = require("../factory/discovery/runtime.cjs").vitestConfig();
+  assert.ok(config.cacheDir.startsWith("/work/"));
+  assert.equal(config.test.environment, "jsdom");
+  assert.deepEqual(config.test.include, ["discovery-tests/*.unit.test.{ts,tsx}"]);
+});
 test("runtime can find prepared Yarn and browser app/API share only the disposable namespace", () => {
   const runtime = require("../factory/discovery/runtime.cjs");
   assert.equal(runtime.environment("a".repeat(40)).COREPACK_HOME, "/opt/corepack");

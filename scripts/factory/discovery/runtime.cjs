@@ -13,9 +13,7 @@ function environment(release) {
     CYPRESS_CACHE_FOLDER: "/opt/cypress",
     CYPRESS_CRASH_REPORTS: "0",
     CYPRESS_RECORD_KEY: "",
-    DEBUG:
-      "cypress:cli,cypress:server:*,-cypress:server:util:process_profiler,cypress:lifecycle:*,cypress:data-context*,cypress:config*,cypress:internal-stderr",
-    ELECTRON_ENABLE_LOGGING: "1",
+    DEBUG: "cypress:cli",
     RENDER_GIT_COMMIT: release,
   };
 }
@@ -32,4 +30,15 @@ function cypressConfig() {
     env: { apiUrl: "http://localhost:3001" },
   };
 }
-module.exports = { environment, cypressConfig };
+function vitestConfig() {
+  return {
+    cacheDir: "/work/vitest-cache",
+    test: {
+      environment: "jsdom",
+      setupFiles: ["./src/setup-tests.js"],
+      include: ["discovery-tests/*.unit.test.{ts,tsx}"],
+      fileParallelism: false,
+    },
+  };
+}
+module.exports = { environment, cypressConfig, vitestConfig };

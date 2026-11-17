@@ -54,7 +54,7 @@ if (role === "health") {
     } else if (mode === "unit") {
       fs.writeFileSync(
         "discovery.config.mjs",
-        `import {defineConfig} from 'vitest/config';export default defineConfig({test:{environment:'jsdom',setupFiles:['./src/setup-tests.js'],include:['discovery-tests/*.unit.test.{ts,tsx}'],fileParallelism:false}});`
+        `import {defineConfig} from 'vitest/config';export default defineConfig(${JSON.stringify(require("/trusted/runtime.cjs").vitestConfig())});`
       );
       cmd = "yarn";
       args = ["vitest", "run", "--config", "discovery.config.mjs"];

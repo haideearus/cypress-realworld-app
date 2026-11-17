@@ -104,7 +104,9 @@ function docker(args, { timeout = 300000, input, env = safeEnv(), ...other } = {
       args,
       { env, timeout, maxBuffer: 250000, encoding: "utf8", windowsHide: true, ...other },
       (error, stdout, stderr) => {
-        if (error && (!Number.isInteger(error.code) || error.killed))
+        if (error?.code === "ERR_CHILD_PROCESS_STDIO_MAXBUFFER")
+          reject(Error("Isolated discovery output exceeded the bounded capture"));
+        else if (error && (!Number.isInteger(error.code) || error.killed))
           reject(Error("Isolated discovery operation failed or timed out"));
         else resolve({ code: error ? error.code : 0, stdout, stderr });
       }

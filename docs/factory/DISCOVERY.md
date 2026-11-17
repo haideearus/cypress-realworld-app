@@ -28,6 +28,10 @@ Render, database, storage or provider credentials.
 Each batch starts a fresh synthetic app and separate test container. They use
 an internal bridge with an isolated gateway, read-only image roots, unprivileged
 users, dropped capabilities, bounded resources and ephemeral writable scratch.
+Test containers retain a 512-process/thread ceiling for Cypress and its Node
+workers; app and oracle containers retain 256. All keep a three-gigabyte memory
+ceiling and two-CPU quota. Unit caches use disposable `/work` scratch, keeping
+installed packages read-only. Raw output is bounded and overflow holds the batch.
 The test container shares only its own disposable app container's network
 namespace, preserving the unchanged browser/API localhost origins; it never
 shares the host namespace.
@@ -127,7 +131,8 @@ Offline policy, broker, worker-contract, replay and stop tests run under
 to check read-only source, environment filtering, internal app access and denied
 public egress. It uses no model, live app or repository state writes. The local
 Windows Docker daemon was unavailable during implementation. Native CI also
-builds the actual application image and tests browser login with no model.
+builds the actual application image and exercises a real API request, an
+application unit import and browser login with no model.
 Native results and live Claude discovery acceptance are separate evidence.
 
 Current limitation: Cypress screenshots remain inside disposable scratch and are
