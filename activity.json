@@ -599,6 +599,29 @@
       },
       "status": "published",
       "commentId": 6955576338
+    },
+    "fc4571b818b20b67ec5e308cb7c8604c9a94aaeb123fdc40449b70e1653807ad": {
+      "event": {
+        "id": "fc4571b818b20b67ec5e308cb7c8604c9a94aaeb123fdc40449b70e1653807ad",
+        "producer": {
+          "runId": "44136353163",
+          "runAttempt": 1,
+          "workflow": "factory-ci.yml",
+          "workflowSha": "84298964c00bc41284532d1b7381c9452f06e5c2",
+          "phase": "run",
+          "actor": "haideearus"
+        },
+        "kind": "ci",
+        "state": "failure",
+        "subject": 44136353163,
+        "head": "84298964c00bc41284532d1b7381c9452f06e5c2",
+        "summary": "Workflow factory-ci.yml is failure. Check the linked run for authoritative evidence.",
+        "links": [
+          "https://github.com/haideearus/cypress-realworld-app/actions/runs/44136353163"
+        ]
+      },
+      "status": "intent",
+      "commentId": null
     }
   },
   "lastMonitor": {
