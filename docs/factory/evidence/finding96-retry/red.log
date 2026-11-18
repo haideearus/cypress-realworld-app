@@ -1,0 +1,195 @@
+TAP version 13
+# Subtest: repair downloads recovered evidence from the bound recovery producer, not the original discovery
+not ok 1 - repair downloads recovered evidence from the bound recovery producer, not the original discovery
+  ---
+  duration_ms: 1.9379
+  type: 'test'
+  location: 'C:\\Users\\haide\\Documents\\Codex\\2026-11-03\\c\\cypress-realworld-app\\scripts\\tests\\factory-discovery-repair.test.cjs:10:1'
+  failureType: 'testCodeFailure'
+  error: 'repair.evidenceLocation is not a function'
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    TestContext.<anonymous> (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\tests\factory-discovery-repair.test.cjs:13:27)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.start (node:internal/test_runner/test:944:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
+  ...
+# Subtest: ordinary evidence keeps its original producer and refuses a forged producer
+not ok 2 - ordinary evidence keeps its original producer and refuses a forged producer
+  ---
+  duration_ms: 2.5127
+  type: 'test'
+  location: 'C:\\Users\\haide\\Documents\\Codex\\2026-11-03\\c\\cypress-realworld-app\\scripts\\tests\\factory-discovery-repair.test.cjs:22:1'
+  failureType: 'testCodeFailure'
+  error: 'repair.evidenceLocation is not a function'
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    TestContext.<anonymous> (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\tests\factory-discovery-repair.test.cjs:24:23)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: retry RED uses its freshly tested main instead of overlaying harness changes onto historical main
+not ok 3 - retry RED uses its freshly tested main instead of overlaying harness changes onto historical main
+  ---
+  duration_ms: 0.2721
+  type: 'test'
+  location: 'C:\\Users\\haide\\Documents\\Codex\\2026-11-03\\c\\cypress-realworld-app\\scripts\\tests\\factory-discovery-repair.test.cjs:29:1'
+  failureType: 'testCodeFailure'
+  error: 'repair.repairBaseline is not a function'
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    TestContext.<anonymous> (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\tests\factory-discovery-repair.test.cjs:31:23)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: finding-origin coders have edit-only tools; generated tests never execute on the OAuth host
+ok 4 - finding-origin coders have edit-only tools; generated tests never execute on the OAuth host
+  ---
+  duration_ms: 0.4067
+  type: 'test'
+  ...
+# Subtest: trusted repair receipt binds original discovery, code grant, exact files and RED/GREEN
+ok 5 - trusted repair receipt binds original discovery, code grant, exact files and RED/GREEN
+  ---
+  duration_ms: 0.6966
+  type: 'test'
+  ...
+# Subtest: one explicit retry retains the old grant, origin, day and limits, charging coding=2 and retries=1
+not ok 6 - one explicit retry retains the old grant, origin, day and limits, charging coding=2 and retries=1
+  ---
+  duration_ms: 10.1673
+  type: 'test'
+  location: 'C:\\Users\\haide\\Documents\\Codex\\2026-11-03\\c\\cypress-realworld-app\\scripts\\tests\\factory-finding-retry.test.cjs:23:1'
+  failureType: 'testCodeFailure'
+  error: 'Invalid automatic reservation provenance'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    deny (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\factory\policy.cjs:26:9)
+    Object.reserve (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\factory\policy.cjs:450:5)
+    TestContext.<anonymous> (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\tests\factory-finding-retry.test.cjs:25:18)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.start (node:internal/test_runner/test:944:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
+  ...
+# Subtest: retry cannot bypass wrong ticket, owner, schedule, source grant, stop or usage caps
+not ok 7 - retry cannot bypass wrong ticket, owner, schedule, source grant, stop or usage caps
+  ---
+  duration_ms: 19.7734
+  type: 'test'
+  location: 'C:\\Users\\haide\\Documents\\Codex\\2026-11-03\\c\\cypress-realworld-app\\scripts\\tests\\factory-finding-retry.test.cjs:39:1'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected exception.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  operator: 'throws'
+  stack: |-
+    TestContext.<anonymous> (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\tests\factory-finding-retry.test.cjs:45:13)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: preview while disabled is read-only, selects \#96 directly and never asks for \#97 or the queue
+not ok 8 - preview while disabled is read-only, selects \#96 directly and never asks for \#97 or the queue
+  ---
+  duration_ms: 2.3803
+  type: 'test'
+  location: 'C:\\Users\\haide\\Documents\\Codex\\2026-11-03\\c\\cypress-realworld-app\\scripts\\tests\\factory-finding-retry.test.cjs:90:1'
+  failureType: 'testCodeFailure'
+  error: 'retry.retryFinding is not a function'
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    Object.run (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\tests\factory-finding-retry.test.cjs:87:40)
+    TestContext.<anonymous> (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\tests\factory-finding-retry.test.cjs:92:19)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: live explicit reservation uses its tested main, does not rewrite finding registry or other tickets
+not ok 9 - live explicit reservation uses its tested main, does not rewrite finding registry or other tickets
+  ---
+  duration_ms: 0.4054
+  type: 'test'
+  location: 'C:\\Users\\haide\\Documents\\Codex\\2026-11-03\\c\\cypress-realworld-app\\scripts\\tests\\factory-finding-retry.test.cjs:99:1'
+  failureType: 'testCodeFailure'
+  error: 'retry.retryFinding is not a function'
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    Object.run (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\tests\factory-finding-retry.test.cjs:87:40)
+    TestContext.<anonymous> (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\tests\factory-finding-retry.test.cjs:100:30)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: wrong ticket, attempted model, ambiguous download failure and changed parent fail without a new grant
+ok 10 - wrong ticket, attempted model, ambiguous download failure and changed parent fail without a new grant
+  ---
+  duration_ms: 4.0012
+  type: 'test'
+  ...
+# Subtest: a raced main or unpaused pickup is refused before writing a reservation
+not ok 11 - a raced main or unpaused pickup is refused before writing a reservation
+  ---
+  duration_ms: 1.0806
+  type: 'test'
+  location: 'C:\\Users\\haide\\Documents\\Codex\\2026-11-03\\c\\cypress-realworld-app\\scripts\\tests\\factory-finding-retry.test.cjs:120:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /main|head|changed/i. Input:
+
+    'TypeError: retry.retryFinding is not a function'
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+  error: 'retry.retryFinding is not a function'
+  name: 'TypeError'
+  stack: |-
+    Object.run (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\tests\factory-finding-retry.test.cjs:87:40)
+    TestContext.<anonymous> (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\tests\factory-finding-retry.test.cjs:124:26)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  operator: 'rejects'
+  stack: |-
+    async TestContext.<anonymous> (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\tests\factory-finding-retry.test.cjs:124:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..11
+# tests 11
+# suites 0
+# pass 3
+# fail 8
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 143.4049

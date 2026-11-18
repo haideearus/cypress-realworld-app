@@ -5,6 +5,10 @@ maintenance. Preparing or merging its code does not enable discovery. The
 existing factory switches, concurrency setting, counters, required checks and
 named production deployment approval remain authoritative.
 
+For the historical recovered-evidence download failure on issue #96, see the
+[bounded retry procedure](FINDING-96-RETRY.md). It preserves the consumed attempt
+and original finding proof; it does not automatically retry or enable discovery.
+
 ## What qualifies
 
 A finding needs an actual finished Claude subscription discovery grant, the

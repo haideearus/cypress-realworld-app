@@ -119,6 +119,18 @@ async function verifyPublishedRepair(api, ticket, grant, bundle) {
   )
     throw Error("Successful trusted finding repair job required");
 }
+function evidenceLocation(candidate) {
+  f.validateCandidate(candidate);
+  return {
+    artifactName: candidate.artifact.name,
+    sourceRun: candidate.artifact.workflowRunId,
+  };
+}
+function repairBaseline(ticket) {
+  const head = ticket.findingRetry?.head || ticket.finding.intake.head;
+  if (!c.SHA.test(head)) throw Error("Invalid trusted repair baseline");
+  return head;
+}
 async function main(env = process.env) {
   p.assertSubscriptionEnv(env);
   const inputs = JSON.parse(env.FACTORY_INPUTS || "{}"),
@@ -147,8 +159,7 @@ async function main(env = process.env) {
     return output(
       {
         finding: true,
-        artifactName: record.candidate.artifact.name,
-        sourceRun: record.candidate.source.runId,
+        ...evidenceLocation(record.candidate),
       },
       env
     );
@@ -165,7 +176,7 @@ async function main(env = process.env) {
   if (code && (code.grantId !== grant.id || code.base !== grant.head || code.kind !== "code"))
     throw Error("Code artifact identity changed");
   const cwd = env.GITHUB_WORKSPACE || process.cwd(),
-    base = ticket.finding.intake.head;
+    base = repairBaseline(ticket);
   const prior = priorOverlay(cwd, base, head);
   const files = [
     ...new Map([...prior, ...(code?.files || [])].map((file) => [file.path, file])).values(),
@@ -251,4 +262,12 @@ if (require.main === module)
     );
     process.exitCode = 1;
   });
-module.exports = { repairProof, validRepairProof, verifyPublishedRepair, priorOverlay, main };
+module.exports = {
+  repairProof,
+  validRepairProof,
+  verifyPublishedRepair,
+  priorOverlay,
+  evidenceLocation,
+  repairBaseline,
+  main,
+};

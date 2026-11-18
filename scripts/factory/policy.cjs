@@ -243,6 +243,8 @@ function validateState(state) {
       )
         deny("Invalid discovery finding repair receipt");
     }
+    if (ticket.findingRetry !== undefined)
+      require("./finding-retry.cjs").validateRetry(state, id, ticket, grants);
     if (
       ticket.findingRedHash !== undefined &&
       (!ticket.finding || !/^[a-f0-9]{64}$/.test(ticket.findingRedHash))
@@ -380,12 +382,13 @@ function isAutomaticContext(request) {
 }
 function matchesAutomaticRun(ticket, context, config) {
   const a = ticket?.automatic;
+  const parent = ticket?.findingRetry || a;
   return Boolean(
     a &&
       a.workflowRef === context.workflowRef &&
-      a.workflowSha === context.workflowSha &&
-      a.runId === context.runId &&
-      a.runAttempt === context.runAttempt &&
+      parent.workflowSha === context.workflowSha &&
+      parent.runId === context.runId &&
+      parent.runAttempt === context.runAttempt &&
       a.appSlug === config.appSlug
   );
 }
@@ -407,9 +410,13 @@ function reserve(original, request, config, now = new Date()) {
   if (automatic && !config.automatic) deny("Automatic factory disabled");
   const recovering = request.recovery !== undefined;
   if (recovering) recovery.assertEligible(original, request, config);
+  if (request.findingRetry !== undefined)
+    require("./finding-retry.cjs").assertEligible(original, request, config);
   const state = structuredClone(original);
   const id = String(request.ticket);
   const existing = state.tickets[id];
+  if (request.findingRetry !== undefined)
+    existing.findingRetry = structuredClone(request.findingRetry);
   const drill = request.origin === "drill";
   if (existing?.origin === "drill") deny("Drill reservation cannot be repeated or reclassified");
   if (drill) {

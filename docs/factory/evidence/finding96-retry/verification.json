@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "date": "2026-11-18",
+  "base": "0f9c7511344de041d250ec85983ae9d07188a52b",
+  "maintenanceIssue": 98,
+  "repairIssue": 96,
+  "untouchedIssue": 97,
+  "failedParent": "44338765984",
+  "preservedGrant": "4fbec36c-7e05-4d0e-b91f-a912b4d8c505",
+  "evidenceProducer": "44326359550",
+  "originalDiscoveryProducer": "44197159640",
+  "red": {
+    "log": "red.log",
+    "command": "node --test scripts/tests/factory-discovery-repair.test.cjs scripts/tests/factory-finding-retry.test.cjs",
+    "passed": 3,
+    "failed": 8,
+    "reason": "Old repair resolver and policy do not implement bound evidence location or one-time retry; tests fail before implementation."
+  },
+  "reviewRegressions": {
+    "logs": ["preview-red.log", "provenance-red.log"],
+    "reason": "Proved preview activity persistence and original automatic metadata mutation before fixing each."
+  },
+  "green": {
+    "focusedCommand": "node --test scripts/tests/factory-finding-retry.test.cjs scripts/tests/factory-discovery-repair.test.cjs scripts/tests/factory-automatic-workflow.test.cjs",
+    "focusedPassed": 19,
+    "factoryCommand": "yarn test:factory",
+    "factoryTests": 815,
+    "factoryPassed": 801,
+    "factorySkipped": 14,
+    "factoryFailed": 0,
+    "skipNote": "Conditional integration checks retain their existing opt-in requirements; not claimed executed locally.",
+    "eslint": "passed for changed JavaScript",
+    "format": "passed for all changed files",
+    "sourceSecretScan": "passed for all 585 staged source files; scanner unchanged"
+  },
+  "localReview": {
+    "freshContext": true,
+    "claudeSession": false,
+    "importantFindingsRemaining": 0,
+    "scope": "Full working branch, then preview-write and provenance corrections"
+  },
+  "liveControlsReadOnlyAt": "2026-11-18T16:01:49.109Z",
+  "liveUsageCommit": "f9edbb249ce0ef2813a625ef1cbaa62c2d83594c",
+  "allFourSwitchesFalse": true,
+  "allFiveWorkflowsPaused": true,
+  "issue97Unchanged": true,
+  "priorGrantsPreserved": true,
+  "activeTickets": 0,
+  "issue96Counters": { "coding": 1, "reviews": 0, "retries": 0 },
+  "liveRetryStarted": false,
+  "claudeStarted": false,
+  "paidAiApiUsed": false,
+  "reviewGateChanged": false,
+  "requiredChecksReadOnly": ["verify", "Factory review gate"],
+  "strictBranchProtection": true,
+  "protectionEnforcesAdmins": true
+}
