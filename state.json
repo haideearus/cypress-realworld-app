@@ -1983,7 +1983,8 @@
       "ci": {
         "requestId": "6b9c3e8d-437e-4180-9fd4-32c09f8ca166",
         "head": "4d85eb5014c5a64f59db472757695aa3ef2c1b88",
-        "runId": null
+        "runId": 44413831704,
+        "passed": true
       }
     }
   },
