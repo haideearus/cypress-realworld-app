@@ -135,8 +135,8 @@
           "slot": "cycle1",
           "head": "0000000000000000000000000000000000000000"
         },
-        "outcome": "intent",
-        "evidenceHash": null
+        "outcome": "ready",
+        "evidenceHash": "7a889bbe0d8156d135f49d8b8c13dfefb16dca9a91d7d0fa41f5df2abb8eb9e5"
       },
       "resolution": null,
       "resolutionClosed": false,
@@ -294,8 +294,8 @@
         "slot": "cycle1",
         "head": "0000000000000000000000000000000000000000"
       },
-      "outcome": "intent",
-      "evidenceHash": null
+      "outcome": "ready",
+      "evidenceHash": "7a889bbe0d8156d135f49d8b8c13dfefb16dca9a91d7d0fa41f5df2abb8eb9e5"
     }
   },
   "imports": {
