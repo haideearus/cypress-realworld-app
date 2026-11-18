@@ -66,7 +66,8 @@
       96,
       98,
       100,
-      103
+      103,
+      105
     ]
   },
   "tickets": {
@@ -1937,6 +1938,19 @@
         "passed": true
       },
       "feedback": "{\"findings\":[],\"head\":\"639d9457107c7f771b6d86253ee1d5537442418c\",\"verdict\":\"pass\",\"summary\":\"Reviewed the base-to-head diff against the live source at scripts/factory/discovery-repair.cjs, finding-output-recovery.cjs, finding-retry.cjs, finding-continuation.cjs, policy.cjs, automation.cjs, and .github/workflows/{factory-ci,factory-model,factory-automatic}.yml. Postgres health probes in factory-ci.yml and factory-model.yml now explicitly pass -U factory_test -d rwa_test, matching both POSTGRES_USER/POSTGRES_DB env vars and resolving the \\\"role root does not exist\\\" symptom without touching credentials or DB roles. The repair-proof schema bump to version 2 (key -> findingRef) is applied consistently in both the producer (repairProof) and strict consumer (validRepairProof, with c.exact enforcing no legacy/unknown fields), and a new finalizeRepairBundle assembles the complete bundle (including findingVerification) and runs it through the unchanged secret-scan.cjs before writing, which is now wired into discovery-repair.cjs's green path; secret-scan.cjs itself is untouched, consistent with \\\"no scanner rule changes.\\\" The new findingOutputRecovery flow (finding-output-recovery.cjs) is pinned tightly to the specific blocked grant d91d546e-f952-4dea-9fc4-99b053477d92/run 44376807620 via hashed prior-grant/continuation checks, requires owner-only workflow_dispatch with no wake, excludes queue/active-ticket/#97 interference (verified active-tickets.cjs and the ticket-iteration check only read local ledger state, no issue-list API calls), and is wired through finding-retry.cjs/automation.cjs/policy.cjs/factory-automatic.yml consistently (new recover-finding option excluded from the auto-merge job's `if`, dry-run default preserved, and activity recordResult skipped in preview per the automation.cjs guard and the recovery preview test). Counter advancement (coding 3→4, retries 2→3) rides the existing generic reserve() increment logic in policy.cjs, which is unmodified and applies uniformly to all three receipt types, matching the ticket's \\\"ordinary counters, no reset\\\" requirement. New tests (factory-finding-output.test.cjs, factory-finding-output-recovery.test.cjs) exist in the repo exactly as added by the diff, reference existing fixtures (finding96-blocked.cjs, finding96-context-block.json, finding96-output-block.json) that are all present, and are picked up automatically by the `test:factory` glob. The RED log shows 9 pre-fix failures as expected for a documented RED baseline; GREEN/scan results in verification.json are supplied evidence from the PR's own CI, not something I executed in this read-only session. I did not run any commands myself; this is a static read-only review of the diff and current tree, so coverage of runtime/CI behavior beyond the provided logs is necessarily limited.\"}"
+    },
+    "105": {
+      "coding": 0,
+      "origin": "owner-pr",
+      "reviews": 1,
+      "retries": 0,
+      "head": "1c8c7213e1575062a9b0544c4ec7e5563183c5d1",
+      "status": "reviewing",
+      "pr": 106,
+      "approval": null,
+      "criteriaHash": "ccc487143507b0178ebe3de8fedec6c72ef44cf04000b59d55520a6bfde25927",
+      "branch": "agent/finding-96-github-retry",
+      "ci": null
     }
   },
   "grants": {
@@ -2840,9 +2854,24 @@
       "status": "finished",
       "at": "2026-11-18T21:07:35.224Z",
       "outcome": "blocked"
+    },
+    "2e2d703e-6137-49d6-92f0-6b8ace4ec680": {
+      "id": "2e2d703e-6137-49d6-92f0-6b8ace4ec680",
+      "ticket": 105,
+      "phase": "review",
+      "slot": "existing",
+      "runId": "44403474151",
+      "runAttempt": 1,
+      "head": "1c8c7213e1575062a9b0544c4ec7e5563183c5d1",
+      "status": "reserved",
+      "at": "2026-11-18T21:38:13.185Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 105,
+    "runId": "44403474151",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -5149,6 +5178,16 @@
       "event": "blocked",
       "ticket": 96,
       "reason": "Agent, publication, or CI infrastructure failed; no automatic model retry"
+    },
+    {
+      "at": "2026-11-18T21:38:13.185Z",
+      "event": "reserved",
+      "ticket": 105,
+      "grant": "2e2d703e-6137-49d6-92f0-6b8ace4ec680",
+      "phase": "review",
+      "runId": "44403474151",
+      "runAttempt": 1,
+      "actor": "haideearus"
     }
   ]
 }
