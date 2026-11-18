@@ -10,7 +10,7 @@
   "observedFinding": "test",
   "rootCause": "Collector accepted nonempty placeholder text and the gate did not revalidate retained feedback.",
   "change": "Preserve the four-field protocol and all history; strengthen text validation and recheck feedback at the gate; improve read-only review instructions.",
-  "localReview": "Padded sample response defect corrected with observed RED/GREEN regression; follow-up found no remaining important regressions.",
+  "localReview": "Padded sample response defect corrected with observed RED/GREEN regression; follow-up found no remaining important regressions. Contraction sample variant also has observed RED/GREEN coverage.",
   "newModelStarted": false,
   "liveLedgerWrites": false,
   "settingsChanged": false,
@@ -22,7 +22,7 @@
     "passed": 788,
     "failed": 0,
     "skipped": 14,
-    "outputSha256": "3f2408d93e938bb2efdc0ac1cadd2ac28434977648a4fa456175c1889ae68b9a"
+    "outputSha256": "ed03ce1c52fc6db46b03564b4be506836896d5c21d82e548fe11fe7f18e45b20"
   },
   "readOnlyLiveCheck": {
     "at": "2026-11-18T12:22:49.376Z",

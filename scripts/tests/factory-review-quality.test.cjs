@@ -149,6 +149,7 @@ test("natural sample-only sentences cannot exploit a few unfamiliar filler words
   for (const text of [
     "This is a sample review response generated only for testing the structured JSON output.",
     "Here is a fabricated review response with randomly chosen words solely to exercise schema acceptance.",
+    "Here’s an illustrative sample review response, written solely as a schema demonstration.",
   ]) {
     assert.throws(
       () => a.validateReview({ ...valid(), summary: text }, head),

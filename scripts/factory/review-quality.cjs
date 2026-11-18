@@ -18,7 +18,7 @@ function substantive(text, kind) {
   if (normalized.length < (kind === "summary" ? MIN_SUMMARY : MIN_FINDING)) return false;
   const words = normalized.toLowerCase().match(/[\p{L}][\p{L}\p{N}]*/gu) || [];
   if (
-    /^(?:(?:this|it) (?:is|was)|here is|the following is) (?:(?:a|an|just|only|simple|dummy|sample|example|test|placeholder|mock|synthetic|fake|generic|fabricated|illustrative) )*(?:sample|example|test|placeholder|dummy|mock|synthetic|fake|fabricated) (?:review|response|summary|finding|message|output)\b/u.test(
+    /^(?:(?:this|it) (?:is|was|s)|here (?:is|s)|the following is) (?:(?:a|an|just|only|simple|dummy|sample|example|test|placeholder|mock|synthetic|fake|generic|fabricated|illustrative) )*(?:sample|example|test|placeholder|dummy|mock|synthetic|fake|fabricated) (?:review|response|summary|finding|message|output)\b/u.test(
       words.join(" ")
     )
   )
