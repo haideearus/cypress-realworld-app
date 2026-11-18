@@ -54,9 +54,9 @@ not ok 4 - retained placeholder approval cannot satisfy the gate and both consum
   failureType: 'testCodeFailure'
   error: |-
     Expected values to be strictly equal:
-    
+
     true !== false
-    
+
   code: 'ERR_ASSERTION'
   name: 'AssertionError'
   expected: false
@@ -80,9 +80,9 @@ not ok 5 - schema and prompt require a substantive final review without expandin
   failureType: 'testCodeFailure'
   error: |-
     The expression evaluated to a falsy value:
-    
+
       assert.ok(a.REVIEW_SCHEMA.properties.summary.minLength>=60)
-    
+
   code: 'ERR_ASSERTION'
   name: 'AssertionError'
   expected: true
