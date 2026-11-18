@@ -195,27 +195,34 @@ async function retryFinding(
   api,
   config,
   context,
-  { ticket, dryRun, continuation = false, outputRecovery = false },
+  { ticket, dryRun, continuation = false, outputRecovery = false, apiRecovery = false },
   deps = {}
 ) {
   const p = require("./policy.cjs");
-  if (
-    typeof continuation !== "boolean" ||
-    typeof outputRecovery !== "boolean" ||
-    (continuation && outputRecovery)
-  )
+  const modes = [continuation, outputRecovery, apiRecovery];
+  if (modes.some((value) => typeof value !== "boolean") || modes.filter(Boolean).length > 1)
     refuse();
-  const control = outputRecovery
-    ? require("./finding-output-recovery.cjs")
-    : continuation
-      ? require("./finding-continuation.cjs")
-      : { PRIOR, DECISION, assertEligible, verifyFailure };
-  const receiptField = outputRecovery
-    ? "findingOutputRecovery"
-    : continuation
-      ? "findingContinuation"
-      : "findingRetry";
-  const kind = outputRecovery ? "output-recovery" : continuation ? "continuation" : "retry";
+  const control = apiRecovery
+    ? require("./finding-api-recovery.cjs")
+    : outputRecovery
+      ? require("./finding-output-recovery.cjs")
+      : continuation
+        ? require("./finding-continuation.cjs")
+        : { PRIOR, DECISION, assertEligible, verifyFailure };
+  const receiptField = apiRecovery
+    ? "findingApiRecovery"
+    : outputRecovery
+      ? "findingOutputRecovery"
+      : continuation
+        ? "findingContinuation"
+        : "findingRetry";
+  const kind = apiRecovery
+    ? "api-recovery"
+    : outputRecovery
+      ? "output-recovery"
+      : continuation
+        ? "continuation"
+        : "retry";
   p.authorize(context);
   if (
     ticket !== PRIOR.ticket ||
@@ -290,11 +297,13 @@ async function retryFinding(
       ready: false,
       preview: true,
       outcome: `finding-${kind}-preview`,
-      [outputRecovery
-        ? "outputRecoveryEligible"
-        : continuation
-          ? "continuationEligible"
-          : "retryEligible"]: true,
+      [apiRecovery
+        ? "apiRecoveryEligible"
+        : outputRecovery
+          ? "outputRecoveryEligible"
+          : continuation
+            ? "continuationEligible"
+            : "retryEligible"]: true,
       ticket,
       head: tested.head,
       priorGrant: control.PRIOR.grant,

@@ -1,10 +1,14 @@
 const { REPOSITORY, emptyState, validateState } = require("./policy.cjs");
+const { setTimeout: delay } = require("node:timers/promises");
 const ROOT = `/repos/${REPOSITORY}`;
+const READ_BACKOFF_MS = [250, 1000];
+const TRANSIENT_GATEWAY = new Set([502, 503, 504]);
 class GitHub {
-  constructor({ token, fetch: transport = globalThis.fetch }) {
+  constructor({ token, fetch: transport = globalThis.fetch, retryReads = false }) {
     if (!token) throw new Error("GitHub job token is required");
     this.token = token;
     this.fetch = transport;
+    this.retryReads = retryReads;
   }
   async request(method, path, body) {
     if (!path.startsWith(`${ROOT}/`) || /[\\\s]/.test(path) || path.split(/[/?]/).includes(".."))
@@ -12,10 +16,9 @@ class GitHub {
     const url = new URL(path, "https://api.github.com");
     if (url.origin !== "https://api.github.com" || !url.pathname.startsWith(`${ROOT}/`))
       throw new Error("Invalid GitHub repository path");
-    const response = await this.fetch(url, {
+    const options = {
       method,
       redirect: "error",
-      signal: AbortSignal.timeout(30000),
       headers: {
         Accept: "application/vnd.github+json",
         Authorization: `Bearer ${this.token}`,
@@ -24,13 +27,22 @@ class GitHub {
         "User-Agent": "haide-software-factory",
       },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-    });
-    if (!response.ok) {
-      const error = new Error(`GitHub request failed (${response.status})`);
-      error.status = response.status;
-      throw error;
+    };
+    const retryable = this.retryReads === true && method === "GET" && body === undefined;
+    for (let attempt = 0; ; attempt++) {
+      const response = await this.fetch(url, { ...options, signal: AbortSignal.timeout(30000) });
+      if (retryable && attempt < READ_BACKOFF_MS.length && TRANSIENT_GATEWAY.has(response.status)) {
+        await response.body?.cancel().catch(() => {});
+        await delay(READ_BACKOFF_MS[attempt]);
+        continue;
+      }
+      if (!response.ok) {
+        const error = new Error(`GitHub request failed (${response.status})`);
+        error.status = response.status;
+        throw error;
+      }
+      return response.status === 204 ? null : response.json();
     }
-    return response.status === 204 ? null : response.json();
   }
   async pages(path, key) {
     const all = [];

@@ -88,3 +88,30 @@ After the entire parent finishes, restore `FACTORY_ENABLED=false` first, then
 `FACTORY_AUTOMATION_ENABLED=false`, retaining discovery/automerge false and all
 five workflows paused. Preserve failed attempts and inspect the outcome before
 further action. Production deployment still requires named human approval.
+
+## Final retry after a GitHub gateway error
+
+[Run 44398068245](https://github.com/haideearus/cypress-realworld-app/actions/runs/44398068245)
+used the fourth coding reservation. The source scan passed, then the coding job
+received HTTP 502 while resolving receipt-backed discovery provenance. The
+regression check, Claude session, publication, independent review, and merge were
+skipped. The assessment recorded a blocked ticket and released its slot.
+
+The GitHub client now makes at most two additional attempts for an opted-in GET
+that returns HTTP 502, 503, or 504. The pauses are 250 ms and 1 second. Writes,
+permission and rate-limit responses, malformed JSON, and transport failures retain
+single-attempt behavior. If retries are exhausted, the provenance check fails and
+the model step stays blocked.
+
+After the correction is reviewed, merged, and verified on `main`, preview
+`retry-finding-api` for ticket `96` on `main` with all four switches false.
+Temporarily enable only **Automatic factory** to dispatch the preview, select
+**Preview only**, then pause the workflow again. Expect
+`outcome: finding-api-recovery-preview`, `apiRecoveryEligible: true`, and
+`ready: false` before requesting authorization for a live trial.
+
+A separately authorized live retry must use a fresh owner dispatch. It consumes
+the fifth coding reservation and fourth retry under the existing limits. It keeps
+the four historical grants, the source scanner, the regression checks, and the
+independent review gate. A passing review releases the factory slot and leaves
+the resulting PR for manual merge through branch protection.

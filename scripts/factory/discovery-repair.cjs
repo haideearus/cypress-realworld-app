@@ -141,6 +141,7 @@ function evidenceLocation(candidate) {
 }
 function repairBaseline(ticket) {
   const head =
+    ticket.findingApiRecovery?.head ||
     ticket.findingOutputRecovery?.head ||
     ticket.findingContinuation?.head ||
     ticket.findingRetry?.head ||
@@ -152,7 +153,7 @@ async function main(env = process.env) {
   p.assertSubscriptionEnv(env);
   const inputs = JSON.parse(env.FACTORY_INPUTS || "{}"),
     config = p.readConfig(JSON.parse(env.FACTORY_VARIABLES || "{}"));
-  const api = new GitHub({ token: env.GH_TOKEN });
+  const api = new GitHub({ token: env.GH_TOKEN, retryReads: true });
   const context = await require("./trusted-wake.cjs").loadWakeContext(
     api,
     {

@@ -131,6 +131,7 @@ class AutomaticCoordinator {
       if (
         state.version === 2 &&
         held?.automatic &&
+        !held.findingApiRecovery &&
         held.status === "reviewed" &&
         !["merged", "closed"].includes(intent?.status) &&
         (await terminalParent(this.api, entry))
@@ -144,6 +145,7 @@ class AutomaticCoordinator {
         };
       if (
         held?.automatic &&
+        !held.findingApiRecovery &&
         held.status === "reviewed" &&
         intent?.status === "intent" &&
         intent.runId === entry.runId &&
@@ -164,6 +166,7 @@ class AutomaticCoordinator {
       .filter(
         ([id, ticket]) =>
           ticket.automatic &&
+          !ticket.findingApiRecovery &&
           ticket.origin === "factory" &&
           ticket.status === "reviewed" &&
           (state.version === 1 || !slots.activeFor(state, Number(id))) &&
@@ -225,7 +228,17 @@ async function main(env = process.env) {
     output(result, env);
     return result;
   }
-  const api = new GitHub({ token: env.GH_TOKEN });
+  const mode = inputs.operation || "run";
+  const findingHandoff = [
+    "retry-finding",
+    "continue-finding",
+    "recover-finding",
+    "retry-finding-api",
+  ].includes(mode);
+  const api = new GitHub({
+    token: env.GH_TOKEN,
+    retryReads: operation === "auto_pick" && findingHandoff,
+  });
   const context = await require("./trusted-wake.cjs").loadWakeContext(
     api,
     runtimeContext(env),
@@ -235,16 +248,15 @@ async function main(env = process.env) {
   assertAutomaticContext(context);
   let result;
   if (operation === "auto_pick") {
-    const mode = inputs.operation || "run";
-    if (!["run", "retry-finding", "continue-finding", "recover-finding"].includes(mode))
-      throw Error("Invalid automatic operation");
-    if (["retry-finding", "continue-finding", "recover-finding"].includes(mode)) {
+    if (mode !== "run" && !findingHandoff) throw Error("Invalid automatic operation");
+    if (findingHandoff) {
       if (inputs.wake_id) throw Error("Finding retry cannot use an event wake");
       result = await require("./finding-retry.cjs").retryFinding(api, config, context, {
         ticket: Number(inputs.ticket),
         dryRun,
         ...(mode === "continue-finding" ? { continuation: true } : {}),
         ...(mode === "recover-finding" ? { outputRecovery: true } : {}),
+        ...(mode === "retry-finding-api" ? { apiRecovery: true } : {}),
       });
     } else {
       result = await new AutomaticCoordinator(api, config, context).pick({ dryRun });
@@ -255,13 +267,7 @@ async function main(env = process.env) {
       dryRun,
     });
   }
-  if (
-    !(
-      operation === "auto_pick" &&
-      ["retry-finding", "continue-finding", "recover-finding"].includes(inputs.operation) &&
-      dryRun
-    )
-  )
+  if (!(operation === "auto_pick" && findingHandoff && dryRun))
     await require("./activity.cjs").recordResult(api, context, result, env);
   output(result, env);
   return result;

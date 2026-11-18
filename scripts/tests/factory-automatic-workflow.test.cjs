@@ -30,6 +30,7 @@ test("finding retry is explicit, preview-default, ticket-scoped and cannot autom
     "retry-finding",
     "continue-finding",
     "recover-finding",
+    "retry-finding-api",
   ]);
   assert.equal(inputs.operation.default, "run");
   assert.equal(inputs.ticket.default, "");
@@ -37,6 +38,7 @@ test("finding retry is explicit, preview-default, ticket-scoped and cannot autom
   assert.ok(workflow.jobs.merge.if.includes("inputs.operation != 'retry-finding'"));
   assert.ok(workflow.jobs.merge.if.includes("inputs.operation != 'continue-finding'"));
   assert.ok(workflow.jobs.merge.if.includes("inputs.operation != 'recover-finding'"));
+  assert.ok(workflow.jobs.merge.if.includes("inputs.operation != 'retry-finding-api'"));
   assert.equal(
     workflow.jobs.pick.steps.find((s) => s.id === "control").with.parameters,
     "${{ toJSON(inputs) }}"
