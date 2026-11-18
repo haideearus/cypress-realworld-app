@@ -1,0 +1,113 @@
+name: Saved privacy discovery recovery
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Preview, recover or reconcile the saved privacy evidence
+        type: choice
+        options: [preview, run, reconcile]
+        default: preview
+      dry_run:
+        description: Preview only; do not reserve or replay saved evidence
+        type: boolean
+        default: true
+permissions:
+  contents: read
+jobs:
+  select:
+    if: ${{ github.repository == 'haideearus/cypress-realworld-app' && github.ref == 'refs/heads/main' && github.run_attempt == 1 }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    concurrency:
+      group: factory-ledger
+      cancel-in-progress: false
+    permissions:
+      actions: read
+      contents: write
+      issues: read
+    outputs:
+      ready: ${{ steps.control.outputs.ready }}
+      receiptId: ${{ steps.control.outputs.receiptId }}
+      artifactName: ${{ steps.control.outputs.artifactName }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.20.0
+      - id: control
+        name: Verify source and reserve or reconcile recovery
+        run: node scripts/factory/discovery-recovery-run.cjs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FACTORY_VARIABLES: ${{ toJSON(vars) }}
+          FACTORY_INPUTS: ${{ toJSON(inputs) }}
+          FACTORY_OPERATION: select
+  replay:
+    needs: select
+    if: ${{ needs.select.outputs.ready == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      actions: read
+      contents: read
+      issues: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.20.0
+      - name: Preserve trusted recovery helpers
+        run: node -e "require('node:fs').cpSync('scripts/factory',process.env.RUNNER_TEMP+'/factory-control',{recursive:true})"
+      - name: Install the checksum-pinned scanner
+        run: node "$RUNNER_TEMP/factory-control/scanner-install.cjs"
+      - id: replay
+        name: Replay saved privacy candidates without a model
+        run: node "$RUNNER_TEMP/factory-control/discovery-recovery-run.cjs"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FACTORY_VARIABLES: ${{ toJSON(vars) }}
+          FACTORY_INPUTS: ${{ toJSON(needs.select.outputs) }}
+          FACTORY_OPERATION: replay
+          FACTORY_RECOVERY_OUTPUT: ${{ runner.temp }}/recovery-output
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ needs.select.outputs.artifactName }}
+          path: ${{ runner.temp }}/recovery-output/evidence.json
+          if-no-files-found: error
+          retention-days: 14
+  finalize:
+    needs: [select, replay]
+    if: ${{ always() && needs.select.outputs.receiptId != '' && needs.select.outputs.ready == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    concurrency:
+      group: factory-ledger
+      cancel-in-progress: false
+    permissions:
+      actions: read
+      contents: write
+      issues: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.20.0
+      - id: control
+        name: Retain recovered proof or a visible hold
+        run: node scripts/factory/discovery-recovery-run.cjs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FACTORY_VARIABLES: ${{ toJSON(vars) }}
+          FACTORY_INPUTS: ${{ toJSON(needs.select.outputs) }}
+          FACTORY_OPERATION: finish
+          FACTORY_REPLAY_SUCCESS: ${{ needs.replay.result == 'success' }}

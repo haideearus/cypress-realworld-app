@@ -1,0 +1,91 @@
+TAP version 13
+# {
+#   "outcome": "recovery_preview",
+#   "ready": false,
+#   "eligible": false,
+#   "sourceRun": "44197159640",
+#   "maximumReplays": 2,
+#   "dailyUsed": 0,
+#   "modelCalls": 0
+# }
+# {
+#   "outcome": "recovery-reserved",
+#   "ready": true,
+#   "receiptId": "251c0b73802cb2d0ceba7a0514e79ff07d865cd94bdc9baa103fe0d0cc7c7670",
+#   "artifactName": "discovery-recovery-251c0b73802cb2d0ceba7a0514e79ff07d865cd94bdc9baa103fe0d0cc7c7670",
+#   "modelCalls": 0
+# }
+# {
+#   "outcome": "held",
+#   "ready": false,
+#   "modelCalls": 0
+# }
+# Subtest: recovery admission requires paused automation, discovery off and idle un-stopped ledger
+ok 1 - recovery admission requires paused automation, discovery off and idle un-stopped ledger
+  ---
+  duration_ms: 28.9377
+  type: 'test'
+  ...
+# Subtest: recovery normalizes a narrow context and never runs on owner branch or retry
+ok 2 - recovery normalizes a narrow context and never runs on owner branch or retry
+  ---
+  duration_ms: 0.9636
+  type: 'test'
+  ...
+# Subtest: preview is read-only under live production switches and cannot reserve or call a model
+ok 3 - preview is read-only under live production switches and cannot reserve or call a model
+  ---
+  duration_ms: 17.9812
+  type: 'test'
+  ...
+# Subtest: manual recovery reserves only finding replay metadata and never refunds source counters
+ok 4 - manual recovery reserves only finding replay metadata and never refunds source counters
+  ---
+  duration_ms: 1.7562
+  type: 'test'
+  ...
+# Subtest: active stop or pickup opt-in vetoes a live recovery before metadata reservation
+ok 5 - active stop or pickup opt-in vetoes a live recovery before metadata reservation
+  ---
+  duration_ms: 2.0758
+  type: 'test'
+  ...
+# Subtest: provider API environment is rejected before reading state
+ok 6 - provider API environment is rejected before reading state
+  ---
+  duration_ms: 0.1736
+  type: 'test'
+  ...
+# Subtest: stop after replay closes the permit held without assessing artifacts or changing usage
+not ok 7 - stop after replay closes the permit held without assessing artifacts or changing usage
+  ---
+  duration_ms: 0.7035
+  type: 'test'
+  location: 'C:\\Users\\haide\\Documents\\Codex\\2026-11-03\\c\\cypress-realworld-app\\scripts\\tests\\factory-discovery-recovery-run.test.cjs:53:1'
+  failureType: 'testCodeFailure'
+  error: 'unexpected network'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    Object.request (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\tests\factory-discovery-recovery-run.test.cjs:27:83)
+    Object.verifyProducer (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\factory\discovery-recovery-origin.cjs:187:30)
+    replayArtifact (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\factory\discovery-recovery-run.cjs:41:28)
+    Object.main (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\factory\discovery-recovery-run.cjs:140:68)
+    async TestContext.<anonymous> (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\tests\factory-discovery-recovery-run.test.cjs:61:15)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: metadata reconciliation of a failed replay retains its consumed permit and cannot reserve again
+ok 8 - metadata reconciliation of a failed replay retains its consumed permit and cannot reserve again
+  ---
+  duration_ms: 2.4367
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 7
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 142.596

@@ -1,6 +1,7 @@
 const c = require("./discovery-contract.cjs");
 const e = require("./discovery-evidence.cjs");
 const o = require("./discovery-oracles.cjs");
+const rc = require("./discovery-recovery-contract.cjs");
 const { UUID } = require("./monitor-proof.cjs");
 const { secretLike } = require("./artifacts.cjs");
 const WORKFLOW = ".github/workflows/factory-discovery-intake.yml";
@@ -21,9 +22,21 @@ function fingerprintFinding({ component, symptom, contract }) {
   return c.digest([contract, component, symptom]);
 }
 function sourceProof(source) {
-  const { grantId, ...proof } = source;
+  const { grantId, recovery, ...proof } = source;
   c.validateProof(proof);
   if (!UUID.test(grantId || "")) throw Error("Invalid source grant");
+  if (Object.prototype.hasOwnProperty.call(source, "recovery")) {
+    rc.validateProof(recovery);
+    if (
+      grantId !== rc.SOURCE.grantId ||
+      proof.head !== rc.SOURCE.head ||
+      proof.runId !== rc.SOURCE.runId ||
+      proof.key !== rc.SOURCE.sweepHash ||
+      proof.ciRunId !== rc.SOURCE.ciRunId ||
+      proof.workflowSha !== rc.SOURCE.head
+    )
+      throw Error("Recovery requires the pinned original discovery source proof");
+  }
   return proof;
 }
 function contextOK(r) {
@@ -58,6 +71,8 @@ function candidateFromEvidence(b, index, artifact, proof) {
   )
     throw Error("Invalid finding evidence");
   e.validateCandidateReport(b.report, { head: b.head, grantId: b.grantId });
+  const recovered = Object.prototype.hasOwnProperty.call(b, "recovery");
+  if (recovered) require("./discovery-recovery-evidence.cjs").validateEvidence(b, b.recovery);
   const x = b.findings[index],
     original = x?.original;
   if (
@@ -110,8 +125,9 @@ function candidateFromEvidence(b, index, artifact, proof) {
     x.fingerprint !== fingerprint ||
     !Number.isSafeInteger(artifact?.id) ||
     artifact.id < 1 ||
-    artifact.name !== `discovery-evidence-${b.grantId}` ||
-    String(artifact.workflowRunId) !== proof.runId ||
+    artifact.name !==
+      (recovered ? rc.artifactName(b.recovery) : `discovery-evidence-${b.grantId}`) ||
+    String(artifact.workflowRunId) !== (recovered ? b.recovery.context.runId : proof.runId) ||
     !/^sha256:[a-f0-9]{64}$/.test(artifact.digest || "")
   )
     throw Error("Invalid finding artifact identity");
@@ -119,7 +135,11 @@ function candidateFromEvidence(b, index, artifact, proof) {
   const row = {
     key: c.digest([b.grantId, c.digest(x.finding)]),
     fingerprint,
-    source: { ...proof, grantId: b.grantId },
+    source: {
+      ...proof,
+      grantId: b.grantId,
+      ...(recovered ? { recovery: structuredClone(b.recovery) } : {}),
+    },
     artifact: { ...artifact },
     evidenceHash: c.digest(b),
     findingHash: c.digest(x.finding),
@@ -177,6 +197,11 @@ function validateCandidate(r) {
   )
     throw Error("Invalid finding candidate");
   c.exact(r.artifact, ["id", "name", "workflowRunId", "digest"]);
+  if (Object.prototype.hasOwnProperty.call(r.source, "recovery")) {
+    require("./discovery-recovery-evidence.cjs").validateCandidate(r);
+    rc.validateArtifact(r.artifact, r.source.recovery);
+    return r;
+  }
   if (
     !Number.isSafeInteger(r.artifact.id) ||
     r.artifact.id < 1 ||
@@ -304,7 +329,20 @@ function validateFindings(s) {
       throw Error("Invalid retained replay identity");
   }
   for (const [grant, entry] of Object.entries(s.imports)) {
-    c.exact(entry, ["runId", "evidenceHash", "findings", "status"]);
+    const recovered = Object.prototype.hasOwnProperty.call(entry, "recoveries");
+    c.exact(entry, [
+      "runId",
+      "evidenceHash",
+      "findings",
+      "status",
+      ...(recovered ? ["recoveries"] : []),
+    ]);
+    if (recovered) {
+      const recovery = require("./discovery-recovery-contract.cjs");
+      if (grant !== recovery.SOURCE.grantId || entry.runId !== recovery.SOURCE.runId)
+        throw Error("Recovery receipts require the pinned source import");
+      recovery.validateRecoveries(entry.recoveries);
+    }
     if (
       !UUID.test(grant) ||
       !/^[1-9]\d*$/.test(entry.runId) ||
@@ -369,7 +407,10 @@ function validateReplay(r) {
 function issueText(r) {
   const x = r.candidate;
   const title = `[Discovery] ${x.oracle.kind} on ${x.oracle.route}`;
-  const body = `Verified synthetic-app failure: ${x.oracle.kind} at ${x.oracle.route}.\n\nOriginal scan: ${x.source.head}\nOriginal RED test: ${x.file} (${x.mode}), SHA-256 ${x.testHash}\nOracle: ${JSON.stringify(x.oracle)}\nEvidence: https://github.com/${c.REPOSITORY}/actions/runs/${x.source.runId}\nArtifact: ${x.artifact.name} (id ${x.artifact.id})\nFinding SHA-256: ${x.findingHash}\n\nReported context (untrusted): ${x.summary}\n\nAcceptance: preserve the reproduced contract, prove RED before repair and GREEN afterward, pass independent review and protected CI. This is sandbox evidence; production deployment and live coverage remain separate. A current-main replay is required before coding admission.\n\n<!-- factory-discovery-finding:${x.fingerprint}:${r.generation}:${x.key} -->`;
+  const recoveryLink = x.source.recovery
+    ? `\nRecovery replay: https://github.com/${c.REPOSITORY}/actions/runs/${x.source.recovery.context.runId}`
+    : "";
+  const body = `Verified synthetic-app failure: ${x.oracle.kind} at ${x.oracle.route}.\n\nOriginal scan: ${x.source.head}\nOriginal RED test: ${x.file} (${x.mode}), SHA-256 ${x.testHash}\nOracle: ${JSON.stringify(x.oracle)}\nEvidence: https://github.com/${c.REPOSITORY}/actions/runs/${x.source.runId}${recoveryLink}\nArtifact: ${x.artifact.name} (id ${x.artifact.id})\nFinding SHA-256: ${x.findingHash}\n\nReported context (untrusted): ${x.summary}\n\nAcceptance: preserve the reproduced contract, prove RED before repair and GREEN afterward, pass independent review and protected CI. This is sandbox evidence; production deployment and live coverage remain separate. A current-main replay is required before coding admission.\n\n<!-- factory-discovery-finding:${x.fingerprint}:${r.generation}:${x.key} -->`;
   if (body.length > 20000 || secretLike(title + body)) throw Error("Unsafe finding ticket");
   return { title, body, criteriaHash: c.digest([title, body]) };
 }

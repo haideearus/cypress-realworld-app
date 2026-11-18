@@ -1,0 +1,112 @@
+{
+  "version": 1,
+  "head": "822b51fb2bb3eaa59d60a109097cc3575e6373d3",
+  "grantId": "d25c438f-35df-449e-9fe0-ec20d87738f5",
+  "ticket": 92,
+  "runId": "44197159640",
+  "runAttempt": 1,
+  "source": "claude-subscription",
+  "fixture": false,
+  "sourceHash": "bad7b28832236656c8998da41272536f358ac4debc1985f81ac588a76d49d596",
+  "report": {
+    "version": 1,
+    "head": "822b51fb2bb3eaa59d60a109097cc3575e6373d3",
+    "grantId": "d25c438f-35df-449e-9fe0-ec20d87738f5",
+    "checked": [
+      "GET /bankAccounts/:bankAccountId as the account owner (control, succeeds) and as a distinct authenticated seeded user who is not the owner (bank-account-isolation)",
+      "GET /transactions/:transactionId for a seeded private-privacyLevel transaction as sender and receiver participants (control, both succeed) and as a distinct authenticated seeded user who is not a participant (private-transaction-isolation)",
+      "Reviewed backend/user-routes.ts GET /:userId which correctly enforces ensureAuthenticated plus an explicit req.user.id equality check and returns 401 Unauthorized for other users (account-isolation already enforced)",
+      "Reviewed backend/bankaccount-routes.ts and backend/transaction-routes.ts source and backend/database.ts getBankAccountById/getTransactionByIdForApi to confirm neither filters by requesting user before responding"
+    ],
+    "skipped": [
+      "External identity providers (Auth0/Okta/Cognito/Google) and their login flows",
+      "Production PostgreSQL/persistence-backed storage and avatar/object storage routes",
+      "GraphQL API surface (backend/graphql)",
+      "unexpected-server-error, protected-route and feed-pagination catalog oracles were not separately probed this session",
+      "POST/PATCH/DELETE mutation endpoints and their authorization (bankTransfers, likes, comments, contacts, notifications bulk)",
+      "UI/Cypress journeys beyond the two API isolation proposals"
+    ],
+    "findings": [
+      {
+        "title": "GET /bankAccounts/:bankAccountId discloses any user's bank account to any authenticated user",
+        "summary": "backend/bankaccount-routes.ts calls getBankAccountById(bankAccountId) without checking it belongs to req.user. Executed proposal bank-account-isolation.api.test.cjs (batch 1) confirmed the owner can read their own seeded account (control, 200), then logged in as a distinct unrelated seeded user and received 200 with the owner's full bank account record instead of a denial.",
+        "test": "bank-account-isolation.api.test.cjs",
+        "mode": "api",
+        "oracle": {
+          "kind": "bank-account-isolation",
+          "route": "/bankAccounts/:other",
+          "authenticated": true,
+          "query": {}
+        }
+      },
+      {
+        "title": "GET /transactions/:transactionId discloses private transactions to non-participants",
+        "summary": "backend/transaction-routes.ts calls getTransactionByIdForApi(transactionId) with no participant check. Executed proposal private-transaction-isolation.api.test.cjs (batch 3) confirmed both the sender and receiver can read a seeded privacyLevel:private transaction (control, both 200), then logged in as a distinct seeded user who is neither sender nor receiver and received 200 with the full private transaction record instead of a denial.",
+        "test": "private-transaction-isolation.api.test.cjs",
+        "mode": "api",
+        "oracle": {
+          "kind": "private-transaction-isolation",
+          "route": "/transactions/:private",
+          "authenticated": true,
+          "query": {}
+        }
+      }
+    ]
+  },
+  "batches": [
+    {
+      "number": 1,
+      "mode": "api",
+      "file": "bank-account-isolation.api.test.cjs",
+      "test": "const { test } = require(\"node:test\");\nconst assert = require(\"node:assert/strict\");\n\nconst API = process.env.DISCOVERY_API_URL || \"http://localhost:3001\";\nconst SEED_PASSWORD = \"discovery-only-password\";\n\nfunction extractCookie(res) {\n  const cookies = typeof res.headers.getSetCookie === \"function\" ? res.headers.getSetCookie() : [];\n  if (cookies.length) return cookies.map((c) => c.split(\";\")[0]).join(\"; \");\n  const single = res.headers.get(\"set-cookie\");\n  return single ? single.split(\";\")[0] : \"\";\n}\n\nasync function login(username) {\n  const res = await fetch(`${API}/login`, {\n    method: \"POST\",\n    headers: { \"Content-Type\": \"application/json\" },\n    body: JSON.stringify({ username, password: SEED_PASSWORD }),\n  });\n  assert.equal(res.status, 200, `login for ${username} should succeed`);\n  return extractCookie(res);\n}\n\nasync function checkAuth(cookie) {\n  const res = await fetch(`${API}/checkAuth`, { headers: { Cookie: cookie } });\n  assert.equal(res.status, 200, \"session should be authenticated\");\n  const body = await res.json();\n  return body.user.id;\n}\n\ntest(\"bank account owner can read own account but an unrelated authenticated reader is denied\", async () => {\n  const seedRes = await fetch(`${API}/testData/seed`, { method: \"POST\" });\n  assert.equal(seedRes.status, 200);\n\n  const usersRes = await fetch(`${API}/testData/users`);\n  assert.equal(usersRes.status, 200);\n  const { results: users } = await usersRes.json();\n\n  const accountsRes = await fetch(`${API}/testData/bankaccounts`);\n  assert.equal(accountsRes.status, 200);\n  const { results: accounts } = await accountsRes.json();\n\n  const account = accounts.find((a) => a.isDeleted === false);\n  assert.ok(account, \"expected a nondeleted seeded bank account\");\n\n  const owner = users.find((u) => u.id === account.userId);\n  assert.ok(owner, \"expected the account owner to exist in seeded users\");\n\n  const reader = users.find((u) => u.id !== account.userId);\n  assert.ok(reader, \"expected a different seeded user to act as an unrelated reader\");\n\n  // Owner control: log in as the owner and confirm the exact fixture is readable.\n  const ownerCookie = await login(owner.username);\n  const ownerId = await checkAuth(ownerCookie);\n  assert.equal(ownerId, owner.id);\n\n  const ownerReadRes = await fetch(`${API}/bankAccounts/${account.id}`, {\n    headers: { Cookie: ownerCookie },\n  });\n  assert.equal(ownerReadRes.status, 200, \"owner should be able to read their own bank account\");\n  const ownerReadBody = await ownerReadRes.json();\n  assert.equal(ownerReadBody.account.id, account.id);\n  assert.equal(ownerReadBody.account.userId, owner.id);\n\n  await checkAuth(ownerCookie);\n\n  // Unrelated reader: a distinct seeded session, authenticated, not the owner.\n  const readerCookie = await login(reader.username);\n  const readerId = await checkAuth(readerCookie);\n  assert.equal(readerId, reader.id);\n  assert.notEqual(readerId, account.userId);\n\n  const readerReadRes = await fetch(`${API}/bankAccounts/${account.id}`, {\n    headers: { Cookie: readerCookie },\n  });\n\n  // Expected (secure) behavior: the unrelated reader is denied with a\n  // resource-free error, not shown the owner's bank account record.\n  assert.ok(\n    [401, 403, 404].includes(readerReadRes.status),\n    `expected a denial status for an unrelated reader, got ${readerReadRes.status}`\n  );\n  const readerReadBody = await readerReadRes.json();\n  const keys = Object.keys(readerReadBody);\n  assert.deepEqual(keys, [\"error\"], \"denial body must be error-only JSON\");\n  assert.ok(\n    [\"Unauthorized\", \"Forbidden\", \"Not Found\", \"denied\"].includes(readerReadBody.error),\n    `unexpected denial message: ${readerReadBody.error}`\n  );\n\n  await checkAuth(readerCookie);\n});\n",
+      "testHash": "4504053811998b54b9db8d5d99eab3e514764576ee26c65e35f3218dfd7aa85a",
+      "result": {
+        "version": 1,
+        "image": "sha256:cd6cf2bb5c31fda4b1e614d8efc8ee24098b0cd06b381edb4afd5b4358cbc1fb",
+        "mode": "api",
+        "file": "bank-account-isolation.api.test.cjs",
+        "code": 1,
+        "exitState": { "status": "exited", "exitCode": 1, "oomKilled": false },
+        "log": "TAP version 13\n# Subtest: bank account owner can read own account but an unrelated authenticated reader is denied\nnot ok 1 - bank account owner can read own account but an unrelated authenticated reader is denied\n  ---\n  duration_ms: 122.377948\n  type: 'test'\n  location: '/work/app/discovery-tests/bank-account-isolation.api.test.cjs:31:1'\n  failureType: 'testCodeFailure'\n  error: 'expected a denial status for an unrelated reader, got 200'\n  code: 'ERR_ASSERTION'\n  name: 'AssertionError'\n  expected: true\n  actual: false\n  operator: '=='\n  stack: |-\n    TestContext.<anonymous> (/work/app/discovery-tests/bank-account-isolation.api.test.cjs:79:10)\n    process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    async Test.run (node:internal/test_runner/test:1054:7)\n    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)\n  ...\n1..1\n# tests 1\n# suites 0\n# pass 0\n# fail 1\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 179.913358\nDiscovery resource summary: {\"pids.peak\":\"24\",\"pids.events\":\"max 0\",\"memory.events\":\"low 0\\nhigh 0\\nmax 0\\noom 0\\noom_kill 0\\noom_group_kill 0\\nsock_throttled 0\"}\n\n",
+        "logHash": "be8884537cb2eee5c2220f2e23ad0895769a660f2c48035ed2ca3a896ee385fb",
+        "networkIsolated": true
+      }
+    },
+    {
+      "number": 2,
+      "mode": "api",
+      "file": "private-transaction-isolation.api.test.cjs",
+      "test": "const { test } = require(\"node:test\");\nconst assert = require(\"node:assert/strict\");\n\nconst API = process.env.DISCOVERY_API_URL || \"http://localhost:3001\";\nconst SEED_PASSWORD = \"discovery-only-password\";\n\nfunction extractCookie(res) {\n  const cookies = typeof res.headers.getSetCookie === \"function\" ? res.headers.getSetCookie() : [];\n  if (cookies.length) return cookies.map((c) => c.split(\";\")[0]).join(\"; \");\n  const single = res.headers.get(\"set-cookie\");\n  return single ? single.split(\";\")[0] : \"\";\n}\n\nasync function login(username) {\n  const res = await fetch(`${API}/login`, {\n    method: \"POST\",\n    headers: { \"Content-Type\": \"application/json\" },\n    body: JSON.stringify({ username, password: SEED_PASSWORD }),\n  });\n  assert.equal(res.status, 200, `login for ${username} should succeed`);\n  return extractCookie(res);\n}\n\nasync function checkAuth(cookie) {\n  const res = await fetch(`${API}/checkAuth`, { headers: { Cookie: cookie } });\n  assert.equal(res.status, 200, \"session should be authenticated\");\n  const body = await res.json();\n  return body.user.id;\n}\n\ntest(\"private transaction participants can read it but an unrelated authenticated reader is denied\", async () => {\n  const seedRes = await fetch(`${API}/testData/seed`, { method: \"POST\" });\n  assert.equal(seedRes.status, 200);\n\n  const usersRes = await fetch(`${API}/testData/users`);\n  assert.equal(usersRes.status, 200);\n  const { results: users } = await usersRes.json();\n\n  const contactsRes = await fetch(`${API}/testData/contacts`);\n  assert.equal(contactsRes.status, 200);\n  const { results: contacts } = await contactsRes.json();\n\n  const transactionsRes = await fetch(`${API}/testData/transactions`);\n  assert.equal(transactionsRes.status, 200);\n  const { results: transactions } = await transactionsRes.json();\n\n  const privateTxn = transactions.find((t) => t.privacyLevel === \"private\");\n  assert.ok(privateTxn, \"expected a seeded private transaction\");\n\n  const sender = users.find((u) => u.id === privateTxn.senderId);\n  const receiver = users.find((u) => u.id === privateTxn.receiverId);\n  assert.ok(sender && receiver, \"expected both transaction participants to exist\");\n\n  // An unrelated reader: not a participant and not a contact of either participant.\n  const relatedIds = new Set([\n    sender.id,\n    receiver.id,\n    ...contacts\n      .filter((c) => c.userId === sender.id || c.userId === receiver.id)\n      .map((c) => c.contactUserId),\n    ...contacts\n      .filter((c) => c.contactUserId === sender.id || c.contactUserId === receiver.id)\n      .map((c) => c.userId),\n  ]);\n  const reader = users.find((u) => !relatedIds.has(u.id));\n  assert.ok(reader, \"expected a seeded user unrelated to the private transaction\");\n\n  // Participant controls: both sender and receiver can legitimately read the record.\n  for (const participant of [sender, receiver]) {\n    const cookie = await login(participant.username);\n    const id = await checkAuth(cookie);\n    assert.equal(id, participant.id);\n\n    const res = await fetch(`${API}/transactions/${privateTxn.id}`, {\n      headers: { Cookie: cookie },\n    });\n    assert.equal(res.status, 200, \"participant should be able to read the private transaction\");\n    const body = await res.json();\n    assert.equal(body.transaction.id, privateTxn.id);\n    assert.equal(body.transaction.privacyLevel, \"private\");\n\n    await checkAuth(cookie);\n  }\n\n  // Unrelated reader: a distinct seeded session, authenticated, not a participant or contact.\n  const readerCookie = await login(reader.username);\n  const readerId = await checkAuth(readerCookie);\n  assert.equal(readerId, reader.id);\n  assert.notEqual(readerId, sender.id);\n  assert.notEqual(readerId, receiver.id);\n\n  const readerReadRes = await fetch(`${API}/transactions/${privateTxn.id}`, {\n    headers: { Cookie: readerCookie },\n  });\n\n  // Expected (secure) behavior: the unrelated reader is denied with a\n  // resource-free error, not shown the private transaction record.\n  assert.ok(\n    [401, 403, 404].includes(readerReadRes.status),\n    `expected a denial status for an unrelated reader, got ${readerReadRes.status}`\n  );\n  const readerReadBody = await readerReadRes.json();\n  const keys = Object.keys(readerReadBody);\n  assert.deepEqual(keys, [\"error\"], \"denial body must be error-only JSON\");\n  assert.ok(\n    [\"Unauthorized\", \"Forbidden\", \"Not Found\", \"denied\"].includes(readerReadBody.error),\n    `unexpected denial message: ${readerReadBody.error}`\n  );\n\n  await checkAuth(readerCookie);\n});\n",
+      "testHash": "bf63d7b8b554e3a57df20bfe07c8435ab0f0316dc8cf9f8447c19d23578a7623",
+      "result": {
+        "version": 1,
+        "image": "sha256:cd6cf2bb5c31fda4b1e614d8efc8ee24098b0cd06b381edb4afd5b4358cbc1fb",
+        "mode": "api",
+        "file": "private-transaction-isolation.api.test.cjs",
+        "code": 1,
+        "exitState": { "status": "exited", "exitCode": 1, "oomKilled": false },
+        "log": "TAP version 13\n# Subtest: private transaction participants can read it but an unrelated authenticated reader is denied\nnot ok 1 - private transaction participants can read it but an unrelated authenticated reader is denied\n  ---\n  duration_ms: 74.859991\n  type: 'test'\n  location: '/work/app/discovery-tests/private-transaction-isolation.api.test.cjs:31:1'\n  failureType: 'testCodeFailure'\n  error: 'expected a seeded user unrelated to the private transaction'\n  code: 'ERR_ASSERTION'\n  name: 'AssertionError'\n  expected: true\n  operator: '=='\n  stack: |-\n    TestContext.<anonymous> (/work/app/discovery-tests/private-transaction-isolation.api.test.cjs:66:10)\n    process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    async Test.run (node:internal/test_runner/test:1054:7)\n    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)\n  ...\n1..1\n# tests 1\n# suites 0\n# pass 0\n# fail 1\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 178.769511\nDiscovery resource summary: {\"pids.peak\":\"24\",\"pids.events\":\"max 0\",\"memory.events\":\"low 0\\nhigh 0\\nmax 0\\noom 0\\noom_kill 0\\noom_group_kill 0\\nsock_throttled 0\"}\n\n",
+        "logHash": "322fc5780622df7d6a0774b9ef1fd8f68b2aa74057380770a940b5cad4b6a6d3",
+        "networkIsolated": true
+      }
+    },
+    {
+      "number": 3,
+      "mode": "api",
+      "file": "private-transaction-isolation.api.test.cjs",
+      "test": "const { test } = require(\"node:test\");\nconst assert = require(\"node:assert/strict\");\n\nconst API = process.env.DISCOVERY_API_URL || \"http://localhost:3001\";\nconst SEED_PASSWORD = \"discovery-only-password\";\n\nfunction extractCookie(res) {\n  const cookies = typeof res.headers.getSetCookie === \"function\" ? res.headers.getSetCookie() : [];\n  if (cookies.length) return cookies.map((c) => c.split(\";\")[0]).join(\"; \");\n  const single = res.headers.get(\"set-cookie\");\n  return single ? single.split(\";\")[0] : \"\";\n}\n\nasync function login(username) {\n  const res = await fetch(`${API}/login`, {\n    method: \"POST\",\n    headers: { \"Content-Type\": \"application/json\" },\n    body: JSON.stringify({ username, password: SEED_PASSWORD }),\n  });\n  assert.equal(res.status, 200, `login for ${username} should succeed`);\n  return extractCookie(res);\n}\n\nasync function checkAuth(cookie) {\n  const res = await fetch(`${API}/checkAuth`, { headers: { Cookie: cookie } });\n  assert.equal(res.status, 200, \"session should be authenticated\");\n  const body = await res.json();\n  return body.user.id;\n}\n\ntest(\"private transaction participants can read it but an unrelated authenticated reader is denied\", async () => {\n  const seedRes = await fetch(`${API}/testData/seed`, { method: \"POST\" });\n  assert.equal(seedRes.status, 200);\n\n  const usersRes = await fetch(`${API}/testData/users`);\n  assert.equal(usersRes.status, 200);\n  const { results: users } = await usersRes.json();\n\n  const transactionsRes = await fetch(`${API}/testData/transactions`);\n  assert.equal(transactionsRes.status, 200);\n  const { results: transactions } = await transactionsRes.json();\n\n  const privateTxn = transactions.find((t) => t.privacyLevel === \"private\");\n  assert.ok(privateTxn, \"expected a seeded private transaction\");\n\n  const sender = users.find((u) => u.id === privateTxn.senderId);\n  const receiver = users.find((u) => u.id === privateTxn.receiverId);\n  assert.ok(sender && receiver, \"expected both transaction participants to exist\");\n\n  // An unrelated reader: any seeded user who is not a participant in this transaction.\n  const reader = users.find((u) => u.id !== sender.id && u.id !== receiver.id);\n  assert.ok(reader, \"expected a seeded user who is not a participant in the private transaction\");\n\n  // Participant controls: both sender and receiver can legitimately read the record.\n  for (const participant of [sender, receiver]) {\n    const cookie = await login(participant.username);\n    const id = await checkAuth(cookie);\n    assert.equal(id, participant.id);\n\n    const res = await fetch(`${API}/transactions/${privateTxn.id}`, {\n      headers: { Cookie: cookie },\n    });\n    assert.equal(res.status, 200, \"participant should be able to read the private transaction\");\n    const body = await res.json();\n    assert.equal(body.transaction.id, privateTxn.id);\n    assert.equal(body.transaction.privacyLevel, \"private\");\n\n    await checkAuth(cookie);\n  }\n\n  // Unrelated reader: a distinct seeded session, authenticated, not a participant.\n  const readerCookie = await login(reader.username);\n  const readerId = await checkAuth(readerCookie);\n  assert.equal(readerId, reader.id);\n  assert.notEqual(readerId, sender.id);\n  assert.notEqual(readerId, receiver.id);\n\n  const readerReadRes = await fetch(`${API}/transactions/${privateTxn.id}`, {\n    headers: { Cookie: readerCookie },\n  });\n\n  // Expected (secure) behavior: the unrelated reader is denied with a\n  // resource-free error, not shown the private transaction record.\n  assert.ok(\n    [401, 403, 404].includes(readerReadRes.status),\n    `expected a denial status for an unrelated reader, got ${readerReadRes.status}`\n  );\n  const readerReadBody = await readerReadRes.json();\n  const keys = Object.keys(readerReadBody);\n  assert.deepEqual(keys, [\"error\"], \"denial body must be error-only JSON\");\n  assert.ok(\n    [\"Unauthorized\", \"Forbidden\", \"Not Found\", \"denied\"].includes(readerReadBody.error),\n    `unexpected denial message: ${readerReadBody.error}`\n  );\n\n  await checkAuth(readerCookie);\n});\n",
+      "testHash": "de6178f6cbe689c0faefc7fa04367a2e93bf1db3569c2cb5b61776aecdc72f85",
+      "result": {
+        "version": 1,
+        "image": "sha256:cd6cf2bb5c31fda4b1e614d8efc8ee24098b0cd06b381edb4afd5b4358cbc1fb",
+        "mode": "api",
+        "file": "private-transaction-isolation.api.test.cjs",
+        "code": 1,
+        "exitState": { "status": "exited", "exitCode": 1, "oomKilled": false },
+        "log": "TAP version 13\n# Subtest: private transaction participants can read it but an unrelated authenticated reader is denied\nnot ok 1 - private transaction participants can read it but an unrelated authenticated reader is denied\n  ---\n  duration_ms: 142.400362\n  type: 'test'\n  location: '/work/app/discovery-tests/private-transaction-isolation.api.test.cjs:31:1'\n  failureType: 'testCodeFailure'\n  error: 'expected a denial status for an unrelated reader, got 200'\n  code: 'ERR_ASSERTION'\n  name: 'AssertionError'\n  expected: true\n  actual: false\n  operator: '=='\n  stack: |-\n    TestContext.<anonymous> (/work/app/discovery-tests/private-transaction-isolation.api.test.cjs:84:10)\n    process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    async Test.run (node:internal/test_runner/test:1054:7)\n    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)\n  ...\n1..1\n# tests 1\n# suites 0\n# pass 0\n# fail 1\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 194.945386\nDiscovery resource summary: {\"pids.peak\":\"24\",\"pids.events\":\"max 0\",\"memory.events\":\"low 0\\nhigh 0\\nmax 0\\noom 0\\noom_kill 0\\noom_group_kill 0\\nsock_throttled 0\"}\n\n",
+        "logHash": "48b169f38ee8efc9ed58ebae4d3a006be84c29766f81bb9a2bb64b47aa57a0b6",
+        "networkIsolated": true
+      }
+    }
+  ]
+}

@@ -142,3 +142,10 @@ Keep Claude extra usage/usage credits off. There is no paid AI API fallback.
 If stopped, preserve the durable stop and use the existing explicit owner resume
 procedure only when another run is authorized. Never clear counters or receipts
 to make a test fit.
+
+## Saved-output recovery
+
+The narrowly pinned, manual recovery procedure is described in
+[Saved privacy discovery recovery](DISCOVERY-RECOVERY.md). It retains failed
+source history and requires a separate trusted replay receipt; ordinary failed
+sources remain ineligible.

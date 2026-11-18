@@ -8,7 +8,7 @@ const o = require("./discovery-oracles.cjs");
 const p = require("./policy.cjs");
 function pendingReplay(registry, controls, { day, head, sourceGrant } = {}) {
   const attempts = Object.values(registry.replays).filter((x) => x.day === day);
-  if (attempts.length >= 8) return null;
+  if (require("./discovery-recovery-contract.cjs").dailyUsage(registry, day) >= 8) return null;
   return (
     Object.values(registry.records).find(
       (r) =>
@@ -39,7 +39,10 @@ function reserveReplay(state, key, day, context, head, ciRunId = "1") {
   const id = c.digest([key, context.runId, head]);
   if (state.replays[id]) return state.replays[id];
   const attempts = Object.values(state.replays).filter((x) => x.day === day);
-  if (attempts.length >= 8 || attempts.filter((x) => x.key === key).length >= 2)
+  if (
+    require("./discovery-recovery-contract.cjs").dailyUsage(state, day) >= 8 ||
+    attempts.filter((x) => x.key === key).length >= 2
+  )
     throw Error("Intake replay limit reached");
   if (Object.keys(state.replays).length >= 3200)
     throw Error("Replay history full; owner maintenance required");

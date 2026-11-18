@@ -8,6 +8,7 @@ const { FindingStore } = require("./discovery-finding-store.cjs");
 const origin = require("./discovery-origin.cjs");
 const pub = require("./discovery-publication.cjs");
 const intake = require("./discovery-intake.cjs");
+const rc = require("./discovery-recovery-contract.cjs");
 const { runtimeContext, output: writeOutputs } = require("./controller.cjs");
 function output(values, env) {
   writeOutputs(values, env);
@@ -30,14 +31,22 @@ function readBounded(file) {
 }
 async function chooseSource({ api, store, controls, registry, day, head, preview = false }) {
   const pending = intake.pendingReplay(registry, controls, { day, head });
+  const awaiting = Object.values(registry.records).filter((r) =>
+    ["verified", "held-stop", "held-quota", "publishing-intent"].includes(r.status)
+  );
+  const recoveredImport = registry.imports[rc.SOURCE.grantId];
+  const recoveries =
+    recoveredImport?.recoveries === undefined
+      ? []
+      : rc.validateRecoveries(recoveredImport.recoveries);
   const ids = [
     ...new Set([
       ...(pending ? [pending.candidate.source.grantId] : []),
-      ...Object.values(registry.records)
-        .filter((r) =>
-          ["verified", "held-stop", "held-quota", "publishing-intent"].includes(r.status)
-        )
-        .map((r) => r.candidate.source.grantId),
+      ...awaiting.map((r) => r.candidate.source.grantId),
+      ...(recoveredImport?.status === "held-evidence" &&
+      recoveries.some((r) => r.outcome === "assessed")
+        ? [rc.SOURCE.grantId]
+        : []),
       ...Object.values(controls.grants)
         .filter(
           (g) =>
@@ -52,22 +61,59 @@ async function chooseSource({ api, store, controls, registry, day, head, preview
   const held = [];
   for (const id of ids) {
     const source = controls.grants[id];
+    const waiting = [pending, ...awaiting].find((r) => r?.candidate.source.grantId === id);
+    const recoveredProof = waiting?.candidate.source.recovery;
+    const receipt =
+      id !== rc.SOURCE.grantId
+        ? null
+        : recoveredProof
+          ? recoveries.find(
+              (r) => r.outcome === "assessed" && c.digest(r.proof) === c.digest(recoveredProof)
+            )
+          : !waiting && recoveredImport?.status === "held-evidence"
+            ? recoveries.find((r) => r.outcome === "assessed")
+            : null;
+    if (
+      recoveredProof &&
+      (!receipt || c.digest(waiting.candidate.artifact) !== c.digest(receipt.artifact))
+    )
+      throw Error("Recovered finding lacks its exact assessed source receipt");
+    const pinnedBlocked =
+      receipt &&
+      source?.id === rc.SOURCE.grantId &&
+      source.head === rc.SOURCE.head &&
+      source.runId === rc.SOURCE.runId &&
+      source.ticket === rc.SOURCE.ticket &&
+      source.runAttempt === 1 &&
+      source.slot === "discovery" &&
+      source.status === "finished" &&
+      source.outcome === "blocked";
     if (
       !source ||
       source.phase !== "discover" ||
       source.status !== "finished" ||
-      source.outcome !== "discovery_complete"
+      (receipt ? !pinnedBlocked : source.outcome !== "discovery_complete")
     )
       throw Error("Discovery source is no longer publishable");
+    const artifactRun = receipt ? receipt.proof.context.runId : source.runId;
     const artifacts = await api.pages(
-      `${ROOT}/actions/runs/${source.runId}/artifacts?per_page=100`,
+      `${ROOT}/actions/runs/${artifactRun}/artifacts?per_page=100`,
       "artifacts"
     );
-    const matches = artifacts.filter((a) => a.name === `discovery-evidence-${id}` && !a.expired);
+    const matches = artifacts.filter((a) =>
+      receipt
+        ? a.id === receipt.artifact.id &&
+          a.name === receipt.artifact.name &&
+          a.digest === receipt.artifact.digest &&
+          a.expired === false &&
+          String(a.workflow_run?.id) === artifactRun &&
+          a.workflow_run?.head_sha === receipt.proof.context.workflowSha
+        : a.name === `discovery-evidence-${id}` && !a.expired
+    );
     if (matches.length === 1)
       return {
         sourceGrant: id,
-        sourceRun: source.runId,
+        sourceRun: artifactRun,
         artifactId: matches[0].id,
         artifactName: matches[0].name,
         heldSources: held.length,
@@ -82,6 +128,7 @@ async function chooseSource({ api, store, controls, registry, day, head, preview
           )
             r.status = "held-evidence";
         s.imports[id] = {
+          ...s.imports[id],
           runId: source.runId,
           evidenceHash: s.imports[id]?.evidenceHash || null,
           findings: s.imports[id]?.findings || [],
@@ -205,13 +252,13 @@ async function main(env = process.env, dependencies = {}) {
       t = g && controls.tickets[String(g.ticket)];
     if (!g || t?.origin !== "discovery-sweep") throw Error("Missing real discovery grant");
     const metadata = await api.request("GET", `${ROOT}/actions/artifacts/${inputs.artifactId}`);
+    const bundle = readBounded(path.join(env.FACTORY_FINDING_INPUT, "evidence.json"));
     const artifact = {
       id: metadata.id,
       name: metadata.name,
-      workflowRunId: String(g.runId),
+      workflowRunId: String(metadata.workflow_run?.id ?? (bundle.recovery ? "" : g.runId)),
       digest: metadata.digest,
     };
-    const bundle = readBounded(path.join(env.FACTORY_FINDING_INPUT, "evidence.json"));
     if (
       bundle.grantId !== g.id ||
       bundle.head !== g.head ||
@@ -224,6 +271,8 @@ async function main(env = process.env, dependencies = {}) {
       head: g.head,
       grantId: g.id,
     });
+    if (Object.prototype.hasOwnProperty.call(bundle, "recovery"))
+      require("./discovery-recovery-evidence.cjs").validateEvidence(bundle, bundle.recovery);
     const candidates = [];
     for (let index = 0; index < bundle.findings?.length; index++) {
       if (bundle.findings[index].status !== "verified") continue;
@@ -247,6 +296,7 @@ async function main(env = process.env, dependencies = {}) {
         (candidate) => pub.stageFinding(s, candidate, recurrence[candidate.key]).record
       );
       s.imports[g.id] = {
+        ...s.imports[g.id],
         runId: g.runId,
         evidenceHash: c.digest(bundle),
         findings: candidates.map((x) => x.key),
