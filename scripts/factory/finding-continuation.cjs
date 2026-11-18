@@ -44,7 +44,12 @@ function validateProof(proof) {
 }
 function validateContinuation(state, id, ticket, grants) {
   const proof = validateProof(ticket.findingContinuation);
-  const newer = grants.filter((g) => ![PRIOR.grant, retry.PRIOR.grant].includes(g.id));
+  // policy validates the later receipt first; it cannot hide unvalidated grants.
+  const newer = grants.filter(
+    (g) =>
+      ![PRIOR.grant, retry.PRIOR.grant].includes(g.id) &&
+      (!ticket.findingOutputRecovery || g.runId !== ticket.findingOutputRecovery.runId)
+  );
   if (
     Number(id) !== 96 ||
     !ticket.findingRetry ||
@@ -75,6 +80,7 @@ function assertEligible(state, request, config) {
     request.slot !== "cycle1" ||
     request.runAttempt !== 1 ||
     request.findingRetry !== undefined ||
+    request.findingOutputRecovery !== undefined ||
     request.recovery !== undefined ||
     request.origin !== undefined ||
     proof.runId !== request.runId ||
