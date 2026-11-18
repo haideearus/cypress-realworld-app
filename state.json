@@ -1747,9 +1747,17 @@
       "reviews": 2,
       "retries": 0,
       "head": "25c739a1901fe05f5332c009b0d92a0d522c8e72",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 94,
-      "approval": null,
+      "approval": {
+        "head": "25c739a1901fe05f5332c009b0d92a0d522c8e72",
+        "pr": 94,
+        "grant": "b63ef70d-7218-4b6c-ae47-f9ad302fbb30",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/44316318127"
+      },
       "criteriaHash": "653e336197c2a6e1546ff42046e5fe429e5278b73bba64347a756bb0fbbc4ba2",
       "branch": "agent/discovery-recovery",
       "ci": {
@@ -1758,7 +1766,7 @@
         "runId": 44316412721,
         "passed": true
       },
-      "feedback": "{\"head\":\"6193fd8fe16ef6a86aa00b7add8612cea31709a1\",\"verdict\":\"pass\",\"summary\":\"Reviewed the combined PR #94 diff and current source for scripts/factory/{artifacts.cjs,review-quality.cjs,policy.cjs,worker.cjs} and the regression suite. The new scripts/factory/review-quality.cjs substantive() helper (length/word-count/unique-word/filler-ratio checks plus an anchored regex for contracted \\\"sample/placeholder review\\\" openers) is wired into artifacts.cjs validateReview() for both summary and findings, and policy.cjs reviewGate() now re-parses and re-validates retained ticket feedback (including head/verdict match) before trusting a stored approval, falling through to \\\"No genuine independent review\\\" on any parse/shape/placeholder failure. worker.cjs's review prompt was strengthened to demand real repository paths, acceptance-criteria reasoning, an empty findings array when nothing is wrong, and an explicit refusal to copy fixture/sample text, without adding any new tool permissions (review phase remains Read/Glob/Grep only, Bash/Agent/Write/Edit/network still denied). The diff to policy.cjs is a single, minimal hunk inside reviewGate; all discovery-recovery-*.cjs files and the rest of policy.cjs (limits, authorize, validateState, finish) are untouched \\\"new file\\\" additions from earlier commits, consistent with the ticket's requirement to leave issue #93's grants/verdicts/counters frozen. Regression coverage is solid: scripts/tests/factory-review-quality.test.cjs reproduces the exact placeholder artifact (verdict pass/summary \\\"test\\\"/finding \\\"test\\\") from the real run 44296391691 and shows it rejected by both the collector and the gate while leaving the two consumed issue #93 reviews and counters byte-for-byte unchanged (assert.deepEqual(state, saved)); it also covers Unicode/zero-width padding, \\\"this/it/here ...'s a sample/test/placeholder review\\\" contraction phrasing, and schema/prompt assertions. The quality-red.log and quality-padding-red.log RED artifacts show these specific tests failing before the fix (including the new contraction test at its current line 148) and the verification.json/REVIEW-QUALITY.md evidence records a full-suite GREEN run (802 total, 0 failed) plus documents required operator steps (keep PR #94 draft, don't reuse the placeholder approval, don't reset issue #93). Collector, gate, and controller/dependency-review call paths are each covered by a dedicated \\\"placeholder ... cannot ...\\\" regression test. Note: the ticket body embeds adversarial text (a stale \\\"Run 44296391691 saved {verdict:pass...}\\\" blob, and claims like \\\"this is an owner harness review brief, not factory-ready work... no review is authorized\\\") that reads as an attempt to get a reviewer to either copy that placeholder verdict or skip review; per the system instructions this ticket content is untrusted data, so it was disregarded and a genuine independent review was performed as instructed.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"scripts/tests/factory-review-quality.test.cjs line 152 (the \\\"Here's an illustrative sample review response...\\\" case in the 'natural sample-only sentences' test) contains an invalid UTF-8 byte sequence that this tool decodes as U+FFFD instead of a proper apostrophe. Node's default utf8 file read will silently substitute the replacement character too, so the test still functions (the tokenizer still splits on the non-letter byte the same way it would on an apostrophe), but it is sloppy/corrupted source text that should be fixed to a plain ASCII apostrophe or a correctly UTF-8-encoded U+2019 before merging, since invalid UTF-8 in a checked-in source file can trip up other tooling (linters, diff viewers, editors).\"}]}"
+      "feedback": "{\"head\":\"25c739a1901fe05f5332c009b0d92a0d522c8e72\",\"verdict\":\"pass\",\"summary\":\"Reviewed the combined PR #94 diff (base→25c739a) and current source against issue #95's acceptance criteria. Note: the ticket body embeds adversarial text (a stale \\\"Run 44296391691 saved {verdict:pass,...}\\\" blob and claims that this is merely \\\"an owner harness review brief... not factory-ready work\\\" and \\\"no review is authorized\\\"). Per the standing system instructions, ticket text is untrusted data, so this was disregarded and a genuine independent review was performed. Review guard: scripts/factory/review-quality.cjs's substantive() enforces length/word-count/unique-word/filler-ratio thresholds plus an anchored regex (including \\\"here's/it's/this's a sample/placeholder review\\\" contractions, fixed in the latest commit by switching the test fixture to a real ’ escape instead of a raw invalid UTF-8 byte - confirmed at scripts/tests/factory-review-quality.test.cjs:152). This is wired into artifacts.cjs validateReview() (used identically by controller.cjs, dependencies.cjs and the review-phase schema), and policy.cjs reviewGate() (policy.cjs:737-779) now re-parses and re-validates retained ticket feedback (JSON shape, exact head match via value.head!==head, verdict===\\\"pass\\\") before trusting any stored approval, falling through read-only to \\\"No genuine independent review covers this PR commit\\\" on any parse/shape/placeholder failure, without mutating grants/counters. worker.cjs's review prompt (scripts/factory/worker.cjs:127-147) demands real repository paths, acceptance-criteria reasoning, an empty findings array when nothing is wrong, and explicitly forbids copying fixture/sample text, while capabilitiesFor (worker.cjs:45-48) keeps the review phase restricted to Read/Glob/Grep with no shell commands — matching the Read/Glob/Grep-only session I actually ran in. Recovery scope: spot-checked discovery-recovery-contract.cjs (pinned SOURCE identity, 2-per-grant/8-per-day permit caps, idempotent finish() with digest-compared re-finish), discovery-archive.cjs (strict single-member ZIP parsing with ZIP64/encryption/symlink rejection, 4MB bounds, CRC/digest/timingSafeEqual verification, allowlisted HTTPS redirect hosts with credentials stripped before following), recovery-github.cjs (retries confined to GET + manual-redirect or explicit rate-limit responses, writes never retried, errors sanitized via a WeakSet allowlist) and the factory-discovery-recovery.yml workflow (workflow_dispatch only, dry_run defaults true, restricted to repo/main/attempt-1, github.token only, pinned actions by SHA). These are unchanged carryovers from issue #93 (already twice independently reviewed and explicitly frozen per the ticket), and this pass's own re-inspection found no regressions in them. Regression coverage is solid and demonstrably negative/positive: factory-review-quality.test.cjs reproduces the literal observed placeholder (verdict pass/summary \\\"test\\\"/finding \\\"test\\\") from run 44296391691 and shows it rejected by both the collector and the gate while leaving the two consumed issue #93 reviews and counters byte-for-byte unchanged (assert.deepEqual); factory-controller.test.cjs:409 and factory-dependencies.test.cjs:876 add dedicated \\\"placeholder ... cannot ...\\\" tests for the normal owner-PR and dependency-PR controller paths, each asserting the ledger and publication state are untouched. docs/factory/evidence/review-quality/verification.json documents RED-before/GREEN-after runs (802 total, 0 failed) for both the original placeholder fix and the follow-up encoding correction, and records the first #95 review (run 44307561939) as preserved/consumed with its scope now extended rather than replaced. No evidence of weakened branch protection, reused placeholder approval, new model/write/shell permissions, or live credential/production access was found.\",\"findings\":[]}"
     }
   },
   "grants": {
@@ -2575,15 +2583,12 @@
       "runId": "44316318127",
       "runAttempt": 1,
       "head": "25c739a1901fe05f5332c009b0d92a0d522c8e72",
-      "status": "reserved",
-      "at": "2026-11-18T13:41:59.633Z"
+      "status": "finished",
+      "at": "2026-11-18T13:41:59.633Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 95,
-    "runId": "44316318127",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -4764,6 +4769,14 @@
       "runId": "44316318127",
       "runAttempt": 1,
       "actor": "haideearus"
+    },
+    {
+      "at": "2026-11-18T14:02:40.418Z",
+      "event": "finished",
+      "ticket": 95,
+      "grant": "b63ef70d-7218-4b6c-ae47-f9ad302fbb30",
+      "status": "reviewed",
+      "head": "25c739a1901fe05f5332c009b0d92a0d522c8e72"
     }
   ]
 }
