@@ -1875,7 +1875,8 @@
       "ci": {
         "requestId": "3dbd64b9-a50c-447a-bf0e-b203957fe400",
         "head": "68a94f38c0c1eb1e58b23a4718d9c58d3a9ad693",
-        "runId": null
+        "runId": 44364713775,
+        "passed": true
       }
     }
   },
