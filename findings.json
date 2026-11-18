@@ -46,9 +46,25 @@
             }
           },
           "day": "2026-11-18",
-          "outcome": "intent",
-          "artifact": null,
-          "confirmation": null
+          "outcome": "assessed",
+          "artifact": {
+            "id": 14438251360,
+            "name": "discovery-recovery-5cc9a76f3ae828e531ffc6c50fd64437e1dacf688e5c03504853872304c54dea",
+            "workflowRunId": "44326359550",
+            "digest": "sha256:5a7ed240c1c49eae501a3b9746d317f2dadd39307d91ced4e9239c47cdf8d28f"
+          },
+          "confirmation": {
+            "repository": "haideearus/cypress-realworld-app",
+            "actor": "haideearus",
+            "triggeringActor": "haideearus",
+            "ref": "refs/heads/main",
+            "event": "workflow_dispatch",
+            "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-discovery-recovery.yml@refs/heads/main",
+            "workflowSha": "0f9c7511344de041d250ec85983ae9d07188a52b",
+            "runId": "44326359550",
+            "runAttempt": 1,
+            "ciRunId": "44321234376"
+          }
         }
       ]
     }
