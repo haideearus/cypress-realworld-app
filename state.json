@@ -70,7 +70,8 @@
       105
     ],
     "2026-11-19": [
-      108
+      108,
+      109
     ]
   },
   "tickets": {
@@ -1995,6 +1996,24 @@
         "passed": true
       },
       "feedback": "{\"head\":\"4d85eb5014c5a64f59db472757695aa3ef2c1b88\",\"verdict\":\"pass\",\"summary\":\"Reviewed backend/bankaccount-routes.ts, backend/database.ts, src/__tests__/bankaccount-routes.test.ts and src/__tests__/bankaccounts.test.ts at commit 4d85eb5, matching the supplied diff exactly against current source. The GET /:bankAccountId handler (backend/bankaccount-routes.ts:26-48) now reads req.user?.id, returns 401 if absent, and calls the new getBankAccountForUser(id, userId) (backend/database.ts:266-267), which does a single lowdb find({id, userId}) query consistent with the existing getBy pattern (database.ts:132-137). Because the lookup filters on both id and userId simultaneously, a missing account and a non-owned account both yield undefined, so both cases correctly fall into the same res.sendStatus(404) branch — satisfying the acceptance criterion that missing/non-owned accounts are indistinguishable. Test coverage: src/__tests__/bankaccount-routes.test.ts mocks express/database/helpers to unit-test the handler for the 200 (owner match, asserting findForUser called with id+signed-in-id), 404 (no match) and 401 (no user id) paths; src/__tests__/bankaccounts.test.ts adds a database-level test exercising getBankAccountForUser directly for same-owner (match), different-owner (undefined) and missing-account (undefined) cases. getBankAccountById remains exported and used elsewhere in tests, so removing its import from bankaccount-routes.ts caused no breakage. The unrelated DELETE /:bankAccountId route still has no ownership check, but that endpoint is untouched by this diff and outside issue #96's stated scope, so it isn't counted as a regression here. I could not execute the test suite or fetch the linked CI run in this read-only session; the assessment relies on static inspection of the code and tests plus the diff provided, treating the referenced CI URL as supporting evidence without independently verifying its contents.\",\"findings\":[]}"
+    },
+    "109": {
+      "coding": 1,
+      "origin": "factory",
+      "reviews": 0,
+      "retries": 0,
+      "head": "60ec2c6a851b315e3db3f175a62cc580ef9e99ab",
+      "status": "coding",
+      "pr": null,
+      "approval": null,
+      "criteriaHash": "81cb7d587bd2125b35f0a11d6962ec69aa1063ee71759ffdfdf617724fb371e7",
+      "automatic": {
+        "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-automatic.yml@refs/heads/main",
+        "workflowSha": "60ec2c6a851b315e3db3f175a62cc580ef9e99ab",
+        "runId": "44424312124",
+        "runAttempt": 1,
+        "appSlug": "haideearus-software-factory"
+      }
     }
   },
   "grants": {
@@ -2922,9 +2941,24 @@
       "status": "finished",
       "at": "2026-11-18T22:40:16.775Z",
       "outcome": "reviewed"
+    },
+    "ff163eff-957b-41c1-8868-1abd496b40d0": {
+      "id": "ff163eff-957b-41c1-8868-1abd496b40d0",
+      "ticket": 109,
+      "phase": "code",
+      "slot": "cycle1",
+      "runId": "44424312124",
+      "runAttempt": 1,
+      "head": "60ec2c6a851b315e3db3f175a62cc580ef9e99ab",
+      "status": "reserved",
+      "at": "2026-11-18T23:52:13.372Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 109,
+    "runId": "44424312124",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -5267,6 +5301,18 @@
       "grant": "4634df76-8137-4caa-8343-bca7aa3fefde",
       "status": "reviewed",
       "head": "4d85eb5014c5a64f59db472757695aa3ef2c1b88"
+    },
+    {
+      "at": "2026-11-18T23:52:13.372Z",
+      "event": "reserved",
+      "ticket": 109,
+      "grant": "ff163eff-957b-41c1-8868-1abd496b40d0",
+      "phase": "code",
+      "runId": "44424312124",
+      "runAttempt": 1,
+      "actor": "github-actions[bot]",
+      "wakeReceipt": "7122e3e6d0cd2e77b28952e25f38b51d60f00c98abbb71316185b3b2a8b3676b",
+      "sourceActor": "haideearus"
     }
   ]
 }
