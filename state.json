@@ -2003,7 +2003,7 @@
       "reviews": 0,
       "retries": 0,
       "head": "60ec2c6a851b315e3db3f175a62cc580ef9e99ab",
-      "status": "coding",
+      "status": "blocked",
       "pr": null,
       "approval": null,
       "criteriaHash": "81cb7d587bd2125b35f0a11d6962ec69aa1063ee71759ffdfdf617724fb371e7",
@@ -2013,7 +2013,8 @@
         "runId": "44424312124",
         "runAttempt": 1,
         "appSlug": "haideearus-software-factory"
-      }
+      },
+      "feedback": "Agent, publication, or CI infrastructure failed; no automatic model retry"
     }
   },
   "grants": {
@@ -2950,15 +2951,12 @@
       "runId": "44424312124",
       "runAttempt": 1,
       "head": "60ec2c6a851b315e3db3f175a62cc580ef9e99ab",
-      "status": "reserved",
-      "at": "2026-11-18T23:52:13.372Z"
+      "status": "finished",
+      "at": "2026-11-18T23:52:13.372Z",
+      "outcome": "blocked"
     }
   },
-  "active": {
-    "ticket": 109,
-    "runId": "44424312124",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -5313,6 +5311,12 @@
       "actor": "github-actions[bot]",
       "wakeReceipt": "7122e3e6d0cd2e77b28952e25f38b51d60f00c98abbb71316185b3b2a8b3676b",
       "sourceActor": "haideearus"
+    },
+    {
+      "at": "2026-11-18T23:54:26.208Z",
+      "event": "blocked",
+      "ticket": 109,
+      "reason": "Agent, publication, or CI infrastructure failed; no automatic model retry"
     }
   ]
 }
