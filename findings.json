@@ -254,7 +254,30 @@
         "criteriaHash": "1555ed01347617394c287d5e4be22faae43b69a7919c70e66282e8c4ff400c3d"
       },
       "duplicates": [],
-      "intake": null,
+      "intake": {
+        "id": "858964fe83cd35781a04b1339b0a3703f7f683c9a0d3f5ca6864a6d20b3db50c",
+        "key": "cfdff080b085ba86149f0bfbdba1cd6470a2716054e68002747e7beb7829f87a",
+        "day": "2026-11-18",
+        "head": "0f9c7511344de041d250ec85983ae9d07188a52b",
+        "ciRunId": "44321234376",
+        "context": {
+          "repository": "haideearus/cypress-realworld-app",
+          "actor": "haideearus",
+          "triggeringActor": "haideearus",
+          "ref": "refs/heads/main",
+          "event": "workflow_dispatch",
+          "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-discovery-intake.yml@refs/heads/main",
+          "workflowSha": "0f9c7511344de041d250ec85983ae9d07188a52b",
+          "runId": "44333410194",
+          "runAttempt": 1,
+          "ticket": 1,
+          "phase": "code",
+          "slot": "cycle1",
+          "head": "0000000000000000000000000000000000000000"
+        },
+        "outcome": "intent",
+        "evidenceHash": null
+      },
       "resolution": null,
       "resolutionClosed": false,
       "resolutionHeld": false
@@ -296,6 +319,30 @@
       },
       "outcome": "ready",
       "evidenceHash": "7a889bbe0d8156d135f49d8b8c13dfefb16dca9a91d7d0fa41f5df2abb8eb9e5"
+    },
+    "858964fe83cd35781a04b1339b0a3703f7f683c9a0d3f5ca6864a6d20b3db50c": {
+      "id": "858964fe83cd35781a04b1339b0a3703f7f683c9a0d3f5ca6864a6d20b3db50c",
+      "key": "cfdff080b085ba86149f0bfbdba1cd6470a2716054e68002747e7beb7829f87a",
+      "day": "2026-11-18",
+      "head": "0f9c7511344de041d250ec85983ae9d07188a52b",
+      "ciRunId": "44321234376",
+      "context": {
+        "repository": "haideearus/cypress-realworld-app",
+        "actor": "haideearus",
+        "triggeringActor": "haideearus",
+        "ref": "refs/heads/main",
+        "event": "workflow_dispatch",
+        "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-discovery-intake.yml@refs/heads/main",
+        "workflowSha": "0f9c7511344de041d250ec85983ae9d07188a52b",
+        "runId": "44333410194",
+        "runAttempt": 1,
+        "ticket": 1,
+        "phase": "code",
+        "slot": "cycle1",
+        "head": "0000000000000000000000000000000000000000"
+      },
+      "outcome": "intent",
+      "evidenceHash": null
     }
   },
   "imports": {
