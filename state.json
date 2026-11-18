@@ -1906,9 +1906,17 @@
       "reviews": 1,
       "retries": 0,
       "head": "639d9457107c7f771b6d86253ee1d5537442418c",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 104,
-      "approval": null,
+      "approval": {
+        "head": "639d9457107c7f771b6d86253ee1d5537442418c",
+        "pr": 104,
+        "grant": "94769909-0457-4c20-b03f-17154bddd43f",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/44385498803"
+      },
       "criteriaHash": "32c8569350079f582f88f9ff7c0b69e33aa1db5ad8aef26e116e8145ef8e3b24",
       "branch": "agent/finding-96-proof-recovery",
       "ci": {
@@ -1916,7 +1924,8 @@
         "head": "639d9457107c7f771b6d86253ee1d5537442418c",
         "runId": 44385601049,
         "passed": true
-      }
+      },
+      "feedback": "{\"findings\":[],\"head\":\"639d9457107c7f771b6d86253ee1d5537442418c\",\"verdict\":\"pass\",\"summary\":\"Reviewed the base-to-head diff against the live source at scripts/factory/discovery-repair.cjs, finding-output-recovery.cjs, finding-retry.cjs, finding-continuation.cjs, policy.cjs, automation.cjs, and .github/workflows/{factory-ci,factory-model,factory-automatic}.yml. Postgres health probes in factory-ci.yml and factory-model.yml now explicitly pass -U factory_test -d rwa_test, matching both POSTGRES_USER/POSTGRES_DB env vars and resolving the \\\"role root does not exist\\\" symptom without touching credentials or DB roles. The repair-proof schema bump to version 2 (key -> findingRef) is applied consistently in both the producer (repairProof) and strict consumer (validRepairProof, with c.exact enforcing no legacy/unknown fields), and a new finalizeRepairBundle assembles the complete bundle (including findingVerification) and runs it through the unchanged secret-scan.cjs before writing, which is now wired into discovery-repair.cjs's green path; secret-scan.cjs itself is untouched, consistent with \\\"no scanner rule changes.\\\" The new findingOutputRecovery flow (finding-output-recovery.cjs) is pinned tightly to the specific blocked grant d91d546e-f952-4dea-9fc4-99b053477d92/run 44376807620 via hashed prior-grant/continuation checks, requires owner-only workflow_dispatch with no wake, excludes queue/active-ticket/#97 interference (verified active-tickets.cjs and the ticket-iteration check only read local ledger state, no issue-list API calls), and is wired through finding-retry.cjs/automation.cjs/policy.cjs/factory-automatic.yml consistently (new recover-finding option excluded from the auto-merge job's `if`, dry-run default preserved, and activity recordResult skipped in preview per the automation.cjs guard and the recovery preview test). Counter advancement (coding 3→4, retries 2→3) rides the existing generic reserve() increment logic in policy.cjs, which is unmodified and applies uniformly to all three receipt types, matching the ticket's \\\"ordinary counters, no reset\\\" requirement. New tests (factory-finding-output.test.cjs, factory-finding-output-recovery.test.cjs) exist in the repo exactly as added by the diff, reference existing fixtures (finding96-blocked.cjs, finding96-context-block.json, finding96-output-block.json) that are all present, and are picked up automatically by the `test:factory` glob. The RED log shows 9 pre-fix failures as expected for a documented RED baseline; GREEN/scan results in verification.json are supplied evidence from the PR's own CI, not something I executed in this read-only session. I did not run any commands myself; this is a static read-only review of the diff and current tree, so coverage of runtime/CI behavior beyond the provided logs is necessarily limited.\"}"
     }
   },
   "grants": {
@@ -2805,15 +2814,12 @@
       "runId": "44385498803",
       "runAttempt": 1,
       "head": "639d9457107c7f771b6d86253ee1d5537442418c",
-      "status": "reserved",
-      "at": "2026-11-18T19:55:30.071Z"
+      "status": "finished",
+      "at": "2026-11-18T19:55:30.071Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 103,
-    "runId": "44385498803",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -5096,6 +5102,14 @@
       "runId": "44385498803",
       "runAttempt": 1,
       "actor": "haideearus"
+    },
+    {
+      "at": "2026-11-18T20:09:58.724Z",
+      "event": "finished",
+      "ticket": 103,
+      "grant": "94769909-0457-4c20-b03f-17154bddd43f",
+      "status": "reviewed",
+      "head": "639d9457107c7f771b6d86253ee1d5537442418c"
     }
   ]
 }
