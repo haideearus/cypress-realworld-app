@@ -395,7 +395,8 @@ test("a pending automatic merge that appears after the snapshot prevents new aut
           result: {
             head: published.head,
             verdict: "pass",
-            summary: "Fixture review",
+            summary:
+              "Reviewed src/example.ts against the ticket criteria; regression coverage and unchanged permission boundaries support this head, with no blocking findings.",
             findings: [],
           },
         },

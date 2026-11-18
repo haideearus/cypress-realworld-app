@@ -60,7 +60,8 @@ test("fixture ticket progresses through coding publication CI and a fresh review
       result: {
         head: published.head,
         verdict: "pass",
-        summary: "No blocking findings",
+        summary:
+          "Reviewed src/example.ts against the ticket criteria; regression coverage and unchanged permission boundaries support this head, with no blocking findings.",
         findings: [],
       },
     },
@@ -206,7 +207,8 @@ test("all five failed review cycles consume only bounded reservations and releas
         result: {
           head: published.head,
           verdict: "changes_requested",
-          summary: "Synthetic change required",
+          summary:
+            "Reviewed src/example.ts against the ticket criteria; its synthetic failure still requires a code change before acceptance can be verified.",
           findings: [],
         },
       },
@@ -244,7 +246,8 @@ test("a terminal cycle never reserves a grant without a following job even if al
       result: {
         head: published.head,
         verdict: "changes_requested",
-        summary: "Synthetic change required",
+        summary:
+          "Reviewed src/example.ts against the ticket criteria; its synthetic failure still requires a code change before acceptance can be verified.",
         findings: [],
       },
     },
@@ -323,7 +326,13 @@ test("owner-authored harness PR obtains the same exact-head gate with a bounded 
       kind: "review",
       grantId: grant.grantId,
       base: grant.head,
-      result: { head: grant.head, verdict: "pass", summary: "No blocking findings", findings: [] },
+      result: {
+        head: grant.head,
+        verdict: "pass",
+        summary:
+          "Reviewed src/example.ts against the ticket criteria; regression coverage and unchanged permission boundaries support this head, with no blocking findings.",
+        findings: [],
+      },
     }
   );
   assert.equal(result.reviewed, true);
@@ -396,4 +405,28 @@ test("configuration smoke operation preserves strict limits and subscription-onl
     }),
     /subscription/i
   );
+});
+test("placeholder owner review cannot finalize a grant or publish a success check", async () => {
+  const { controller, fixture, ledger } = await setup();
+  existingPR(fixture);
+  const grant = await controller.admitPR(10, 30);
+  const ci = await controller.ci(10);
+  const before = await ledger.read(),
+    checks = fixture.checks.length;
+  await assert.rejects(
+    controller.assessPR(10, { ci: "success", review: "success" }, ci.runId, grant.grantId, {
+      kind: "review",
+      grantId: grant.grantId,
+      base: grant.head,
+      result: {
+        head: grant.head,
+        verdict: "pass",
+        summary: "test",
+        findings: [{ severity: "minor", message: "test" }],
+      },
+    }),
+    /review|placeholder/i
+  );
+  assert.deepEqual(await ledger.read(), before);
+  assert.equal(fixture.checks.length, checks);
 });

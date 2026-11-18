@@ -1,0 +1,108 @@
+TAP version 13
+# Subtest: actual pass/test artifact is refused by collector without inventing a replacement review
+not ok 1 - actual pass/test artifact is refused by collector without inventing a replacement review
+  ---
+  duration_ms: 12.1173
+  type: 'test'
+  location: 'C:\\Users\\haide\\Documents\\Codex\\2026-11-03\\c\\cypress-realworld-app\\scripts\\tests\\factory-review-quality.test.cjs:9:1'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected exception.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  operator: 'throws'
+  stack: |-
+    TestContext.<anonymous> (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\tests\factory-review-quality.test.cjs:11:9)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.start (node:internal/test_runner/test:944:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
+  ...
+# Subtest: padding, Unicode formatting and a placeholder finding cannot turn samples into review evidence
+not ok 2 - padding, Unicode formatting and a placeholder finding cannot turn samples into review evidence
+  ---
+  duration_ms: 0.2378
+  type: 'test'
+  location: 'C:\\Users\\haide\\Documents\\Codex\\2026-11-03\\c\\cypress-realworld-app\\scripts\\tests\\factory-review-quality.test.cjs:14:1'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected exception.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  operator: 'throws'
+  stack: |-
+    TestContext.<anonymous> (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\tests\factory-review-quality.test.cjs:15:208)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: genuine scope reasoning and honest concrete blockers remain valid
+ok 3 - genuine scope reasoning and honest concrete blockers remain valid
+  ---
+  duration_ms: 0.1778
+  type: 'test'
+  ...
+# Subtest: retained placeholder approval cannot satisfy the gate and both consumed reviews remain immutable
+not ok 4 - retained placeholder approval cannot satisfy the gate and both consumed reviews remain immutable
+  ---
+  duration_ms: 19.443
+  type: 'test'
+  location: 'C:\\Users\\haide\\Documents\\Codex\\2026-11-03\\c\\cypress-realworld-app\\scripts\\tests\\factory-review-quality.test.cjs:22:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+
+    true !== false
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: false
+  actual: true
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\tests\factory-review-quality.test.cjs:24:9)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: schema and prompt require a substantive final review without expanding read-only permissions
+not ok 5 - schema and prompt require a substantive final review without expanding read-only permissions
+  ---
+  duration_ms: 17.7841
+  type: 'test'
+  location: 'C:\\Users\\haide\\Documents\\Codex\\2026-11-03\\c\\cypress-realworld-app\\scripts\\tests\\factory-review-quality.test.cjs:29:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The expression evaluated to a falsy value:
+
+      assert.ok(a.REVIEW_SCHEMA.properties.summary.minLength>=60)
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\tests\factory-review-quality.test.cjs:30:9)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 1
+# fail 4
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 144.7618

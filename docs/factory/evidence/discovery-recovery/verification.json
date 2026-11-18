@@ -1,0 +1,68 @@
+{
+  "prepared": "2026-11-18",
+  "ticket": 93,
+  "base": "822b51fb2bb3eaa59d60a109097cc3575e6373d3",
+  "sourceRun": 44197159640,
+  "sourceGrant": "d25c438f-35df-449e-9fe0-ec20d87738f5",
+  "sourceArtifact": 14380786056,
+  "factorySuite": {
+    "command": "node --test scripts/tests/factory-*.test.cjs",
+    "total": 794,
+    "passed": 780,
+    "failed": 0,
+    "skipped": 14,
+    "outputSha256": "3058a6c5985d6311d96c45df32e470590694e8f7de86154673ab447e936b9bac"
+  },
+  "targetedStopAndRedirect": {
+    "total": 41,
+    "passed": 41,
+    "failed": 0
+  },
+  "checks": {
+    "prettier": "passed",
+    "trackedSourceSecretScan": "passed",
+    "diffWhitespace": "passed"
+  },
+  "readOnlySourceVerification": {
+    "verified": true,
+    "ledgerCommit": "ad99de908109bca4d01400c0674906d3b4d8f912",
+    "originalStatus": "blocked",
+    "originalAttemptConsumed": true,
+    "discoveryEnabled": false
+  },
+  "freshLocalReview": {
+    "criticalOrImportantFindingsRemaining": 0,
+    "corrected": [
+      "allow bounded artifact client to inspect manual signed redirects",
+      "stop-after-replay keeps recovery held"
+    ],
+    "reviewType": "local Codex code review; not the required Claude Pro review"
+  },
+  "notRun": [
+    "live recovery workflow",
+    "generated proposals in Docker",
+    "finding publication",
+    "Claude review",
+    "repairs",
+    "merge",
+    "deployment"
+  ],
+  "limitations": "Native Docker and full app CI remain for GitHub Actions. Local tests use inert saved JSON and injected synthetic sandbox/API results, never live producer proof.",
+  "counterPolicy": "No counter refund, reset or original grant rewrite. Recovery attempts share the existing eight daily model-free replay slots.",
+  "reviewScopeCorrection": {
+    "sourceReviewRun": 44288249555,
+    "sourceVerdict": "changes_requested",
+    "change": "Restore plain GitHub imports in discovery-run.cjs and discovery-worker.cjs; RecoveryGitHub stays explicit only in discovery-recovery-run.cjs.",
+    "factorySuite": {
+      "total": 794,
+      "passed": 780,
+      "failed": 0,
+      "skipped": 14,
+      "outputSha256": "8687012f126db2be1efde8f22bd85a56b9f877d7d41138e9cc0263a21deebcbf"
+    },
+    "priorReviewRetained": true,
+    "freshReviewStarted": false,
+    "settingsChanged": false,
+    "discoveryEnabled": false
+  }
+}

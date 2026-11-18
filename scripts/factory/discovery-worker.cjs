@@ -7,6 +7,7 @@ const c = require("./discovery-contract.cjs");
 const s = require("./discovery-sandbox.cjs");
 const e = require("./discovery-evidence.cjs");
 const { GitHub, Ledger, ROOT } = require("./github.cjs");
+const { withStage, diagnostic } = require("./discovery-diagnostics.cjs");
 const { runtimeContext, readJson, output } = require("./controller.cjs");
 const { scanFiles } = require("./secret-scan.cjs");
 function manifestFor(folder) {
@@ -129,7 +130,7 @@ async function prepare(env, inputs, api, config) {
       content: fs.readFileSync(path.join(source, name)),
     }))
   );
-  const image = await buildImage(source, contextDir, g.head);
+  const image = await withStage("image-build", () => buildImage(source, contextDir, g.head));
   // Build/installation can take time; admission must still be valid immediately before model access.
   p.preflight((await new Ledger(api).read()).state, g.id, context, config);
   const identity = { head: g.head, grantId: g.id };
@@ -283,69 +284,26 @@ async function replay(env, inputs, api, config) {
   )
     throw Error("Genuine successful discovery step required");
   // New job, fresh image/baseline. Model output is never executed on this host.
-  await prepare(env, inputs, api, config);
+  await withStage("replay-prepare", () => prepare(env, inputs, api, config));
   const root = path.join(env.RUNNER_TEMP, `factory-discovery-${g.id}`);
   const setup = readJson(path.join(root, "setup.json"));
   if (setup.sourceHash !== b.sourceHash) throw Error("Replay source hash changed");
-  const findings = [];
-  for (const finding of b.report.findings) {
-    const original = b.batches.find(
-      (x) => x.file === finding.test && x.mode === finding.mode && x.result?.code !== 0
-    );
-    if (
-      !original ||
-      typeof original.test !== "string" ||
-      c.digest(original.test) !== original.testHash
-    )
-      throw Error("Original RED artifact missing");
-    const tests = path.join(setup.output, "tests");
-    fs.mkdirSync(tests, { recursive: true });
-    fs.writeFileSync(path.join(tests, finding.test), original.test, { mode: 0o644 });
-    const proposedReplays = [];
-    for (let i = 0; i < 2; i++)
-      proposedReplays.push(
-        await s.sandbox({
-          image: setup.image,
-          tests,
-          request: { mode: finding.mode, file: finding.test },
-        })
-      );
-    const deterministic = proposedReplays.every((r) => r.code !== 0 && r.code !== 124);
-    const verified = await e.verifyReproducer({
-      head: g.head,
-      grantId: g.id,
-      finding,
-      baselinePassed: deterministic,
-      replay: (oracle) => s.sandbox({ image: setup.image, oracle }),
-    });
-    findings.push({ finding, original, proposedReplays, ...verified });
-  }
-  const result = {
-    version: 1,
-    head: g.head,
-    grantId: g.id,
-    source: "claude-subscription",
-    fixture: false,
-    report: b.report,
-    actualBatches: b.batches.map((x) => ({
-      number: x.number,
-      mode: x.mode,
-      file: x.file,
-      testHash: x.testHash,
-      code: x.result.code,
-    })),
-    findings,
-    sourceHash: b.sourceHash,
-    coverageComplete: false,
-    publication: "not-installed",
-  };
+  const result = await require("./discovery-replay.cjs").assessCandidates({
+    bundle: b,
+    image: setup.image,
+    output: setup.output,
+    before: async () => p.preflight((await new Ledger(api).read()).state, g.id, context, config),
+  });
   await scanFiles([{ path: "discovery-evidence.json", content: JSON.stringify(result) }]);
   fs.writeFileSync(
     path.join(env.FACTORY_DISCOVERY_BUNDLE, "evidence.json"),
     JSON.stringify(result)
   );
   output(
-    { assessmentComplete: true, outcome: findings.length ? "candidates-assessed" : "no-findings" },
+    {
+      assessmentComplete: true,
+      outcome: result.findings.length ? "candidates-assessed" : "no-findings",
+    },
     env
   );
 }
@@ -360,8 +318,8 @@ async function main(env = process.env) {
   throw Error("Unknown discovery worker operation");
 }
 if (require.main === module)
-  main().catch(() => {
-    console.error("Discovery worker held; no publication or repair is authorized.");
+  main().catch((error) => {
+    console.error(JSON.stringify(diagnostic("discovery", error)));
     process.exitCode = 1;
   });
 module.exports = { manifestFor, argsFor, promptFor, buildImage, prepare, collect, replay, main };

@@ -1,0 +1,17 @@
+{
+  "runId": 44296391691,
+  "artifactId": 14424802182,
+  "digestVerified": true,
+  "artifactDigest": "sha256:1de654f6b7111a8fa7695947fb409a05d77876555e262e0899df2fec0781407e",
+  "head": "2ad9a70529ee28c4d14fca0bccbe122837ea143f",
+  "verdict": "pass",
+  "summary": "test",
+  "findings": [
+    {
+      "severity": "minor",
+      "message": "test"
+    }
+  ],
+  "meaningfulReviewEstablished": false,
+  "source": "downloaded original review artifact; no model or state write"
+}

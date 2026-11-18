@@ -1,0 +1,69 @@
+{
+  "date": "2026-11-18",
+  "ownerBrief": 95,
+  "originalIssue": 93,
+  "originalConsumedReviews": 2,
+  "invalidReviewRun": 44296391691,
+  "originalArtifactId": 14424802182,
+  "observedVerdict": "pass",
+  "observedSummary": "test",
+  "observedFinding": "test",
+  "rootCause": "Collector accepted nonempty placeholder text and the gate did not revalidate retained feedback.",
+  "change": "Preserve the four-field protocol and all history; strengthen text validation and recheck feedback at the gate; improve read-only review instructions.",
+  "localReview": "Padded sample response defect corrected with observed RED/GREEN regression; follow-up found no remaining important regressions. Contraction sample variant also has observed RED/GREEN coverage.",
+  "newModelStarted": false,
+  "liveLedgerWrites": false,
+  "settingsChanged": false,
+  "discoveryEnabled": false,
+  "limitations": "Text checks cannot prove arbitrary prose truthful or complete. Trusted main governs bootstrap review, so the operator must inspect the actual fresh artifact.",
+  "factorySuite": {
+    "command": "node --test scripts/tests/factory-*.test.cjs",
+    "total": 802,
+    "passed": 788,
+    "failed": 0,
+    "skipped": 14,
+    "outputSha256": "ed03ce1c52fc6db46b03564b4be506836896d5c21d82e548fe11fe7f18e45b20"
+  },
+  "readOnlyLiveCheck": {
+    "at": "2026-11-18T12:22:49.376Z",
+    "ledgerCommit": "e669f0e65da1f175a40df42c6cf2ff7f5e947f9e",
+    "reviews93": 2,
+    "original93Unchanged": true,
+    "gateUnderCandidateCode": {
+      "ok": false,
+      "reason": "No genuine independent review covers this PR commit"
+    },
+    "gateEvaluationReadOnly": true,
+    "combinedIssue95Open": true,
+    "combinedIssue95Unlabelled": true,
+    "noGrantFor95": true,
+    "draft": true
+  },
+  "encodingFollowUp": {
+    "reviewRun": 44307561939,
+    "reviewArtifactId": 14429784578,
+    "parentCommit": "6193fd8fe16ef6a86aa00b7add8612cea31709a1",
+    "confirmedFailure": "Strict UTF-8 decode failed at byte 5686 (0x92) in factory-review-quality.test.cjs.",
+    "correction": "Use ASCII JavaScript escape \\u2019; the test input now contains real U+2019 at runtime.",
+    "focusedTests": {
+      "command": "node --test scripts/tests/factory-review-quality.test.cjs",
+      "passed": 6,
+      "failed": 0
+    },
+    "freshReviewScope": "Full base-to-head recovery and guard scope under unchanged issue #95; no copied approval or new JSON fields.",
+    "retainedReviews": {
+      "93": 2,
+      "95": 1
+    },
+    "newClaudeStarted": false,
+    "settingsChanged": false,
+    "fullSuite": {
+      "command": "node --test scripts/tests/factory-*.test.cjs",
+      "total": 802,
+      "passed": 788,
+      "failed": 0,
+      "skipped": 14,
+      "outputSha256": "62dbc09546ec00675168ca3e633a23fa45c7296d4f1dabea58f79685f7fb438b"
+    }
+  }
+}

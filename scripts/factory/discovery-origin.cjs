@@ -46,9 +46,21 @@ async function successfulJob(api, runId, name, step) {
 async function verifySource(
   api,
   candidate,
-  { ledger = new Ledger(api), discovery = new DiscoveryStore(api) } = {}
+  {
+    ledger = new Ledger(api),
+    discovery = new DiscoveryStore(api),
+    store = new FindingStore(api),
+  } = {}
 ) {
   f.validateCandidate(candidate);
+  if (candidate.source.recovery)
+    return Boolean(
+      await require("./discovery-recovery-origin.cjs").verifyReceipt(api, candidate, {
+        ledger,
+        discovery,
+        store,
+      })
+    );
   const proof = f.sourceProof(candidate.source);
   const { state } = await ledger.read();
   const grant = state.grants[candidate.source.grantId];

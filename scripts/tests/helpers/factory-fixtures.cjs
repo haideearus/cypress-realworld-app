@@ -211,3 +211,14 @@ class FactoryFixture extends GitHubFixture {
   }
 }
 module.exports = { vars, head, context, GitHubFixture, FactoryFixture };
+
+function reviewFeedback(head) {
+  return JSON.stringify({
+    head,
+    verdict: "pass",
+    summary:
+      "Reviewed src/example.ts against the ticket criteria; regression coverage and unchanged permission boundaries support this head, with no blocking findings.",
+    findings: [],
+  });
+}
+module.exports.reviewFeedback = reviewFeedback;

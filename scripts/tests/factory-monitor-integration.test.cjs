@@ -1,3 +1,4 @@
+const { reviewFeedback } = require("./helpers/factory-fixtures.cjs");
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const policy = require("../factory/policy.cjs");
@@ -245,6 +246,7 @@ async function approve(s, admission) {
       evidence: `https://github.com/${policy.REPOSITORY}/actions/runs/100`,
     });
     Object.assign(next.tickets["10"], {
+      feedback: reviewFeedback(head),
       branch: "agent/factory-10",
       ci: { requestId: "22222222-2222-4222-8222-222222222222", runId: 503, head, passed: true },
     });

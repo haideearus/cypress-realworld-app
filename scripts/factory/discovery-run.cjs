@@ -2,6 +2,7 @@ const fs = require("node:fs");
 const p = require("./policy.cjs");
 const c = require("./discovery-contract.cjs");
 const { GitHub, Ledger, ROOT } = require("./github.cjs");
+const { diagnostic, withStage } = require("./discovery-diagnostics.cjs");
 const { DiscoveryStore } = require("./discovery-store.cjs");
 const { runtimeContext, output } = require("./controller.cjs");
 const active = require("./active-tickets.cjs");
@@ -199,7 +200,9 @@ async function main(env = process.env, dependencies = {}) {
     }
     const status =
       env.FACTORY_DISCOVERY_ASSESSMENT_COMPLETE === "true" ? "discovery_complete" : "blocked";
-    await ledger.update((s) => ({ state: p.finish(s, g.id, { status }) }));
+    await withStage("finalization", () =>
+      ledger.update((s) => ({ state: p.finish(s, g.id, { status }) }))
+    );
     output({ outcome: status }, env);
     return;
   }
@@ -309,12 +312,7 @@ async function main(env = process.env, dependencies = {}) {
 }
 if (require.main === module)
   main().catch((error) => {
-    const msg = String(error.message || "").slice(0, 180);
-    console.error(
-      require("./artifacts.cjs").secretLike(msg)
-        ? "Discovery operation held."
-        : `Discovery operation held: ${msg}`
-    );
+    console.error(JSON.stringify(diagnostic("discovery", error)));
     process.exitCode = 1;
   });
 module.exports = { selectSweep, sourceFor, sourceBody, issueOK, testedMain, verifyParent, main };

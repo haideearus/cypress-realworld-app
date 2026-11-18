@@ -58,7 +58,13 @@ test("binary, large and secret-like generated files are refused before upload/pu
     );
 });
 test("review output must be structured, bounded, valid and bound to the expected head", () => {
-  const result = { head, verdict: "pass", summary: "No blocking findings", findings: [] };
+  const result = {
+    head,
+    verdict: "pass",
+    summary:
+      "Reviewed src/example.ts against the ticket criteria; regression coverage and unchanged permission boundaries support this head, with no blocking findings.",
+    findings: [],
+  };
   assert.equal(artifact.validateReview(result, head).verdict, "pass");
   for (const bad of [
     { ...result, head: "b".repeat(40) },
