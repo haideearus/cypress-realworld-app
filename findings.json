@@ -74,7 +74,7 @@
         }
       },
       "generation": 1,
-      "status": "publishing-intent",
+      "status": "published",
       "publication": {
         "day": "2026-11-18",
         "context": {
@@ -92,8 +92,22 @@
           "slot": "cycle1",
           "head": "0000000000000000000000000000000000000000"
         },
-        "confirmation": null,
-        "issue": null,
+        "confirmation": {
+          "repository": "haideearus/cypress-realworld-app",
+          "actor": "haideearus",
+          "triggeringActor": "haideearus",
+          "ref": "refs/heads/main",
+          "event": "workflow_dispatch",
+          "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-discovery-intake.yml@refs/heads/main",
+          "workflowSha": "0f9c7511344de041d250ec85983ae9d07188a52b",
+          "runId": "44331190257",
+          "runAttempt": 1,
+          "ticket": 1,
+          "phase": "code",
+          "slot": "cycle1",
+          "head": "0000000000000000000000000000000000000000"
+        },
+        "issue": 96,
         "writeStarted": true,
         "title": "[Discovery] bank-account-isolation on /bankAccounts/:other",
         "body": "Verified synthetic-app failure: bank-account-isolation at /bankAccounts/:other.\n\nOriginal scan: 822b51fb2bb3eaa59d60a109097cc3575e6373d3\nOriginal RED test: bank-account-isolation.api.test.cjs (api), SHA-256 4504053811998b54b9db8d5d99eab3e514764576ee26c65e35f3218dfd7aa85a\nOracle: {\"kind\":\"bank-account-isolation\",\"route\":\"/bankAccounts/:other\",\"authenticated\":true,\"query\":{}}\nEvidence: https://github.com/haideearus/cypress-realworld-app/actions/runs/44197159640\nRecovery replay: https://github.com/haideearus/cypress-realworld-app/actions/runs/44326359550\nArtifact: discovery-recovery-5cc9a76f3ae828e531ffc6c50fd64437e1dacf688e5c03504853872304c54dea (id 14438251360)\nFinding SHA-256: 174cac0da0ea08536b2ee60b5e4478378bb095247b20b0ae2c26a77b91bf88a0\n\nReported context (untrusted): backend/bankaccount-routes.ts calls getBankAccountById(bankAccountId) without checking it belongs to req.user. Executed proposal bank-account-isolation.api.test.cjs (batch 1) confirmed the owner can read their own seeded account (control, 200), then logged in as a distinct unrelated seeded user and received 200 with the owner's full bank account record instead of a denial.\n\nAcceptance: preserve the reproduced contract, prove RED before repair and GREEN afterward, pass independent review and protected CI. This is sandbox evidence; production deployment and live coverage remain separate. A current-main replay is required before coding admission.\n\n<!-- factory-discovery-finding:9163477dec0d754629f7f0d45325c827763fd5749a487d51ec9cbee7a8bc99ff:1:3a2bd6958271681ee73a0034a43c0d52594aa556176a4a68c4098671cfb29141 -->",
