@@ -1775,7 +1775,7 @@
       "reviews": 0,
       "retries": 0,
       "head": "0f9c7511344de041d250ec85983ae9d07188a52b",
-      "status": "coding",
+      "status": "blocked",
       "pr": null,
       "approval": null,
       "criteriaHash": "0d4c7c6abaff83c3be31fc6501555ec1c202a9d047d7e209a928653444244b71",
@@ -1818,7 +1818,8 @@
           "outcome": "ready",
           "evidenceHash": "7a889bbe0d8156d135f49d8b8c13dfefb16dca9a91d7d0fa41f5df2abb8eb9e5"
         }
-      }
+      },
+      "feedback": "Agent, publication, or CI infrastructure failed; no automatic model retry"
     }
   },
   "grants": {
@@ -2647,15 +2648,12 @@
       "runId": "44338765984",
       "runAttempt": 1,
       "head": "0f9c7511344de041d250ec85983ae9d07188a52b",
-      "status": "reserved",
-      "at": "2026-11-18T15:43:40.591Z"
+      "status": "finished",
+      "at": "2026-11-18T15:43:40.591Z",
+      "outcome": "blocked"
     }
   },
-  "active": {
-    "ticket": 96,
-    "runId": "44338765984",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -4854,6 +4852,12 @@
       "runId": "44338765984",
       "runAttempt": 1,
       "actor": "haideearus"
+    },
+    {
+      "at": "2026-11-18T15:44:46.902Z",
+      "event": "blocked",
+      "ticket": 96,
+      "reason": "Agent, publication, or CI infrastructure failed; no automatic model retry"
     }
   ]
 }
