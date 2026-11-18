@@ -65,7 +65,8 @@
       95,
       96,
       98,
-      100
+      100,
+      103
     ]
   },
   "tickets": {
@@ -1898,6 +1899,19 @@
         "passed": true
       },
       "feedback": "{\"head\":\"68a94f38c0c1eb1e58b23a4718d9c58d3a9ad693\",\"verdict\":\"pass\",\"summary\":\"Reviewed the repository at 68a94f3 against ticket #100's two goals: (1) a safe model-context projection in scripts/factory/worker.cjs (new findingEvidenceForModel, used in prepare()) that strips the duplicate origin.key/currentIntake.key identifiers which previously tripped the gitleaks generic-api-key rule, while leaving ticket.finding (raw origin/intake proofs) and the ledger untouched, and (2) one bounded, owner-only, preview-default #96 continuation implemented in new scripts/factory/finding-continuation.cjs plus the generalized retryFinding() in scripts/factory/finding-retry.cjs and workflow_dispatch option added to .github/workflows/factory-automatic.yml. Confirmed: the secret scanner (scripts/factory/secret-scan.cjs, gitleaks.toml) is unmodified and still scans the complete written .factory-input/context.json (including the original reproducer/trustedRed) via the unchanged \\\"Reject secrets in prepared context\\\" step in .github/workflows/factory-model.yml; scripts/tests/factory-finding-context.test.cjs exercises the real worker.prepare() end to end and shows the projection scans clean while raw ledger data and injected real-looking credentials still fail closed. The continuation path (finding-continuation.cjs validateContinuation/assertEligible/verifyFailure, wired through policy.cjs reserve/validateState and discovery-repair.cjs repairBaseline) pins to the exact blocked grant/parent run, rejects wrong ticket/actor/parent/history, stale main, unpaused workflows, active/stopped/exhausted state, and reuses ordinary coding/retry counters (2→3, 1→2) with no new allowance, matching scripts/tests/factory-finding-continuation.test.cjs assertions including #97 and prior-grant immutability. The merge job in factory-automatic.yml explicitly excludes retry-finding/continue-finding, and automation.cjs skips activity-store writes for continuation previews, matching the \\\"no queue scan/auto-merge, zero preview writes\\\" requirement. Supplied RED/GREEN evidence (docs/factory/evidence/finding96-context/red.log, verification.json) shows the new tests genuinely failed before the change and the described suite passed after, which I treat as evidence rather than something I executed myself. Limits of this review: I did not run any commands or the linked CI run (https://github.com/haideearus/cypress-realworld-app/actions/runs/44364713775) myself, and relied on static reading of the diff/current source plus the repo's own test/evidence files.\",\"findings\":[]}"
+    },
+    "103": {
+      "coding": 0,
+      "origin": "owner-pr",
+      "reviews": 1,
+      "retries": 0,
+      "head": "639d9457107c7f771b6d86253ee1d5537442418c",
+      "status": "reviewing",
+      "pr": 104,
+      "approval": null,
+      "criteriaHash": "32c8569350079f582f88f9ff7c0b69e33aa1db5ad8aef26e116e8145ef8e3b24",
+      "branch": "agent/finding-96-proof-recovery",
+      "ci": null
     }
   },
   "grants": {
@@ -2777,9 +2791,24 @@
       "status": "finished",
       "at": "2026-11-18T19:06:24.773Z",
       "outcome": "blocked"
+    },
+    "94769909-0457-4c20-b03f-17154bddd43f": {
+      "id": "94769909-0457-4c20-b03f-17154bddd43f",
+      "ticket": 103,
+      "phase": "review",
+      "slot": "existing",
+      "runId": "44385498803",
+      "runAttempt": 1,
+      "head": "639d9457107c7f771b6d86253ee1d5537442418c",
+      "status": "reserved",
+      "at": "2026-11-18T19:55:30.071Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 103,
+    "runId": "44385498803",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -5052,6 +5081,16 @@
       "event": "blocked",
       "ticket": 96,
       "reason": "Agent, publication, or CI infrastructure failed; no automatic model retry"
+    },
+    {
+      "at": "2026-11-18T19:55:30.071Z",
+      "event": "reserved",
+      "ticket": 103,
+      "grant": "94769909-0457-4c20-b03f-17154bddd43f",
+      "phase": "review",
+      "runId": "44385498803",
+      "runAttempt": 1,
+      "actor": "haideearus"
     }
   ]
 }
