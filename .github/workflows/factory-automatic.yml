@@ -5,13 +5,22 @@ on:
     - cron: "17,47 * * * *"
   workflow_dispatch:
     inputs:
+      operation:
+        description: Normal queue pickup, or the one owner-approved retry for finding 96
+        type: choice
+        options: [run, retry-finding]
+        default: run
+      ticket:
+        description: Only used by retry-finding; must be 96 (no queue selection)
+        type: string
+        default: ""
       wake_id:
         description: Receipt from the trusted event bridge (never authorization by itself)
         type: string
         required: false
         default: ""
       dry_run:
-        description: Preview the queue without reservations, model calls or merges
+        description: Preview the selected operation without reservations, model calls or merges
         type: boolean
         required: true
         default: true
@@ -154,7 +163,7 @@ jobs:
       FACTORY_GITHUB_APP_PRIVATE_KEY: ${{ secrets.FACTORY_GITHUB_APP_PRIVATE_KEY }}
   merge:
     needs: [pick, cycle1, cycle2, cycle3, cycle4, cycle5]
-    if: ${{ always() && !cancelled() && needs.pick.outputs.ticket != '' && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' && vars.FACTORY_AUTOMERGE_ENABLED == 'true' && !(github.event_name == 'workflow_dispatch' && inputs.dry_run) }}
+    if: ${{ always() && !cancelled() && inputs.operation != 'retry-finding' && needs.pick.outputs.ticket != '' && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' && vars.FACTORY_AUTOMERGE_ENABLED == 'true' && !(github.event_name == 'workflow_dispatch' && inputs.dry_run) }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:

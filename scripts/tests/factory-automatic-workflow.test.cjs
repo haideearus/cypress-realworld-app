@@ -22,6 +22,20 @@ test("automatic entry is main-only scheduled with a default read-only manual pre
     if (job["runs-on"]) assert.equal(job["runs-on"], "ubuntu-latest");
 });
 
+test("finding retry is explicit, preview-default, ticket-scoped and cannot automatically merge", () => {
+  const workflow = load();
+  const inputs = workflow.on.workflow_dispatch.inputs;
+  assert.deepEqual(inputs.operation.options, ["run", "retry-finding"]);
+  assert.equal(inputs.operation.default, "run");
+  assert.equal(inputs.ticket.default, "");
+  assert.equal(inputs.dry_run.default, true);
+  assert.ok(workflow.jobs.merge.if.includes("inputs.operation != 'retry-finding'"));
+  assert.equal(
+    workflow.jobs.pick.steps.find((s) => s.id === "control").with.parameters,
+    "${{ toJSON(inputs) }}"
+  );
+});
+
 test("automatic role cycles share the admission run and keep App secrets out of model workflows", () => {
   const jobs = load().jobs;
   for (let number = 1; number <= 5; number++) {

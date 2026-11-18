@@ -235,14 +235,25 @@ async function main(env = process.env) {
   assertAutomaticContext(context);
   let result;
   if (operation === "auto_pick") {
-    result = await new AutomaticCoordinator(api, config, context).pick({ dryRun });
+    const mode = inputs.operation || "run";
+    if (!["run", "retry-finding"].includes(mode)) throw Error("Invalid automatic operation");
+    if (mode === "retry-finding") {
+      if (inputs.wake_id) throw Error("Finding retry cannot use an event wake");
+      result = await require("./finding-retry.cjs").retryFinding(api, config, context, {
+        ticket: Number(inputs.ticket),
+        dryRun,
+      });
+    } else {
+      result = await new AutomaticCoordinator(api, config, context).pick({ dryRun });
+    }
   } else {
     const { AutomaticMerger } = require("./merge.cjs");
     result = await new AutomaticMerger(api, config, context).merge(Number(inputs.ticket), {
       dryRun,
     });
   }
-  await require("./activity.cjs").recordResult(api, context, result, env);
+  if (!(operation === "auto_pick" && inputs.operation === "retry-finding" && dryRun))
+    await require("./activity.cjs").recordResult(api, context, result, env);
   output(result, env);
   return result;
 }
