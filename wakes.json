@@ -232,7 +232,7 @@
         },
         "event": "issues"
       },
-      "status": "intent",
+      "status": "sent",
       "receiver": null,
       "at": "2026-11-18T23:51:50.490Z"
     }
