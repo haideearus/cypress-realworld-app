@@ -1872,7 +1872,11 @@
       "approval": null,
       "criteriaHash": "65412dee36b20a1432904b964604ad55f03f7ec7e93254fc275b900ad918e735",
       "branch": "agent/finding-96-context-continuation",
-      "ci": null
+      "ci": {
+        "requestId": "3dbd64b9-a50c-447a-bf0e-b203957fe400",
+        "head": "68a94f38c0c1eb1e58b23a4718d9c58d3a9ad693",
+        "runId": null
+      }
     }
   },
   "grants": {
