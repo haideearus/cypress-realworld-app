@@ -1,32 +1,49 @@
-name: Factory independent review gate
+name: Read-only PR 101 API allowance diagnostic
 on:
-  pull_request_target:
-    branches: [main]
-    types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
     inputs:
       pr:
-        description: PR number whose current-head review should be checked
+        description: Diagnostic target only; never writes a check
         required: true
-        type: string
+        type: choice
+        options: ["101"]
 permissions:
   contents: read
 jobs:
-  gate:
+  diagnose:
+    name: Read API reset metadata only
+    if: >-
+      github.repository == 'haideearus/cypress-realworld-app' &&
+      github.actor == 'haideearus' && github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/agent/pr101-gate-rate-diagnostic' &&
+      inputs.pr == '101' &&
+      vars.FACTORY_ENABLED == 'false' && vars.FACTORY_AUTOMATION_ENABLED == 'false' &&
+      vars.FACTORY_AUTOMERGE_ENABLED == 'false' && vars.FACTORY_DISCOVERY_ENABLED == 'false'
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 2
     permissions:
       contents: read
       pull-requests: read
-      checks: write
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-        with:
-          ref: ${{ github.workflow_sha }}
-          persist-credentials: false
-      - uses: ./.github/actions/factory-control
-        with:
-          operation: gate
-          variables_json: ${{ toJSON(vars) }}
-          parameters: >-
-            {"pr":"${{ github.event.pull_request.number || inputs.pr }}"}
+      - name: Read the shared GitHub Actions allowance without consuming it
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          node <<'NODE'
+          (async () => {
+            const response = await fetch('https://api.github.com/rate_limit', {
+              method: 'GET', redirect: 'error', signal: AbortSignal.timeout(20000),
+              headers: { Authorization: `Bearer ${process.env.GH_TOKEN}`,
+                Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' }
+            });
+            const data = await response.json();
+            const core = data.resources?.core;
+            if (!response.ok || !core || !Number.isSafeInteger(core.reset))
+              throw Error(`Rate metadata unavailable (${response.status})`);
+            console.log(JSON.stringify({ readOnly: true, modelCalls: 0,
+              limit: core.limit, remaining: core.remaining, used: core.used,
+              resetUtc: new Date(core.reset * 1000).toISOString(),
+              observedUtc: new Date().toISOString() }));
+          })().catch(() => { console.error('Rate metadata diagnostic failed'); process.exitCode = 1; });
+          NODE
