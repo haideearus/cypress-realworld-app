@@ -63,7 +63,8 @@
       92,
       93,
       95,
-      96
+      96,
+      98
     ]
   },
   "tickets": {
@@ -1820,6 +1821,19 @@
         }
       },
       "feedback": "Agent, publication, or CI infrastructure failed; no automatic model retry"
+    },
+    "98": {
+      "coding": 0,
+      "origin": "owner-pr",
+      "reviews": 1,
+      "retries": 0,
+      "head": "1af5bc663b2f0ef814309db9e438d530cb8fa0ed",
+      "status": "reviewing",
+      "pr": 99,
+      "approval": null,
+      "criteriaHash": "d246aaca56001c32ad0076f6f8ba97b9520fd69c209b898fa75ccb9865b1567e",
+      "branch": "agent/finding-96-safe-retry",
+      "ci": null
     }
   },
   "grants": {
@@ -2651,9 +2665,24 @@
       "status": "finished",
       "at": "2026-11-18T15:43:40.591Z",
       "outcome": "blocked"
+    },
+    "1eb24c59-04d0-4b54-8e8b-4d257f7d6240": {
+      "id": "1eb24c59-04d0-4b54-8e8b-4d257f7d6240",
+      "ticket": 98,
+      "phase": "review",
+      "slot": "existing",
+      "runId": "44346598772",
+      "runAttempt": 1,
+      "head": "1af5bc663b2f0ef814309db9e438d530cb8fa0ed",
+      "status": "reserved",
+      "at": "2026-11-18T16:23:20.921Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 98,
+    "runId": "44346598772",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -4858,6 +4887,16 @@
       "event": "blocked",
       "ticket": 96,
       "reason": "Agent, publication, or CI infrastructure failed; no automatic model retry"
+    },
+    {
+      "at": "2026-11-18T16:23:20.921Z",
+      "event": "reserved",
+      "ticket": 98,
+      "grant": "1eb24c59-04d0-4b54-8e8b-4d257f7d6240",
+      "phase": "review",
+      "runId": "44346598772",
+      "runAttempt": 1,
+      "actor": "haideearus"
     }
   ]
 }
