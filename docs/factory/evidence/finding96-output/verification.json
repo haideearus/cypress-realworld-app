@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "date": "2026-11-18",
+  "base": "23252aeb493185e78fc92c587db3491c4f5164ed",
+  "maintenanceIssue": 103,
+  "repairIssue": 96,
+  "untouchedIssue": 97,
+  "failedParent": "44376807620",
+  "blockedGrant": "d91d546e-f952-4dea-9fc4-99b053477d92",
+  "red": {
+    "command": "node --test scripts/tests/factory-finding-output.test.cjs scripts/tests/factory-finding-output-recovery.test.cjs",
+    "log": "red.log",
+    "passed": 1,
+    "failed": 9,
+    "exitCode": 1,
+    "reason": "Old final wire receipt and health probes fail the new contract, the finalization boundary is absent, and output recovery cannot be admitted."
+  },
+  "green": {
+    "focusedPassed": 35,
+    "factoryCommand": "yarn test:factory",
+    "factoryTests": 833,
+    "factoryPassed": 819,
+    "factorySkipped": 14,
+    "factoryFailed": 0,
+    "skipNote": "Existing opt-in integration checks were not run locally; no local Docker/Postgres runtime is claimed.",
+    "eslint": "passed for all changed JavaScript",
+    "sourceScanner": "passed; unchanged scanner checked 601 staged files",
+    "formatting": "passed for changed supported files",
+    "diffCheck": "passed after removing trailing whitespace from the RED evidence log"
+  },
+  "localReview": {
+    "freshContext": true,
+    "claudeSession": false,
+    "criticalOrImportantFindings": 0,
+    "independentTests": 104,
+    "passed": 102,
+    "skipped": 2,
+    "skipNote": "Two existing opt-in scanner tests skipped; new full final-bundle tests did execute the real pinned scanner."
+  },
+  "preparationSnapshot": {
+    "at": "2026-11-18T19:24:35.453Z",
+    "usageCommit": "a71004a37dd542b2ae6e6d41bcde41f90d2bf7ab",
+    "allFourSwitchesFalse": true,
+    "allFiveWorkflowsPaused": true,
+    "issue96Counters": { "coding": 3, "reviews": 0, "retries": 2 }
+  },
+  "syntheticTestEvidenceOnly": true,
+  "finalLiveAudit": {
+    "at": "2026-11-18T19:34:18.345Z",
+    "allFourSwitchesFalse": true,
+    "allFiveWorkflowsPaused": true,
+    "allSettingsUnchanged": true,
+    "entireUsageStateUnchanged": true,
+    "entireFindingRegistryUnchanged": true,
+    "issue97Unchanged": true,
+    "activeTickets": 0,
+    "requiredChecks": ["verify", "Factory review gate"],
+    "strict": true,
+    "enforceAdmins": true,
+    "requiredPullRequests": true
+  },
+  "rejectedLiveBundleRecoveredOrCleared": false,
+  "liveRecoveryStarted": false,
+  "claudeStarted": false,
+  "paidAiApiUsed": false,
+  "scannerChanged": false,
+  "protectionChanged": false
+}

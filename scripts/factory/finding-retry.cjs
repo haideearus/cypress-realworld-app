@@ -49,7 +49,8 @@ function validateRetry(state, id, ticket, grants) {
   const other = grants.filter(
     (g) =>
       g.id !== PRIOR.grant &&
-      (!ticket.findingContinuation || g.runId !== ticket.findingContinuation.runId)
+      (!ticket.findingContinuation || g.runId !== ticket.findingContinuation.runId) &&
+      (!ticket.findingOutputRecovery || g.runId !== ticket.findingOutputRecovery.runId)
   );
   if (
     Number(id) !== PRIOR.ticket ||
@@ -85,6 +86,7 @@ function assertEligible(state, request, config) {
     request.runAttempt !== 1 ||
     request.origin !== undefined ||
     request.findingContinuation !== undefined ||
+    request.findingOutputRecovery !== undefined ||
     request.recovery !== undefined ||
     proof.runId !== request.runId ||
     proof.runAttempt !== request.runAttempt ||
@@ -193,15 +195,27 @@ async function retryFinding(
   api,
   config,
   context,
-  { ticket, dryRun, continuation = false },
+  { ticket, dryRun, continuation = false, outputRecovery = false },
   deps = {}
 ) {
   const p = require("./policy.cjs");
-  if (typeof continuation !== "boolean") refuse();
-  const control = continuation
-    ? require("./finding-continuation.cjs")
-    : { PRIOR, DECISION, assertEligible, verifyFailure };
-  const receiptField = continuation ? "findingContinuation" : "findingRetry";
+  if (
+    typeof continuation !== "boolean" ||
+    typeof outputRecovery !== "boolean" ||
+    (continuation && outputRecovery)
+  )
+    refuse();
+  const control = outputRecovery
+    ? require("./finding-output-recovery.cjs")
+    : continuation
+      ? require("./finding-continuation.cjs")
+      : { PRIOR, DECISION, assertEligible, verifyFailure };
+  const receiptField = outputRecovery
+    ? "findingOutputRecovery"
+    : continuation
+      ? "findingContinuation"
+      : "findingRetry";
+  const kind = outputRecovery ? "output-recovery" : continuation ? "continuation" : "retry";
   p.authorize(context);
   if (
     ticket !== PRIOR.ticket ||
@@ -275,8 +289,12 @@ async function retryFinding(
     return {
       ready: false,
       preview: true,
-      outcome: continuation ? "finding-continuation-preview" : "finding-retry-preview",
-      [continuation ? "continuationEligible" : "retryEligible"]: true,
+      outcome: `finding-${kind}-preview`,
+      [outputRecovery
+        ? "outputRecoveryEligible"
+        : continuation
+          ? "continuationEligible"
+          : "retryEligible"]: true,
       ticket,
       head: tested.head,
       priorGrant: control.PRIOR.grant,
@@ -298,7 +316,7 @@ async function retryFinding(
     grantId: saved.grant.id,
     phase: "code",
     slot: "cycle1",
-    outcome: continuation ? "finding-continuation-reserved" : "finding-retry-reserved",
+    outcome: `finding-${kind}-reserved`,
   };
 }
 module.exports = {

@@ -1,0 +1,195 @@
+TAP version 13
+# Subtest: output recovery retains three failed grants and both receipts while charging coding4/retry3
+not ok 1 - output recovery retains three failed grants and both receipts while charging coding4/retry3
+  ---
+  duration_ms: 9.9003
+  type: 'test'
+  location: 'C:\\Users\\haide\\Documents\\Codex\\2026-11-03\\c\\cypress-realworld-app\\scripts\\tests\\factory-finding-output-recovery.test.cjs:18:1'
+  failureType: 'testCodeFailure'
+  error: 'Invalid automatic reservation provenance'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    deny (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\factory\policy.cjs:26:9)
+    Object.reserve (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\factory\policy.cjs:463:5)
+    TestContext.<anonymous> (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\tests\factory-finding-output-recovery.test.cjs:19:33)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.start (node:internal/test_runner/test:944:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
+  ...
+# Subtest: recovery identity, historical immutability, ordinary caps and enablement fail closed
+not ok 2 - recovery identity, historical immutability, ordinary caps and enablement fail closed
+  ---
+  duration_ms: 75.029
+  type: 'test'
+  location: 'C:\\Users\\haide\\Documents\\Codex\\2026-11-03\\c\\cypress-realworld-app\\scripts\\tests\\factory-finding-output-recovery.test.cjs:31:1'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected exception.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  operator: 'throws'
+  stack: |-
+    TestContext.<anonymous> (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\tests\factory-finding-output-recovery.test.cjs:35:13)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: four-false recovery preview has zero writes and no queue or \#97 reads; explicit in-memory admission consumes one slot
+not ok 3 - four-false recovery preview has zero writes and no queue or \#97 reads; explicit in-memory admission consumes one slot
+  ---
+  duration_ms: 3.5207
+  type: 'test'
+  location: 'C:\\Users\\haide\\Documents\\Codex\\2026-11-03\\c\\cypress-realworld-app\\scripts\\tests\\factory-finding-output-recovery.test.cjs:71:1'
+  failureType: 'testCodeFailure'
+  error: 'Invalid, changed or exhausted finding retry'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    refuse (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\factory\finding-retry.cjs:17:9)
+    Object.assertEligible (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\factory\finding-retry.cjs:126:5)
+    Object.retryFinding (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\factory\finding-retry.cjs:247:11)
+    async TestContext.<anonymous> (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\tests\factory-finding-output-recovery.test.cjs:73:13)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: failure evidence, duplicate or extra models, edited ticket, stale main and active workflow cannot reserve
+ok 4 - failure evidence, duplicate or extra models, edited ticket, stale main and active workflow cannot reserve
+  ---
+  duration_ms: 8.7011
+  type: 'test'
+  ...
+# Subtest: recovery preview dispatch is activity-write-free
+not ok 5 - recovery preview dispatch is activity-write-free
+  ---
+  duration_ms: 14.0081
+  type: 'test'
+  location: 'C:\\Users\\haide\\Documents\\Codex\\2026-11-03\\c\\cypress-realworld-app\\scripts\\tests\\factory-finding-output-recovery.test.cjs:96:1'
+  failureType: 'testCodeFailure'
+  error: 'Invalid automatic operation'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    Object.main (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\factory\automation.cjs:240:13)
+    async TestContext.<anonymous> (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\tests\factory-finding-output-recovery.test.cjs:101:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: recovery preserves \#97, stop protection and complete history across publication, review and final ordinary cycle
+not ok 6 - recovery preserves \#97, stop protection and complete history across publication, review and final ordinary cycle
+  ---
+  duration_ms: 1.5212
+  type: 'test'
+  location: 'C:\\Users\\haide\\Documents\\Codex\\2026-11-03\\c\\cypress-realworld-app\\scripts\\tests\\factory-finding-output-recovery.test.cjs:105:1'
+  failureType: 'testCodeFailure'
+  error: 'Invalid automatic reservation provenance'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    deny (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\factory\policy.cjs:26:9)
+    Object.reserve (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\factory\policy.cjs:463:5)
+    TestContext.<anonymous> (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\tests\factory-finding-output-recovery.test.cjs:109:13)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# warning: in the working copy of 'backend/synthetic.ts', LF will be replaced by CRLF the next time Git touches it
+# Subtest: public legacy receipt reproduces the final-output failure; v2 complete bundle scans clean
+not ok 7 - public legacy receipt reproduces the final-output failure; v2 complete bundle scans clean
+  ---
+  duration_ms: 528.168
+  type: 'test'
+  location: 'C:\\Users\\haide\\Documents\\Codex\\2026-11-03\\c\\cypress-realworld-app\\scripts\\tests\\factory-finding-output.test.cjs:15:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+
+    1 !== 2
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 2
+  actual: 1
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\tests\factory-finding-output.test.cjs:23:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: actual collector to final GREEN receipt scans all generated content and binds the complete patch
+not ok 8 - actual collector to final GREEN receipt scans all generated content and binds the complete patch
+  ---
+  duration_ms: 394.6412
+  type: 'test'
+  location: 'C:\\Users\\haide\\Documents\\Codex\\2026-11-03\\c\\cypress-realworld-app\\scripts\\tests\\factory-finding-output.test.cjs:31:1'
+  failureType: 'testCodeFailure'
+  error: 'repair.finalizeRepairBundle is not a function'
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    TestContext.<anonymous> (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\tests\factory-finding-output.test.cjs:49:30)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: new wire proof refuses identity changes, unknown/legacy fields and non-GREEN evidence
+not ok 9 - new wire proof refuses identity changes, unknown/legacy fields and non-GREEN evidence
+  ---
+  duration_ms: 0.6439
+  type: 'test'
+  location: 'C:\\Users\\haide\\Documents\\Codex\\2026-11-03\\c\\cypress-realworld-app\\scripts\\tests\\factory-finding-output.test.cjs:65:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+
+    true !== false
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: false
+  actual: true
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\tests\factory-finding-output.test.cjs:81:63)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: both Postgres service probes use the declared database identity
+not ok 10 - both Postgres service probes use the declared database identity
+  ---
+  duration_ms: 4.5785
+  type: 'test'
+  location: 'C:\\Users\\haide\\Documents\\Codex\\2026-11-03\\c\\cypress-realworld-app\\scripts\\tests\\factory-finding-output.test.cjs:85:1'
+  failureType: 'testCodeFailure'
+  error: 'factory-ci.yml: health command must contain explicit identity'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\tests\factory-finding-output.test.cjs:90:12)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 1
+# fail 9
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1468.6174

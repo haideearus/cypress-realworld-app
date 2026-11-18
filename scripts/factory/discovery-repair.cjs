@@ -46,8 +46,8 @@ function repairProof(ticket, grant, bundle, red, green) {
   if (red.outcome !== "ready" || green.outcome !== "observed-resolved")
     throw Error("Trusted discovery repair RED/GREEN incomplete");
   return {
-    version: 1,
-    key: ticket.finding.origin.key,
+    version: 2,
+    findingRef: ticket.finding.origin.key,
     candidateHash: ticket.finding.origin.candidateHash,
     grantId: grant.id,
     head: grant.head,
@@ -63,7 +63,7 @@ function validRepairProof(ticket, grant, bundle) {
     const v = bundle.findingVerification;
     c.exact(v, [
       "version",
-      "key",
+      "findingRef",
       "candidateHash",
       "grantId",
       "head",
@@ -74,8 +74,8 @@ function validRepairProof(ticket, grant, bundle) {
       "greenOutcome",
     ]);
     return (
-      v.version === 1 &&
-      v.key === ticket.finding.origin.key &&
+      v.version === 2 &&
+      v.findingRef === ticket.finding.origin.key &&
       v.candidateHash === ticket.finding.origin.candidateHash &&
       v.grantId === grant.id &&
       v.head === grant.head &&
@@ -89,6 +89,19 @@ function validRepairProof(ticket, grant, bundle) {
   } catch {
     return false;
   }
+}
+async function finalizeRepairBundle(ticket, grant, bundle, red, green) {
+  // Scan the final wire representation, including the trusted post-model receipt.
+  // Raw origin/intake records remain unchanged in the trusted ledger.
+  const complete = {
+    ...bundle,
+    findingVerification: repairProof(ticket, grant, bundle, red, green),
+  };
+  if (!validRepairProof(ticket, grant, complete)) throw Error("Invalid final repair proof");
+  await require("./secret-scan.cjs").scanFiles([
+    { path: "bundle.json", content: JSON.stringify(complete) },
+  ]);
+  return complete;
 }
 async function verifyPublishedRepair(api, ticket, grant, bundle) {
   const issue = await api.request("GET", `${ROOT}/issues/${grant.ticket}`);
@@ -128,7 +141,10 @@ function evidenceLocation(candidate) {
 }
 function repairBaseline(ticket) {
   const head =
-    ticket.findingContinuation?.head || ticket.findingRetry?.head || ticket.finding.intake.head;
+    ticket.findingOutputRecovery?.head ||
+    ticket.findingContinuation?.head ||
+    ticket.findingRetry?.head ||
+    ticket.finding.intake.head;
   if (!c.SHA.test(head)) throw Error("Invalid trusted repair baseline");
   return head;
 }
@@ -236,7 +252,7 @@ async function main(env = process.env) {
   const red = readJson(path.join(root, "red.json"));
   if (red.candidateHash !== c.digest(candidate) || red.grantId !== grant.id || red.head !== head)
     throw Error("Trusted RED receipt changed");
-  code.findingVerification = repairProof(ticket, grant, code, red, {
+  const complete = await finalizeRepairBundle(ticket, grant, code, red, {
     outcome: result.outcome,
     evidenceHash,
   });
@@ -251,7 +267,7 @@ async function main(env = process.env) {
     path.join(root, "red-evidence.json"),
     path.join(env.FACTORY_ARTIFACT_DIR, "finding-red.json")
   );
-  fs.writeFileSync(path.join(env.FACTORY_ARTIFACT_DIR, "bundle.json"), JSON.stringify(code));
+  fs.writeFileSync(path.join(env.FACTORY_ARTIFACT_DIR, "bundle.json"), JSON.stringify(complete));
   output({ finding: true, outcome: "trusted-red-green", modelCalls: 0 }, env);
 }
 if (require.main === module)
@@ -265,6 +281,7 @@ if (require.main === module)
   });
 module.exports = {
   repairProof,
+  finalizeRepairBundle,
   validRepairProof,
   verifyPublishedRepair,
   priorOverlay,

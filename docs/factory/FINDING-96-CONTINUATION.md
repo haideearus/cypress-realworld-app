@@ -1,5 +1,10 @@
 # Finding context and the bounded #96 continuation
 
+The handoff described here was consumed by run `44376807620`. It reached trusted
+GREEN but failed final output scanning. Preserve that grant and receipt; do not
+redispatch it. See [output recovery](FINDING-96-OUTPUT-RECOVERY.md) for the distinct
+new preview-default operation prepared after that failure.
+
 This implementation prepares a later owner-authorized trial. During preparation,
 all four factory switches remain false and Factory event wake, Automatic factory,
 Dependency maintenance, Proactive app discovery and Verified discovery finding
