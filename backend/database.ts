@@ -263,6 +263,9 @@ export const getBankAccountBy = (key: string, value: any) => getBy(BANK_ACCOUNT_
 
 export const getBankAccountById = (id: string) => getBankAccountBy("id", id);
 
+export const getBankAccountForUser = (id: string, userId: string): BankAccount | undefined =>
+  db.get(BANK_ACCOUNT_TABLE).find({ id, userId }).value();
+
 export const getBankAccountsBy = (key: string, value: any) =>
   getAllBy(BANK_ACCOUNT_TABLE, key, value);
 

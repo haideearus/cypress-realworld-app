@@ -2,11 +2,13 @@ import { describe, expect, it, beforeEach } from "vitest";
 import { faker } from "@faker-js/faker";
 import {
   getBankAccountById,
+  getBankAccountForUser,
   getBankAccountsByUserId,
   getRandomUser,
   seedDatabase,
   createBankAccountForUser,
   removeBankAccountById,
+  stateAccess,
 } from "../../backend/database";
 import { User } from "../../src/models/user";
 import { BankAccount } from "../../src/models/bankaccount";
@@ -31,6 +33,16 @@ describe("BankAccounts", () => {
     const account = getBankAccountById(bankAccountId);
 
     expect(account.id).toEqual(bankAccountId);
+  });
+
+  it("looks up a bank account only within the requested owner's records", () => {
+    const { bankaccounts, users } = stateAccess.read();
+    const account = bankaccounts[0];
+    const unrelatedUser = users.find((user) => user.id !== account.userId)!;
+
+    expect(getBankAccountForUser(account.id, account.userId)).toEqual(account);
+    expect(getBankAccountForUser(account.id, unrelatedUser.id)).toBeUndefined();
+    expect(getBankAccountForUser("missing-account", account.userId)).toBeUndefined();
   });
 
   it("should create a bank account for user", () => {

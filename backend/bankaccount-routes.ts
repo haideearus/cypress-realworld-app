@@ -4,7 +4,7 @@ import express from "express";
 
 import {
   getBankAccountsByUserId,
-  getBankAccountById,
+  getBankAccountForUser,
   createBankAccountForUser,
   removeBankAccountById,
 } from "./database";
@@ -31,7 +31,16 @@ router.get(
   (req, res) => {
     const { bankAccountId } = req.params;
 
-    const account = getBankAccountById(bankAccountId);
+    const userId = req.user?.id;
+    if (!userId) {
+      res.sendStatus(401);
+      return;
+    }
+    const account = getBankAccountForUser(bankAccountId, userId);
+    if (!account) {
+      res.sendStatus(404);
+      return;
+    }
 
     res.status(200);
     res.json({ account });
