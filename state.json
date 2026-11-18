@@ -1980,7 +1980,11 @@
       "approval": null,
       "criteriaHash": "e2c629b1ee9b37dea5494121aba028228b3d9d557f268edfcdd6472aae8d735a",
       "branch": "agent/96-bank-account-owner-check",
-      "ci": null
+      "ci": {
+        "requestId": "6b9c3e8d-437e-4180-9fd4-32c09f8ca166",
+        "head": "4d85eb5014c5a64f59db472757695aa3ef2c1b88",
+        "runId": null
+      }
     }
   },
   "grants": {
