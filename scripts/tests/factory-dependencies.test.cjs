@@ -235,7 +235,8 @@ async function reviewSession(x) {
       result: {
         head: pr().head.sha,
         verdict: "pass",
-        summary: "Independent fixture review",
+        summary:
+          "Reviewed package.json and yarn.lock against the dependency criteria; supplied CI and current registry and advisory facts support this head, with compatibility limits recorded.",
         findings: [],
       },
     },
@@ -373,7 +374,13 @@ test("invalid dependency review cannot publish a check or finish its grant", asy
   const x = await fixture();
   const { grantId, bundle } = await reviewSession(x);
   const before = await x.ledger.read();
-  bundle.result.findings = [{ severity: "important", message: "Blocking fixture finding" }];
+  bundle.result.findings = [
+    {
+      severity: "important",
+      message:
+        "package.json retains a vulnerable dependency version; this update must be held until the affected range is cleared.",
+    },
+  ];
   await assert.rejects(x.coordinator.assess(52, grantId, bundle), /blocking findings/);
   assert.deepEqual(await x.ledger.read(), before);
   assert.equal(x.f.publicationStates.length, 0);
@@ -865,4 +872,14 @@ test("workflow preserves preview, trusted source, readonly model and isolated cr
     "node_modules/@yarnpkg/lockfile",
     "node_modules/semver",
   ]);
+});
+test("placeholder dependency review leaves the used reservation and gate untouched", async () => {
+  const x = await fixture(),
+    { grantId, bundle } = await reviewSession(x),
+    before = await x.ledger.read();
+  bundle.result.summary = "test";
+  bundle.result.findings = [{ severity: "minor", message: "test" }];
+  await assert.rejects(x.coordinator.assess(52, grantId, bundle), /review|placeholder/i);
+  assert.deepEqual(await x.ledger.read(), before);
+  assert.equal(x.f.publicationStates.length, 0);
 });

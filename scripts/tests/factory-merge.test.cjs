@@ -1,3 +1,4 @@
+const { reviewFeedback } = require("./helpers/factory-fixtures.cjs");
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const policy = require("../factory/policy.cjs");
@@ -240,6 +241,7 @@ async function setup({ settings = {}, ctx = {} } = {}) {
       evidence: `https://github.com/${policy.REPOSITORY}/actions/runs/100`,
     });
     Object.assign(next.tickets["10"], {
+      feedback: reviewFeedback(head),
       criteriaHash: criteriaHash(fixture.issue),
       branch: "agent/factory-10",
       automatic: {

@@ -1,3 +1,4 @@
+const { reviewFeedback } = require("./helpers/factory-fixtures.cjs");
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const policy = require("../factory/policy.cjs");
@@ -247,6 +248,7 @@ test("recovery can reach a normal independent review without allowing an automat
     },
     now
   );
+  state.tickets["11"].feedback = reviewFeedback("b".repeat(40));
   assert.equal(policy.reviewGate(state, { number: 30, head: "b".repeat(40) }).ok, true);
   assert.equal(state.tickets["11"].coding, 3);
   assert.equal(state.tickets["11"].reviews, 1);
@@ -368,11 +370,18 @@ test("recovery uses real publication CI and review flow and blocks automatic att
         result: {
           head,
           verdict,
-          summary: "Synthetic review",
+          summary:
+            "Reviewed src/example.ts against the ticket criteria; regression coverage and unchanged permission boundaries support this head, with no blocking findings.",
           findings:
             verdict === "pass"
               ? []
-              : [{ severity: "important", message: "Synthetic changes requested" }],
+              : [
+                  {
+                    severity: "important",
+                    message:
+                      "src/example.ts still reproduces the synthetic regression; repair the incorrect branch before this head can be approved.",
+                  },
+                ],
         },
       },
       "cycle1"

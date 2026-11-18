@@ -76,7 +76,13 @@ async function setup(approved = true) {
       kind: "review",
       grantId: grant.grantId,
       base: grant.head,
-      result: { head: grant.head, verdict: "pass", summary: "Fixture review", findings: [] },
+      result: {
+        head: grant.head,
+        verdict: "pass",
+        summary:
+          "Reviewed src/example.ts against the ticket criteria; regression coverage and unchanged permission boundaries support this head, with no blocking findings.",
+        findings: [],
+      },
     });
   }
   const env = {

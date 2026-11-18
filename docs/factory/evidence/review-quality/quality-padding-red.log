@@ -1,0 +1,61 @@
+TAP version 13
+# Subtest: actual pass/test artifact is refused by collector without inventing a replacement review
+ok 1 - actual pass/test artifact is refused by collector without inventing a replacement review
+  ---
+  duration_ms: 2.2002
+  type: 'test'
+  ...
+# Subtest: padding, Unicode formatting and a placeholder finding cannot turn samples into review evidence
+ok 2 - padding, Unicode formatting and a placeholder finding cannot turn samples into review evidence
+  ---
+  duration_ms: 1.1828
+  type: 'test'
+  ...
+# Subtest: genuine scope reasoning and honest concrete blockers remain valid
+ok 3 - genuine scope reasoning and honest concrete blockers remain valid
+  ---
+  duration_ms: 0.1633
+  type: 'test'
+  ...
+# Subtest: retained placeholder approval cannot satisfy the gate and both consumed reviews remain immutable
+ok 4 - retained placeholder approval cannot satisfy the gate and both consumed reviews remain immutable
+  ---
+  duration_ms: 19.7002
+  type: 'test'
+  ...
+# Subtest: schema and prompt require a substantive final review without expanding read-only permissions
+ok 5 - schema and prompt require a substantive final review without expanding read-only permissions
+  ---
+  duration_ms: 0.3819
+  type: 'test'
+  ...
+# Subtest: natural sample-only sentences cannot exploit a few unfamiliar filler words
+not ok 6 - natural sample-only sentences cannot exploit a few unfamiliar filler words
+  ---
+  duration_ms: 0.4995
+  type: 'test'
+  location: 'C:\\Users\\haide\\Documents\\Codex\\2026-11-03\\c\\cypress-realworld-app\\scripts\\tests\\factory-review-quality.test.cjs:148:1'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected exception.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  operator: 'throws'
+  stack: |-
+    TestContext.<anonymous> (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\tests\factory-review-quality.test.cjs:153:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 5
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 116.9234

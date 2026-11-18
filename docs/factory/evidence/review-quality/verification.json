@@ -1,0 +1,42 @@
+{
+  "date": "2026-11-18",
+  "ownerBrief": 95,
+  "originalIssue": 93,
+  "originalConsumedReviews": 2,
+  "invalidReviewRun": 44296391691,
+  "originalArtifactId": 14424802182,
+  "observedVerdict": "pass",
+  "observedSummary": "test",
+  "observedFinding": "test",
+  "rootCause": "Collector accepted nonempty placeholder text and the gate did not revalidate retained feedback.",
+  "change": "Preserve the four-field protocol and all history; strengthen text validation and recheck feedback at the gate; improve read-only review instructions.",
+  "localReview": "Padded sample response defect corrected with observed RED/GREEN regression; follow-up found no remaining important regressions.",
+  "newModelStarted": false,
+  "liveLedgerWrites": false,
+  "settingsChanged": false,
+  "discoveryEnabled": false,
+  "limitations": "Text checks cannot prove arbitrary prose truthful or complete. Trusted main governs bootstrap review, so the operator must inspect the actual fresh artifact.",
+  "factorySuite": {
+    "command": "node --test scripts/tests/factory-*.test.cjs",
+    "total": 802,
+    "passed": 788,
+    "failed": 0,
+    "skipped": 14,
+    "outputSha256": "3f2408d93e938bb2efdc0ac1cadd2ac28434977648a4fa456175c1889ae68b9a"
+  },
+  "readOnlyLiveCheck": {
+    "at": "2026-11-18T12:22:49.376Z",
+    "ledgerCommit": "e669f0e65da1f175a40df42c6cf2ff7f5e947f9e",
+    "reviews93": 2,
+    "original93Unchanged": true,
+    "gateUnderCandidateCode": {
+      "ok": false,
+      "reason": "No genuine independent review covers this PR commit"
+    },
+    "gateEvaluationReadOnly": true,
+    "combinedIssue95Open": true,
+    "combinedIssue95Unlabelled": true,
+    "noGrantFor95": true,
+    "draft": true
+  }
+}

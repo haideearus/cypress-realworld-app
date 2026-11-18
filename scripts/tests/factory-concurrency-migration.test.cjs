@@ -1,3 +1,4 @@
+const { reviewFeedback } = require("./helpers/factory-fixtures.cjs");
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { randomUUID } = require("node:crypto");
@@ -47,6 +48,7 @@ async function fixture() {
     head: context.head,
     evidence: `https://github.com/${policy.REPOSITORY}/actions/runs/200`,
   });
+  state.tickets["20"].feedback = reviewFeedback(context.head);
   state.stop = {
     id: randomUUID(),
     at: new Date().toISOString(),

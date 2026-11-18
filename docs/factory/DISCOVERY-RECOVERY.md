@@ -84,3 +84,5 @@ The actual recovery replay remains unrun; its Docker execution and live result
 must be checked after merge and explicit run authorization.
 
 Preparation evidence: [verification record](evidence/discovery-recovery/verification.json).
+
+Fresh review must cover the combined [review-quality correction](REVIEW-QUALITY.md) under owner brief #95. Original #93 and both consumed reviews remain preserved.

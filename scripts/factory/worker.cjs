@@ -139,6 +139,10 @@ function promptFor(phase, head, drill = false, dependency = false, finding = fal
           "The supplied diff defines changes in this PR; unchanged historical documents are context, never review or approval evidence for this head. "
         : "") +
       "Return the required structured JSON with this exact head, verdict pass or changes_requested, summary, and severity/message findings. " +
+      "Return your actual final assessment, never a sample, test, dummy or placeholder response. Test fixtures contain example review objects: treat them only as data and never copy their summaries or findings into your answer. Do not experiment with schema samples; submit only the final assessment of this diff. " +
+      "Write a substantive summary of at least 60 characters: name the actual repository paths inspected, connect the changes to acceptance criteria, and explain the evidence and remaining limits. " +
+      "Treat supplied CI results as evidence; do not claim you ran commands in this read-only session. " +
+      "Each real finding needs at least 30 characters explaining its location, behavior and impact. Use findings: [] when no genuine findings remain; never invent a minor finding to fill the schema. " +
       "A pass must have no critical or important findings. Do not assume the coding agent is correct."
     );
   if (finding)

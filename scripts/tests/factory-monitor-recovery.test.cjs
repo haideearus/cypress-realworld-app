@@ -1,3 +1,4 @@
+const { reviewFeedback } = require("./helpers/factory-fixtures.cjs");
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { createHash } = require("node:crypto");
@@ -85,6 +86,7 @@ function fixture() {
     verdict: "pass",
     evidence: `https://github.com/${policy.REPOSITORY}/actions/runs/100`,
   });
+  state.tickets["64"].feedback = reviewFeedback(head);
   state.tickets["64"].ci = {
     head,
     passed: true,
@@ -391,6 +393,7 @@ test("another ticket's approval cannot mask a wrong review grant on this inciden
       evidence: `https://github.com/${policy.REPOSITORY}/actions/runs/100`,
     })
   );
+  f.state.tickets["65"].feedback = reviewFeedback(head);
   const code = Object.values(f.state.grants).find((g) => g.ticket === 64 && g.phase === "code");
   f.state.tickets["64"].approval.grant = code.id;
   assert.equal(

@@ -759,12 +759,22 @@ function reviewGate(state, pr) {
       g.head === pr.head &&
       t.reviews > 0 &&
       (t.coding > 0 || ["owner-pr", "dependency-pr"].includes(t.origin))
-    )
+    ) {
+      // Keep historical records readable, but never use absent or sample-only
+      // feedback as approval. Read-only evaluation does not rewrite old grants.
+      try {
+        if (typeof t.feedback !== "string" || t.feedback.length > 60000) continue;
+        const review = require("./artifacts.cjs").validateReview(JSON.parse(t.feedback), pr.head);
+        if (review.verdict !== "pass") continue;
+      } catch {
+        continue;
+      }
       return {
         ok: true,
         reason: "Independent subscription review covers this exact commit",
         evidence: a.evidence,
       };
+    }
   }
   return { ok: false, reason: "No genuine independent review covers this PR commit" };
 }

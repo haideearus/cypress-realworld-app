@@ -1,3 +1,4 @@
+const { reviewFeedback } = require("./helpers/factory-fixtures.cjs");
 const test = require("node:test");
 const assert = require("node:assert/strict");
 let policy;
@@ -274,6 +275,7 @@ test("owner PR review reserves the same budget without inventing a coding invoca
     },
     now
   );
+  next.tickets["10"].feedback = reviewFeedback(head);
   assert.equal(policy.reviewGate(next, { number: 30, head }).ok, true);
   saved = policy.reserve(next, { ...input, runId: "101", head: "b".repeat(40) }, config, now);
   assert.equal(policy.reviewGate(saved.state, { number: 30, head }).ok, false);
@@ -327,6 +329,7 @@ test("gate rejects absent, fake, stale and failed review evidence", () => {
     },
     now
   );
+  s.tickets["10"].feedback = reviewFeedback(head);
   assert.equal(policy.reviewGate(s, { number: 20, head }).ok, true);
   assert.equal(policy.reviewGate(s, { number: 20, head: "b".repeat(40) }).ok, false);
   assert.equal(policy.reviewGate(s, { number: 21, head }).ok, false);

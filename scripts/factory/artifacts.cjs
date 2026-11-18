@@ -1,4 +1,5 @@
 const { SHA } = require("./policy.cjs");
+const quality = require("./review-quality.cjs");
 const MAX_FILE = 200000;
 const MAX_TOTAL = 500000;
 function secretLike(text) {
@@ -67,6 +68,8 @@ function validateReview(value, head) {
     value.findings.length > 20
   )
     throw new Error("Invalid independent review result");
+  if (!quality.substantive(value.summary, "summary"))
+    throw new Error("Invalid independent review summary: placeholder or insufficient explanation");
   for (const f of value.findings) {
     if (
       !f ||
@@ -78,6 +81,10 @@ function validateReview(value, head) {
       Object.keys(f).some((k) => !["severity", "message"].includes(k))
     )
       throw new Error("Invalid independent review finding");
+    if (!quality.substantive(f.message, "finding"))
+      throw new Error(
+        "Invalid independent review finding: placeholder or insufficient explanation"
+      );
   }
   if (value.verdict === "pass" && value.findings.some((f) => f.severity !== "minor"))
     throw new Error("Invalid passing review with blocking findings");
@@ -90,7 +97,7 @@ const REVIEW_SCHEMA = {
   properties: {
     head: { type: "string", pattern: "^[a-f0-9]{40}$" },
     verdict: { enum: ["pass", "changes_requested"] },
-    summary: { type: "string", minLength: 1, maxLength: 5000 },
+    summary: { type: "string", minLength: quality.MIN_SUMMARY, maxLength: 5000 },
     findings: {
       type: "array",
       maxItems: 20,
@@ -100,7 +107,7 @@ const REVIEW_SCHEMA = {
         required: ["severity", "message"],
         properties: {
           severity: { enum: ["critical", "important", "minor"] },
-          message: { type: "string", minLength: 1, maxLength: 2000 },
+          message: { type: "string", minLength: quality.MIN_FINDING, maxLength: 2000 },
         },
       },
     },
