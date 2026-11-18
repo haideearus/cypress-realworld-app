@@ -1,0 +1,143 @@
+TAP version 13
+# Subtest: legacy public finding metadata reproduces both scanner matches; projection scans without altering raw proof
+not ok 1 - legacy public finding metadata reproduces both scanner matches; projection scans without altering raw proof
+  ---
+  duration_ms: 580.3734
+  type: 'test'
+  location: 'C:\\Users\\haide\\Documents\\Codex\\2026-11-03\\c\\cypress-realworld-app\\scripts\\tests\\factory-finding-context.test.cjs:13:1'
+  failureType: 'testCodeFailure'
+  error: 'worker.findingEvidenceForModel is not a function'
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    TestContext.<anonymous> (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\tests\factory-finding-context.test.cjs:17:26)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: actual prepared finding context passes unchanged scanner; secrets in reproducer or feedback still fail
+not ok 2 - actual prepared finding context passes unchanged scanner; secrets in reproducer or feedback still fail
+  ---
+  duration_ms: 950.0279
+  type: 'test'
+  location: 'C:\\Users\\haide\\Documents\\Codex\\2026-11-03\\c\\cypress-realworld-app\\scripts\\tests\\factory-finding-context.test.cjs:28:1'
+  failureType: 'testCodeFailure'
+  error: 'Secret scanner blocked 2 finding(s); rules=generic-api-key. Values and locations are redacted.'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    scanFiles (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\factory\secret-scan.cjs:114:11)
+    async TestContext.<anonymous> (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\tests\factory-finding-context.test.cjs:64:17)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: continuation retains both grants and first receipt, consuming coding3/retry2 with its own parent and baseline
+not ok 3 - continuation retains both grants and first receipt, consuming coding3/retry2 with its own parent and baseline
+  ---
+  duration_ms: 4.7568
+  type: 'test'
+  location: 'C:\\Users\\haide\\Documents\\Codex\\2026-11-03\\c\\cypress-realworld-app\\scripts\\tests\\factory-finding-continuation.test.cjs:11:1'
+  failureType: 'testCodeFailure'
+  error: 'Invalid automatic reservation provenance'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    deny (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\factory\policy.cjs:26:9)
+    Object.reserve (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\factory\policy.cjs:457:5)
+    TestContext.<anonymous> (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\tests\factory-finding-continuation.test.cjs:12:33)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.start (node:internal/test_runner/test:944:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
+  ...
+# Subtest: wrong ticket, parent, actor, mixed receipts, schedule and ordinary caps refuse continuation
+not ok 4 - wrong ticket, parent, actor, mixed receipts, schedule and ordinary caps refuse continuation
+  ---
+  duration_ms: 95.4635
+  type: 'test'
+  location: 'C:\\Users\\haide\\Documents\\Codex\\2026-11-03\\c\\cypress-realworld-app\\scripts\\tests\\factory-finding-continuation.test.cjs:24:1'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected exception.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  operator: 'throws'
+  stack: |-
+    TestContext.<anonymous> (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\tests\factory-finding-continuation.test.cjs:26:12)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: continuation preview is read-only with four switches off; explicit run grants only \#96
+not ok 5 - continuation preview is read-only with four switches off; explicit run grants only \#96
+  ---
+  duration_ms: 3.0991
+  type: 'test'
+  location: 'C:\\Users\\haide\\Documents\\Codex\\2026-11-03\\c\\cypress-realworld-app\\scripts\\tests\\factory-finding-continuation.test.cjs:48:1'
+  failureType: 'testCodeFailure'
+  error: 'Invalid, changed or exhausted finding retry'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    refuse (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\factory\finding-retry.cjs:17:9)
+    assertEligible (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\factory\finding-retry.cjs:120:5)
+    Object.retryFinding (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\factory\finding-retry.cjs:230:3)
+    async TestContext.<anonymous> (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\tests\factory-finding-continuation.test.cjs:50:16)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: bad skipped-model/RED/scan proof and stale or unpaused state never reserve continuation
+not ok 6 - bad skipped-model/RED/scan proof and stale or unpaused state never reserve continuation
+  ---
+  duration_ms: 7.5098
+  type: 'test'
+  location: 'C:\\Users\\haide\\Documents\\Codex\\2026-11-03\\c\\cypress-realworld-app\\scripts\\tests\\factory-finding-continuation.test.cjs:54:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /paused/. Input:
+
+    'Error: Invalid, changed or exhausted finding retry'
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+  error: 'Invalid, changed or exhausted finding retry'
+  stack: |-
+    refuse (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\factory\finding-retry.cjs:17:9)
+    assertEligible (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\factory\finding-retry.cjs:120:5)
+    Object.retryFinding (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\factory\finding-retry.cjs:230:3)
+    async waitForActual (node:assert:644:5)
+    async Function.rejects (node:assert:767:25)
+    async TestContext.<anonymous> (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\tests\factory-finding-continuation.test.cjs:57:123)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  operator: 'rejects'
+  stack: |-
+    async TestContext.<anonymous> (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\tests\factory-finding-continuation.test.cjs:57:123)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: continuation dispatch preview cannot write activity metadata
+not ok 7 - continuation dispatch preview cannot write activity metadata
+  ---
+  duration_ms: 11.1024
+  type: 'test'
+  location: 'C:\\Users\\haide\\Documents\\Codex\\2026-11-03\\c\\cypress-realworld-app\\scripts\\tests\\factory-finding-continuation.test.cjs:60:1'
+  failureType: 'testCodeFailure'
+  error: 'Invalid automatic operation'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    Object.main (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\factory\automation.cjs:239:57)
+    async TestContext.<anonymous> (C:\Users\haide\Documents\Codex\2026-11-03\c\cypress-realworld-app\scripts\tests\factory-finding-continuation.test.cjs:65:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 0
+# fail 7
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1653.9792

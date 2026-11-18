@@ -25,11 +25,12 @@ test("automatic entry is main-only scheduled with a default read-only manual pre
 test("finding retry is explicit, preview-default, ticket-scoped and cannot automatically merge", () => {
   const workflow = load();
   const inputs = workflow.on.workflow_dispatch.inputs;
-  assert.deepEqual(inputs.operation.options, ["run", "retry-finding"]);
+  assert.deepEqual(inputs.operation.options, ["run", "retry-finding", "continue-finding"]);
   assert.equal(inputs.operation.default, "run");
   assert.equal(inputs.ticket.default, "");
   assert.equal(inputs.dry_run.default, true);
   assert.ok(workflow.jobs.merge.if.includes("inputs.operation != 'retry-finding'"));
+  assert.ok(workflow.jobs.merge.if.includes("inputs.operation != 'continue-finding'"));
   assert.equal(
     workflow.jobs.pick.steps.find((s) => s.id === "control").with.parameters,
     "${{ toJSON(inputs) }}"

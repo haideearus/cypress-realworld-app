@@ -1,5 +1,11 @@
 # Recovered evidence and the bounded issue #96 retry
 
+The retry described below was consumed by run `44355891864`: recovery download
+and RED passed, then prepared-context scanning blocked it before Claude. Keep
+that grant/receipt intact. The separately approved preparation for a later
+[bounded continuation](FINDING-96-CONTINUATION.md) addresses that context failure;
+do not redispatch the consumed `retry-finding` operation.
+
 Preparation of this fix does not authorize execution. Keep `FACTORY_ENABLED`,
 `FACTORY_AUTOMATION_ENABLED`, `FACTORY_AUTOMERGE_ENABLED` and
 `FACTORY_DISCOVERY_ENABLED` false. Keep Factory event wake, Automatic factory,

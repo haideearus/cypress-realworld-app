@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "date": "2026-11-18",
+  "base": "14fd8c02d89edb7876e5a6d2e8385f5ca0e67df1",
+  "maintenanceIssue": 100,
+  "repairIssue": 96,
+  "untouchedIssue": 97,
+  "failedParent": "44355891864",
+  "preservedGrants": [
+    "4fbec36c-7e05-4d0e-b91f-a912b4d8c505",
+    "33bce768-5170-4d31-80fb-1e19cef4b790"
+  ],
+  "red": {
+    "log": "red.log",
+    "command": "node --test scripts/tests/factory-finding-context.test.cjs scripts/tests/factory-finding-continuation.test.cjs",
+    "passed": 0,
+    "failed": 7,
+    "exitCode": 1,
+    "reason": "Actual worker-prepared finding context fails the unchanged scanner with two generic-api-key matches; old policy and entry cannot authorize the new continuation."
+  },
+  "green": {
+    "focusedCommand": "node --test scripts/tests/factory-finding-context.test.cjs scripts/tests/factory-finding-continuation.test.cjs scripts/tests/factory-finding-retry.test.cjs scripts/tests/factory-discovery-repair.test.cjs scripts/tests/factory-automatic-workflow.test.cjs scripts/tests/factory-worker.test.cjs",
+    "focusedPassed": 39,
+    "factoryCommand": "yarn test:factory",
+    "factoryTests": 823,
+    "factoryPassed": 809,
+    "factorySkipped": 14,
+    "factoryFailed": 0,
+    "skipNote": "Existing opt-in integration checks are not claimed run locally.",
+    "eslint": "passed for changed JavaScript",
+    "prettier": "passed for all changed supported files",
+    "stagedSecretScan": "passed; unchanged scanner checked 593 staged files",
+    "diffCheck": "passed"
+  },
+  "localReview": {
+    "freshContext": true,
+    "claudeSession": false,
+    "importantFindingsRemaining": 0,
+    "focusedPassed": 27,
+    "additionalCheck": "In-memory continuation to publication head, review, retry and cycle2 preserves historical lineage."
+  },
+  "liveControlsReadOnlyAt": "2026-11-18T17:42:58.643Z",
+  "liveUsageCommit": "99ca4288930c266aed6cef50560a9b5e18dac7cc",
+  "allFourSwitchesFalse": true,
+  "allFiveWorkflowsPaused": true,
+  "issue97Unchanged": true,
+  "priorGrantsPreserved": true,
+  "originalFindingPreserved": true,
+  "originalAutomaticPreserved": true,
+  "firstRetryReceiptPreserved": true,
+  "dailyHistoryUnchanged": true,
+  "activeTickets": 0,
+  "issue96Counters": { "coding": 2, "reviews": 0, "retries": 1 },
+  "liveContinuationStarted": false,
+  "claudeStarted": false,
+  "paidAiApiUsed": false,
+  "scannerChanged": false,
+  "reviewGateChanged": false
+}

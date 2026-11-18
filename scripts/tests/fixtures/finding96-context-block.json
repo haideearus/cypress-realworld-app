@@ -1,0 +1,25 @@
+{
+  "grant": {
+    "id": "33bce768-5170-4d31-80fb-1e19cef4b790",
+    "ticket": 96,
+    "phase": "code",
+    "slot": "cycle1",
+    "runId": "44355891864",
+    "runAttempt": 1,
+    "head": "14fd8c02d89edb7876e5a6d2e8385f5ca0e67df1",
+    "status": "finished",
+    "at": "2026-11-18T17:12:34.974Z",
+    "outcome": "blocked"
+  },
+  "retry": {
+    "version": 1,
+    "priorGrant": "4fbec36c-7e05-4d0e-b91f-a912b4d8c505",
+    "runId": "44355891864",
+    "runAttempt": 1,
+    "workflowSha": "14fd8c02d89edb7876e5a6d2e8385f5ca0e67df1",
+    "head": "14fd8c02d89edb7876e5a6d2e8385f5ca0e67df1",
+    "ciRunId": "44351408141",
+    "actor": "haideearus",
+    "decision": "https://github.com/haideearus/cypress-realworld-app/issues/98"
+  }
+}

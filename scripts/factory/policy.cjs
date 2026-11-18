@@ -243,6 +243,8 @@ function validateState(state) {
       )
         deny("Invalid discovery finding repair receipt");
     }
+    if (ticket.findingContinuation !== undefined)
+      require("./finding-continuation.cjs").validateContinuation(state, id, ticket, grants);
     if (ticket.findingRetry !== undefined)
       require("./finding-retry.cjs").validateRetry(state, id, ticket, grants);
     if (
@@ -382,7 +384,7 @@ function isAutomaticContext(request) {
 }
 function matchesAutomaticRun(ticket, context, config) {
   const a = ticket?.automatic;
-  const parent = ticket?.findingRetry || a;
+  const parent = ticket?.findingContinuation || ticket?.findingRetry || a;
   return Boolean(
     a &&
       a.workflowRef === context.workflowRef &&
@@ -412,11 +414,15 @@ function reserve(original, request, config, now = new Date()) {
   if (recovering) recovery.assertEligible(original, request, config);
   if (request.findingRetry !== undefined)
     require("./finding-retry.cjs").assertEligible(original, request, config);
+  if (request.findingContinuation !== undefined)
+    require("./finding-continuation.cjs").assertEligible(original, request, config);
   const state = structuredClone(original);
   const id = String(request.ticket);
   const existing = state.tickets[id];
   if (request.findingRetry !== undefined)
     existing.findingRetry = structuredClone(request.findingRetry);
+  if (request.findingContinuation !== undefined)
+    existing.findingContinuation = structuredClone(request.findingContinuation);
   const drill = request.origin === "drill";
   if (existing?.origin === "drill") deny("Drill reservation cannot be repeated or reclassified");
   if (drill) {

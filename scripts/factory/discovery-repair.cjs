@@ -127,7 +127,8 @@ function evidenceLocation(candidate) {
   };
 }
 function repairBaseline(ticket) {
-  const head = ticket.findingRetry?.head || ticket.finding.intake.head;
+  const head =
+    ticket.findingContinuation?.head || ticket.findingRetry?.head || ticket.finding.intake.head;
   if (!c.SHA.test(head)) throw Error("Invalid trusted repair baseline");
   return head;
 }

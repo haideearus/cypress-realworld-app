@@ -6,12 +6,12 @@ on:
   workflow_dispatch:
     inputs:
       operation:
-        description: Normal queue pickup, or the one owner-approved retry for finding 96
+        description: Normal pickup, or an explicitly approved retry/continuation for finding 96
         type: choice
-        options: [run, retry-finding]
+        options: [run, retry-finding, continue-finding]
         default: run
       ticket:
-        description: Only used by retry-finding; must be 96 (no queue selection)
+        description: Only used by retry-finding/continue-finding; must be 96 (no queue selection)
         type: string
         default: ""
       wake_id:
@@ -163,7 +163,7 @@ jobs:
       FACTORY_GITHUB_APP_PRIVATE_KEY: ${{ secrets.FACTORY_GITHUB_APP_PRIVATE_KEY }}
   merge:
     needs: [pick, cycle1, cycle2, cycle3, cycle4, cycle5]
-    if: ${{ always() && !cancelled() && inputs.operation != 'retry-finding' && needs.pick.outputs.ticket != '' && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' && vars.FACTORY_AUTOMERGE_ENABLED == 'true' && !(github.event_name == 'workflow_dispatch' && inputs.dry_run) }}
+    if: ${{ always() && !cancelled() && inputs.operation != 'retry-finding' && inputs.operation != 'continue-finding' && needs.pick.outputs.ticket != '' && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' && vars.FACTORY_AUTOMERGE_ENABLED == 'true' && !(github.event_name == 'workflow_dispatch' && inputs.dry_run) }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
