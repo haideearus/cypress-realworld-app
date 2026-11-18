@@ -1945,9 +1945,17 @@
       "reviews": 1,
       "retries": 0,
       "head": "1c8c7213e1575062a9b0544c4ec7e5563183c5d1",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 106,
-      "approval": null,
+      "approval": {
+        "head": "1c8c7213e1575062a9b0544c4ec7e5563183c5d1",
+        "pr": 106,
+        "grant": "2e2d703e-6137-49d6-92f0-6b8ace4ec680",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/44403474151"
+      },
       "criteriaHash": "ccc487143507b0178ebe3de8fedec6c72ef44cf04000b59d55520a6bfde25927",
       "branch": "agent/finding-96-github-retry",
       "ci": {
@@ -1955,7 +1963,8 @@
         "head": "1c8c7213e1575062a9b0544c4ec7e5563183c5d1",
         "runId": 44403586302,
         "passed": true
-      }
+      },
+      "feedback": "{\"verdict\":\"pass\",\"head\":\"1c8c7213e1575062a9b0544c4ec7e5563183c5d1\",\"summary\":\"Reviewed the diff and current source for ticket #105 against scripts/factory/github.cjs, finding-api-recovery.cjs (new), finding-retry.cjs, policy.cjs, merge.cjs, automation.cjs, controller.cjs, dependencies.cjs, dependency-policy.cjs, discovery-repair.cjs, worker.cjs and the two new test files plus the factory-automatic.yml workflow change. The bounded GET retry in github.cjs (scripts/factory/github.cjs:31-45) correctly limits retries to opt-in GET requests with no body, only for 502/503/504, with at most two extra attempts (250ms/1s backoff) and preserves error.status on exhaustion; writes, 401/403/404/429, malformed JSON and transport errors remain single-attempt, matching scripts/tests/factory-github-read-retry.test.cjs. retryReads is opted into exactly the read paths that perform finding-provenance/discovery resolution (discovery-repair.cjs \\\"resolve\\\" step, which is the literal step that 502'd in run 44398068245) plus the automatic finding-handoff auto_pick path, worker.cjs \\\"prepare\\\", and controller.cjs \\\"publish\\\" (the latter two also cover ordinary, non-finding reads, a modest but harmless broadening since only idempotent GETs are affected). The new scripts/factory/finding-api-recovery.cjs pins the exact grant/run/job IDs from the ticket (grant 45870dc6…, run 44398068245, job 135133729529) and its validateRecovery/assertEligible/verifyFailure mirror the established structure of finding-output-recovery.cjs and finding-continuation.cjs, including the \\\"previous grants\\\" filtering trick needed so nested validators still see the original 4-grant history. policy.cjs, merge.cjs, automation.cjs, controller.cjs, dependencies.cjs and dependency-policy.cjs consistently exclude findingApiRecovery-tagged tickets from blocking future automatic admission once reviewed, while merge.cjs hard-blocks automatic merge for it, matching the ticket's \\\"no merge, manual-only\\\" requirement and the new test's explicit assertion. The new test file's 5 cases plus the github-retry file's 4 cases total 9, matching the plan doc's \\\"nine passes\\\" claim, and the diff is scoped entirely to .github/workflows, docs/, and scripts/factory (CI/meta-automation tooling), not the payment-demo application code itself. I could not execute the test suite or query the referenced GitHub run/job IDs in this read-only session; I relied on the supplied plan-doc regression evidence and CI link as attached, not independently re-verified, and did not find any logic path that would let a ticket other than 96 acquire or benefit from findingApiRecovery.\",\"findings\":[]}"
     }
   },
   "grants": {
@@ -2868,15 +2877,12 @@
       "runId": "44403474151",
       "runAttempt": 1,
       "head": "1c8c7213e1575062a9b0544c4ec7e5563183c5d1",
-      "status": "reserved",
-      "at": "2026-11-18T21:38:13.185Z"
+      "status": "finished",
+      "at": "2026-11-18T21:38:13.185Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 105,
-    "runId": "44403474151",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -5193,6 +5199,14 @@
       "runId": "44403474151",
       "runAttempt": 1,
       "actor": "haideearus"
+    },
+    {
+      "at": "2026-11-18T21:56:55.993Z",
+      "event": "finished",
+      "ticket": 105,
+      "grant": "2e2d703e-6137-49d6-92f0-6b8ace4ec680",
+      "status": "reviewed",
+      "head": "1c8c7213e1575062a9b0544c4ec7e5563183c5d1"
     }
   ]
 }
