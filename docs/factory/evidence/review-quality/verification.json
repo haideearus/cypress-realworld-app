@@ -38,5 +38,32 @@
     "combinedIssue95Unlabelled": true,
     "noGrantFor95": true,
     "draft": true
+  },
+  "encodingFollowUp": {
+    "reviewRun": 44307561939,
+    "reviewArtifactId": 14429784578,
+    "parentCommit": "6193fd8fe16ef6a86aa00b7add8612cea31709a1",
+    "confirmedFailure": "Strict UTF-8 decode failed at byte 5686 (0x92) in factory-review-quality.test.cjs.",
+    "correction": "Use ASCII JavaScript escape \\u2019; the test input now contains real U+2019 at runtime.",
+    "focusedTests": {
+      "command": "node --test scripts/tests/factory-review-quality.test.cjs",
+      "passed": 6,
+      "failed": 0
+    },
+    "freshReviewScope": "Full base-to-head recovery and guard scope under unchanged issue #95; no copied approval or new JSON fields.",
+    "retainedReviews": {
+      "93": 2,
+      "95": 1
+    },
+    "newClaudeStarted": false,
+    "settingsChanged": false,
+    "fullSuite": {
+      "command": "node --test scripts/tests/factory-*.test.cjs",
+      "total": 802,
+      "passed": 788,
+      "failed": 0,
+      "skipped": 14,
+      "outputSha256": "62dbc09546ec00675168ca3e633a23fa45c7296d4f1dabea58f79685f7fb438b"
+    }
   }
 }
