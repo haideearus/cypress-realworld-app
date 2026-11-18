@@ -232,8 +232,12 @@
         },
         "event": "issues"
       },
-      "status": "sent",
-      "receiver": null,
+      "status": "bound",
+      "receiver": {
+        "runId": "44424312124",
+        "runAttempt": 1,
+        "workflowSha": "60ec2c6a851b315e3db3f175a62cc580ef9e99ab"
+      },
       "at": "2026-11-18T23:51:50.490Z"
     }
   }
