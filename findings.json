@@ -1,16 +1,185 @@
 {
   "version": 1,
   "repository": "haideearus/cypress-realworld-app",
-  "records": {},
+  "records": {
+    "3a2bd6958271681ee73a0034a43c0d52594aa556176a4a68c4098671cfb29141": {
+      "candidate": {
+        "key": "3a2bd6958271681ee73a0034a43c0d52594aa556176a4a68c4098671cfb29141",
+        "fingerprint": "9163477dec0d754629f7f0d45325c827763fd5749a487d51ec9cbee7a8bc99ff",
+        "source": {
+          "version": 1,
+          "head": "822b51fb2bb3eaa59d60a109097cc3575e6373d3",
+          "ciRunId": "44193429894",
+          "charter": "journeys",
+          "day": "2026-11-18",
+          "key": "a08fb48436040bc3ad2e14967e84098e6e98ab708f2f8913ce89860538721639",
+          "runId": "44197159640",
+          "runAttempt": 1,
+          "workflowSha": "822b51fb2bb3eaa59d60a109097cc3575e6373d3",
+          "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-discovery.yml@refs/heads/main",
+          "grantId": "d25c438f-35df-449e-9fe0-ec20d87738f5",
+          "recovery": {
+            "version": 1,
+            "id": "5cc9a76f3ae828e531ffc6c50fd64437e1dacf688e5c03504853872304c54dea",
+            "source": {
+              "head": "822b51fb2bb3eaa59d60a109097cc3575e6373d3",
+              "grantId": "d25c438f-35df-449e-9fe0-ec20d87738f5",
+              "runId": "44197159640",
+              "ticket": 92,
+              "runAttempt": 1,
+              "ciRunId": "44193429894",
+              "sweepHash": "a08fb48436040bc3ad2e14967e84098e6e98ab708f2f8913ce89860538721639",
+              "artifactId": 14380786056,
+              "artifactName": "discovery-d25c438f-35df-449e-9fe0-ec20d87738f5",
+              "artifactDigest": "sha256:8fee701b78e201e4a32782633da6163c613b2350320614257aafa477e8ff0a05",
+              "artifactSize": 4281,
+              "bundleHash": "6ba3e7d6635a5c747326e76dab7ec640ce82832d7100e09317d37d9aa738eacf",
+              "sourceHash": "bad7b28832236656c8998da41272536f358ac4debc1985f81ac588a76d49d596",
+              "reportHash": "5d3e014e9c20f031a24f0f56abf35f553fb366b4feb27b1b1bcd9af7e51db6d6"
+            },
+            "context": {
+              "repository": "haideearus/cypress-realworld-app",
+              "actor": "haideearus",
+              "triggeringActor": "haideearus",
+              "ref": "refs/heads/main",
+              "event": "workflow_dispatch",
+              "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-discovery-recovery.yml@refs/heads/main",
+              "workflowSha": "0f9c7511344de041d250ec85983ae9d07188a52b",
+              "runId": "44326359550",
+              "runAttempt": 1,
+              "ciRunId": "44321234376"
+            }
+          }
+        },
+        "artifact": {
+          "id": 14438251360,
+          "name": "discovery-recovery-5cc9a76f3ae828e531ffc6c50fd64437e1dacf688e5c03504853872304c54dea",
+          "workflowRunId": "44326359550",
+          "digest": "sha256:5a7ed240c1c49eae501a3b9746d317f2dadd39307d91ced4e9239c47cdf8d28f"
+        },
+        "evidenceHash": "7db497f2398af783b25cfa9c8316966ccf8b0adaf015c8c0d4822069feacb763",
+        "findingHash": "174cac0da0ea08536b2ee60b5e4478378bb095247b20b0ae2c26a77b91bf88a0",
+        "testHash": "4504053811998b54b9db8d5d99eab3e514764576ee26c65e35f3218dfd7aa85a",
+        "redLogHash": "be8884537cb2eee5c2220f2e23ad0895769a660f2c48035ed2ca3a896ee385fb",
+        "oracleHash": "074174b222e77370c27903d54d946b72249e744a20065733bd49e793ef14da39",
+        "title": "GET /bankAccounts/:bankAccountId discloses any user's bank account to any authenticated user",
+        "summary": "backend/bankaccount-routes.ts calls getBankAccountById(bankAccountId) without checking it belongs to req.user. Executed proposal bank-account-isolation.api.test.cjs (batch 1) confirmed the owner can read their own seeded account (control, 200), then logged in as a distinct unrelated seeded user and received 200 with the owner's full bank account record instead of a denial.",
+        "mode": "api",
+        "file": "bank-account-isolation.api.test.cjs",
+        "oracle": {
+          "kind": "bank-account-isolation",
+          "route": "/bankAccounts/:other",
+          "authenticated": true,
+          "query": {}
+        }
+      },
+      "generation": 1,
+      "status": "verified",
+      "publication": null,
+      "duplicates": [],
+      "intake": null,
+      "resolution": null,
+      "resolutionClosed": false,
+      "resolutionHeld": false
+    },
+    "cfdff080b085ba86149f0bfbdba1cd6470a2716054e68002747e7beb7829f87a": {
+      "candidate": {
+        "key": "cfdff080b085ba86149f0bfbdba1cd6470a2716054e68002747e7beb7829f87a",
+        "fingerprint": "b5e0cb00ccd03aa9db1791efa77a3c7db7b4a5309d788694835bc97b30427236",
+        "source": {
+          "version": 1,
+          "head": "822b51fb2bb3eaa59d60a109097cc3575e6373d3",
+          "ciRunId": "44193429894",
+          "charter": "journeys",
+          "day": "2026-11-18",
+          "key": "a08fb48436040bc3ad2e14967e84098e6e98ab708f2f8913ce89860538721639",
+          "runId": "44197159640",
+          "runAttempt": 1,
+          "workflowSha": "822b51fb2bb3eaa59d60a109097cc3575e6373d3",
+          "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-discovery.yml@refs/heads/main",
+          "grantId": "d25c438f-35df-449e-9fe0-ec20d87738f5",
+          "recovery": {
+            "version": 1,
+            "id": "5cc9a76f3ae828e531ffc6c50fd64437e1dacf688e5c03504853872304c54dea",
+            "source": {
+              "head": "822b51fb2bb3eaa59d60a109097cc3575e6373d3",
+              "grantId": "d25c438f-35df-449e-9fe0-ec20d87738f5",
+              "runId": "44197159640",
+              "ticket": 92,
+              "runAttempt": 1,
+              "ciRunId": "44193429894",
+              "sweepHash": "a08fb48436040bc3ad2e14967e84098e6e98ab708f2f8913ce89860538721639",
+              "artifactId": 14380786056,
+              "artifactName": "discovery-d25c438f-35df-449e-9fe0-ec20d87738f5",
+              "artifactDigest": "sha256:8fee701b78e201e4a32782633da6163c613b2350320614257aafa477e8ff0a05",
+              "artifactSize": 4281,
+              "bundleHash": "6ba3e7d6635a5c747326e76dab7ec640ce82832d7100e09317d37d9aa738eacf",
+              "sourceHash": "bad7b28832236656c8998da41272536f358ac4debc1985f81ac588a76d49d596",
+              "reportHash": "5d3e014e9c20f031a24f0f56abf35f553fb366b4feb27b1b1bcd9af7e51db6d6"
+            },
+            "context": {
+              "repository": "haideearus/cypress-realworld-app",
+              "actor": "haideearus",
+              "triggeringActor": "haideearus",
+              "ref": "refs/heads/main",
+              "event": "workflow_dispatch",
+              "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-discovery-recovery.yml@refs/heads/main",
+              "workflowSha": "0f9c7511344de041d250ec85983ae9d07188a52b",
+              "runId": "44326359550",
+              "runAttempt": 1,
+              "ciRunId": "44321234376"
+            }
+          }
+        },
+        "artifact": {
+          "id": 14438251360,
+          "name": "discovery-recovery-5cc9a76f3ae828e531ffc6c50fd64437e1dacf688e5c03504853872304c54dea",
+          "workflowRunId": "44326359550",
+          "digest": "sha256:5a7ed240c1c49eae501a3b9746d317f2dadd39307d91ced4e9239c47cdf8d28f"
+        },
+        "evidenceHash": "7db497f2398af783b25cfa9c8316966ccf8b0adaf015c8c0d4822069feacb763",
+        "findingHash": "bcff5ff8e6b74f67a78ef382f903430df97446c9729d972818e27a670cc49338",
+        "testHash": "de6178f6cbe689c0faefc7fa04367a2e93bf1db3569c2cb5b61776aecdc72f85",
+        "redLogHash": "48b169f38ee8efc9ed58ebae4d3a006be84c29766f81bb9a2bb64b47aa57a0b6",
+        "oracleHash": "af9d41c83e4ed9d5a8fb048c68994fc31f3378dde0708bac8fb542abc8a2e9ef",
+        "title": "GET /transactions/:transactionId discloses private transactions to non-participants",
+        "summary": "backend/transaction-routes.ts calls getTransactionByIdForApi(transactionId) with no participant check. Executed proposal private-transaction-isolation.api.test.cjs (batch 3) confirmed both the sender and receiver can read a seeded privacyLevel:private transaction (control, both 200), then logged in as a distinct seeded user who is neither sender nor receiver and received 200 with the full private transaction record instead of a denial.",
+        "mode": "api",
+        "file": "private-transaction-isolation.api.test.cjs",
+        "oracle": {
+          "kind": "private-transaction-isolation",
+          "route": "/transactions/:private",
+          "authenticated": true,
+          "query": {}
+        }
+      },
+      "generation": 1,
+      "status": "verified",
+      "publication": null,
+      "duplicates": [],
+      "intake": null,
+      "resolution": null,
+      "resolutionClosed": false,
+      "resolutionHeld": false
+    }
+  },
   "days": {},
-  "sources": {},
+  "sources": {
+    "d25c438f-35df-449e-9fe0-ec20d87738f5": [
+      "3a2bd6958271681ee73a0034a43c0d52594aa556176a4a68c4098671cfb29141",
+      "cfdff080b085ba86149f0bfbdba1cd6470a2716054e68002747e7beb7829f87a"
+    ]
+  },
   "replays": {},
   "imports": {
     "d25c438f-35df-449e-9fe0-ec20d87738f5": {
       "runId": "44197159640",
-      "evidenceHash": null,
-      "findings": [],
-      "status": "held-evidence",
+      "evidenceHash": "7db497f2398af783b25cfa9c8316966ccf8b0adaf015c8c0d4822069feacb763",
+      "findings": [
+        "3a2bd6958271681ee73a0034a43c0d52594aa556176a4a68c4098671cfb29141",
+        "cfdff080b085ba86149f0bfbdba1cd6470a2716054e68002747e7beb7829f87a"
+      ],
+      "status": "complete",
       "recoveries": [
         {
           "proof": {
