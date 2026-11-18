@@ -1777,7 +1777,7 @@
       "reviews": 0,
       "retries": 2,
       "head": "23252aeb493185e78fc92c587db3491c4f5164ed",
-      "status": "coding",
+      "status": "blocked",
       "pr": null,
       "approval": null,
       "criteriaHash": "0d4c7c6abaff83c3be31fc6501555ec1c202a9d047d7e209a928653444244b71",
@@ -2774,15 +2774,12 @@
       "runId": "44376807620",
       "runAttempt": 1,
       "head": "23252aeb493185e78fc92c587db3491c4f5164ed",
-      "status": "reserved",
-      "at": "2026-11-18T19:06:24.773Z"
+      "status": "finished",
+      "at": "2026-11-18T19:06:24.773Z",
+      "outcome": "blocked"
     }
   },
-  "active": {
-    "ticket": 96,
-    "runId": "44376807620",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -5049,6 +5046,12 @@
       "runId": "44376807620",
       "runAttempt": 1,
       "actor": "haideearus"
+    },
+    {
+      "at": "2026-11-18T19:17:56.021Z",
+      "event": "blocked",
+      "ticket": 96,
+      "reason": "Agent, publication, or CI infrastructure failed; no automatic model retry"
     }
   ]
 }
