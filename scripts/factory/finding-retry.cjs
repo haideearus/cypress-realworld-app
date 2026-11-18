@@ -45,7 +45,12 @@ function validateProof(proof) {
 }
 function validateRetry(state, id, ticket, grants) {
   const proof = validateProof(ticket.findingRetry);
-  const other = grants.filter((g) => g.id !== PRIOR.grant);
+  // policy.validateState validates a continuation separately before this proof.
+  const other = grants.filter(
+    (g) =>
+      g.id !== PRIOR.grant &&
+      (!ticket.findingContinuation || g.runId !== ticket.findingContinuation.runId)
+  );
   if (
     Number(id) !== PRIOR.ticket ||
     !ticket.finding ||
@@ -79,6 +84,7 @@ function assertEligible(state, request, config) {
     request.slot !== "cycle1" ||
     request.runAttempt !== 1 ||
     request.origin !== undefined ||
+    request.findingContinuation !== undefined ||
     request.recovery !== undefined ||
     proof.runId !== request.runId ||
     proof.runAttempt !== request.runAttempt ||
@@ -183,8 +189,19 @@ async function verifyFailure(api) {
   )
     refuse();
 }
-async function retryFinding(api, config, context, { ticket, dryRun }, deps = {}) {
+async function retryFinding(
+  api,
+  config,
+  context,
+  { ticket, dryRun, continuation = false },
+  deps = {}
+) {
   const p = require("./policy.cjs");
+  if (typeof continuation !== "boolean") refuse();
+  const control = continuation
+    ? require("./finding-continuation.cjs")
+    : { PRIOR, DECISION, assertEligible, verifyFailure };
+  const receiptField = continuation ? "findingContinuation" : "findingRetry";
   p.authorize(context);
   if (
     ticket !== PRIOR.ticket ||
@@ -210,14 +227,14 @@ async function retryFinding(api, config, context, { ticket, dryRun }, deps = {})
   const tested = await testedMain(api, context, {});
   const proof = {
     version: 1,
-    priorGrant: PRIOR.grant,
+    priorGrant: control.PRIOR.grant,
     runId: context.runId,
     runAttempt: 1,
     workflowSha: context.workflowSha,
     head: tested.head,
     ciRunId: tested.ciRunId,
     actor: p.OWNER,
-    decision: DECISION,
+    decision: control.DECISION,
   };
   const request = {
     ...context,
@@ -225,11 +242,11 @@ async function retryFinding(api, config, context, { ticket, dryRun }, deps = {})
     phase: "code",
     slot: "cycle1",
     head: tested.head,
-    findingRetry: proof,
+    [receiptField]: proof,
   };
-  assertEligible(state, request, config);
+  control.assertEligible(state, request, config);
   await paused(api);
-  await verifyFailure(api);
+  await control.verifyFailure(api);
   async function verifyCurrent(current) {
     const issue = await api.request("GET", `${ROOT}/issues/${ticket}`);
     if (
@@ -258,16 +275,16 @@ async function retryFinding(api, config, context, { ticket, dryRun }, deps = {})
     return {
       ready: false,
       preview: true,
-      outcome: "finding-retry-preview",
-      retryEligible: true,
+      outcome: continuation ? "finding-continuation-preview" : "finding-retry-preview",
+      [continuation ? "continuationEligible" : "retryEligible"]: true,
       ticket,
       head: tested.head,
-      priorGrant: PRIOR.grant,
+      priorGrant: control.PRIOR.grant,
       modelCalls: 0,
     };
   const saved = await ledger.update(async (current) => {
     p.assertNotStopped(current);
-    assertEligible(current, request, config);
+    control.assertEligible(current, request, config);
     await paused(api);
     await verifyCurrent(current);
     const result = p.reserve(current, request, config);
@@ -281,7 +298,7 @@ async function retryFinding(api, config, context, { ticket, dryRun }, deps = {})
     grantId: saved.grant.id,
     phase: "code",
     slot: "cycle1",
-    outcome: "finding-retry-reserved",
+    outcome: continuation ? "finding-continuation-reserved" : "finding-retry-reserved",
   };
 }
 module.exports = {

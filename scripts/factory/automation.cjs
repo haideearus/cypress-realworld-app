@@ -236,12 +236,14 @@ async function main(env = process.env) {
   let result;
   if (operation === "auto_pick") {
     const mode = inputs.operation || "run";
-    if (!["run", "retry-finding"].includes(mode)) throw Error("Invalid automatic operation");
-    if (mode === "retry-finding") {
+    if (!["run", "retry-finding", "continue-finding"].includes(mode))
+      throw Error("Invalid automatic operation");
+    if (["retry-finding", "continue-finding"].includes(mode)) {
       if (inputs.wake_id) throw Error("Finding retry cannot use an event wake");
       result = await require("./finding-retry.cjs").retryFinding(api, config, context, {
         ticket: Number(inputs.ticket),
         dryRun,
+        ...(mode === "continue-finding" ? { continuation: true } : {}),
       });
     } else {
       result = await new AutomaticCoordinator(api, config, context).pick({ dryRun });
@@ -252,7 +254,13 @@ async function main(env = process.env) {
       dryRun,
     });
   }
-  if (!(operation === "auto_pick" && inputs.operation === "retry-finding" && dryRun))
+  if (
+    !(
+      operation === "auto_pick" &&
+      ["retry-finding", "continue-finding"].includes(inputs.operation) &&
+      dryRun
+    )
+  )
     await require("./activity.cjs").recordResult(api, context, result, env);
   output(result, env);
   return result;

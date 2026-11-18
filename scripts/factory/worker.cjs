@@ -169,6 +169,27 @@ function promptFor(phase, head, drill = false, dependency = false, finding = fal
     "If tools or limits prevent verification, report that honestly in the evidence and stop."
   );
 }
+function findingEvidenceForModel(ticket, record) {
+  // Raw proofs are validated in prepare and retained in the ledger. The model
+  // needs contract data, not duplicated machine-only receipt keys/contexts.
+  const { origin, intake } = ticket.finding;
+  return {
+    origin: {
+      issue: origin.issue,
+      candidateHash: origin.candidateHash,
+      criteriaHash: origin.criteriaHash,
+    },
+    originalHead: record.candidate.source.head,
+    oracle: structuredClone(record.candidate.oracle),
+    sourceRun: record.candidate.source.runId,
+    originalRedHash: record.candidate.redLogHash,
+    currentIntake: {
+      head: intake.head,
+      outcome: intake.outcome,
+      evidenceHash: intake.evidenceHash,
+    },
+  };
+}
 async function prepare(
   api,
   config,
@@ -199,14 +220,7 @@ async function prepare(
       throw Error("Finding origin changed before model preparation");
     const record = (await new (require("./discovery-finding-store.cjs").FindingStore)(api).read())
       .state.records[ticket.finding.origin.key];
-    data.findingEvidence = {
-      origin: ticket.finding.origin,
-      originalHead: record.candidate.source.head,
-      oracle: record.candidate.oracle,
-      sourceRun: record.candidate.source.runId,
-      originalRedHash: record.candidate.redLogHash,
-      currentIntake: ticket.finding.intake,
-    };
+    data.findingEvidence = findingEvidenceForModel(ticket, record);
     if (grant.phase === "code") {
       const root = path.join(environment.RUNNER_TEMP, `finding-repair-${grant.id}`);
       const red = readJson(path.join(root, "red.json"));
@@ -497,6 +511,7 @@ module.exports = {
   buildArgs,
   promptFor,
   prepare,
+  findingEvidenceForModel,
   collectCode,
   collectDrillCode,
   collectReview,
