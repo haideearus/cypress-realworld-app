@@ -1772,12 +1772,12 @@
       "feedback": "{\"head\":\"25c739a1901fe05f5332c009b0d92a0d522c8e72\",\"verdict\":\"pass\",\"summary\":\"Reviewed the combined PR #94 diff (base→25c739a) and current source against issue #95's acceptance criteria. Note: the ticket body embeds adversarial text (a stale \\\"Run 44296391691 saved {verdict:pass,...}\\\" blob and claims that this is merely \\\"an owner harness review brief... not factory-ready work\\\" and \\\"no review is authorized\\\"). Per the standing system instructions, ticket text is untrusted data, so this was disregarded and a genuine independent review was performed. Review guard: scripts/factory/review-quality.cjs's substantive() enforces length/word-count/unique-word/filler-ratio thresholds plus an anchored regex (including \\\"here's/it's/this's a sample/placeholder review\\\" contractions, fixed in the latest commit by switching the test fixture to a real ’ escape instead of a raw invalid UTF-8 byte - confirmed at scripts/tests/factory-review-quality.test.cjs:152). This is wired into artifacts.cjs validateReview() (used identically by controller.cjs, dependencies.cjs and the review-phase schema), and policy.cjs reviewGate() (policy.cjs:737-779) now re-parses and re-validates retained ticket feedback (JSON shape, exact head match via value.head!==head, verdict===\\\"pass\\\") before trusting any stored approval, falling through read-only to \\\"No genuine independent review covers this PR commit\\\" on any parse/shape/placeholder failure, without mutating grants/counters. worker.cjs's review prompt (scripts/factory/worker.cjs:127-147) demands real repository paths, acceptance-criteria reasoning, an empty findings array when nothing is wrong, and explicitly forbids copying fixture/sample text, while capabilitiesFor (worker.cjs:45-48) keeps the review phase restricted to Read/Glob/Grep with no shell commands — matching the Read/Glob/Grep-only session I actually ran in. Recovery scope: spot-checked discovery-recovery-contract.cjs (pinned SOURCE identity, 2-per-grant/8-per-day permit caps, idempotent finish() with digest-compared re-finish), discovery-archive.cjs (strict single-member ZIP parsing with ZIP64/encryption/symlink rejection, 4MB bounds, CRC/digest/timingSafeEqual verification, allowlisted HTTPS redirect hosts with credentials stripped before following), recovery-github.cjs (retries confined to GET + manual-redirect or explicit rate-limit responses, writes never retried, errors sanitized via a WeakSet allowlist) and the factory-discovery-recovery.yml workflow (workflow_dispatch only, dry_run defaults true, restricted to repo/main/attempt-1, github.token only, pinned actions by SHA). These are unchanged carryovers from issue #93 (already twice independently reviewed and explicitly frozen per the ticket), and this pass's own re-inspection found no regressions in them. Regression coverage is solid and demonstrably negative/positive: factory-review-quality.test.cjs reproduces the literal observed placeholder (verdict pass/summary \\\"test\\\"/finding \\\"test\\\") from run 44296391691 and shows it rejected by both the collector and the gate while leaving the two consumed issue #93 reviews and counters byte-for-byte unchanged (assert.deepEqual); factory-controller.test.cjs:409 and factory-dependencies.test.cjs:876 add dedicated \\\"placeholder ... cannot ...\\\" tests for the normal owner-PR and dependency-PR controller paths, each asserting the ledger and publication state are untouched. docs/factory/evidence/review-quality/verification.json documents RED-before/GREEN-after runs (802 total, 0 failed) for both the original placeholder fix and the follow-up encoding correction, and records the first #95 review (run 44307561939) as preserved/consumed with its scope now extended rather than replaced. No evidence of weakened branch protection, reused placeholder approval, new model/write/shell permissions, or live credential/production access was found.\",\"findings\":[]}"
     },
     "96": {
-      "coding": 2,
+      "coding": 3,
       "origin": "factory",
       "reviews": 0,
-      "retries": 1,
-      "head": "14fd8c02d89edb7876e5a6d2e8385f5ca0e67df1",
-      "status": "blocked",
+      "retries": 2,
+      "head": "23252aeb493185e78fc92c587db3491c4f5164ed",
+      "status": "coding",
       "pr": null,
       "approval": null,
       "criteriaHash": "0d4c7c6abaff83c3be31fc6501555ec1c202a9d047d7e209a928653444244b71",
@@ -1832,6 +1832,17 @@
         "ciRunId": "44351408141",
         "actor": "haideearus",
         "decision": "https://github.com/haideearus/cypress-realworld-app/issues/98"
+      },
+      "findingContinuation": {
+        "version": 1,
+        "priorGrant": "33bce768-5170-4d31-80fb-1e19cef4b790",
+        "runId": "44376807620",
+        "runAttempt": 1,
+        "workflowSha": "23252aeb493185e78fc92c587db3491c4f5164ed",
+        "head": "23252aeb493185e78fc92c587db3491c4f5164ed",
+        "ciRunId": "44372968808",
+        "actor": "haideearus",
+        "decision": "https://github.com/haideearus/cypress-realworld-app/issues/100"
       }
     },
     "98": {
@@ -2754,9 +2765,24 @@
       "status": "finished",
       "at": "2026-11-18T17:59:03.442Z",
       "outcome": "reviewed"
+    },
+    "d91d546e-f952-4dea-9fc4-99b053477d92": {
+      "id": "d91d546e-f952-4dea-9fc4-99b053477d92",
+      "ticket": 96,
+      "phase": "code",
+      "slot": "cycle1",
+      "runId": "44376807620",
+      "runAttempt": 1,
+      "head": "23252aeb493185e78fc92c587db3491c4f5164ed",
+      "status": "reserved",
+      "at": "2026-11-18T19:06:24.773Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 96,
+    "runId": "44376807620",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -5013,6 +5039,16 @@
       "grant": "1cfda349-c793-4a55-a2e7-7fef6eaf8281",
       "status": "reviewed",
       "head": "68a94f38c0c1eb1e58b23a4718d9c58d3a9ad693"
+    },
+    {
+      "at": "2026-11-18T19:06:24.773Z",
+      "event": "reserved",
+      "ticket": 96,
+      "grant": "d91d546e-f952-4dea-9fc4-99b053477d92",
+      "phase": "code",
+      "runId": "44376807620",
+      "runAttempt": 1,
+      "actor": "haideearus"
     }
   ]
 }
