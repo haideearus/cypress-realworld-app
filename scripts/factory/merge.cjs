@@ -53,6 +53,7 @@ class AutomaticMerger {
   }
   automaticTicket(state, ticket) {
     const t = state.tickets[String(ticket)];
+    if (t?.findingApiRecovery) throw new Error("Final finding recovery requires a manual merge");
     if (
       !t ||
       t.origin !== "factory" ||

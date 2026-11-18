@@ -243,12 +243,29 @@ function validateState(state) {
       )
         deny("Invalid discovery finding repair receipt");
     }
+    // Validate the last handoff before allowing its grants to be excluded from earlier proofs.
+    const priorFindingGrants = require("./finding-api-recovery.cjs").validateRecovery(
+      state,
+      id,
+      ticket,
+      grants
+    );
     if (ticket.findingOutputRecovery !== undefined)
-      require("./finding-output-recovery.cjs").validateRecovery(state, id, ticket, grants);
+      require("./finding-output-recovery.cjs").validateRecovery(
+        state,
+        id,
+        ticket,
+        priorFindingGrants
+      );
     if (ticket.findingContinuation !== undefined)
-      require("./finding-continuation.cjs").validateContinuation(state, id, ticket, grants);
+      require("./finding-continuation.cjs").validateContinuation(
+        state,
+        id,
+        ticket,
+        priorFindingGrants
+      );
     if (ticket.findingRetry !== undefined)
-      require("./finding-retry.cjs").validateRetry(state, id, ticket, grants);
+      require("./finding-retry.cjs").validateRetry(state, id, ticket, priorFindingGrants);
     if (
       ticket.findingRedHash !== undefined &&
       (!ticket.finding || !/^[a-f0-9]{64}$/.test(ticket.findingRedHash))
@@ -387,9 +404,14 @@ function isAutomaticContext(request) {
 function matchesAutomaticRun(ticket, context, config) {
   const a = ticket?.automatic;
   const parent =
-    ticket?.findingOutputRecovery || ticket?.findingContinuation || ticket?.findingRetry || a;
+    ticket?.findingApiRecovery ||
+    ticket?.findingOutputRecovery ||
+    ticket?.findingContinuation ||
+    ticket?.findingRetry ||
+    a;
   return Boolean(
     a &&
+      (!ticket.findingApiRecovery || (!config.discovery && !config.autoMerge)) &&
       a.workflowRef === context.workflowRef &&
       parent.workflowSha === context.workflowSha &&
       parent.runId === context.runId &&
@@ -414,6 +436,16 @@ function reserve(original, request, config, now = new Date()) {
   const automatic = isAutomaticContext(request);
   if (automatic && !config.automatic) deny("Automatic factory disabled");
   const recovering = request.recovery !== undefined;
+  if (
+    [
+      request.recovery,
+      request.findingRetry,
+      request.findingContinuation,
+      request.findingOutputRecovery,
+      request.findingApiRecovery,
+    ].filter((value) => value !== undefined).length > 1
+  )
+    deny("Invalid mixed recovery handoffs");
   if (recovering) recovery.assertEligible(original, request, config);
   if (request.findingRetry !== undefined)
     require("./finding-retry.cjs").assertEligible(original, request, config);
@@ -421,6 +453,8 @@ function reserve(original, request, config, now = new Date()) {
     require("./finding-continuation.cjs").assertEligible(original, request, config);
   if (request.findingOutputRecovery !== undefined)
     require("./finding-output-recovery.cjs").assertEligible(original, request, config);
+  if (request.findingApiRecovery !== undefined)
+    require("./finding-api-recovery.cjs").assertEligible(original, request, config);
   const state = structuredClone(original);
   const id = String(request.ticket);
   const existing = state.tickets[id];
@@ -430,6 +464,8 @@ function reserve(original, request, config, now = new Date()) {
     existing.findingContinuation = structuredClone(request.findingContinuation);
   if (request.findingOutputRecovery !== undefined)
     existing.findingOutputRecovery = structuredClone(request.findingOutputRecovery);
+  if (request.findingApiRecovery !== undefined)
+    existing.findingApiRecovery = structuredClone(request.findingApiRecovery);
   const drill = request.origin === "drill";
   if (existing?.origin === "drill") deny("Drill reservation cannot be repeated or reclassified");
   if (drill) {
@@ -743,7 +779,12 @@ function finish(original, grantId, outcome, now = new Date()) {
   if (outcome.status !== "reviewed") t.approval = null;
   if (
     ["blocked", "reviewed", "drill_complete"].includes(outcome.status) &&
-    !(state.version === 2 && outcome.status === "reviewed" && (t.automatic || t.dependency))
+    !(
+      state.version === 2 &&
+      outcome.status === "reviewed" &&
+      (t.automatic || t.dependency) &&
+      !t.findingApiRecovery
+    )
   )
     active.releaseActive(state, g);
   audit(

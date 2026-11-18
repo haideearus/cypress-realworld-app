@@ -140,6 +140,7 @@ class Controller {
           ([id, other]) =>
             id !== String(ticket) &&
             (other.automatic || other.dependency) &&
+            !other.findingApiRecovery &&
             other.status === "reviewed" &&
             !["merged", "closed"].includes(other.merge?.status)
         )
@@ -731,7 +732,7 @@ async function main(env = process.env) {
     output(result, env);
     return result;
   }
-  const api = new GitHub({ token: env.GH_TOKEN });
+  const api = new GitHub({ token: env.GH_TOKEN, retryReads: operation === "publish" });
   const context = await require("./trusted-wake.cjs").loadWakeContext(
     api,
     runtimeContext(env),

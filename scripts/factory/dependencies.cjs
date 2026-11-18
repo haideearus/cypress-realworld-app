@@ -273,6 +273,7 @@ class DependencyCoordinator {
     const pending = Object.values(state.tickets).find(
       (t) =>
         (t.automatic || t.dependency) &&
+        !t.findingApiRecovery &&
         t.status === "reviewed" &&
         !["closed", "merged"].includes(t.merge?.status)
     );

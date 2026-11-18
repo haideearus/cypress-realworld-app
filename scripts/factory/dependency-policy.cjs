@@ -6,6 +6,7 @@ function pending(state, except) {
     ([id, t]) =>
       Number(id) !== except &&
       (t.automatic || t.dependency) &&
+      !t.findingApiRecovery &&
       t.status === "reviewed" &&
       !["closed", "merged"].includes(t.merge?.status)
   );
