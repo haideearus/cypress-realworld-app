@@ -48,5 +48,21 @@
     "deployment"
   ],
   "limitations": "Native Docker and full app CI remain for GitHub Actions. Local tests use inert saved JSON and injected synthetic sandbox/API results, never live producer proof.",
-  "counterPolicy": "No counter refund, reset or original grant rewrite. Recovery attempts share the existing eight daily model-free replay slots."
+  "counterPolicy": "No counter refund, reset or original grant rewrite. Recovery attempts share the existing eight daily model-free replay slots.",
+  "reviewScopeCorrection": {
+    "sourceReviewRun": 44288249555,
+    "sourceVerdict": "changes_requested",
+    "change": "Restore plain GitHub imports in discovery-run.cjs and discovery-worker.cjs; RecoveryGitHub stays explicit only in discovery-recovery-run.cjs.",
+    "factorySuite": {
+      "total": 794,
+      "passed": 780,
+      "failed": 0,
+      "skipped": 14,
+      "outputSha256": "8687012f126db2be1efde8f22bd85a56b9f877d7d41138e9cc0263a21deebcbf"
+    },
+    "priorReviewRetained": true,
+    "freshReviewStarted": false,
+    "settingsChanged": false,
+    "discoveryEnabled": false
+  }
 }

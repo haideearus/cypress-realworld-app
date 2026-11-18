@@ -67,9 +67,12 @@ automatic repair.
 
 The recovery workflow has no subscription or paid API credential. Existing
 subscription-only guards remain, including rejection of provider API keys.
-Bounded GET retries apply only to explicit GitHub rate limits; uncertain writes
+Recovery-only bounded GET retries apply only to explicit GitHub rate limits; uncertain writes
 are never retried automatically. Diagnostics expose phase, category and optional
 HTTP status, without raw response text or signed URLs.
+
+The existing discovery runner and worker keep their ordinary GitHub client.
+Only this saved-output recovery entrypoint constructs the retry client.
 
 ## Validation status
 

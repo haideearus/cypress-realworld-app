@@ -1,8 +1,7 @@
 const fs = require("node:fs");
 const p = require("./policy.cjs");
 const c = require("./discovery-contract.cjs");
-const { Ledger, ROOT } = require("./github.cjs");
-const { RecoveryGitHub: GitHub } = require("./recovery-github.cjs");
+const { GitHub, Ledger, ROOT } = require("./github.cjs");
 const { diagnostic, withStage } = require("./discovery-diagnostics.cjs");
 const { DiscoveryStore } = require("./discovery-store.cjs");
 const { runtimeContext, output } = require("./controller.cjs");

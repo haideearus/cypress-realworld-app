@@ -55,12 +55,16 @@ is never converted into `discovery_complete`.
 
 ## Rate limits and diagnostics
 
-Opt discovery/recovery clients into at most three GET attempts and twenty
+Opt only the saved-output recovery client into at most three GET attempts and twenty
 seconds total waiting, only with explicit GitHub rate-limit evidence. Unknown
 403s and all writes are never retried automatically. Mutation uncertainty uses
 retained intentions and later reconciliation. Emit only allowlisted phase,
 category and HTTP status, never raw error text, tokens or signed URLs. Long
 resets stay visibly held.
+
+The existing model-driving discovery entrypoints retain the ordinary GitHub
+client. Recovery passes its own retry client explicitly to shared helpers;
+reusing those helpers does not change their existing callers' default HTTP policy.
 
 ## Scope boundary
 
