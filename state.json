@@ -64,7 +64,8 @@
       93,
       95,
       96,
-      98
+      98,
+      100
     ]
   },
   "tickets": {
@@ -1859,6 +1860,19 @@
         "passed": true
       },
       "feedback": "{\"verdict\":\"pass\",\"head\":\"1af5bc663b2f0ef814309db9e438d530cb8fa0ed\",\"summary\":\"Reviewed the diff against HEAD 1af5bc6 covering scripts/factory/discovery-repair.cjs, scripts/factory/finding-retry.cjs (new), scripts/factory/policy.cjs, scripts/factory/automation.cjs, .github/workflows/factory-automatic.yml, and the new/modified tests in scripts/tests/. The core bug fix in discovery-repair.cjs replaces `sourceRun: record.candidate.source.runId` with `...evidenceLocation(candidate)`, which now resolves the artifact's actual producer (`candidate.artifact.workflowRunId`, the recovery run 44326359550) instead of the original discovery run (44197159640), matching the ticket's described defect and verified by the fixture in scripts/tests/fixtures/finding96-blocked.json and the regression test in factory-discovery-repair.test.cjs (\\\"repair downloads recovered evidence from the bound recovery producer, not the original discovery\\\"). The companion `repairBaseline()` change lets a bound retry's RED/GREEN replay use the freshly tested main head (ticket.findingRetry.head) instead of the stale original intake head, covered by its own test. scripts/factory/finding-retry.cjs implements the one-time, owner-only (actor/triggeringActor === OWNER), preview-by-default (workflow_dispatch dry_run default true/required) retry for ticket 96: it pins to the exact prior grant/run/head/hashes, verifies the specific failed job and skipped model/RED steps via verifyFailure, requires all four discovery/pickup/intake/wake workflows paused, requires a fresh CI-tested main head before any model session, and is wired through policy.cjs's reserve/validateState so the retry consumes the normal coding/retry counters (coding 1→2, retries 0→1) without mutating the original grant, criteria, finding origin, or ticket #97. factory-automatic.yml restricts the new `retry-finding` operation input to no queue selection and blocks the auto_merge job while it runs. Regression coverage in scripts/tests/factory-finding-retry.test.cjs is extensive: it exercises valid retry, wrong ticket/actor/schedule/runId/head tampering, disabled switches, exhausted limits, stale main, unpaused workflows, active work/stop state, forged discovery provenance, repeated retry rejection, and preservation of ticket #97, matching the RED-fails/GREEN-passes evidence log in docs/factory/evidence/finding96-retry/. All four factory switches remain false and the four dependent workflows remain described as paused in both the code gating and the docs; no live Claude session, merge, or deployment is enacted by this diff itself. I could not execute the test suite in this read-only session; the CI/test evidence (verification.json, red/green logs) was treated as provided evidence, not independently reproduced.\",\"findings\":[]}"
+    },
+    "100": {
+      "coding": 0,
+      "origin": "owner-pr",
+      "reviews": 1,
+      "retries": 0,
+      "head": "68a94f38c0c1eb1e58b23a4718d9c58d3a9ad693",
+      "status": "reviewing",
+      "pr": 101,
+      "approval": null,
+      "criteriaHash": "65412dee36b20a1432904b964604ad55f03f7ec7e93254fc275b900ad918e735",
+      "branch": "agent/finding-96-context-continuation",
+      "ci": null
     }
   },
   "grants": {
@@ -2714,9 +2728,24 @@
       "status": "finished",
       "at": "2026-11-18T17:12:34.974Z",
       "outcome": "blocked"
+    },
+    "1cfda349-c793-4a55-a2e7-7fef6eaf8281": {
+      "id": "1cfda349-c793-4a55-a2e7-7fef6eaf8281",
+      "ticket": 100,
+      "phase": "review",
+      "slot": "existing",
+      "runId": "44364611473",
+      "runAttempt": 1,
+      "head": "68a94f38c0c1eb1e58b23a4718d9c58d3a9ad693",
+      "status": "reserved",
+      "at": "2026-11-18T17:59:03.442Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 100,
+    "runId": "44364611473",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -4955,6 +4984,16 @@
       "event": "blocked",
       "ticket": 96,
       "reason": "Agent, publication, or CI infrastructure failed; no automatic model retry"
+    },
+    {
+      "at": "2026-11-18T17:59:03.442Z",
+      "event": "reserved",
+      "ticket": 100,
+      "grant": "1cfda349-c793-4a55-a2e7-7fef6eaf8281",
+      "phase": "review",
+      "runId": "44364611473",
+      "runAttempt": 1,
+      "actor": "haideearus"
     }
   ]
 }
