@@ -1867,9 +1867,17 @@
       "reviews": 1,
       "retries": 0,
       "head": "68a94f38c0c1eb1e58b23a4718d9c58d3a9ad693",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 101,
-      "approval": null,
+      "approval": {
+        "head": "68a94f38c0c1eb1e58b23a4718d9c58d3a9ad693",
+        "pr": 101,
+        "grant": "1cfda349-c793-4a55-a2e7-7fef6eaf8281",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/44364611473"
+      },
       "criteriaHash": "65412dee36b20a1432904b964604ad55f03f7ec7e93254fc275b900ad918e735",
       "branch": "agent/finding-96-context-continuation",
       "ci": {
@@ -1877,7 +1885,8 @@
         "head": "68a94f38c0c1eb1e58b23a4718d9c58d3a9ad693",
         "runId": 44364713775,
         "passed": true
-      }
+      },
+      "feedback": "{\"head\":\"68a94f38c0c1eb1e58b23a4718d9c58d3a9ad693\",\"verdict\":\"pass\",\"summary\":\"Reviewed the repository at 68a94f3 against ticket #100's two goals: (1) a safe model-context projection in scripts/factory/worker.cjs (new findingEvidenceForModel, used in prepare()) that strips the duplicate origin.key/currentIntake.key identifiers which previously tripped the gitleaks generic-api-key rule, while leaving ticket.finding (raw origin/intake proofs) and the ledger untouched, and (2) one bounded, owner-only, preview-default #96 continuation implemented in new scripts/factory/finding-continuation.cjs plus the generalized retryFinding() in scripts/factory/finding-retry.cjs and workflow_dispatch option added to .github/workflows/factory-automatic.yml. Confirmed: the secret scanner (scripts/factory/secret-scan.cjs, gitleaks.toml) is unmodified and still scans the complete written .factory-input/context.json (including the original reproducer/trustedRed) via the unchanged \\\"Reject secrets in prepared context\\\" step in .github/workflows/factory-model.yml; scripts/tests/factory-finding-context.test.cjs exercises the real worker.prepare() end to end and shows the projection scans clean while raw ledger data and injected real-looking credentials still fail closed. The continuation path (finding-continuation.cjs validateContinuation/assertEligible/verifyFailure, wired through policy.cjs reserve/validateState and discovery-repair.cjs repairBaseline) pins to the exact blocked grant/parent run, rejects wrong ticket/actor/parent/history, stale main, unpaused workflows, active/stopped/exhausted state, and reuses ordinary coding/retry counters (2→3, 1→2) with no new allowance, matching scripts/tests/factory-finding-continuation.test.cjs assertions including #97 and prior-grant immutability. The merge job in factory-automatic.yml explicitly excludes retry-finding/continue-finding, and automation.cjs skips activity-store writes for continuation previews, matching the \\\"no queue scan/auto-merge, zero preview writes\\\" requirement. Supplied RED/GREEN evidence (docs/factory/evidence/finding96-context/red.log, verification.json) shows the new tests genuinely failed before the change and the described suite passed after, which I treat as evidence rather than something I executed myself. Limits of this review: I did not run any commands or the linked CI run (https://github.com/haideearus/cypress-realworld-app/actions/runs/44364713775) myself, and relied on static reading of the diff/current source plus the repo's own test/evidence files.\",\"findings\":[]}"
     }
   },
   "grants": {
@@ -2742,15 +2751,12 @@
       "runId": "44364611473",
       "runAttempt": 1,
       "head": "68a94f38c0c1eb1e58b23a4718d9c58d3a9ad693",
-      "status": "reserved",
-      "at": "2026-11-18T17:59:03.442Z"
+      "status": "finished",
+      "at": "2026-11-18T17:59:03.442Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 100,
-    "runId": "44364611473",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -4999,6 +5005,14 @@
       "runId": "44364611473",
       "runAttempt": 1,
       "actor": "haideearus"
+    },
+    {
+      "at": "2026-11-18T18:16:24.416Z",
+      "event": "finished",
+      "ticket": 100,
+      "grant": "1cfda349-c793-4a55-a2e7-7fef6eaf8281",
+      "status": "reviewed",
+      "head": "68a94f38c0c1eb1e58b23a4718d9c58d3a9ad693"
     }
   ]
 }
