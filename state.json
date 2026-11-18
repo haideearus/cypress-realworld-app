@@ -1724,7 +1724,11 @@
       "approval": null,
       "criteriaHash": "61693b10eb51dd5cee462b0cff62cc4a490ff02ca2ac82d48b51a94d4a28aef1",
       "branch": "agent/discovery-recovery",
-      "ci": null
+      "ci": {
+        "requestId": "31dd7afb-5e72-4601-8f52-eace2e23c726",
+        "head": "0428447d010edb5399195c3ee2b2dcc2b43b8f9b",
+        "runId": null
+      }
     }
   },
   "grants": {
