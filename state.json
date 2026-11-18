@@ -1833,7 +1833,11 @@
       "approval": null,
       "criteriaHash": "d246aaca56001c32ad0076f6f8ba97b9520fd69c209b898fa75ccb9865b1567e",
       "branch": "agent/finding-96-safe-retry",
-      "ci": null
+      "ci": {
+        "requestId": "3b3195c2-e6ce-4069-aedd-dcecef643a58",
+        "head": "1af5bc663b2f0ef814309db9e438d530cb8fa0ed",
+        "runId": null
+      }
     }
   },
   "grants": {
