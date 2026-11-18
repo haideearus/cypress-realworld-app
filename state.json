@@ -1696,7 +1696,7 @@
       "retries": 0,
       "origin": "discovery-sweep",
       "head": "822b51fb2bb3eaa59d60a109097cc3575e6373d3",
-      "status": "discovering",
+      "status": "blocked",
       "pr": null,
       "approval": null,
       "discovery": {
@@ -2479,15 +2479,12 @@
       "runId": "44197159640",
       "runAttempt": 1,
       "head": "822b51fb2bb3eaa59d60a109097cc3575e6373d3",
-      "status": "reserved",
-      "at": "2026-11-17T23:11:50.904Z"
+      "status": "finished",
+      "at": "2026-11-17T23:11:50.904Z",
+      "outcome": "blocked"
     }
   },
-  "active": {
-    "ticket": 92,
-    "runId": "44197159640",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -4586,6 +4583,24 @@
       "runId": "44197159640",
       "runAttempt": 1,
       "actor": "haideearus"
+    },
+    {
+      "at": "2026-11-18T09:49:33.406Z",
+      "event": "finished",
+      "ticket": 92,
+      "grant": "d25c438f-35df-449e-9fe0-ec20d87738f5",
+      "phase": "discover",
+      "status": "blocked"
+    },
+    {
+      "at": "2026-11-18T09:49:33.415Z",
+      "event": "owner-discovery-finalization-recovery",
+      "actor": "haideearus",
+      "ticket": 92,
+      "grant": "d25c438f-35df-449e-9fe0-ec20d87738f5",
+      "runId": "44197159640",
+      "source": "owner-local-recovery",
+      "reason": "Original replay failed; finalizer failed with GitHub installation API rate-limit 403. Close as blocked, preserve consumed attempt; no successful verification or ticket publication claimed."
     }
   ]
 }
