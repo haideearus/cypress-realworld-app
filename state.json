@@ -1716,20 +1716,15 @@
     "93": {
       "coding": 0,
       "origin": "owner-pr",
-      "reviews": 1,
+      "reviews": 2,
       "retries": 0,
-      "head": "0428447d010edb5399195c3ee2b2dcc2b43b8f9b",
-      "status": "blocked",
+      "head": "2ad9a70529ee28c4d14fca0bccbe122837ea143f",
+      "status": "reviewing",
       "pr": 94,
       "approval": null,
       "criteriaHash": "61693b10eb51dd5cee462b0cff62cc4a490ff02ca2ac82d48b51a94d4a28aef1",
       "branch": "agent/discovery-recovery",
-      "ci": {
-        "requestId": "31dd7afb-5e72-4601-8f52-eace2e23c726",
-        "head": "0428447d010edb5399195c3ee2b2dcc2b43b8f9b",
-        "runId": 44288341756,
-        "passed": true
-      },
+      "ci": null,
       "feedback": "{\"head\":\"0428447d010edb5399195c3ee2b2dcc2b43b8f9b\",\"verdict\":\"changes_requested\",\"summary\":\"The PR adds a well-designed, heavily tested, non-model recovery path (workflow, discovery-recovery-*.cjs, recovery-github.cjs, discovery-archive.cjs, discovery-diagnostics.cjs) that meets most of ticket #93's acceptance criteria: the original run/grant/artifact/report/RED evidence are pinned and re-verified rather than trusted blindly, the workflow is manual/owner/main/attempt-1 and defaults to preview, no model or provider credentials are used, recovery permits share the existing 8/day replay budget and cap at 2 per source, finalization/reconciliation never spend an extra permit and hold on missing/failed evidence, artifact decoding is bounds-checked (ZIP structure, single member, size caps, CRC/digest checks), artifact redirects are credential-stripped and host-allowlisted, GET-only rate-limit retries are correctly scoped away from mutating requests, and diagnostics only expose stage/category/status. Regression and provenance tests are extensive (workflow-shape tests, contract tests, origin/evidence tests, archive/diagnostics tests) and a local test/evidence record is included. However, the diff also swaps the default GitHub API client used by the pre-existing, already-deployed discovery-run.cjs and discovery-worker.cjs entrypoints (the live, model-driving factory-discovery.yml pipeline) from the plain `GitHub` client to `RecoveryGitHub`, which adds GET retry/backoff (up to ~20s) and different error-wrapping behavior to that unrelated, independently-reviewed production automation. This change is not required by any acceptance criterion (the new recovery code paths pass their own `RecoveryGitHub` instance explicitly and don't rely on these entrypoints' defaults), has no test coverage exercising it, and isn't mentioned in docs/factory/DISCOVERY.md or the ticket despite the ticket's explicit instruction that only the recovery path should be touched and 'existing settings stay unchanged.' This is an unscoped behavior/latency change to live, already-shipped automation and should be reverted or justified before merge.\",\"findings\":[{\"severity\":\"important\",\"message\":\"scripts/factory/discovery-run.cjs:5 and scripts/factory/discovery-worker.cjs:10 replace the default `GitHub` client used by `main()` (the entrypoints for the existing, already-deployed factory-discovery.yml pipeline) with `RecoveryGitHub`. This is unrelated to ticket #93's recovery feature — the recovery code (discovery-recovery-run.cjs) already constructs and passes its own `RecoveryGitHub` instance explicitly wherever it calls into discovery-run.cjs's exported `testedMain`, so this default swap has no functional purpose for recovery. It silently changes retry/backoff timing (up to ~20s extra wait) and error-wrapping behavior for the live, independently-reviewed discovery automation that the ticket says must stay unchanged ('Owner harness maintenance only... existing settings stay unchanged'). No test exercises this specific integration point, and docs/factory/DISCOVERY.md was not updated to reflect it. Recommend reverting these two import/usage changes back to the plain `GitHub` client unless there is a documented, tested reason to change the live discovery pipeline's HTTP behavior.\"}]}"
     }
   },
@@ -2514,9 +2509,24 @@
       "status": "finished",
       "at": "2026-11-18T10:44:48.845Z",
       "outcome": "blocked"
+    },
+    "d3bf69b7-e8c8-41c9-a2ea-9e0e7b163fde": {
+      "id": "d3bf69b7-e8c8-41c9-a2ea-9e0e7b163fde",
+      "ticket": 93,
+      "phase": "review",
+      "slot": "existing",
+      "runId": "44296391691",
+      "runAttempt": 1,
+      "head": "2ad9a70529ee28c4d14fca0bccbe122837ea143f",
+      "status": "reserved",
+      "at": "2026-11-18T11:37:44.999Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 93,
+    "runId": "44296391691",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -4651,6 +4661,16 @@
       "grant": "790b36a4-3dfe-46e4-a646-7196e6876a23",
       "status": "blocked",
       "head": "0428447d010edb5399195c3ee2b2dcc2b43b8f9b"
+    },
+    {
+      "at": "2026-11-18T11:37:44.999Z",
+      "event": "reserved",
+      "ticket": 93,
+      "grant": "d3bf69b7-e8c8-41c9-a2ea-9e0e7b163fde",
+      "phase": "review",
+      "runId": "44296391691",
+      "runAttempt": 1,
+      "actor": "haideearus"
     }
   ]
 }
