@@ -1911,7 +1911,11 @@
       "approval": null,
       "criteriaHash": "32c8569350079f582f88f9ff7c0b69e33aa1db5ad8aef26e116e8145ef8e3b24",
       "branch": "agent/finding-96-proof-recovery",
-      "ci": null
+      "ci": {
+        "requestId": "501202ce-358b-4245-84bf-a5ea99463deb",
+        "head": "639d9457107c7f771b6d86253ee1d5537442418c",
+        "runId": null
+      }
     }
   },
   "grants": {
