@@ -5,5 +5,52 @@
   "days": {},
   "sources": {},
   "replays": {},
-  "imports": {}
+  "imports": {
+    "d25c438f-35df-449e-9fe0-ec20d87738f5": {
+      "runId": "44197159640",
+      "evidenceHash": null,
+      "findings": [],
+      "status": "held-evidence",
+      "recoveries": [
+        {
+          "proof": {
+            "version": 1,
+            "id": "5cc9a76f3ae828e531ffc6c50fd64437e1dacf688e5c03504853872304c54dea",
+            "source": {
+              "head": "822b51fb2bb3eaa59d60a109097cc3575e6373d3",
+              "grantId": "d25c438f-35df-449e-9fe0-ec20d87738f5",
+              "runId": "44197159640",
+              "ticket": 92,
+              "runAttempt": 1,
+              "ciRunId": "44193429894",
+              "sweepHash": "a08fb48436040bc3ad2e14967e84098e6e98ab708f2f8913ce89860538721639",
+              "artifactId": 14380786056,
+              "artifactName": "discovery-d25c438f-35df-449e-9fe0-ec20d87738f5",
+              "artifactDigest": "sha256:8fee701b78e201e4a32782633da6163c613b2350320614257aafa477e8ff0a05",
+              "artifactSize": 4281,
+              "bundleHash": "6ba3e7d6635a5c747326e76dab7ec640ce82832d7100e09317d37d9aa738eacf",
+              "sourceHash": "bad7b28832236656c8998da41272536f358ac4debc1985f81ac588a76d49d596",
+              "reportHash": "5d3e014e9c20f031a24f0f56abf35f553fb366b4feb27b1b1bcd9af7e51db6d6"
+            },
+            "context": {
+              "repository": "haideearus/cypress-realworld-app",
+              "actor": "haideearus",
+              "triggeringActor": "haideearus",
+              "ref": "refs/heads/main",
+              "event": "workflow_dispatch",
+              "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-discovery-recovery.yml@refs/heads/main",
+              "workflowSha": "0f9c7511344de041d250ec85983ae9d07188a52b",
+              "runId": "44326359550",
+              "runAttempt": 1,
+              "ciRunId": "44321234376"
+            }
+          },
+          "day": "2026-11-18",
+          "outcome": "intent",
+          "artifact": null,
+          "confirmation": null
+        }
+      ]
+    }
+  }
 }
