@@ -2355,9 +2355,17 @@
       "reviews": 1,
       "retries": 0,
       "head": "5781715dbbd59c5ece9af8008d1b2bffdda9ef76",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 131,
-      "approval": null,
+      "approval": {
+        "head": "5781715dbbd59c5ece9af8008d1b2bffdda9ef76",
+        "pr": 131,
+        "grant": "48e3f307-80ba-41b4-a1f9-31174aa7179b",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/44638526988"
+      },
       "criteriaHash": "5725d4e2ba4fcf63e57bff509184ec6d4ab3f23c614df824a6d5a89a974af5c3",
       "branch": "agent/discovery-quota-recovery",
       "ci": {
@@ -2365,7 +2373,8 @@
         "head": "5781715dbbd59c5ece9af8008d1b2bffdda9ef76",
         "runId": 44638628219,
         "passed": true
-      }
+      },
+      "feedback": "{\"head\":\"5781715dbbd59c5ece9af8008d1b2bffdda9ef76\",\"verdict\":\"pass\",\"summary\":\"Reviewed scripts/factory/discovery-worker.cjs, scripts/factory/discovery-run.cjs, scripts/factory/discovery-replay.cjs, scripts/factory/github.cjs (unchanged, pre-existing quota-wait mechanism), .github/workflows/factory-discovery.yml, docs/factory/DISCOVERY.md, and the new scripts/tests/factory-discovery-quota.test.cjs plus the updated factory-discovery-replay.test.cjs against ticket #130. The diff reuses the pre-existing bounded GitHub.waitForQuota mechanism (QUOTA_WAIT_LIMIT=3, QUOTA_WAIT_BUDGET_MS=65min, already used by controller.cjs for ci/review/assess ops) and scopes it narrowly to the \\\"replay\\\" op in discovery-worker.cjs and the \\\"finish\\\" op in discovery-run.cjs, leaving \\\"select\\\"/\\\"prepare\\\"(standalone)/\\\"discover\\\" admission paths untouched, which matches \\\"leave model admission, discovery scope, permissions and workflow switches as configured.\\\" The new readFresh() helper in discovery-worker.cjs correctly re-reads the ledger ref+contents from scratch whenever a quota wait occurred mid-read, avoiding stale admission state after a long wait; this is validated by the first new test, which traces the exact GET sequence (ref, stale-ref retry, re-read ref, fresh-ref content) and asserts the single bounded 61.5-minute wait. discovery-replay.cjs's per-finding 5-minute deadline is now extended only by confirmed quota-wait time (quotaWaited() delta), not by arbitrary slow calls, matching the docs update and the \\\"only confirmed GitHub quota sleep extends the replay deadline\\\" test. The second new test confirms Ledger.update()'s PATCH retry after a 403 writes an identical body on retry (writes[0] equals writes[1]) and leaves daily counters (after.days) unchanged versus before, which satisfies \\\"resume with the same artifact/grant\\\" and \\\"preserve attempts and daily counters\\\" without double-consuming the reservation; finishSweep's own guard (grant.status === \\\"reserved\\\") plus the finalize job's existing factory-ledger concurrency group further protect against double-finishing. Workflow timeout increases (replay 75→145min, finalize 5→75min) are consistent with the 65-minute quota-wait budget and the added prepare/replay/finalize work, and no permissions or trigger conditions were touched. I could not execute the test suite myself (read-only review); I relied on static tracing of the mocked fetch sequencing in the new/updated tests and the supplied CI run link as external evidence that the suite passed, not on direct execution.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"In scripts/factory/discovery-worker.cjs prepare(), the defensive branch `if (api.quotaWaits !== waitsAtSnapshot) p.preflight(...)` that re-validates admission with a fresh ledger read after testedMain() encounters a quota wait (reachable when prepare() runs inside replay()'s waitOnQuota=true api) is not directly exercised by any new test; only the equivalent re-read pattern inside replay()'s own ledger.read() is covered. Low risk since it composes already-tested primitives (readFresh, Ledger.read, p.preflight), but it is a real code path left without direct regression coverage.\"}]}"
     }
   },
   "grants": {
@@ -3494,15 +3503,12 @@
       "runId": "44638526988",
       "runAttempt": 1,
       "head": "5781715dbbd59c5ece9af8008d1b2bffdda9ef76",
-      "status": "reserved",
-      "at": "2026-11-19T23:32:57.193Z"
+      "status": "finished",
+      "at": "2026-11-19T23:32:57.193Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 130,
-    "runId": "44638526988",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -6204,6 +6210,14 @@
       "runId": "44638526988",
       "runAttempt": 1,
       "actor": "haideearus"
+    },
+    {
+      "at": "2026-11-19T23:53:14.378Z",
+      "event": "finished",
+      "ticket": 130,
+      "grant": "48e3f307-80ba-41b4-a1f9-31174aa7179b",
+      "status": "reviewed",
+      "head": "5781715dbbd59c5ece9af8008d1b2bffdda9ef76"
     }
   ]
 }
