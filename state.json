@@ -2221,7 +2221,11 @@
       "approval": null,
       "criteriaHash": "d8ba440ca8b412cfaf5ecbc9b737d68c9e901b88e33dc3139b2f7c25f086319e",
       "branch": "agent/settings-rehearsal-setup",
-      "ci": null
+      "ci": {
+        "requestId": "6023c372-3447-4ae7-a581-ef7cf2bede4b",
+        "head": "ad97b952cf23b89385100f90f66f8e1f7f4b1af7",
+        "runId": null
+      }
     }
   },
   "grants": {
