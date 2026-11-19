@@ -2082,7 +2082,11 @@
       "approval": null,
       "criteriaHash": "ff30ed4c67ac129252bee8d777fd98d9c547ae4add0844b65d06891d00cb4fb6",
       "branch": "agent/saved-ci-review-recovery",
-      "ci": null
+      "ci": {
+        "requestId": "320ae715-5f01-466a-a613-416203752728",
+        "head": "a2459481356ec814f4a743a6450318a1d2726e9b",
+        "runId": null
+      }
     }
   },
   "grants": {
