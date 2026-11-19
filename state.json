@@ -71,7 +71,8 @@
     ],
     "2026-11-19": [
       108,
-      109
+      109,
+      110
     ]
   },
   "tickets": {
@@ -2015,6 +2016,19 @@
         "appSlug": "haideearus-software-factory"
       },
       "feedback": "Agent, publication, or CI infrastructure failed; no automatic model retry"
+    },
+    "110": {
+      "coding": 0,
+      "origin": "owner-pr",
+      "reviews": 1,
+      "retries": 0,
+      "head": "c88f799da7e2dc47629dabcbd22e531f3fd9fb09",
+      "status": "reviewing",
+      "pr": 111,
+      "approval": null,
+      "criteriaHash": "95bbb71acebcc1b20a420b75798de6efd02564703aa48f50fcfb7d0b74c6c0a0",
+      "branch": "agent/110-verified-wake-model-handoff",
+      "ci": null
     }
   },
   "grants": {
@@ -2954,9 +2968,24 @@
       "status": "finished",
       "at": "2026-11-18T23:52:13.372Z",
       "outcome": "blocked"
+    },
+    "e22c2372-76fe-4065-8214-b43da72270b9": {
+      "id": "e22c2372-76fe-4065-8214-b43da72270b9",
+      "ticket": 110,
+      "phase": "review",
+      "slot": "existing",
+      "runId": "44427765470",
+      "runAttempt": 1,
+      "head": "c88f799da7e2dc47629dabcbd22e531f3fd9fb09",
+      "status": "reserved",
+      "at": "2026-11-19T00:17:21.394Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 110,
+    "runId": "44427765470",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -5317,6 +5346,16 @@
       "event": "blocked",
       "ticket": 109,
       "reason": "Agent, publication, or CI infrastructure failed; no automatic model retry"
+    },
+    {
+      "at": "2026-11-19T00:17:21.394Z",
+      "event": "reserved",
+      "ticket": 110,
+      "grant": "e22c2372-76fe-4065-8214-b43da72270b9",
+      "phase": "review",
+      "runId": "44427765470",
+      "runAttempt": 1,
+      "actor": "haideearus"
     }
   ]
 }
