@@ -74,7 +74,8 @@
       109,
       110,
       112,
-      116
+      116,
+      114
     ]
   },
   "tickets": {
@@ -2089,6 +2090,19 @@
       },
       "feedback": "{\"head\":\"51ba1fb3fc82e1c3e4b2c89d4957d47f8765171f\",\"verdict\":\"pass\",\"summary\":\"Reviewed src/components/TransactionDetail.tsx and new src/components/__tests__/TransactionDetail.test.tsx against ticket #112. The diff adds aria-label=\\\"Like transaction\\\" to the existing IconButton (line 183) without touching any other prop, so the data-test selector, onClick handler, disabled logic, and visual markup (icon, size) are all unchanged, satisfying \\\"keep appearance, click behavior, and disabled state.\\\" The new Vitest test queries screen.getByRole(\\\"button\\\", { name: \\\"Like transaction\\\" }) to confirm the accessible name, verifies the click calls transactionLike with the transaction id while not disabled, then rerenders with a like from currentUser and asserts the button becomes disabled — covering both boundary states (liked/not-liked) required by the ticket. Confirmed vitest/testing-library/jest-dom are already wired via src/setup-tests.js (toBeDisabled works) and vite.config.ts setupFiles, so the test is runnable within the existing suite (test:unit / test:unit:ci scripts in package.json). Checked cypress/tests/ui/transaction-view.spec.ts, which exercises the same button via cy.getBySelLike(\\\"like-button\\\") (the data-test attribute), confirming no regression to the existing Cypress E2E coverage since that selector is untouched by the aria-label addition. No other files reference the button's data-test string outside TransactionDetail.tsx. This is a static read-only review (no commands executed); CI result for this change was not independently reproduced here.\",\"findings\":[]}"
     },
+    "114": {
+      "coding": 0,
+      "origin": "owner-pr",
+      "reviews": 1,
+      "retries": 0,
+      "head": "81254ca1cf453551a5c2d1112c97b2aae659f083",
+      "status": "reviewing",
+      "pr": 115,
+      "approval": null,
+      "criteriaHash": "3965385530f40d84e083ce4b8255126b7e284184d8a69ed547b065a98e1120df",
+      "branch": "agent/safe-functional-discovery",
+      "ci": null
+    },
     "116": {
       "coding": 0,
       "origin": "owner-pr",
@@ -3102,9 +3116,24 @@
       "status": "finished",
       "at": "2026-11-19T09:50:57.681Z",
       "outcome": "reviewed"
+    },
+    "c8816f1a-3c13-4e4b-9c99-32ce53d24a79": {
+      "id": "c8816f1a-3c13-4e4b-9c99-32ce53d24a79",
+      "ticket": 114,
+      "phase": "review",
+      "slot": "existing",
+      "runId": "44507431068",
+      "runAttempt": 1,
+      "head": "81254ca1cf453551a5c2d1112c97b2aae659f083",
+      "status": "reserved",
+      "at": "2026-11-19T10:37:58.520Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 114,
+    "runId": "44507431068",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -5576,6 +5605,16 @@
       "grant": "f75b8715-180b-4578-bc0b-29c99279783f",
       "status": "reviewed",
       "head": "51ba1fb3fc82e1c3e4b2c89d4957d47f8765171f"
+    },
+    {
+      "at": "2026-11-19T10:37:58.520Z",
+      "event": "reserved",
+      "ticket": 114,
+      "grant": "c8816f1a-3c13-4e4b-9c99-32ce53d24a79",
+      "phase": "review",
+      "runId": "44507431068",
+      "runAttempt": 1,
+      "actor": "haideearus"
     }
   ]
 }
