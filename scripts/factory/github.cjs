@@ -3,12 +3,70 @@ const { setTimeout: delay } = require("node:timers/promises");
 const ROOT = `/repos/${REPOSITORY}`;
 const READ_BACKOFF_MS = [250, 1000];
 const TRANSIENT_GATEWAY = new Set([502, 503, 504]);
+const QUOTA_WAIT_BUDGET_MS = 65 * 60 * 1000;
+const QUOTA_WAIT_LIMIT = 3;
+const QUOTA_RESET_GRACE_MS = 1500;
+
+async function quotaResetAt(response, now) {
+  if (
+    ![403, 429].includes(response.status) ||
+    response.headers?.get("x-ratelimit-remaining") !== "0"
+  )
+    return null;
+  const reset = response.headers.get("x-ratelimit-reset");
+  if (!/^[1-9]\d{0,11}$/.test(reset || "")) return null;
+  const body = await response.json().catch(() => null);
+  if (typeof body?.message !== "string" || !/^API rate limit exceeded\b/i.test(body.message))
+    return null;
+  const retryAfter = response.headers.get("retry-after");
+  const minimum = /^\d{1,9}$/.test(retryAfter || "") ? now + Number(retryAfter) * 1000 : now;
+  return Math.max(Number(reset) * 1000, minimum) + QUOTA_RESET_GRACE_MS;
+}
+
+function quotaSafeRequest(method, path) {
+  return (
+    method === "GET" ||
+    (method === "PATCH" && path === `${ROOT}/git/refs/heads/factory/state`) ||
+    (method === "POST" &&
+      ["/git/blobs", "/git/trees", "/git/commits", "/check-runs"].some(
+        (suffix) => path === ROOT + suffix
+      ))
+  );
+}
+
 class GitHub {
-  constructor({ token, fetch: transport = globalThis.fetch, retryReads = false }) {
+  constructor({
+    token,
+    fetch: transport = globalThis.fetch,
+    retryReads = false,
+    waitOnQuota = false,
+    now = Date.now,
+    sleep = delay,
+    onQuotaWait = () => {},
+  }) {
     if (!token) throw new Error("GitHub job token is required");
     this.token = token;
     this.fetch = transport;
     this.retryReads = retryReads;
+    this.waitOnQuota = waitOnQuota;
+    this.now = now;
+    this.sleep = sleep;
+    this.onQuotaWait = onQuotaWait;
+    this.quotaWaits = 0;
+    this.quotaWaited = 0;
+  }
+  async waitForQuota(error) {
+    if (!this.waitOnQuota || !Number.isFinite(error?.quotaResetAt)) return false;
+    const wait = Math.max(QUOTA_RESET_GRACE_MS, error.quotaResetAt - this.now());
+    if (this.quotaWaits >= QUOTA_WAIT_LIMIT || this.quotaWaited + wait > QUOTA_WAIT_BUDGET_MS)
+      throw new Error("GitHub API quota wait budget exhausted; saved reservation retained", {
+        cause: error,
+      });
+    this.quotaWaits++;
+    this.quotaWaited += wait;
+    this.onQuotaWait(new Date(this.now() + wait).toISOString());
+    await this.sleep(wait);
+    return true;
   }
   async request(method, path, body) {
     if (!path.startsWith(`${ROOT}/`) || /[\\\s]/.test(path) || path.split(/[/?]/).includes(".."))
@@ -29,16 +87,25 @@ class GitHub {
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     };
     const retryable = this.retryReads === true && method === "GET" && body === undefined;
-    for (let attempt = 0; ; attempt++) {
+    let gatewayAttempts = 0;
+    for (;;) {
       const response = await this.fetch(url, { ...options, signal: AbortSignal.timeout(30000) });
-      if (retryable && attempt < READ_BACKOFF_MS.length && TRANSIENT_GATEWAY.has(response.status)) {
+      if (
+        retryable &&
+        gatewayAttempts < READ_BACKOFF_MS.length &&
+        TRANSIENT_GATEWAY.has(response.status)
+      ) {
         await response.body?.cancel().catch(() => {});
-        await delay(READ_BACKOFF_MS[attempt]);
+        await this.sleep(READ_BACKOFF_MS[gatewayAttempts++]);
         continue;
       }
       if (!response.ok) {
         const error = new Error(`GitHub request failed (${response.status})`);
         error.status = response.status;
+        if (this.waitOnQuota) {
+          error.quotaResetAt = await quotaResetAt(response, this.now());
+          if (quotaSafeRequest(method, path) && (await this.waitForQuota(error))) continue;
+        }
         throw error;
       }
       return response.status === 204 ? null : response.json();

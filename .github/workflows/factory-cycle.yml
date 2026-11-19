@@ -95,7 +95,7 @@ jobs:
     needs: publish
     if: ${{ needs.publish.outputs.ready == 'true' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 110
     permissions:
       contents: write
       actions: write
@@ -118,7 +118,7 @@ jobs:
     needs: [publish, ci]
     if: ${{ needs.ci.outputs.passed == 'true' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 75
     permissions:
       contents: write
       actions: read
@@ -163,7 +163,7 @@ jobs:
     needs: [coding, publish, ci, reserve_review, review]
     if: ${{ always() && !cancelled() }}
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 75
     permissions:
       contents: write
       actions: read

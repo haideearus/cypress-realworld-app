@@ -284,6 +284,27 @@ events. Git history preserves earlier snapshots. Only metadata controllers write
 it; model jobs receive read-only GitHub tokens. Do not force-push, delete or edit
 the ledger to clear a limit. The normal factory cannot silently recreate it.
 
+### GitHub API quota during CI and review
+
+The ordinary app and owner-PR workflows keep their reservation while a CI or
+review metadata job waits for a confirmed GitHub REST quota reset. The wait
+uses GitHub's reset headers, with at most 65 minutes of waiting and three waits
+per metadata job. The Actions log shows the reset time in UTC. Permission
+denials and unconfirmed rate errors still fail closed.
+
+CI keeps its original request ID. A resumed check by the same active workflow
+attempt looks up that request and verifies the exact PR head and passing verify
+job before review. A completed CI receipt is revalidated, without redispatching
+CI or reserving another review. A definite quota rejection before dispatch can
+be retried once after checking the reservation and current PR. A timeout or
+unknown dispatch response never triggers a duplicate dispatch.
+
+The wait changes no Claude turn, time, usage or concurrency limits. A waiting
+review reservation or assessment can still hold the metadata concurrency
+group. Cancel that workflow in Actions or use the emergency-stop command to
+interrupt it. A terminal or cancelled parent is held for owner
+recovery under the existing policy, with its reservations preserved.
+
 Artifacts contain validated changed files/evidence or a bounded structured
 review, not credentials or full model transcripts. GitHub retains them for seven
 days. PRs, CI links, ledger commits, and model run links provide the longer audit
