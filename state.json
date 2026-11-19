@@ -2332,7 +2332,7 @@
       "retries": 0,
       "origin": "discovery-sweep",
       "head": "863a039ae40ed89552b534e979e2a3e94d8d3087",
-      "status": "discovering",
+      "status": "blocked",
       "pr": null,
       "approval": null,
       "discovery": {
@@ -3463,15 +3463,12 @@
       "runId": "44631232554",
       "runAttempt": 1,
       "head": "863a039ae40ed89552b534e979e2a3e94d8d3087",
-      "status": "reserved",
-      "at": "2026-11-19T22:43:30.609Z"
+      "status": "finished",
+      "at": "2026-11-19T22:43:30.609Z",
+      "outcome": "blocked"
     }
   },
-  "active": {
-    "ticket": 129,
-    "runId": "44631232554",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -6146,6 +6143,23 @@
       "runId": "44631232554",
       "runAttempt": 1,
       "actor": "haideearus"
+    },
+    {
+      "at": "2026-11-19T23:02:40.347Z",
+      "event": "finished",
+      "ticket": 129,
+      "grant": "411c2cd0-a857-4524-bcbe-487fb6122410",
+      "phase": "discover",
+      "status": "blocked"
+    },
+    {
+      "at": "2026-11-19T23:02:40.351Z",
+      "event": "owner-canceled",
+      "ticket": 129,
+      "actor": "haideearus",
+      "runId": "44631232554",
+      "source": "terminal-attempt-recovery",
+      "failedCancelRunId": "44633796154"
     }
   ]
 }
