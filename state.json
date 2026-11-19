@@ -79,7 +79,8 @@
       118,
       120,
       123,
-      125
+      125,
+      127
     ]
   },
   "tickets": {
@@ -2264,6 +2265,19 @@
         "passed": true
       },
       "feedback": "{\"head\":\"453dc45ebfd44e1080e020a07d0e97be64853cd3\",\"verdict\":\"pass\",\"summary\":\"Reviewed scripts/factory/merge.cjs, .github/workflows/factory-automatic.yml, and scripts/tests/factory-merge.test.cjs at HEAD 453dc45 against ticket #125's acceptance criteria. The checks() method (merge.cjs:258-297) now polls the native \\\"verify\\\" check-run on the exact PR head up to maxPolls (30, default) * 10s = 5 min, refetching the ticket/PR each iteration via current()/pr() so an approval, head, or PR-identity change (fingerprint mismatch or head/ref mismatch) aborts the wait immediately; a definite CI failure or non-pending status also aborts immediately regardless of the wait flag. Once verify passes, it re-polls PR mergeable/mergeable_state (treating null or \\\"blocked\\\" as transient, anything else as a stop condition) within the same bounded loop, satisfying \\\"wait within a fixed budget ... continue once required CI and mergeability are ready\\\" and \\\"stop ... when required CI fails, the PR or saved approval changes, or the wait limit expires.\\\" The new wait is gated by waitForVerify: !dryRun && t.origin === \\\"factory\\\" (merge.cjs:543); since DependencyMerger (dependencies.cjs:452-458) assigns origin \\\"dependency-pr\\\" and preview calls pass dryRun:true, this correctly scopes the new waiting behavior to live factory auto-merges only, preserving dependency-merge and read-only preview behavior as required. No usage-counter, grant, or approval-field mutation logic was touched, and the final PUT still sends the original expected-head sha (merge.cjs:596-599), preserving the expected-head merge guard. The factory-automatic.yml merge job timeout was raised from 10 to 15 minutes, which is consistent with the new worst-case budget (~5 min verify/mergeability wait + ~2.5 min metadata-gate rerun + ~2.5 min merge confirmation = ~10 min) leaving reasonable slack. No model/CI redispatch was added; the only POST added by the feature is none (the pre-existing rerun-failed-jobs path for the review-gate metadata job is unchanged). Three new unit tests (factory-merge.test.cjs:684-736) exercise the wait-then-recheck-mergeability happy path, the dry-run-skips-wait/real-run-times-out cases, and abort-on-head-change; tracing the fixture (maxPolls=2 in test setup, status/mergeable-state transitions driven from the sleep mock) against the implementation confirms the expected call counts and error messages line up, and the change does not appear to disturb existing tests that rely on the already-passing default fixture checks (single immediate check-run read, no loop iterations). I could not execute the suite myself in this read-only session; the referenced CI run is treated as supporting evidence rather than independently verified here. Scope is narrowly limited to the three changed files relevant to the ticket, with no unrelated refactoring.\",\"findings\":[]}"
+    },
+    "127": {
+      "coding": 0,
+      "origin": "owner-pr",
+      "reviews": 1,
+      "retries": 0,
+      "head": "719ea0a6fabb064caf28f0bfbf2454e94133bff9",
+      "status": "reviewing",
+      "pr": 128,
+      "approval": null,
+      "criteriaHash": "8a309ee1c10c66929575894006f10999caee88ce6f1d7d7b54071d6b7821e505",
+      "branch": "agent/functional-only-claude-discovery",
+      "ci": null
     }
   },
   "grants": {
@@ -3347,9 +3361,24 @@
       "status": "finished",
       "at": "2026-11-19T19:04:38.435Z",
       "outcome": "reviewed"
+    },
+    "d07b198f-5c16-4529-945d-2fb1874d274e": {
+      "id": "d07b198f-5c16-4529-945d-2fb1874d274e",
+      "ticket": 127,
+      "phase": "review",
+      "slot": "existing",
+      "runId": "44623900706",
+      "runAttempt": 1,
+      "head": "719ea0a6fabb064caf28f0bfbf2454e94133bff9",
+      "status": "reserved",
+      "at": "2026-11-19T21:57:39.219Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 127,
+    "runId": "44623900706",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -5978,6 +6007,16 @@
       "grant": "7f38d27c-cbb1-41c3-b322-51da6c08ebd2",
       "status": "reviewed",
       "head": "453dc45ebfd44e1080e020a07d0e97be64853cd3"
+    },
+    {
+      "at": "2026-11-19T21:57:39.219Z",
+      "event": "reserved",
+      "ticket": 127,
+      "grant": "d07b198f-5c16-4529-945d-2fb1874d274e",
+      "phase": "review",
+      "runId": "44623900706",
+      "runAttempt": 1,
+      "actor": "haideearus"
     }
   ]
 }
