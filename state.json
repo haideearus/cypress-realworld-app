@@ -77,7 +77,8 @@
       116,
       114,
       118,
-      120
+      120,
+      123
     ]
   },
   "tickets": {
@@ -2208,6 +2209,19 @@
         "passed": true
       },
       "feedback": "{\"head\":\"6e9f6629c42b10507c0fd649695c99a28027aeaf\",\"verdict\":\"pass\",\"summary\":\"Reviewed scripts/factory/controller.cjs, scripts/factory/github.cjs, the factory-cycle.yml/factory-pr-review.yml timeout edits, docs/CLAUDE-FACTORY.md, and the new scripts/tests/factory-ci-quota.test.cjs against ticket #120's acceptance criteria. quotaResetAt() in github.cjs only treats a rejection as quota-only when status is 403/429, x-ratelimit-remaining is \\\"0\\\", the reset header parses, and the body message matches \\\"API rate limit exceeded\\\" — permission denials and secondary-rate-limit responses correctly fall through unretried, and auto-retry on quota is restricted via quotaSafeRequest() to idempotent/safe paths (GET, the ledger ref PATCH, and blob/tree/commit/check-run POSTs), so no blind write replay occurs on non-idempotent endpoints. The cumulative wait is bounded to 65 minutes across at most 3 waits (QUOTA_WAIT_BUDGET_MS/QUOTA_WAIT_LIMIT), and the corresponding ci/review/assess/assess_pr job timeouts in the two workflow files were raised (110/75/75 min) to stay within that bound plus normal processing — consistent with the updated docs section. controller.ci() now persists a pending {requestId, head, runId:null} reservation before dispatching, so a reload with an existing null-runId record skips re-dispatching entirely (verified by the \\\"ambiguous dispatch is never replayed\\\" and \\\"changed PR head\\\" tests), and a definite quota rejection on the dispatch POST itself is retried exactly once after reverifying the ticket/PR via checkCurrentCI(). A completed run is revalidated through validateCI() rather than trusting a stored \\\"passed\\\" flag, and if a quota wait occurs during the ledger save step, the code re-validates the CI outcome and re-checks the ledger before returning, which closes a race where the run's conclusion could flip during the wait (covered by the \\\"CI result that changes during a quota wait\\\" test). reserveReview/assess/assessPR gained stricter equality checks (head, requestId, runId, passed) before admitting a review grant, preventing a second review reservation from a stale or raced CI record. The new test file is picked up automatically by the existing `test:factory` glob script and runs inside factory-ci.yml's \\\"verify\\\" job, and the supplied CI link shows this already passed. I did not execute any commands myself; this is a static review relying on the supplied diff, current source, and the referenced CI run as evidence. I did not find any code paths touching dependency-pr, drill, discovery, or merge logic (relevant to preserving ticket #109 and other unrelated flows), and assertNotStopped/assertSubscriptionEnv/counter logic remain intact and unaffected.\",\"findings\":[]}"
+    },
+    "123": {
+      "coding": 0,
+      "origin": "owner-pr",
+      "reviews": 1,
+      "retries": 0,
+      "head": "ad97b952cf23b89385100f90f66f8e1f7f4b1af7",
+      "status": "reviewing",
+      "pr": 122,
+      "approval": null,
+      "criteriaHash": "d8ba440ca8b412cfaf5ecbc9b737d68c9e901b88e33dc3139b2f7c25f086319e",
+      "branch": "agent/settings-rehearsal-setup",
+      "ci": null
     }
   },
   "grants": {
@@ -3267,9 +3281,24 @@
       "status": "finished",
       "at": "2026-11-19T13:37:27.566Z",
       "outcome": "reviewed"
+    },
+    "a2e9ad1e-2aef-47de-8530-b39a39b052d5": {
+      "id": "a2e9ad1e-2aef-47de-8530-b39a39b052d5",
+      "ticket": 123,
+      "phase": "review",
+      "slot": "existing",
+      "runId": "44555703228",
+      "runAttempt": 1,
+      "head": "ad97b952cf23b89385100f90f66f8e1f7f4b1af7",
+      "status": "reserved",
+      "at": "2026-11-19T15:31:26.791Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 123,
+    "runId": "44555703228",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -5862,6 +5891,16 @@
       "grant": "08d7e57b-1735-4009-9051-f20a15ccb5cf",
       "status": "reviewed",
       "head": "6e9f6629c42b10507c0fd649695c99a28027aeaf"
+    },
+    {
+      "at": "2026-11-19T15:31:26.791Z",
+      "event": "reserved",
+      "ticket": 123,
+      "grant": "a2e9ad1e-2aef-47de-8530-b39a39b052d5",
+      "phase": "review",
+      "runId": "44555703228",
+      "runAttempt": 1,
+      "actor": "haideearus"
     }
   ]
 }
