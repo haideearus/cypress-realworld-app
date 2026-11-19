@@ -83,7 +83,8 @@
       127
     ],
     "2026-11-20": [
-      124
+      124,
+      129
     ]
   },
   "tickets": {
@@ -2324,6 +2325,28 @@
         "passed": true
       },
       "feedback": "{\"verdict\":\"pass\",\"head\":\"719ea0a6fabb064caf28f0bfbf2454e94133bff9\",\"summary\":\"Reviewed the base-to-head diff (22 files) plus the current state of scripts/factory/discovery-functional.cjs, discovery-broker.cjs, discovery-contract.cjs, discovery-policy.cjs, discovery-run.cjs, discovery-worker.cjs, discovery-finding-run.cjs, discovery-origin.cjs, discovery-publication.cjs, discovery-intake.cjs, discovery-sandbox.cjs, discovery-oracles.cjs, discovery-evidence.cjs and discovery-finding-contract.cjs against ticket #127's three criteria. (1) New discovery-functional.cjs introduces FUNCTIONAL_CHARTERS (\\\"functional-feed\\\"/\\\"functional-directory\\\"), bounds feed-pagination to /transactions/public with page/limit in 1-25 and directory search to /users/search with a 24-char alnum+space regex; the broker's write_test tool now takes a structured {file, oracle} input and the trusted proposal()/verifyProposal() functions generate and re-verify the executable node:test file deterministically (model can no longer supply raw test text), satisfying the \\\"accept structured scenario input, generate from trusted code\\\" requirement. The referenced charter source files (src/components/TransactionList.tsx, src/machines/publicTransactionsMachine.ts, src/components/UserListSearchForm.tsx, src/components/UsersList.tsx) all exist in the repo. (2) verifyFindings() is invoked locally (no model call) in discovery-worker.cjs collect()/replay() to recheck each finding against its actually-executed failing batch and canonical title/summary before evidence leaves the sandbox; eligibleCandidate() is threaded through discovery-finding-run.cjs, discovery-intake.cjs, discovery-origin.cjs and discovery-publication.cjs so only functional-charter candidates are newly selectable/publishable/replay-eligible, while discovery-publication.cjs stageFinding deliberately keeps the generation counter based on all matching fingerprints (not just eligible ones) so historical (legacy-charter/recovery) records and generation counts are preserved unmodified, confirmed by the new \\\"never reopens or attaches to an archived fingerprint\\\" test. (3) discovery-policy.cjs reserveSweep() now throws for any non-functional charter and discovery-run.cjs selectSweep() only rotates through the two functional charters, effectively pausing admission of the legacy exploratory charters (session/feed/profile/journeys) while leaving the repair factory, finish/replay machinery and docs (DISCOVERY.md/DISCOVERY-INTAKE.md) otherwise intact and consistent with the code changes. I did not execute any code or tests myself (read-only review); I'm relying on the supplied CI run link as evidence that the test suite, including the new scripts/tests/factory-discovery-functional-scope.test.cjs and updated fixture/reconciliation/intake tests, passed. I did not find any security, boundary, or regression issues in the diff.\",\"findings\":[]}"
+    },
+    "129": {
+      "coding": 0,
+      "reviews": 0,
+      "retries": 0,
+      "origin": "discovery-sweep",
+      "head": "863a039ae40ed89552b534e979e2a3e94d8d3087",
+      "status": "discovering",
+      "pr": null,
+      "approval": null,
+      "discovery": {
+        "version": 1,
+        "head": "863a039ae40ed89552b534e979e2a3e94d8d3087",
+        "ciRunId": "44627450972",
+        "charter": "functional-feed",
+        "day": "2026-11-20",
+        "key": "5584ac2df369ec6d649df1c4c65c07d73de16f8ce79413ec0d88b22c0f3d869e",
+        "runId": "44631232554",
+        "runAttempt": 1,
+        "workflowSha": "863a039ae40ed89552b534e979e2a3e94d8d3087",
+        "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-discovery.yml@refs/heads/main"
+      }
     }
   },
   "grants": {
@@ -3431,9 +3454,24 @@
       "status": "finished",
       "at": "2026-11-19T22:18:11.994Z",
       "outcome": "blocked"
+    },
+    "411c2cd0-a857-4524-bcbe-487fb6122410": {
+      "id": "411c2cd0-a857-4524-bcbe-487fb6122410",
+      "ticket": 129,
+      "phase": "discover",
+      "slot": "discovery",
+      "runId": "44631232554",
+      "runAttempt": 1,
+      "head": "863a039ae40ed89552b534e979e2a3e94d8d3087",
+      "status": "reserved",
+      "at": "2026-11-19T22:43:30.609Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 129,
+    "runId": "44631232554",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -6098,6 +6136,16 @@
       "event": "blocked",
       "ticket": 124,
       "reason": "Agent, publication, or CI infrastructure failed; no automatic model retry"
+    },
+    {
+      "at": "2026-11-19T22:43:30.609Z",
+      "event": "reserved",
+      "ticket": 129,
+      "grant": "411c2cd0-a857-4524-bcbe-487fb6122410",
+      "phase": "discover",
+      "runId": "44631232554",
+      "runAttempt": 1,
+      "actor": "haideearus"
     }
   ]
 }
