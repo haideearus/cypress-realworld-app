@@ -2096,9 +2096,17 @@
       "reviews": 3,
       "retries": 0,
       "head": "65a3613c4c4465e76b8b243d98b4b3edc61afafc",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 115,
-      "approval": null,
+      "approval": {
+        "head": "65a3613c4c4465e76b8b243d98b4b3edc61afafc",
+        "pr": 115,
+        "grant": "11bd2e54-0399-48ac-aba4-87b555442605",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/44514471441"
+      },
       "criteriaHash": "3965385530f40d84e083ce4b8255126b7e284184d8a69ed547b065a98e1120df",
       "branch": "agent/safe-functional-discovery",
       "ci": {
@@ -2107,7 +2115,7 @@
         "runId": 44514548047,
         "passed": true
       },
-      "feedback": "{\"head\":\"81254ca1cf453551a5c2d1112c97b2aae659f083\",\"verdict\":\"changes_requested\",\"summary\":\"Reviewed the diff adding \\\"Safe functional discovery\\\" (.github/workflows/factory-functional-discovery.yml, scripts/factory/functional-discovery{,-contract}.cjs, scripts/factory/functional-browser.cjs, scripts/tests/factory-functional-discovery.cy.js, and integration points in monitor.cjs/monitor-state.cjs/monitor-origin.cjs/monitor-proof.cjs/wake-controller.cjs/trusted-wake.cjs) against ticket #114's acceptance criteria. The twice-confirmed-failure logic (functional-browser.cjs inspectAttempt/verifyFunctionalChecks), the preview-default/no-write dry-run gating (functional-discovery.cjs publishFunctional), the separate \\\"functional\\\" monitor namespace/branch with its own incident slot and the existing per-namespace daily-creation limit (monitor-state.cjs, monitor.cjs observeIncident), the issue-text/receipt verification tying event pickup to a finished browser+publish run (monitor-origin.cjs, wake-controller.cjs, trusted-wake.cjs), and env isolation that keeps credentials/raw logs out of CI (test-production-browser.cjs, functional-browser.cjs isolatedBrowserEnvironment) are all implemented consistently and backed by new node:test coverage in scripts/tests/factory-functional-browser.test.cjs and scripts/tests/factory-functional-discovery.test.cjs, which I traced through by hand and found correct. Existing worker-patch restrictions (scripts/factory/artifacts.cjs validPath already blocks any scripts/tests/factory-* path) already protect the new harness files, and the production monitor's own branch/namespace is left untouched. However, I found a concrete defect in the new workflow file itself (see finding) that was not exercised by the unit tests I reviewed, since those only assert YAML structure (defaults, permissions) rather than the literal `uses:` pin values; the referenced CI run is schedule/workflow_dispatch-only so it would not have exercised this step either. I did not execute any commands; this is a static read of the repository contents and diff.\",\"findings\":[{\"severity\":\"critical\",\"message\":\"Both actions/checkout steps in the new .github/workflows/factory-functional-discovery.yml (lines 53 and 79) are pinned to `actions/checkout@11d5960a326750d5838078e36cf38baf677262`, an 38-character string that is not a valid 40-character commit SHA and does not match (not even as a valid prefix) the 40-character SHA `11d5960a326750d5838078e36cf38b85af677262` used for actions/checkout everywhere else in .github/workflows/*.yml. This pin will fail GitHub's action-reference resolution at runtime, so both the 'browser' and 'publish' jobs will fail at the checkout step whenever the workflow runs (schedule or workflow_dispatch), meaning the entire Safe functional discovery feature cannot execute as merged despite passing unit tests, which only check workflow structure (defaults/permissions) and never assert the literal uses: pin strings.\"}]}"
+      "feedback": "{\"head\":\"65a3613c4c4465e76b8b243d98b4b3edc61afafc\",\"verdict\":\"pass\",\"summary\":\"Reviewed commit 65a3613 (\\\"Use the trusted checkout revision for functional discovery\\\"), which follows up on the prior review (feedback head 81254ca, verdict changes_requested) that flagged a critical defect: both actions/checkout steps in .github/workflows/factory-functional-discovery.yml (lines 53, 79) were pinned to an invalid 38-character SHA (...baf677262) that would fail GitHub's action-reference resolution, breaking the entire \\\"browser\\\" and \\\"publish\\\" jobs at runtime. I re-read the current workflow file and confirmed both checkout steps are now pinned to actions/checkout@11d5960a326750d5838078e36cf38b85af677262, a valid 40-hex-char SHA that is byte-for-byte identical to the pin used in every other workflow in .github/workflows/ (verified via repo-wide grep across factory-ci.yml, factory-monitor.yml, factory-cycle.yml, factory-discovery.yml, etc.), so the fix is consistent with the repo's established trusted pin rather than an arbitrary new value. Critically, scripts/tests/factory-functional-discovery.test.cjs now contains a new assertion (lines 71-83) that loads factory-ci.yml's approved checkout pin, asserts it matches /^actions\\\\/checkout@[0-9a-f]{40}$/, and asserts both the browser and publish jobs of factory-functional-discovery.yml use exactly that same pin — directly closing the regression gap the prior review called out (previously only YAML structure like defaults/permissions was tested, not the literal uses: pin string). I also re-read scripts/factory/functional-browser.cjs, functional-discovery.cjs and functional-discovery-contract.cjs to confirm the twice-confirmed-failure gating, preview/disabled/inconclusive no-write paths, and env isolation (all substantively reviewed and approved in the prior pass) remain intact and were not altered by this narrow fix commit. Limits: I did not execute the test suite or the workflow itself; I relied on static reading of the current source tree and the supplied base-to-head diff (which, being cumulative from ticket start, only shows the corrected pin as an added line rather than a before/after of the typo), plus the linked CI run URL as external evidence I could not independently fetch or verify the contents of.\",\"findings\":[]}"
     },
     "116": {
       "coding": 0,
@@ -3155,15 +3163,12 @@
       "runId": "44514471441",
       "runAttempt": 1,
       "head": "65a3613c4c4465e76b8b243d98b4b3edc61afafc",
-      "status": "reserved",
-      "at": "2026-11-19T11:24:12.674Z"
+      "status": "finished",
+      "at": "2026-11-19T11:24:12.674Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 114,
-    "runId": "44514471441",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -5680,6 +5685,14 @@
       "runId": "44514471441",
       "runAttempt": 1,
       "actor": "haideearus"
+    },
+    {
+      "at": "2026-11-19T11:42:15.135Z",
+      "event": "finished",
+      "ticket": 114,
+      "grant": "11bd2e54-0399-48ac-aba4-87b555442605",
+      "status": "reviewed",
+      "head": "65a3613c4c4465e76b8b243d98b4b3edc61afafc"
     }
   ]
 }
