@@ -10696,6 +10696,29 @@
       },
       "status": "published",
       "commentId": 7006157496
+    },
+    "c94b72fd4c48055cb976e4b8af466930efe7d76d48e486c2e5d4e6e3eed9ed64": {
+      "event": {
+        "id": "c94b72fd4c48055cb976e4b8af466930efe7d76d48e486c2e5d4e6e3eed9ed64",
+        "producer": {
+          "runId": "44431801544",
+          "runAttempt": 1,
+          "workflow": "factory-deploy.yml",
+          "workflowSha": "56294cf7fe21ebe1a040a66798b5f75fe7ed9411",
+          "phase": "job-135250827765",
+          "actor": "haideearus"
+        },
+        "kind": "deployment",
+        "state": "cancelled",
+        "subject": 44431801544,
+        "head": "56294cf7fe21ebe1a040a66798b5f75fe7ed9411",
+        "summary": "Production deployment job is cancelled; named human approval remains required.",
+        "links": [
+          "https://github.com/haideearus/cypress-realworld-app/actions/runs/44431801544"
+        ]
+      },
+      "status": "intent",
+      "commentId": null
     }
   },
   "lastMonitor": {
