@@ -174,7 +174,14 @@ async function main(env = process.env, dependencies = {}) {
       return;
     }
   }
-  const api = dependencies.api || new GitHub({ token: env.GH_TOKEN });
+  const api =
+    dependencies.api ||
+    new GitHub({
+      ...dependencies.githubOptions,
+      token: env.GH_TOKEN,
+      waitOnQuota: op === "finish",
+      onQuotaWait: (until) => console.log(`GitHub API quota exhausted; waiting until ${until}`),
+    });
   await verifyParent(api, context);
   const ledger = dependencies.ledger || new Ledger(api);
   const store = dependencies.store || new DiscoveryStore(api);

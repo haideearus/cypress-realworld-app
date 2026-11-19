@@ -198,6 +198,37 @@ test("all four runs share a five-minute per-finding deadline and check before ev
   assert.equal(calls.filter((x) => x.request).length, 2);
   assert.equal(calls.filter((x) => x.oracle).length, 2);
 });
+test("only confirmed GitHub quota sleep extends the replay deadline", async (t) => {
+  const calls = [];
+  let clock = 1000;
+  let waited = 0;
+  let admissions = 0;
+  await assert.rejects(
+    assessCandidates({
+      bundle: oneFinding(),
+      image,
+      output: temp(t),
+      now: () => clock,
+      quotaWaited: () => waited,
+      before: async () => {
+        if (++admissions === 2) {
+          waited += 600000;
+          clock += waited;
+        }
+        clock += 50000;
+      },
+      run: fakeRun(calls, () => {
+        clock += 35000;
+      }),
+    }),
+    /deadline/i
+  );
+  assert.deepEqual(
+    calls.map((x) => x.deadlineAt),
+    [301000, 901000, 901000]
+  );
+  assert.equal(admissions, 4);
+});
 test("admission veto fails closed during proposal and oracle replay", async (t) => {
   for (const stopAt of [1, 3, 4]) {
     let admissions = 0;
