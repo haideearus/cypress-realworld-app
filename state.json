@@ -2277,7 +2277,11 @@
       "approval": null,
       "criteriaHash": "8a309ee1c10c66929575894006f10999caee88ce6f1d7d7b54071d6b7821e505",
       "branch": "agent/functional-only-claude-discovery",
-      "ci": null
+      "ci": {
+        "requestId": "84fb33b7-7e6e-412d-9014-ff24fdcbb3b9",
+        "head": "719ea0a6fabb064caf28f0bfbf2454e94133bff9",
+        "runId": null
+      }
     }
   },
   "grants": {
