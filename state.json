@@ -2156,7 +2156,11 @@
       "approval": null,
       "criteriaHash": "4e7554ef1055db601344ac70565f17dde380bb99b5f75b3d32535930c8add561",
       "branch": "agent/priority-delayed-retries",
-      "ci": null
+      "ci": {
+        "requestId": "02e9e1b4-93ae-41f6-8f1d-9e15b926bdc5",
+        "head": "055f08680cf248146d83c43aa70cecdc6d7f8e3c",
+        "runId": null
+      }
     }
   },
   "grants": {
