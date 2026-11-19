@@ -165,7 +165,7 @@ jobs:
     needs: [pick, cycle1, cycle2, cycle3, cycle4, cycle5]
     if: ${{ always() && !cancelled() && inputs.operation != 'retry-finding' && inputs.operation != 'continue-finding' && inputs.operation != 'recover-finding' && inputs.operation != 'retry-finding-api' && needs.pick.outputs.ticket != '' && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' && vars.FACTORY_AUTOMERGE_ENABLED == 'true' && !(github.event_name == 'workflow_dispatch' && inputs.dry_run) }}
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     permissions:
       contents: read
     concurrency:

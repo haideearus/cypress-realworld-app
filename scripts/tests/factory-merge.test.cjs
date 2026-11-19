@@ -681,6 +681,58 @@ test("an active ticket prevents a merge even when review and all required checks
   await assert.rejects(merger.merge(10), /active|lock/i);
   assert.deepEqual(fixture.mutations(), []);
 });
+function setNativeVerify(fixture, status, conclusion) {
+  Object.assign(fixture.checks[0], { status, conclusion });
+  Object.assign(fixture.runs.get(501), { status, conclusion });
+}
+test("automatic merge waits for exact PR CI and rechecks mergeability before writing", async () => {
+  const { fixture, ledger, merger } = await setup();
+  const before = (await ledger.read()).state;
+  setNativeVerify(fixture, "in_progress", null);
+  fixture.pr.mergeable_state = "blocked";
+  let waits = 0;
+  merger.sleep = async () => {
+    waits++;
+    assert.deepEqual(fixture.mutations(), []);
+    setNativeVerify(fixture, "completed", "success");
+    if (waits === 2) fixture.pr.mergeable_state = "clean";
+  };
+
+  assert.equal((await merger.merge(10)).merged, true);
+  assert.equal(waits, 2);
+  const after = (await ledger.read()).state;
+  assert.deepEqual(after.grants, before.grants);
+  assert.deepEqual(after.days, before.days);
+  assert.deepEqual(after.tickets["10"].approval, before.tickets["10"].approval);
+  assert.equal(fixture.mutations().filter((call) => call.method === "PUT").length, 1);
+});
+test("pending native CI stops after the wait budget and preview does not sleep", async () => {
+  const { fixture, ledger, merger } = await setup();
+  const before = (await ledger.read()).state;
+  setNativeVerify(fixture, "queued", null);
+  let waits = 0;
+  merger.sleep = async () => {
+    waits++;
+  };
+
+  await assert.rejects(merger.merge(10, { dryRun: true }), /native required verify/i);
+  assert.equal(waits, 0);
+  await assert.rejects(merger.merge(10), /timed out waiting for native required verify/i);
+  assert.equal(waits, 2);
+  assert.deepEqual(fixture.mutations(), []);
+  assert.deepEqual((await ledger.read()).state, before);
+});
+test("automatic merge stops if the PR head changes during the native CI wait", async () => {
+  const { fixture, merger } = await setup();
+  setNativeVerify(fixture, "in_progress", null);
+  merger.sleep = async () => {
+    fixture.pr.head.sha = "d".repeat(40);
+    setNativeVerify(fixture, "completed", "success");
+  };
+
+  await assert.rejects(merger.merge(10), /automatic PR identity or head changed/i);
+  assert.deepEqual(fixture.mutations(), []);
+});
 test("only the exact failed native metadata gate is refreshed after genuine approval", async () => {
   const { fixture, merger } = await setup();
   fixture.checks[1].conclusion = "failure";
