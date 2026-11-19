@@ -2028,7 +2028,11 @@
       "approval": null,
       "criteriaHash": "95bbb71acebcc1b20a420b75798de6efd02564703aa48f50fcfb7d0b74c6c0a0",
       "branch": "agent/110-verified-wake-model-handoff",
-      "ci": null
+      "ci": {
+        "requestId": "ad2080eb-212c-42cb-92e9-e6a4b22cb36b",
+        "head": "c88f799da7e2dc47629dabcbd22e531f3fd9fb09",
+        "runId": null
+      }
     }
   },
   "grants": {
