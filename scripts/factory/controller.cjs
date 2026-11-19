@@ -732,7 +732,10 @@ async function main(env = process.env) {
     output(result, env);
     return result;
   }
-  const api = new GitHub({ token: env.GH_TOKEN, retryReads: operation === "publish" });
+  const api = new GitHub({
+    token: env.GH_TOKEN,
+    retryReads: ["publish", "saved_ci_review", "assess_saved_ci_review"].includes(operation),
+  });
   const context = await require("./trusted-wake.cjs").loadWakeContext(
     api,
     runtimeContext(env),
@@ -760,6 +763,18 @@ async function main(env = process.env) {
       break;
     case "review":
       result = await controller.reserveReview(ticket, Number(inputs.ciId), inputs.slot);
+      break;
+    case "saved_ci_review":
+      result = await require("./review-recovery.cjs").prepare(controller, inputs);
+      break;
+    case "assess_saved_ci_review":
+      result = await require("./review-recovery.cjs").assess(
+        controller,
+        inputs,
+        env.FACTORY_BUNDLE_PATH && fs.existsSync(env.FACTORY_BUNDLE_PATH)
+          ? readJson(env.FACTORY_BUNDLE_PATH)
+          : null
+      );
       break;
     case "assess":
       result = await controller.assess(
