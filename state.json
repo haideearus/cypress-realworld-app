@@ -78,7 +78,8 @@
       114,
       118,
       120,
-      123
+      123,
+      125
     ]
   },
   "tickets": {
@@ -2236,6 +2237,19 @@
         "passed": true
       },
       "feedback": "{\"head\":\"ad97b952cf23b89385100f90f66f8e1f7f4b1af7\",\"verdict\":\"pass\",\"summary\":\"Reviewed the setup-only PR adding docs/factory/SETTINGS-REHEARSAL.md, scripts/rehearsal/prepare-settings.cjs, and scripts/tests/factory-settings-rehearsal-setup.test.cjs against ticket #123's criteria. Verified against current repo state (scripts/factory/policy.cjs, github.cjs, wake-contract.cjs, .github/workflows/*, .github/actions/factory-app-token/action.yml, AGENTS.md, PULL_REQUEST_TEMPLATE.md, package.json) that: (1) the generated settings-validation-seed.patch and rehearsal.json are written outside the exported `app` directory while only `app` becomes the new git repo, satisfying \\\"seed stays outside the live app\\\"; (2) the script rewrites policy.cjs's REPOSITORY/APP_URL and wake-contract.cjs's REPOSITORY to the sandbox name, deletes render.yaml/dependabot.yml/factory-deploy.yml/monitor/discovery/drill workflows, scopes the GitHub App token action to the sandbox repo, strips cron schedules from kept workflows, and narrows yarn test:factory to 8 relevant factory-*.test.cjs files — all consistent with \\\"workflows and credentials scoped to the disposable repository\\\"; (3) factory-ci.yml (\\\"verify\\\") and factory-review-gate.yml are both retained unmodified and the doc's sandbox variable table sets FACTORY_MAX_CODING_ATTEMPTS_PER_TICKET/FACTORY_MAX_REVIEWS_PER_TICKET=1 and FACTORY_MAX_AUTOMATIC_RETRIES=0, preserving one-attempt limits and protected merge checks. The script itself uses execFileSync (no shell injection), validates the destination is outside the checkout, rejects symlinks/submodules, and enforces a full 40-char source SHA. One residual observation: several already-resolved historical recovery modules (finding-api-recovery.cjs, finding-continuation.cjs, finding-output-recovery.cjs, finding-retry.cjs, review-recovery.cjs) retain hardcoded \\\"/repos/haideearus/cypress-realworld-app\\\" constants that prepare-settings.cjs does not rewrite; however these are guarded by exact historical ticket/run-ID/hash matches (e.g. ticket 96, PR 113) that cannot arise in a fresh sandbox ledger, so they are inert rather than a live cross-repo credential leak. The diff itself is documentation/tooling only — it does not dispatch any workflow, publish a ticket, or deploy, consistent with \\\"review the setup only.\\\" I could not execute `yarn test:factory` or the new test myself (read-only session, no shell); the referenced CI run link is taken as evidence that the added test passed, per instructions, but I did not independently verify it.\",\"findings\":[]}"
+    },
+    "125": {
+      "coding": 0,
+      "origin": "owner-pr",
+      "reviews": 1,
+      "retries": 0,
+      "head": "453dc45ebfd44e1080e020a07d0e97be64853cd3",
+      "status": "reviewing",
+      "pr": 126,
+      "approval": null,
+      "criteriaHash": "216e9eefaa5ab06b0cb4e5f84373c43410ed990d19e4289fe13f2737f63510d9",
+      "branch": "agent/wait-for-required-pr-ci",
+      "ci": null
     }
   },
   "grants": {
@@ -3307,9 +3321,24 @@
       "status": "finished",
       "at": "2026-11-19T15:31:26.791Z",
       "outcome": "reviewed"
+    },
+    "7f38d27c-cbb1-41c3-b322-51da6c08ebd2": {
+      "id": "7f38d27c-cbb1-41c3-b322-51da6c08ebd2",
+      "ticket": 125,
+      "phase": "review",
+      "slot": "existing",
+      "runId": "44594470595",
+      "runAttempt": 1,
+      "head": "453dc45ebfd44e1080e020a07d0e97be64853cd3",
+      "status": "reserved",
+      "at": "2026-11-19T19:04:38.435Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 125,
+    "runId": "44594470595",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -5920,6 +5949,16 @@
       "grant": "a2e9ad1e-2aef-47de-8530-b39a39b052d5",
       "status": "reviewed",
       "head": "ad97b952cf23b89385100f90f66f8e1f7f4b1af7"
+    },
+    {
+      "at": "2026-11-19T19:04:38.435Z",
+      "event": "reserved",
+      "ticket": 125,
+      "grant": "7f38d27c-cbb1-41c3-b322-51da6c08ebd2",
+      "phase": "review",
+      "runId": "44594470595",
+      "runAttempt": 1,
+      "actor": "haideearus"
     }
   ]
 }
