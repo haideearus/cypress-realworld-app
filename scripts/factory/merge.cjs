@@ -8,6 +8,13 @@ const { verifyMonitorIssue } = require("./monitor-origin.cjs");
 const { ConfirmationUnavailable, readMergePR, mergeReceipt } = require("./merge-confirmation.cjs");
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const PENDING_CHECK_STATUSES = new Set([
+  "queued",
+  "requested",
+  "waiting",
+  "pending",
+  "in_progress",
+]);
 const fingerprint = (ticket) => {
   const { merge, ...rest } = ticket;
   return JSON.stringify(rest);
@@ -237,18 +244,56 @@ class AutomaticMerger {
         job.conclusion === "failure" &&
         run.status === "completed" &&
         run.conclusion === "failure";
-      return { passed, failed, runId };
+      const pending =
+        !passed &&
+        [check, job, run].every((item) =>
+          item.status === "completed"
+            ? item.conclusion === "success"
+            : PENDING_CHECK_STATUSES.has(item.status)
+        );
+      return { passed, failed, pending, runId };
     }
     throw new Error(`Missing native required check: ${name}`);
   }
-  async checks(ticket, t) {
-    const checks = await this.api.pages(
-      `${ROOT}/commits/${t.head}/check-runs?filter=all`,
-      "check_runs"
-    );
-    const verify = await this.nativeCheck(checks, "verify", "factory-ci.yml", ticket, t);
-    if (!verify.passed) throw new Error("Native required verify check is not successful");
-    return this.nativeCheck(checks, "Factory review gate", "factory-review-status.yml", ticket, t);
+  async checks(ticket, t, { waitForVerify = false } = {}) {
+    let refreshedPR;
+    for (let waits = 0; ; waits++) {
+      if (waits > 0) {
+        const current = await this.current(ticket, t);
+        refreshedPR = await this.pr(ticket, current);
+        if (refreshedPR.state !== "open")
+          throw new Error("PR closed while waiting for native required verify");
+      }
+      const checks = await this.api.pages(
+        `${ROOT}/commits/${t.head}/check-runs?filter=all`,
+        "check_runs"
+      );
+      const verify = await this.nativeCheck(checks, "verify", "factory-ci.yml", ticket, t);
+      let waitingFor = "native required verify";
+      if (verify.passed) {
+        const gate = await this.nativeCheck(
+          checks,
+          "Factory review gate",
+          "factory-review-status.yml",
+          ticket,
+          t
+        );
+        if (!refreshedPR || !gate.passed) return gate;
+        if (refreshedPR.mergeable === true && refreshedPR.mergeable_state === "clean")
+          return { ...gate, refreshedPR };
+        if (
+          refreshedPR.mergeable === false ||
+          (refreshedPR.mergeable !== null && refreshedPR.mergeable_state !== "blocked")
+        )
+          throw new Error("PR mergeability is not clean");
+        waitingFor = "PR mergeability after native required verify";
+      } else if (!verify.pending || !waitForVerify) {
+        throw new Error("Native required verify check is not successful");
+      }
+      if (waits === this.maxPolls) throw new Error(`Timed out waiting for ${waitingFor}`);
+      if (waits === 0) console.log("Waiting for native required verify on the reviewed PR head");
+      await this.sleep(10000);
+    }
   }
   async ci(t) {
     const ci = await this.controller.validateCI(t.ci?.runId, t.head, t.ci);
@@ -495,11 +540,14 @@ class AutomaticMerger {
       throw new Error("Terminal merge record disagrees with current PR state");
     await this.issue(ticket, t);
     await this.ci(t);
-    let gate = await this.checks(ticket, t);
+    let gate = await this.checks(ticket, t, { waitForVerify: !dryRun && t.origin === "factory" });
     if (!gate.passed && !gate.failed)
       throw new Error("Native review gate is pending or unavailable");
-    if (gate.passed && (pr.mergeable !== true || pr.mergeable_state !== "clean"))
-      throw new Error("PR mergeability is not clean");
+    if (gate.passed) {
+      const latest = gate.refreshedPR ?? pr;
+      if (latest.mergeable !== true || latest.mergeable_state !== "clean")
+        throw new Error("PR mergeability is not clean");
+    }
     if (dryRun)
       return this.result(
         { ...t, number: ticket },
