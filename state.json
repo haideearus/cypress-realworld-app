@@ -2151,9 +2151,17 @@
       "reviews": 2,
       "retries": 0,
       "head": "055f08680cf248146d83c43aa70cecdc6d7f8e3c",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 119,
-      "approval": null,
+      "approval": {
+        "head": "055f08680cf248146d83c43aa70cecdc6d7f8e3c",
+        "pr": 119,
+        "grant": "c3925d91-7ad6-4eec-adba-c2868f059b5e",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/44524360948"
+      },
       "criteriaHash": "4e7554ef1055db601344ac70565f17dde380bb99b5f75b3d32535930c8add561",
       "branch": "agent/priority-delayed-retries",
       "ci": {
@@ -2161,7 +2169,8 @@
         "head": "055f08680cf248146d83c43aa70cecdc6d7f8e3c",
         "runId": 44524471909,
         "passed": true
-      }
+      },
+      "feedback": "{\"head\":\"055f08680cf248146d83c43aa70cecdc6d7f8e3c\",\"verdict\":\"pass\",\"summary\":\"Reviewed the diff for ticket #118 against scripts/factory/automation.cjs, controller.cjs, policy.cjs, delayed-retry.cjs, worker.cjs, .github/workflows/factory-model.yml, docs/factory/PRIORITY-AND-DELAYED-RETRIES.md, and scripts/tests/factory-delayed-retry.test.cjs, cross-checked against supporting modules (monitor-origin.cjs, functional-discovery-contract.cjs, github.cjs, factory-automatic.yml, factory-cycle.yml). Priority tiering in AutomaticCoordinator.candidate() correctly orders verified production incidents and owner factory-priority issues first, then other eligible issues, then (only when candidate() returns null) due delayed retries via delayedCandidate(); when FACTORY_PRIORITY_RETRY_ENABLED is unset/false the loop degenerates exactly to the prior FIFO behavior, so there's no regression for existing deployments. The 30-minute delay, pre-model gateway-failure verification, and all the required data boundaries are enforced with real evidence rather than trusted input: delayed-retry.cjs's failedJob() reads the actual GitHub Actions job/step list for the exact \\\"cycle1 / coding / agent\\\" job and requires the new \\\"Hold before Claude...\\\" step to show conclusion=failure and the Claude step to show conclusion=skipped before any receipt is recorded; worker.cjs only emits temporaryGateway=true for 502/503/504 surfaced after GitHub.request's built-in GET retries, scoped to the automatic workflow, phase=code, slot=cycle1. controller.block() only writes a delayedRetry receipt when the ticket is an ordinary factory ticket on its first coding attempt with no pr/branch/ci/approval, and policy.validateState()'s delayed-retry.validate() independently re-derives those invariants from the stored grants on every ledger read, so a forged or stale receipt (e.g. for already-blocked issue #109, which predates this feature and has no grant satisfying the receipt checks) cannot be accepted — matching the \\\"no inferred retry for old issues\\\" criterion. reserveDelayed() rechecks branch/PR absence, main's head, issue criteria hash, and the live ready queue immediately before writing the ledger update under an expectedCommit guard, satisfying \\\"recheck the queue before admission,\\\" and assess()/policy.matchesAutomaticRun() block any further automatic retry once a delayed retry's parent is recorded, preserving the \\\"single retry\\\" and counter/limit invariants. The automation.cjs main() readOnlyPreview path confirms the documented preview mode performs GET-only calls, binds no wake receipt, and writes no activity record when priorityRetry is enabled, matching \\\"no live runs, settings changes, or paid APIs during setup.\\\" The accompanying test file exercises the 30-minute boundary, limit preservation, historical-issue ineligibility, job-metadata verification edge cases, priority ordering vs. FIFO, queue re-check, and concurrent-ticket safety; I could not execute these tests myself in this read-only session and relied on the supplied CI run link as external evidence rather than independent verification. I found no critical or important defects; the two caveats noted below are minor/cosmetic and don't block merge.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"automation.cjs candidate() throws an uncaught Error (\\\"Priority queue exceeds the bounded lookup...\\\") when FACTORY_PRIORITY_RETRY_ENABLED is on and the ready-queue scan hits the 5-page/500-issue bound, rather than returning a graceful {ready:false, reason:...} like every other branch in pick(). This is documented intent (holds the retry) and fails safe (no admission happens), but it means the automatic 'pick' job exits non-zero/loudly in that rare case instead of recording a normal reason string, which is a slightly different operational signature than the rest of the module.\"},{\"severity\":\"minor\",\"message\":\"In controller.assess(), if the single delayed-retry attempt on ticket.delayedRetry.parent itself fails with another genuine 502/503/504 before Claude, the reason string returned says \\\"Temporary GitHub gateway error before Claude; check delayed retry eligibility\\\" even though block()'s own guard (!t.delayedRetry) correctly prevents a second receipt from ever being written. The audit/reason text is slightly misleading in this edge case even though the actual retry-limiting behavior is correct.\"}]}"
     }
   },
   "grants": {
@@ -3206,15 +3215,12 @@
       "runId": "44524360948",
       "runAttempt": 1,
       "head": "055f08680cf248146d83c43aa70cecdc6d7f8e3c",
-      "status": "reserved",
-      "at": "2026-11-19T12:29:48.335Z"
+      "status": "finished",
+      "at": "2026-11-19T12:29:48.335Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 118,
-    "runId": "44524360948",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -5766,6 +5772,14 @@
       "runId": "44524360948",
       "runAttempt": 1,
       "actor": "haideearus"
+    },
+    {
+      "at": "2026-11-19T12:51:23.126Z",
+      "event": "finished",
+      "ticket": 118,
+      "grant": "c3925d91-7ad6-4eec-adba-c2868f059b5e",
+      "status": "reviewed",
+      "head": "055f08680cf248146d83c43aa70cecdc6d7f8e3c"
     }
   ]
 }
