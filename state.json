@@ -2360,7 +2360,11 @@
       "approval": null,
       "criteriaHash": "5725d4e2ba4fcf63e57bff509184ec6d4ab3f23c614df824a6d5a89a974af5c3",
       "branch": "agent/discovery-quota-recovery",
-      "ci": null
+      "ci": {
+        "requestId": "6fbd3d0a-61af-4362-b817-cc1749db441c",
+        "head": "5781715dbbd59c5ece9af8008d1b2bffdda9ef76",
+        "runId": null
+      }
     }
   },
   "grants": {
