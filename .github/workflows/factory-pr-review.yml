@@ -19,7 +19,7 @@ permissions:
 jobs:
   ci:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 110
     permissions:
       contents: write
       actions: write
@@ -59,7 +59,7 @@ jobs:
     needs: [ci, review]
     if: ${{ always() && !cancelled() }}
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 75
     permissions:
       contents: write
       pull-requests: read

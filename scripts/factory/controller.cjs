@@ -19,9 +19,11 @@ function nextCycleSlot(slot) {
   return cycle === policy.MAX_CODING_ATTEMPTS ? null : `cycle${cycle + 1}`;
 }
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const CI_POLL_MS = 30000;
+const QUOTA_WAIT_OPERATIONS = new Set(["ci", "review", "assess", "assess_pr"]);
 const identity = (ctx, extra = {}) => ({ ...ctx, ...extra });
 class Controller {
-  constructor(api, config, context, { sleep = delay, maxPolls = 180 } = {}) {
+  constructor(api, config, context, { sleep = delay, maxPolls = 60 } = {}) {
     this.api = api;
     this.ledger = new Ledger(api);
     this.config = config;
@@ -368,6 +370,21 @@ class Controller {
     if (!slots.owns(slots.activeFor(state, ticket), { ...this.context, ticket }))
       throw new Error("Operation belongs to another active run");
   }
+  async checkCurrentCI(ticket, t, expected) {
+    await this.matchingPR(t);
+    const loaded = await this.currentTicket(ticket);
+    policy.assertNotStopped(loaded.state);
+    this.activeRun(loaded.state, ticket);
+    const current = loaded.ticket;
+    if (
+      current.head !== expected.head ||
+      current.ci?.head !== expected.head ||
+      current.ci?.requestId !== expected.requestId ||
+      current.ci?.runId !== expected.runId ||
+      current.ci?.passed !== expected.passed
+    )
+      throw new Error("CI reservation changed");
+  }
   async validateCI(runId, head, reservation) {
     if (!Number.isSafeInteger(runId) || runId < 1) throw new Error("Invalid CI run ID");
     if (
@@ -401,50 +418,99 @@ class Controller {
   async ci(ticket) {
     this.authorize();
     if (!this.config.enabled) throw new Error("Factory disabled");
-    const { ticket: t } = await this.currentTicket(ticket);
+    const { ticket: t, state } = await this.currentTicket(ticket);
+    policy.assertNotStopped(state);
+    this.activeRun(state, ticket);
     await this.matchingPR(t);
-    const requestId = randomUUID();
-    await this.ledger.update((state) => {
-      this.activeRun(state, ticket);
-      const current = state.tickets[String(ticket)];
-      if (current.head !== t.head || current.ci?.head === t.head)
-        throw new Error("CI dispatch already reserved or head changed; owner recovery required");
-      current.ci = { requestId, head: t.head, runId: null };
-      return { state };
-    });
-    await this.api.request("POST", `${ROOT}/actions/workflows/factory-ci.yml/dispatches`, {
-      ref: t.branch || `agent/factory-${ticket}`,
-      inputs: { factory_request_id: requestId },
-    });
-    for (let count = 0; count < this.maxPolls; count++) {
+    const existing = t.ci?.head === t.head ? t.ci : null;
+    const requestId = existing?.requestId ?? randomUUID();
+    const branch = t.branch || `agent/factory-${ticket}`;
+    if (existing) {
+      if (!/^[a-f0-9-]{36}$/.test(existing.requestId || ""))
+        throw new Error("Invalid saved CI request");
+      if (existing.runId !== null) {
+        const verified = await this.validateCI(existing.runId, t.head, existing);
+        if (verified.passed !== existing.passed) throw new Error("Saved CI outcome changed");
+        await this.checkCurrentCI(ticket, t, existing);
+        return { ...verified, requestId };
+      }
+    } else {
+      const pending = { requestId, head: t.head, runId: null };
+      await this.ledger.update((state) => {
+        policy.assertNotStopped(state);
+        this.activeRun(state, ticket);
+        const current = state.tickets[String(ticket)];
+        if (current.head !== t.head || current.ci?.head === t.head)
+          throw new Error("CI dispatch already reserved or head changed");
+        current.ci = pending;
+        return { state };
+      });
+      const path = `${ROOT}/actions/workflows/factory-ci.yml/dispatches`;
+      const payload = { ref: branch, inputs: { factory_request_id: requestId } };
+      try {
+        await this.api.request("POST", path, payload);
+      } catch (error) {
+        // Only a definite quota rejection says GitHub did not accept this dispatch.
+        if (!(await this.api.waitForQuota?.(error))) throw error;
+        await this.checkCurrentCI(ticket, t, pending);
+        await this.api.request("POST", path, payload);
+      }
+    }
+    const matches = (run) =>
+      run.head_sha === t.head &&
+      run.event === "workflow_dispatch" &&
+      run.display_title === `Factory CI / ${requestId}`;
+    const query = `event=workflow_dispatch&branch=${encodeURIComponent(branch)}&head_sha=${t.head}`;
+    const findRun = async () => {
       const runs = await this.api.pages(
-        `${ROOT}/actions/workflows/factory-ci.yml/runs?event=workflow_dispatch&branch=${encodeURIComponent(t.branch || `agent/factory-${ticket}`)}`,
+        `${ROOT}/actions/workflows/factory-ci.yml/runs?${query}`,
         "workflow_runs"
       );
-      const matching = runs
-        .filter(
-          (run) =>
-            run.head_sha === t.head &&
-            run.event === "workflow_dispatch" &&
-            run.display_title === `Factory CI / ${requestId}`
-        )
-        .sort((a, b) => b.id - a.id);
+      const matching = runs.filter(matches);
       if (matching.length > 1) throw new Error("Ambiguous CI dispatch identity");
-      const run = matching[0];
+      return matching[0];
+    };
+    let knownRunId = null;
+    for (let count = 0; count < this.maxPolls; count++) {
+      const run =
+        knownRunId === null
+          ? await findRun()
+          : await this.api.request("GET", `${ROOT}/actions/runs/${knownRunId}`);
+      if (knownRunId !== null && (run.id !== knownRunId || !matches(run)))
+        throw new Error("CI dispatch identity changed");
       if (run?.status === "completed") {
+        if (knownRunId !== null && (await findRun())?.id !== knownRunId)
+          throw new Error("CI dispatch identity changed before verification");
         const reservation = { requestId, head: t.head, runId: run.id };
         const verified = await this.validateCI(run.id, t.head, reservation);
+        await this.checkCurrentCI(ticket, t, { ...reservation, runId: null });
+        const waitsBeforeSaving = this.api.quotaWaits;
         const saved = await this.ledger.update((state) => {
+          policy.assertNotStopped(state);
           this.activeRun(state, ticket);
           const current = state.tickets[String(ticket)];
-          if (current.head !== t.head || current.ci?.requestId !== requestId)
+          if (
+            current.head !== t.head ||
+            current.ci?.head !== t.head ||
+            current.ci?.requestId !== requestId ||
+            current.ci?.runId !== null
+          )
             throw new Error("CI reservation changed during verification");
           current.ci = { ...reservation, passed: verified.passed };
           return { state, ci: current.ci };
         });
+        if (this.api.quotaWaits !== waitsBeforeSaving) {
+          const refreshed = await this.validateCI(run.id, t.head, saved.ci);
+          if (refreshed.passed !== saved.ci.passed) throw new Error("Saved CI outcome changed");
+          await this.checkCurrentCI(ticket, t, saved.ci);
+        }
         return { ...verified, requestId: saved.ci.requestId };
       }
-      await this.sleep(10000);
+      if (run && knownRunId === null) {
+        if (!Number.isSafeInteger(run.id) || run.id < 1) throw new Error("Invalid CI run ID");
+        knownRunId = run.id;
+      }
+      if (count + 1 < this.maxPolls) await this.sleep(CI_POLL_MS);
     }
     throw new Error("Timed out waiting for the exact-head CI run");
   }
@@ -456,7 +522,14 @@ class Controller {
     if (!ci.passed) throw new Error("CI failed; independent review not admitted");
     const result = await this.ledger.update((state) => {
       const current = state.tickets[String(ticket)];
-      if (current.head !== t.head) throw new Error("Ledger head changed");
+      if (
+        current.head !== t.head ||
+        current.ci?.head !== t.head ||
+        current.ci?.runId !== ciId ||
+        current.ci?.requestId !== t.ci.requestId ||
+        current.ci?.passed !== true
+      )
+        throw new Error("Ledger head or saved CI changed");
       return policy.reserve(
         state,
         identity(this.context, { ticket, phase: "review", slot, head: t.head }),
@@ -778,6 +851,8 @@ async function main(env = process.env) {
   const api = new GitHub({
     token: env.GH_TOKEN,
     retryReads: ["publish", "saved_ci_review", "assess_saved_ci_review"].includes(operation),
+    waitOnQuota: QUOTA_WAIT_OPERATIONS.has(operation),
+    onQuotaWait: (until) => console.log(`GitHub API quota exhausted; waiting until ${until}`),
   });
   const context = await require("./trusted-wake.cjs").loadWakeContext(
     api,
@@ -851,7 +926,10 @@ async function main(env = process.env) {
     default:
       throw new Error("Unknown factory operation");
   }
-  await require("./activity.cjs").recordResult(api, context, result, env);
+  const activityApi = QUOTA_WAIT_OPERATIONS.has(operation)
+    ? new GitHub({ token: env.GH_TOKEN })
+    : api;
+  await require("./activity.cjs").recordResult(activityApi, context, result, env);
   output(result, env);
   return result;
 }
