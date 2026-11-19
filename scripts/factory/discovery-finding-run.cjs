@@ -8,7 +8,7 @@ const { FindingStore } = require("./discovery-finding-store.cjs");
 const origin = require("./discovery-origin.cjs");
 const pub = require("./discovery-publication.cjs");
 const intake = require("./discovery-intake.cjs");
-const rc = require("./discovery-recovery-contract.cjs");
+const functional = require("./discovery-functional.cjs");
 const { runtimeContext, output: writeOutputs } = require("./controller.cjs");
 function output(values, env) {
   writeOutputs(values, env);
@@ -31,28 +31,22 @@ function readBounded(file) {
 }
 async function chooseSource({ api, store, controls, registry, day, head, preview = false }) {
   const pending = intake.pendingReplay(registry, controls, { day, head });
-  const awaiting = Object.values(registry.records).filter((r) =>
-    ["verified", "held-stop", "held-quota", "publishing-intent"].includes(r.status)
+  const awaiting = Object.values(registry.records).filter(
+    (r) =>
+      functional.eligibleCandidate(r.candidate) &&
+      ["verified", "held-stop", "held-quota", "publishing-intent"].includes(r.status)
   );
-  const recoveredImport = registry.imports[rc.SOURCE.grantId];
-  const recoveries =
-    recoveredImport?.recoveries === undefined
-      ? []
-      : rc.validateRecoveries(recoveredImport.recoveries);
   const ids = [
     ...new Set([
       ...(pending ? [pending.candidate.source.grantId] : []),
       ...awaiting.map((r) => r.candidate.source.grantId),
-      ...(recoveredImport?.status === "held-evidence" &&
-      recoveries.some((r) => r.outcome === "assessed")
-        ? [rc.SOURCE.grantId]
-        : []),
       ...Object.values(controls.grants)
         .filter(
           (g) =>
             g.phase === "discover" &&
             g.status === "finished" &&
             g.outcome === "discovery_complete" &&
+            functional.CHARTERS.includes(controls.tickets[String(g.ticket)]?.discovery?.charter) &&
             !registry.imports[g.id]
         )
         .map((g) => g.id),
@@ -61,55 +55,20 @@ async function chooseSource({ api, store, controls, registry, day, head, preview
   const held = [];
   for (const id of ids) {
     const source = controls.grants[id];
-    const waiting = [pending, ...awaiting].find((r) => r?.candidate.source.grantId === id);
-    const recoveredProof = waiting?.candidate.source.recovery;
-    const receipt =
-      id !== rc.SOURCE.grantId
-        ? null
-        : recoveredProof
-          ? recoveries.find(
-              (r) => r.outcome === "assessed" && c.digest(r.proof) === c.digest(recoveredProof)
-            )
-          : !waiting && recoveredImport?.status === "held-evidence"
-            ? recoveries.find((r) => r.outcome === "assessed")
-            : null;
-    if (
-      recoveredProof &&
-      (!receipt || c.digest(waiting.candidate.artifact) !== c.digest(receipt.artifact))
-    )
-      throw Error("Recovered finding lacks its exact assessed source receipt");
-    const pinnedBlocked =
-      receipt &&
-      source?.id === rc.SOURCE.grantId &&
-      source.head === rc.SOURCE.head &&
-      source.runId === rc.SOURCE.runId &&
-      source.ticket === rc.SOURCE.ticket &&
-      source.runAttempt === 1 &&
-      source.slot === "discovery" &&
-      source.status === "finished" &&
-      source.outcome === "blocked";
     if (
       !source ||
       source.phase !== "discover" ||
       source.status !== "finished" ||
-      (receipt ? !pinnedBlocked : source.outcome !== "discovery_complete")
+      source.outcome !== "discovery_complete" ||
+      !functional.CHARTERS.includes(controls.tickets[String(source.ticket)]?.discovery?.charter)
     )
       throw Error("Discovery source is no longer publishable");
-    const artifactRun = receipt ? receipt.proof.context.runId : source.runId;
+    const artifactRun = source.runId;
     const artifacts = await api.pages(
       `${ROOT}/actions/runs/${artifactRun}/artifacts?per_page=100`,
       "artifacts"
     );
-    const matches = artifacts.filter((a) =>
-      receipt
-        ? a.id === receipt.artifact.id &&
-          a.name === receipt.artifact.name &&
-          a.digest === receipt.artifact.digest &&
-          a.expired === false &&
-          String(a.workflow_run?.id) === artifactRun &&
-          a.workflow_run?.head_sha === receipt.proof.context.workflowSha
-        : a.name === `discovery-evidence-${id}` && !a.expired
-    );
+    const matches = artifacts.filter((a) => a.name === `discovery-evidence-${id}` && !a.expired);
     if (matches.length === 1)
       return {
         sourceGrant: id,
@@ -206,10 +165,16 @@ async function main(env = process.env, dependencies = {}) {
       );
     }
     if (!preview) {
-      await pub.recordMergedRepairs({ api, store, ledger, context });
+      await pub.recordMergedRepairs({
+        api,
+        store,
+        ledger,
+        context,
+        eligible: functional.eligibleCandidate,
+      });
       await pub.reconcileResolutions(
         { api, store, ledger, context, config },
-        { key: inputs.operation === "reconcile" ? inputs.finding_key : undefined }
+        { eligible: functional.eligibleCandidate }
       );
       registry = (await store.read()).state;
     }
@@ -251,6 +216,7 @@ async function main(env = process.env, dependencies = {}) {
     const g = controls.grants[inputs.sourceGrant],
       t = g && controls.tickets[String(g.ticket)];
     if (!g || t?.origin !== "discovery-sweep") throw Error("Missing real discovery grant");
+    functional.assertCharter(t.discovery?.charter);
     const metadata = await api.request("GET", `${ROOT}/actions/artifacts/${inputs.artifactId}`);
     const bundle = readBounded(path.join(env.FACTORY_FINDING_INPUT, "evidence.json"));
     const artifact = {
@@ -272,11 +238,13 @@ async function main(env = process.env, dependencies = {}) {
       grantId: g.id,
     });
     if (Object.prototype.hasOwnProperty.call(bundle, "recovery"))
-      require("./discovery-recovery-evidence.cjs").validateEvidence(bundle, bundle.recovery);
+      throw Error("Archived recovery evidence is outside functional discovery");
     const candidates = [];
     for (let index = 0; index < bundle.findings?.length; index++) {
       if (bundle.findings[index].status !== "verified") continue;
       const candidate = f.candidateFromEvidence(bundle, index, artifact, t.discovery);
+      if (!functional.eligibleCandidate(candidate))
+        throw Error("Finding outside functional discovery scope");
       if (!(await origin.verifySource(api, candidate))) throw Error("Source proof rejected");
       candidates.push(candidate);
     }
@@ -284,7 +252,11 @@ async function main(env = process.env, dependencies = {}) {
     const recurrence = {};
     for (const candidate of candidates) {
       const last = Object.values(previous.records)
-        .filter((r) => r.candidate.fingerprint === candidate.fingerprint)
+        .filter(
+          (r) =>
+            r.candidate.fingerprint === candidate.fingerprint &&
+            functional.eligibleCandidate(r.candidate)
+        )
         .sort((a, b) => b.generation - a.generation)[0];
       recurrence[candidate.key] = {
         allowRecurrence: await pub.recurrenceAllowed(api, last, candidate),
@@ -293,7 +265,11 @@ async function main(env = process.env, dependencies = {}) {
     }
     const staged = await store.update((s) => {
       const keys = candidates.map(
-        (candidate) => pub.stageFinding(s, candidate, recurrence[candidate.key]).record
+        (candidate) =>
+          pub.stageFinding(s, candidate, {
+            ...recurrence[candidate.key],
+            eligible: functional.eligibleCandidate,
+          }).record
       );
       s.imports[g.id] = {
         ...s.imports[g.id],
@@ -312,7 +288,7 @@ async function main(env = process.env, dependencies = {}) {
         config,
         context,
         key,
-        verifySource: (x) => origin.verifySource(api, x),
+        verifySource: (x) => functional.eligibleCandidate(x) && origin.verifySource(api, x),
       });
       await pub.appendDuplicates({ api, store, ledger, config, context, key });
     }
@@ -346,6 +322,7 @@ async function main(env = process.env, dependencies = {}) {
     row = receipt && registry.records[receipt.key];
   if (
     !receipt ||
+    !functional.eligibleCandidate(row?.candidate) ||
     receipt.context.runId !== context.runId ||
     receipt.context.workflowSha !== context.workflowSha ||
     receipt.context.runAttempt !== 1 ||

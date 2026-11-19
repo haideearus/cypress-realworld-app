@@ -120,9 +120,9 @@ test("scheduled finalization after the admission hour releases the existing gran
     origin: "discovery-sweep",
     phase: "discover",
     slot: "discovery",
-    discovery: { ...proof, charter: "feed" },
+    discovery: { ...proof, charter: "functional-feed" },
   };
-  request.discovery.key = d.sweepKey(head, "feed", proof.day);
+  request.discovery.key = d.sweepKey(head, "functional-feed", proof.day);
   const admitted = p.reserve(
     p.emptyState(p.REPOSITORY),
     request,

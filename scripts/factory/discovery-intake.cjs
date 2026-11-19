@@ -6,6 +6,7 @@ const f = require("./discovery-finding-contract.cjs");
 const s = require("./discovery-sandbox.cjs");
 const o = require("./discovery-oracles.cjs");
 const p = require("./policy.cjs");
+const { eligibleCandidate } = require("./discovery-functional.cjs");
 function pendingReplay(registry, controls, { day, head, sourceGrant } = {}) {
   const attempts = Object.values(registry.replays).filter((x) => x.day === day);
   if (require("./discovery-recovery-contract.cjs").dailyUsage(registry, day) >= 8) return null;
@@ -13,6 +14,7 @@ function pendingReplay(registry, controls, { day, head, sourceGrant } = {}) {
     Object.values(registry.records).find(
       (r) =>
         r.status === "published" &&
+        eligibleCandidate(r.candidate) &&
         (!sourceGrant || r.candidate.source.grantId === sourceGrant) &&
         !controls.tickets[String(r.publication.issue)] &&
         attempts.filter((x) => x.key === r.candidate.key).length < 2 &&

@@ -55,6 +55,8 @@ function checks(state, r, config) {
 function reserveSweep(original, r, config, now = new Date()) {
   const p = require("./policy.cjs");
   checks(original, r, config);
+  if (!c.FUNCTIONAL_CHARTERS.includes(r.discovery.charter))
+    throw Error("Functional discovery charter required for a new reservation");
   if (original.tickets[String(r.ticket)]) throw Error("Discovery source already admitted");
   if (Object.values(original.tickets).some((t) => t.discovery?.key === r.discovery.key))
     throw Error("Duplicate discovery source");

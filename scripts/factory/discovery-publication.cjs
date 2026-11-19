@@ -2,21 +2,27 @@ const f = require("./discovery-finding-contract.cjs");
 const p = require("./policy.cjs");
 const { ROOT } = require("./github.cjs");
 const c = require("./discovery-contract.cjs");
-function stageFinding(s, candidate, { allowRecurrence = false, recurrenceOf } = {}) {
+function stageFinding(
+  s,
+  candidate,
+  { allowRecurrence = false, recurrenceOf, eligible = () => true } = {}
+) {
   f.validateCandidate(candidate);
+  if (!eligible(candidate)) throw Error("Finding outside publication scope");
   if (s.records[candidate.key])
     return { status: s.records[candidate.key].status, record: candidate.key };
   const used = s.sources[candidate.source.grantId] || [];
   if (used.includes(candidate.key)) {
-    const previous = Object.entries(s.records).find(([, r]) =>
-      r.duplicates.some((d) => d.key === candidate.key)
+    const previous = Object.entries(s.records).find(
+      ([, r]) => eligible(r.candidate) && r.duplicates.some((d) => d.key === candidate.key)
     );
     return { status: "duplicate", record: previous?.[0] };
   }
   if (used.length >= 2) throw Error("Discovery source finding limit reached");
-  const previous = Object.values(s.records)
+  const matches = Object.values(s.records)
     .filter((r) => r.candidate.fingerprint === candidate.fingerprint)
-    .sort((a, b) => b.generation - a.generation)[0];
+    .sort((a, b) => b.generation - a.generation);
+  const previous = matches.find((r) => eligible(r.candidate));
   if (allowRecurrence && recurrenceOf !== undefined && previous?.candidate.key !== recurrenceOf)
     throw Error("Finding recurrence state changed; retry verification");
   s.sources[candidate.source.grantId] = [...used, candidate.key];
@@ -33,7 +39,7 @@ function stageFinding(s, candidate, { allowRecurrence = false, recurrenceOf } = 
     throw Error("Finding registry full; owner maintenance required");
   s.records[candidate.key] = {
     candidate: structuredClone(candidate),
-    generation: (previous?.generation || 0) + 1,
+    generation: (matches[0]?.generation || 0) + 1,
     status: "verified",
     publication: null,
     duplicates: [],
@@ -309,12 +315,12 @@ async function noteResolution(options) {
     return { state: s };
   });
 }
-async function recordMergedRepairs({ api, store, ledger, context }) {
+async function recordMergedRepairs({ api, store, ledger, context, eligible = () => true }) {
   if (!f.contextOK(context)) throw Error("Untrusted merge reconciliation");
   const state = (await ledger.read()).state;
   if (state.stop) return;
   const rows = Object.values((await store.read()).state.records).filter(
-    (r) => r.status === "published"
+    (r) => r.status === "published" && eligible(r.candidate)
   );
   for (const row of rows) {
     const t = state.tickets[String(row.publication.issue)];
@@ -367,11 +373,12 @@ async function recurrenceAllowed(api, previous, candidate) {
     ["ahead", "identical"].includes(comparison.status) && comparison.merge_base_commit?.sha === base
   );
 }
-async function reconcileResolutions(options, { key } = {}) {
+async function reconcileResolutions(options, { key, eligible = () => true } = {}) {
   const rows = Object.values((await options.store.read()).state.records)
     .filter(
       (r) =>
         ["observed-resolved", "repair-merged"].includes(r.status) &&
+        eligible(r.candidate) &&
         !r.resolutionClosed &&
         (key ? r.candidate.key === key : !r.resolutionHeld)
     )

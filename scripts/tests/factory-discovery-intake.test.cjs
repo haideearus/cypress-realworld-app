@@ -4,9 +4,14 @@ const f = require("../factory/discovery-finding-contract.cjs");
 const pub = require("../factory/discovery-publication.cjs");
 const intake = require("../factory/discovery-intake.cjs");
 const fx = require("./helpers/finding-fixtures.cjs");
-function setup() {
+function setup(useFunctional = false) {
   const state = f.emptyFindings();
-  const candidate = f.candidateFromEvidence(fx.evidence(), 0, fx.artifact, fx.proof());
+  const candidate = f.candidateFromEvidence(
+    useFunctional ? fx.functionalEvidence() : fx.evidence(),
+    0,
+    fx.artifact,
+    useFunctional ? fx.proof(fx.grant, "functional-feed") : fx.proof()
+  );
   pub.stageFinding(state, candidate);
   const row = state.records[candidate.key];
   pub.claimPublication(
@@ -126,13 +131,14 @@ test("eight total attempts/day are retained; stop and capacity block replay, not
   );
 });
 module.exports = { setup };
-test("an exhausted first finding cannot starve a second finding from the same sweep", () => {
-  const { state, candidate } = setup();
+test("an exhausted first finding cannot starve a later functional finding", () => {
+  const { state, candidate } = setup(true);
+  const grant = "88888888-8888-4888-8888-888888888888";
   const second = f.candidateFromEvidence(
-    fx.evidence("protected-route", "/bankAccounts"),
+    fx.functionalEvidence("functional-directory", grant),
     0,
-    fx.artifact,
-    fx.proof()
+    { ...fx.artifact, name: `discovery-evidence-${grant}` },
+    fx.proof(grant, "functional-directory")
   );
   pub.stageFinding(state, second);
   pub.claimPublication(
@@ -154,11 +160,8 @@ test("an exhausted first finding cannot starve a second finding from the same sw
     fx.head
   );
   assert.equal(
-    intake.pendingReplay(
-      state,
-      { tickets: {} },
-      { day: "2026-11-17", head: fx.head, sourceGrant: fx.grant }
-    ).candidate.key,
+    intake.pendingReplay(state, { tickets: {} }, { day: "2026-11-17", head: fx.head }).candidate
+      .key,
     second.key
   );
 });

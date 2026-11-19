@@ -80,17 +80,34 @@ function candidate(route = "/users", grant = fx.grant, runId = "100") {
   );
 }
 test("an expired first source is retained as held and cannot wedge a later valid finding", async () => {
+  function functionalCandidate(charter, grant, runId) {
+    const proof = fx.proof(grant, charter);
+    proof.runId = runId;
+    return f.candidateFromEvidence(
+      fx.functionalEvidence(charter, grant),
+      0,
+      { ...fx.artifact, name: `discovery-evidence-${grant}`, workflowRunId: runId },
+      proof
+    );
+  }
   const state = f.emptyFindings(),
-    one = candidate(),
-    two = candidate("/bankAccounts", "88888888-8888-4888-8888-888888888888", "101");
+    one = functionalCandidate("functional-feed", fx.grant, "100"),
+    two = functionalCandidate(
+      "functional-directory",
+      "88888888-8888-4888-8888-888888888888",
+      "101"
+    );
   pub.stageFinding(state, one);
   pub.stageFinding(state, two);
   const store = fx.memoryStore(state);
   const controls = {
     stop: null,
-    tickets: {},
+    tickets: {
+      90: { discovery: { charter: one.source.charter } },
+      91: { discovery: { charter: two.source.charter } },
+    },
     grants: Object.fromEntries(
-      [one, two].map((x) => [
+      [one, two].map((x, i) => [
         x.source.grantId,
         {
           id: x.source.grantId,
@@ -98,6 +115,7 @@ test("an expired first source is retained as held and cannot wedge a later valid
           status: "finished",
           outcome: "discovery_complete",
           runId: x.source.runId,
+          ticket: 90 + i,
         },
       ])
     ),
@@ -180,6 +198,18 @@ test("lost resolution comment response is reconciled once and closes the preserv
   );
   assert.equal(store.state.records[one.key].comment.writeStarted, true);
   await runner().main(env(), { api, ledger, store });
+  assert.equal(issue.state, "open");
+  await runner().main(
+    {
+      ...env(),
+      FACTORY_INPUTS: JSON.stringify({
+        operation: "reconcile",
+        dry_run: false,
+        finding_key: one.key,
+      }),
+    },
+    { api, ledger, store }
+  );
   assert.equal(posts, 1);
   assert.equal(issue.state, "closed");
   assert.equal(store.state.records[one.key].resolutionClosed, true);

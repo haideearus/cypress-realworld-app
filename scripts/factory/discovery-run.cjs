@@ -6,6 +6,7 @@ const { diagnostic, withStage } = require("./discovery-diagnostics.cjs");
 const { DiscoveryStore } = require("./discovery-store.cjs");
 const { runtimeContext, output } = require("./controller.cjs");
 const active = require("./active-tickets.cjs");
+const { CHARTERS } = require("./discovery-functional.cjs");
 function selectSweep({
   state,
   registry,
@@ -41,8 +42,8 @@ function selectSweep({
     ).length >= 2
   )
     return { ready: false, reason: "Discovery daily session limit reached" };
-  const offset = Number.parseInt(c.digest(day).slice(0, 4), 16) % c.CHARTERS.length;
-  const charters = [...c.CHARTERS.slice(offset), ...c.CHARTERS.slice(0, offset)];
+  const offset = Number.parseInt(c.digest(day).slice(0, 4), 16) % CHARTERS.length;
+  const charters = [...CHARTERS.slice(offset), ...CHARTERS.slice(0, offset)];
   const charter = charters.find((x) => !registry.sources[c.sweepKey(head, x, day)]);
   return charter
     ? { ready: true, charter }

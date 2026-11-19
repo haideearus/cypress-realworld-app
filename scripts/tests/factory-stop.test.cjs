@@ -44,10 +44,10 @@ function fixture({
               discovery: {
                 version: 1,
                 head: context.head,
-                charter: "feed",
+                charter: "functional-feed",
                 day,
                 ciRunId: "99",
-                key: d.sweepKey(context.head, "feed", day),
+                key: d.sweepKey(context.head, "functional-feed", day),
                 runId: "101",
                 runAttempt: 1,
                 workflowSha: context.head,

@@ -181,6 +181,7 @@ async function verifyDiscoveryIssue(
   if (matches.length !== 1) return null;
   const r = matches[0];
   if (
+    (requireCurrent && !require("./discovery-functional.cjs").eligibleCandidate(r.candidate)) ||
     !require("./discovery-publication.cjs").issueMatches(issue, r) ||
     !["published", "held-evidence", ...(!requireCurrent ? ["repair-merged"] : [])].includes(
       r.status
