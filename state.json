@@ -72,7 +72,8 @@
     "2026-11-19": [
       108,
       109,
-      110
+      110,
+      112
     ]
   },
   "tickets": {
@@ -2043,6 +2044,24 @@
         "passed": true
       },
       "feedback": "{\"findings\":[],\"head\":\"c88f799da7e2dc47629dabcbd22e531f3fd9fb09\",\"summary\":\"Reviewed scripts/factory/trusted-wake.cjs (new allowedModelBots), scripts/factory/worker.cjs (prepare() wiring), .github/workflows/factory-model.yml (new allowed_bots input), and the accompanying tests in scripts/tests/factory-wake.test.cjs, factory-worker.test.cjs, factory-automatic-workflow.test.cjs, plus the shared receiverSetup helper moved into scripts/tests/helpers/event-fixtures.cjs. allowedModelBots only returns c.BOT (\\\"github-actions[bot]\\\") when ticket.origin === \\\"factory\\\", ticket.automatic is set, ticket.finding is absent, isTrustedWakeContext(context, \\\"app\\\") validates the cryptographically-bound wake proof (runId/runAttempt/workflowSha/receiver identity all matched against the verified proofs WeakMap), and the underlying wake signal kind is issue/monitor/drain — excluding finding-repair and dependency-ci signals. This satisfies the ticket: bot passed only after source/wake/reservation checks for ordinary app code/review jobs, and left empty for discovery (ticket.finding), dependency review (origin dependency-pr), drill/owner-pr tickets, and any unverified/forged context (wrong runId, runAttempt, actor, triggering actor, or workflowRef), all of which are exercised with real (non-model) fixtures rather than mocks. worker.cjs plumbs wake.allowedModelBots(context, ticket) into prepare()'s return value using the already-verified context/ticket, and factory-model.yml forwards it as allowed_bots to the pinned claude-code-action step, confirmed by a workflow-shape test. No changes touch policy.cjs's reservation/blocking logic, activity-observer.cjs, or activity.cjs, consistent with leaving #109's blocked reservation and #97 untouched. I did not execute the test suite myself in this read-only review; I relied on reading the fixtures/assertions and the linked CI run as evidence that they pass.\",\"verdict\":\"pass\"}"
+    },
+    "112": {
+      "coding": 1,
+      "origin": "factory",
+      "reviews": 0,
+      "retries": 0,
+      "head": "56294cf7fe21ebe1a040a66798b5f75fe7ed9411",
+      "status": "coding",
+      "pr": null,
+      "approval": null,
+      "criteriaHash": "f0586b084984ea57b9d08de1ed5fff9ed85370a9ccc8533d2ac20a98b8ccd4a9",
+      "automatic": {
+        "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-automatic.yml@refs/heads/main",
+        "workflowSha": "56294cf7fe21ebe1a040a66798b5f75fe7ed9411",
+        "runId": "44431933780",
+        "runAttempt": 1,
+        "appSlug": "haideearus-software-factory"
+      }
     }
   },
   "grants": {
@@ -2994,9 +3013,24 @@
       "status": "finished",
       "at": "2026-11-19T00:17:21.394Z",
       "outcome": "reviewed"
+    },
+    "c3c7cde9-020e-47ea-bac4-e09c3c9f003a": {
+      "id": "c3c7cde9-020e-47ea-bac4-e09c3c9f003a",
+      "ticket": 112,
+      "phase": "code",
+      "slot": "cycle1",
+      "runId": "44431933780",
+      "runAttempt": 1,
+      "head": "56294cf7fe21ebe1a040a66798b5f75fe7ed9411",
+      "status": "reserved",
+      "at": "2026-11-19T00:48:38.565Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 112,
+    "runId": "44431933780",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -5375,6 +5409,18 @@
       "grant": "e22c2372-76fe-4065-8214-b43da72270b9",
       "status": "reviewed",
       "head": "c88f799da7e2dc47629dabcbd22e531f3fd9fb09"
+    },
+    {
+      "at": "2026-11-19T00:48:38.565Z",
+      "event": "reserved",
+      "ticket": 112,
+      "grant": "c3c7cde9-020e-47ea-bac4-e09c3c9f003a",
+      "phase": "code",
+      "runId": "44431933780",
+      "runAttempt": 1,
+      "actor": "github-actions[bot]",
+      "wakeReceipt": "5d6e288988e641d4fca4da7900e0f1af27ae58de134b8f22e6d86d69dd8d08a8",
+      "sourceActor": "haideearus"
     }
   ]
 }
