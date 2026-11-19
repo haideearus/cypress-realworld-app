@@ -2049,10 +2049,10 @@
     "112": {
       "coding": 1,
       "origin": "factory",
-      "reviews": 0,
+      "reviews": 1,
       "retries": 0,
-      "head": "b5f70973cbbfe752697e1542c6c2558a4c6687e5",
-      "status": "blocked",
+      "head": "51ba1fb3fc82e1c3e4b2c89d4957d47f8765171f",
+      "status": "reviewing",
       "pr": 113,
       "approval": null,
       "criteriaHash": "f0586b084984ea57b9d08de1ed5fff9ed85370a9ccc8533d2ac20a98b8ccd4a9",
@@ -2069,6 +2069,15 @@
         "head": "b5f70973cbbfe752697e1542c6c2558a4c6687e5",
         "runId": 44432947268,
         "passed": true
+      },
+      "reviewRecovery": {
+        "grantId": "f75b8715-180b-4578-bc0b-29c99279783f",
+        "base": "d2a3cb6983f337184c7093295eaa57b5f22c9e7b",
+        "ci": {
+          "head": "51ba1fb3fc82e1c3e4b2c89d4957d47f8765171f",
+          "runId": 44497645404,
+          "passed": true
+        }
       }
     },
     "116": {
@@ -3072,9 +3081,24 @@
       "status": "finished",
       "at": "2026-11-19T06:05:36.957Z",
       "outcome": "reviewed"
+    },
+    "f75b8715-180b-4578-bc0b-29c99279783f": {
+      "id": "f75b8715-180b-4578-bc0b-29c99279783f",
+      "ticket": 112,
+      "phase": "review",
+      "slot": "review_recovery",
+      "runId": "44500128704",
+      "runAttempt": 1,
+      "head": "51ba1fb3fc82e1c3e4b2c89d4957d47f8765171f",
+      "status": "reserved",
+      "at": "2026-11-19T09:50:57.681Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 112,
+    "runId": "44500128704",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -5515,6 +5539,29 @@
       "grant": "be03fa02-c795-446a-8b59-a2ea72ba356c",
       "status": "reviewed",
       "head": "a2459481356ec814f4a743a6450318a1d2726e9b"
+    },
+    {
+      "at": "2026-11-19T09:50:57.681Z",
+      "event": "reserved",
+      "ticket": 112,
+      "grant": "f75b8715-180b-4578-bc0b-29c99279783f",
+      "phase": "review",
+      "runId": "44500128704",
+      "runAttempt": 1,
+      "actor": "haideearus"
+    },
+    {
+      "at": "2026-11-19T09:50:57.684Z",
+      "event": "saved_ci_review_reserved",
+      "actor": "haideearus",
+      "ticket": 112,
+      "pr": 113,
+      "originalRun": "44431933780",
+      "originalCI": 44432947268,
+      "reviewedCI": 44497645404,
+      "grant": "f75b8715-180b-4578-bc0b-29c99279783f",
+      "runId": "44500128704",
+      "head": "51ba1fb3fc82e1c3e4b2c89d4957d47f8765171f"
     }
   ]
 }
