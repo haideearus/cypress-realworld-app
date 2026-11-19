@@ -2052,9 +2052,17 @@
       "reviews": 1,
       "retries": 0,
       "head": "51ba1fb3fc82e1c3e4b2c89d4957d47f8765171f",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 113,
-      "approval": null,
+      "approval": {
+        "head": "51ba1fb3fc82e1c3e4b2c89d4957d47f8765171f",
+        "pr": 113,
+        "grant": "f75b8715-180b-4578-bc0b-29c99279783f",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/44500128704"
+      },
       "criteriaHash": "f0586b084984ea57b9d08de1ed5fff9ed85370a9ccc8533d2ac20a98b8ccd4a9",
       "automatic": {
         "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-automatic.yml@refs/heads/main",
@@ -2078,7 +2086,8 @@
           "runId": 44497645404,
           "passed": true
         }
-      }
+      },
+      "feedback": "{\"head\":\"51ba1fb3fc82e1c3e4b2c89d4957d47f8765171f\",\"verdict\":\"pass\",\"summary\":\"Reviewed src/components/TransactionDetail.tsx and new src/components/__tests__/TransactionDetail.test.tsx against ticket #112. The diff adds aria-label=\\\"Like transaction\\\" to the existing IconButton (line 183) without touching any other prop, so the data-test selector, onClick handler, disabled logic, and visual markup (icon, size) are all unchanged, satisfying \\\"keep appearance, click behavior, and disabled state.\\\" The new Vitest test queries screen.getByRole(\\\"button\\\", { name: \\\"Like transaction\\\" }) to confirm the accessible name, verifies the click calls transactionLike with the transaction id while not disabled, then rerenders with a like from currentUser and asserts the button becomes disabled — covering both boundary states (liked/not-liked) required by the ticket. Confirmed vitest/testing-library/jest-dom are already wired via src/setup-tests.js (toBeDisabled works) and vite.config.ts setupFiles, so the test is runnable within the existing suite (test:unit / test:unit:ci scripts in package.json). Checked cypress/tests/ui/transaction-view.spec.ts, which exercises the same button via cy.getBySelLike(\\\"like-button\\\") (the data-test attribute), confirming no regression to the existing Cypress E2E coverage since that selector is untouched by the aria-label addition. No other files reference the button's data-test string outside TransactionDetail.tsx. This is a static read-only review (no commands executed); CI result for this change was not independently reproduced here.\",\"findings\":[]}"
     },
     "116": {
       "coding": 0,
@@ -3090,15 +3099,12 @@
       "runId": "44500128704",
       "runAttempt": 1,
       "head": "51ba1fb3fc82e1c3e4b2c89d4957d47f8765171f",
-      "status": "reserved",
-      "at": "2026-11-19T09:50:57.681Z"
+      "status": "finished",
+      "at": "2026-11-19T09:50:57.681Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 112,
-    "runId": "44500128704",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -5561,6 +5567,14 @@
       "reviewedCI": 44497645404,
       "grant": "f75b8715-180b-4578-bc0b-29c99279783f",
       "runId": "44500128704",
+      "head": "51ba1fb3fc82e1c3e4b2c89d4957d47f8765171f"
+    },
+    {
+      "at": "2026-11-19T09:52:28.507Z",
+      "event": "finished",
+      "ticket": 112,
+      "grant": "f75b8715-180b-4578-bc0b-29c99279783f",
+      "status": "reviewed",
       "head": "51ba1fb3fc82e1c3e4b2c89d4957d47f8765171f"
     }
   ]
