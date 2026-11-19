@@ -3,6 +3,7 @@ const { REPOSITORY, SHA } = require("./policy.cjs");
 const { UUID, validateMonitorProof, proofFromIncident } = require("./monitor-proof.cjs");
 const { validateRetirement } = require("./monitor-recovery-contract.cjs");
 const { validateAcknowledgment } = require("./monitor-ack-contract.cjs");
+const { PROBE_MODE, validAssertion } = require("./functional-discovery-contract.cjs");
 const MAX_INCIDENTS = 180;
 const MAX_CREATIONS_PER_DAY = 2;
 const record = (value) => value && typeof value === "object" && !Array.isArray(value);
@@ -24,16 +25,25 @@ function validateMonitorState(state) {
     throw new Error("Invalid monitor registry");
   const issueIds = new Set();
   for (const [id, incident] of Object.entries(state.incidents)) {
-    const extra = ["probeMode", "retirement", "acknowledgment"].filter((key) =>
-      Object.hasOwn(incident || {}, key)
-    );
+    const extra = [
+      "probeMode",
+      "functionalCheck",
+      "functionalAssertion",
+      "retirement",
+      "acknowledgment",
+    ].filter((key) => Object.hasOwn(incident || {}, key));
     if (
       !UUID.test(id) ||
       !exact(
         incident,
         ["id,at,day,phase,recovered,source,criteriaHash,issue", ...extra].join(",")
       ) ||
-      (Object.hasOwn(incident, "probeMode") && incident.probeMode !== "feed-contract") ||
+      (Object.hasOwn(incident, "probeMode") &&
+        !["feed-contract", PROBE_MODE].includes(incident.probeMode)) ||
+      (incident.probeMode === PROBE_MODE
+        ? !validAssertion(incident.functionalCheck, incident.functionalAssertion)
+        : Object.hasOwn(incident, "functionalCheck") ||
+          Object.hasOwn(incident, "functionalAssertion")) ||
       incident.id !== id ||
       !["pending", "open"].includes(incident.phase) ||
       typeof incident.recovered !== "boolean" ||
@@ -81,9 +91,15 @@ function validateMonitorState(state) {
 class MonitorStore {
   #branch;
   constructor(api, namespace = "production") {
-    if (!["production", "drill"].includes(namespace)) throw new Error("Invalid monitor namespace");
+    const branches = {
+      production: "factory/monitor",
+      drill: "factory/monitor-drill",
+      functional: "factory/monitor-functional",
+    };
+    if (typeof namespace !== "string" || !Object.hasOwn(branches, namespace))
+      throw new Error("Invalid monitor namespace");
     this.api = api;
-    this.#branch = namespace === "production" ? "factory/monitor" : "factory/monitor-drill";
+    this.#branch = branches[namespace];
   }
   async read() {
     let ref;
@@ -128,7 +144,9 @@ class MonitorStore {
       message:
         this.#branch === "factory/monitor"
           ? "Record production monitor incident"
-          : "Record drill monitor incident",
+          : this.#branch === "factory/monitor-drill"
+            ? "Record drill monitor incident"
+            : "Record functional discovery incident",
       tree: tree.sha,
       parents: parent ? [parent] : [],
     });
