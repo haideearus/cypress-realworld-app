@@ -2023,9 +2023,17 @@
       "reviews": 1,
       "retries": 0,
       "head": "c88f799da7e2dc47629dabcbd22e531f3fd9fb09",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 111,
-      "approval": null,
+      "approval": {
+        "head": "c88f799da7e2dc47629dabcbd22e531f3fd9fb09",
+        "pr": 111,
+        "grant": "e22c2372-76fe-4065-8214-b43da72270b9",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/44427765470"
+      },
       "criteriaHash": "95bbb71acebcc1b20a420b75798de6efd02564703aa48f50fcfb7d0b74c6c0a0",
       "branch": "agent/110-verified-wake-model-handoff",
       "ci": {
@@ -2033,7 +2041,8 @@
         "head": "c88f799da7e2dc47629dabcbd22e531f3fd9fb09",
         "runId": 44427834526,
         "passed": true
-      }
+      },
+      "feedback": "{\"findings\":[],\"head\":\"c88f799da7e2dc47629dabcbd22e531f3fd9fb09\",\"summary\":\"Reviewed scripts/factory/trusted-wake.cjs (new allowedModelBots), scripts/factory/worker.cjs (prepare() wiring), .github/workflows/factory-model.yml (new allowed_bots input), and the accompanying tests in scripts/tests/factory-wake.test.cjs, factory-worker.test.cjs, factory-automatic-workflow.test.cjs, plus the shared receiverSetup helper moved into scripts/tests/helpers/event-fixtures.cjs. allowedModelBots only returns c.BOT (\\\"github-actions[bot]\\\") when ticket.origin === \\\"factory\\\", ticket.automatic is set, ticket.finding is absent, isTrustedWakeContext(context, \\\"app\\\") validates the cryptographically-bound wake proof (runId/runAttempt/workflowSha/receiver identity all matched against the verified proofs WeakMap), and the underlying wake signal kind is issue/monitor/drain — excluding finding-repair and dependency-ci signals. This satisfies the ticket: bot passed only after source/wake/reservation checks for ordinary app code/review jobs, and left empty for discovery (ticket.finding), dependency review (origin dependency-pr), drill/owner-pr tickets, and any unverified/forged context (wrong runId, runAttempt, actor, triggering actor, or workflowRef), all of which are exercised with real (non-model) fixtures rather than mocks. worker.cjs plumbs wake.allowedModelBots(context, ticket) into prepare()'s return value using the already-verified context/ticket, and factory-model.yml forwards it as allowed_bots to the pinned claude-code-action step, confirmed by a workflow-shape test. No changes touch policy.cjs's reservation/blocking logic, activity-observer.cjs, or activity.cjs, consistent with leaving #109's blocked reservation and #97 untouched. I did not execute the test suite myself in this read-only review; I relied on reading the fixtures/assertions and the linked CI run as evidence that they pass.\",\"verdict\":\"pass\"}"
     }
   },
   "grants": {
@@ -2982,15 +2991,12 @@
       "runId": "44427765470",
       "runAttempt": 1,
       "head": "c88f799da7e2dc47629dabcbd22e531f3fd9fb09",
-      "status": "reserved",
-      "at": "2026-11-19T00:17:21.394Z"
+      "status": "finished",
+      "at": "2026-11-19T00:17:21.394Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 110,
-    "runId": "44427765470",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -5361,6 +5367,14 @@
       "runId": "44427765470",
       "runAttempt": 1,
       "actor": "haideearus"
+    },
+    {
+      "at": "2026-11-19T00:35:44.573Z",
+      "event": "finished",
+      "ticket": 110,
+      "grant": "e22c2372-76fe-4065-8214-b43da72270b9",
+      "status": "reviewed",
+      "head": "c88f799da7e2dc47629dabcbd22e531f3fd9fb09"
     }
   ]
 }
