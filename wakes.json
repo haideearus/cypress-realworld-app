@@ -300,7 +300,7 @@
         },
         "event": "issues"
       },
-      "status": "intent",
+      "status": "sent",
       "receiver": null,
       "at": "2026-11-19T00:48:11.116Z"
     }
