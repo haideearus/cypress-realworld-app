@@ -11,6 +11,13 @@ and original finding proof; it does not automatically retry or enable discovery.
 
 ## What qualifies
 
+Normal discovery intake accepts the functional-feed and functional-directory
+charters. The finding must carry the canonical generated test hash and trusted
+title and summary for its validated scenario. The queue checks these again
+before a new repair reservation. Older reports, including saved recovery
+evidence, stay in history and are excluded from normal intake and new automatic
+admission.
+
 A finding needs an actual finished Claude subscription discovery grant, the
 exact source audit issue, successful discovery/model/replay jobs, and a retained
 nonexpired evidence artifact identified by run, artifact ID and digest. Report
@@ -22,7 +29,7 @@ Unsupported expectations and ambiguous, flaky, environment or startup failures
 remain held. Fixture evidence cannot enter production finding publication.
 Discovery is bounded exploration; it does not prove complete app coverage.
 
-The bank-account and private-transaction isolation contracts additionally require
+Historical bank-account and private-transaction isolation receipts additionally require
 verified distinct synthetic sessions and successful owner/participant reads.
 They use fixed seed records, authenticated readers and empty oracle queries.
 The existing current-head intake and repair RED/GREEN use the same trusted
@@ -32,10 +39,7 @@ from the private-transaction contract.
 
 Historical evidence with `oracle: null`, including both candidates from discovery
 run 44179920739, stays held. Its artifact, report, test hashes and consumed grant
-are not replaced, reinterpreted or refunded. A future, separately authorized
-discovery report can select a supported privacy contract, preserve its actual
-failing proposal and earn independent replay proof before ordinary publication.
-That later run and any repair are not started when this PR is prepared or merged.
+remain in the audit record.
 
 ## Publication and history
 

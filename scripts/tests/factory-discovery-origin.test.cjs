@@ -4,8 +4,10 @@ const c = require("../factory/discovery-contract.cjs"),
   f = require("../factory/discovery-finding-contract.cjs");
 const origin = require("../factory/discovery-origin.cjs");
 const fx = require("./helpers/finding-fixtures.cjs");
-function sourceFixture() {
-  const candidate = f.candidateFromEvidence(fx.evidence(), 0, fx.artifact, fx.proof());
+function sourceFixture(functional = false) {
+  const proof = functional ? fx.proof(fx.grant, "functional-feed") : fx.proof();
+  const bundle = functional ? fx.functionalEvidence() : fx.evidence();
+  const candidate = f.candidateFromEvidence(bundle, 0, fx.artifact, proof);
   const grant = {
     id: fx.grant,
     phase: "discover",
@@ -20,11 +22,11 @@ function sourceFixture() {
   const state = {
     grants: { [grant.id]: grant },
     tickets: {
-      90: { origin: "discovery-sweep", status: "discovery_complete", discovery: fx.proof() },
+      90: { origin: "discovery-sweep", status: "discovery_complete", discovery: proof },
     },
   };
   const registry = {
-    sources: { [fx.proof().key]: { status: "created", issue: 90, proof: fx.proof() } },
+    sources: { [proof.key]: { status: "created", issue: 90, proof } },
   };
   const jobs = [
     {
@@ -73,7 +75,7 @@ function sourceFixture() {
         return {
           user: { id: 41898282, login: "github-actions[bot]" },
           labels: [],
-          body: require("../factory/discovery-run.cjs").sourceBody(fx.proof()),
+          body: require("../factory/discovery-run.cjs").sourceBody(proof),
         };
       if (url.endsWith("/actions/runs/100/attempts/1")) return structuredClone(run);
       if (url.endsWith("/actions/workflows/factory-discovery.yml"))
@@ -132,7 +134,7 @@ test("bot identity and factory-ready label alone are not a trusted issue origin"
   );
 });
 test("published receipt and current-head replay still require successful trusted jobs and unchanged issue criteria", async () => {
-  const x = sourceFixture(),
+  const x = sourceFixture(true),
     s = f.emptyFindings(),
     pub = require("../factory/discovery-publication.cjs");
   pub.stageFinding(s, x.candidate);

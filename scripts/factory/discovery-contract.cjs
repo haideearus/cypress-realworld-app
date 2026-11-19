@@ -3,7 +3,8 @@ const REPOSITORY = "haideearus/cypress-realworld-app";
 const WORKFLOW_REF = `${REPOSITORY}/.github/workflows/factory-discovery.yml@refs/heads/main`;
 const SHA = /^[a-f0-9]{40}$/;
 const HASH = /^[a-f0-9]{64}$/;
-const CHARTERS = Object.freeze(["session", "feed", "profile", "journeys"]);
+const FUNCTIONAL_CHARTERS = Object.freeze(["functional-feed", "functional-directory"]);
+const CHARTERS = Object.freeze(["session", "feed", "profile", "journeys", ...FUNCTIONAL_CHARTERS]);
 const digest = (value) =>
   createHash("sha256")
     .update(typeof value === "string" ? value : JSON.stringify(value))
@@ -92,6 +93,7 @@ module.exports = {
   SHA,
   HASH,
   CHARTERS,
+  FUNCTIONAL_CHARTERS,
   digest,
   sweepKey,
   exact,

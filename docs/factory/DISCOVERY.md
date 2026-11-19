@@ -6,13 +6,17 @@ under owner harness issue #85. It does not enable discovery or publish bug ticke
 ## What the new role does
 
 `Proactive app discovery` inspects a successful, current-main push-CI revision.
-It rotates session/authentication, feed/pagination, profile/form and synthetic
-journey charters. A separately enabled discovery session can read the frozen
-source, propose new Vitest/API/Cypress tests and inspect bounded test results.
-The model cannot edit the app, existing tests, configuration or dependencies.
+New sweeps rotate between public-feed pagination and ordinary directory search.
+The model can read a small set of relevant frontend files at the frozen revision,
+choose input combinations for its assigned charter and inspect the test results.
+The broker turns approved inputs into fixed API tests that run against one
+synthetic session in a disposable app. The model cannot supply executable test
+text or change the app, existing tests, configuration or dependencies. The
+scheduled Safe functional discovery browser workflow continues to cover sign-in,
+navigation and Settings separately.
 
 The only model tools are a checksum-checked local stdio broker's six operations:
-list/read manifest source, write a new test, run a fixed batch, read a batch
+list/read charter source, submit a scenario, run a fixed batch, read a batch
 result and write a structured report. There are no built-in file, shell,
 network, general MCP, child-agent or publication tools. Only the single model
 step receives the existing Claude Pro OAuth secret. There is no API-key input,
@@ -78,18 +82,19 @@ No cron receipt alone is an admission. Ordinary stop/quarantine controls apply.
 
 ## Candidate evidence and replay
 
-Candidate reports preserve the exact source/grant identity, original test text
-and hash, executed commands/modes, bounded raw RED logs, checked scenarios and
-skipped coverage. Reported coverage is model-authored; actual batch receipts are
-reported separately. A zero-finding report does not claim exhaustive testing.
+Candidate reports preserve the exact source/grant identity, generated test text
+and hash, executed scenarios, bounded raw RED logs, checked scenarios and
+skipped coverage. The broker supplies ticket titles and summaries. A finding
+must match its latest failing generated test, and the trusted replay checks the
+same contract independently. A zero-finding report covers only the inputs tested.
 
 A new credential-free job verifies the successful model step and retained
 reservation, rebuilds the exact source/baseline and replays each proposed failure
 twice against independent fresh data. It separately evaluates a fixed trusted
-oracle twice in fresh sandboxes. Initial oracles cover unexpected server errors,
-unauthenticated protected-route access, the existing feed pagination contract
-and access to another synthetic user's owner-only endpoint. Requests accept only
-fixed routes and bounded query fields. They cannot specify commands or URLs.
+oracle twice in fresh sandboxes. Feed scenarios use positive page and page size
+values from 1 to 25. Directory scenarios use short plain-text search terms and
+check for server errors. The broker controls the request targets, method and
+synthetic session.
 
 Generated assertions, logs, screenshots and model opinions cannot establish
 these oracles. Unsupported expectations, inconsistent failures, setup failures
@@ -97,9 +102,10 @@ and ambiguous behavior remain held/triage reports. A verified candidate is not
 a repair, independent review or merge approval.
 
 The [finding-intake stage](DISCOVERY-INTAKE.md) connects individually verified
-evidence to deduplicated tickets, current-main replay and normal repair intake.
-It has its own explicit metadata setup and stays disabled with discovery off.
-Discovery completion alone creates no ready issue and approves/merges nothing.
+functional evidence to deduplicated tickets, current-main replay and normal
+repair intake. Older exploratory charters and their findings remain in history.
+Intake has its own explicit metadata setup and requires discovery to be enabled.
+Verified replay and the ordinary repair gates govern admission and merge.
 
 ## Later owner rollout
 

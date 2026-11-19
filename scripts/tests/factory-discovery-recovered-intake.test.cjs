@@ -198,70 +198,22 @@ test("recovery issue text adds its own replay link while legacy ticket text stay
     )
   );
 });
-test("assessed recovery makes only the exact blocked source and artifact selectable", async () => {
-  const x = recovered(),
-    requests = [];
+test("normal intake skips saved recovery sources and preserves their exact receipts", async () => {
+  const x = recovered();
+  const candidate = f.candidateFromEvidence(x.bundle, 0, x.artifact, originalProof());
+  pub.stageFinding(x.registry, candidate);
+  const store = fx.memoryStore(x.registry);
+  const previous = store.state;
   const choice = await run.chooseSource({
     controls: x.controls,
     registry: x.registry,
+    store,
     day: "2026-11-18",
     head: fx.head,
-    preview: true,
-    api: {
-      pages: async (url) => {
-        requests.push(url);
-        return [x.metadata];
-      },
-    },
+    api: { pages: async () => assert.fail("archived sources must not request artifacts") },
   });
-  assert.equal(choice.sourceGrant, saved.grantId);
-  assert.equal(choice.sourceRun, "500");
-  assert.equal(choice.artifactId, 900);
-  assert.ok(requests[0].includes("/actions/runs/500/artifacts"));
-  assert.equal(x.controls.grants[saved.grantId].outcome, "blocked");
-  const forged = recovered();
-  forged.controls.grants[saved.grantId].head = fx.head;
-  await assert.rejects(
-    run.chooseSource({
-      controls: forged.controls,
-      registry: forged.registry,
-      day: "2026-11-18",
-      head: fx.head,
-      preview: true,
-      api: {
-        pages: async () => {
-          assert.fail("changed source must fail before artifact lookup");
-        },
-      },
-    })
-  );
-});
-test("pending recovered findings keep their receipt artifact and expired or changed metadata stays held", async () => {
-  for (const patch of [
-    { expired: true },
-    { digest: `sha256:${"e".repeat(64)}` },
-    { id: 901 },
-    { workflow_run: { id: 501, head_sha: fx.head } },
-  ]) {
-    const x = recovered();
-    const candidate = f.candidateFromEvidence(x.bundle, 0, x.artifact, originalProof());
-    pub.stageFinding(x.registry, candidate);
-    x.registry.imports[saved.grantId].status = "complete";
-    x.registry.imports[saved.grantId].evidenceHash = c.digest(x.bundle);
-    x.registry.imports[saved.grantId].findings = [candidate.key];
-    const store = fx.memoryStore(x.registry);
-    const choice = await run.chooseSource({
-      controls: x.controls,
-      registry: x.registry,
-      store,
-      day: "2026-11-18",
-      head: fx.head,
-      api: { pages: async () => [{ ...x.metadata, ...patch }] },
-    });
-    assert.equal(choice.sourceGrant, undefined);
-    assert.equal(store.state.imports[saved.grantId].recoveries.length, 1);
-    assert.equal(store.state.records[candidate.key].status, "held-evidence");
-  }
+  assert.equal(choice.sourceGrant, undefined);
+  assert.deepEqual(store.state, previous);
 });
 test("a blocked ordinary source and a held recovery never become selectable", async () => {
   const x = recovered();
@@ -282,7 +234,7 @@ test("a blocked ordinary source and a held recovery never become selectable", as
   assert.equal(choice.sourceGrant, undefined);
 });
 
-test("publication validates source provenance and preserves recovery receipts in completed imports", async (t) => {
+test("functional publication refuses a directly supplied legacy grant and preserves recovery history", async (t) => {
   const x = recovered();
   x.controls.tickets[92] = { origin: "discovery-sweep", discovery: originalProof() };
   const folder = fs.mkdtempSync(path.join(os.tmpdir(), "recovered-publication-"));
@@ -308,13 +260,8 @@ test("publication validates source provenance and preserves recovery receipts in
     pub.appendDuplicates = originals.appendDuplicates;
     discovery.testedMain = originals.testedMain;
   });
-  let verified = 0;
   origin.producer = async () => {};
-  origin.verifySource = async (_, candidate) => {
-    verified++;
-    assert.deepEqual(candidate.source.recovery, x.receipt.proof);
-    return true;
-  };
+  origin.verifySource = async () => assert.fail("legacy source must not reach verification");
   pub.publishFinding = async () => {};
   pub.appendDuplicates = async () => {};
   discovery.testedMain = async () => ({ head: fx.head, ciRunId: "99" });
@@ -342,25 +289,13 @@ test("publication validates source provenance and preserves recovery receipts in
     FACTORY_INPUTS: JSON.stringify({ sourceGrant: saved.grantId, artifactId: 900 }),
   };
   const api = {
-    request: async (method, url) => {
-      assert.equal(method, "GET");
-      assert.ok(url.endsWith("/actions/artifacts/900"));
-      return x.metadata;
-    },
+    request: async () => assert.fail("legacy source must not request artifacts"),
   };
-  await run.main(env, { api, ledger: { read: async () => ({ state: x.controls }) }, store });
-  assert.equal(verified, 2);
-  assert.equal(store.state.imports[saved.grantId].status, "complete");
-  assert.deepEqual(
-    store.state.imports[saved.grantId].recoveries,
-    x.registry.imports[saved.grantId].recoveries
-  );
-  assert.equal(x.controls.grants[saved.grantId].outcome, "blocked");
-  const previous = JSON.stringify(store.state);
-  origin.verifySource = async () => false;
+  const previous = store.state;
   await assert.rejects(
     run.main(env, { api, ledger: { read: async () => ({ state: x.controls }) }, store }),
-    /Source proof rejected/
+    /Functional discovery charter required/
   );
-  assert.equal(JSON.stringify(store.state), previous);
+  assert.deepEqual(store.state, previous);
+  assert.equal(x.controls.grants[saved.grantId].outcome, "blocked");
 });

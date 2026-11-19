@@ -1,6 +1,7 @@
 const c = require("../../factory/discovery-contract.cjs");
 const o = require("../../factory/discovery-oracles.cjs");
 const p = require("../../factory/policy.cjs");
+const functional = require("../../factory/discovery-functional.cjs");
 const head = "a".repeat(40);
 const grant = "77777777-7777-4777-8777-777777777777";
 const context = {
@@ -80,11 +81,39 @@ function evidence(kind = "protected-route", route = "/users", grantId = grant) {
     publication: "not-installed",
   };
 }
-function proof(g = grant) {
+function functionalEvidence(charter = "functional-feed", grantId = grant) {
+  const oracle =
+    charter === "functional-feed"
+      ? {
+          kind: "feed-pagination",
+          route: "/transactions/public",
+          authenticated: true,
+          query: { page: 2, limit: 5 },
+        }
+      : {
+          kind: "unexpected-server-error",
+          route: "/users/search",
+          authenticated: true,
+          query: { q: "Test User" },
+        };
+  const bundle = evidence("unexpected-server-error", oracle.route, grantId);
+  const row = bundle.findings[0];
+  const finding = functional.describeFinding(charter, { ...row.finding, oracle });
+  bundle.report.findings = [finding];
+  row.finding = finding;
+  row.oracle = oracle;
+  row.original.test = functional.proposal(charter, oracle);
+  row.original.testHash = c.digest(row.original.test);
+  const observation = o.observe(oracle, charter === "functional-feed" ? 200 : 500, {});
+  row.fingerprint = c.digest([oracle.kind, oracle.route, observation.symptom]);
+  row.replays.forEach((replay) => (replay.observation = structuredClone(observation)));
+  return bundle;
+}
+function proof(g = grant, charter = "session") {
   const v = {
     version: 1,
     head,
-    charter: "session",
+    charter,
     day: "2026-11-17",
     ciRunId: "99",
     key: "",
@@ -120,4 +149,13 @@ function memoryStore(initial) {
     },
   };
 }
-module.exports = { head, grant, context, evidence, proof, artifact, memoryStore };
+module.exports = {
+  head,
+  grant,
+  context,
+  evidence,
+  functionalEvidence,
+  proof,
+  artifact,
+  memoryStore,
+};
