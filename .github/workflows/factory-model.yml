@@ -138,6 +138,7 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ github.token }}
+          allowed_bots: ${{ steps.prepare.outputs.allowedBots }}
           prompt: ${{ fromJSON(steps.prepare.outputs.promptJson) }}
           claude_args: ${{ steps.prepare.outputs.claudeArgs }}
           settings: '{"disableAllHooks":true,"enableAllProjectMcpServers":false}'

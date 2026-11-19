@@ -35,6 +35,65 @@ function repo(t) {
 }
 test("isolated worker adapter exists", () => assert.ok(worker, "missing model worker adapter"));
 
+test("worker emits the named bot only for an active verified app wake reservation", async (t) => {
+  const { receiverSetup } = require("./helpers/event-fixtures.cjs");
+  const { verifyWake } = require("../factory/trusted-wake.cjs");
+  const app = repo(t);
+  const s = await receiverSetup();
+  const proof = await verifyWake({ ...s, lane: "app", bind: true });
+  const ctx = {
+    ...s.context,
+    ticket: s.issue.number,
+    head: app.head,
+    phase: "code",
+    slot: "cycle1",
+  };
+  const config = policy.readConfig({
+    ...vars,
+    ...s.vars,
+    FACTORY_GITHUB_APP_CLIENT_ID: "Iv1.fixture123456",
+    FACTORY_GITHUB_APP_SLUG: "fixture-factory",
+  });
+  const { state, grant } = policy.reserve(
+    policy.emptyState(ctx.repository),
+    { ...ctx, wake: proof },
+    config
+  );
+  const ticket = state.tickets[String(ctx.ticket)];
+  ticket.criteriaHash = criteriaHash(s.issue);
+  ticket.automatic = {
+    workflowRef: ctx.workflowRef,
+    workflowSha: ctx.workflowSha,
+    runId: ctx.runId,
+    runAttempt: ctx.runAttempt,
+    appSlug: config.appSlug,
+  };
+  let snapshot = state;
+  const encode = (data) => ({
+    type: "file",
+    encoding: "base64",
+    content: Buffer.from(JSON.stringify(data)).toString("base64"),
+  });
+  const api = {
+    async request(method, route) {
+      assert.equal(method, "GET");
+      if (/\/git\/ref\/heads\/factory\/(state|wakes)$/.test(route))
+        return { object: { sha: "b".repeat(40) } };
+      if (route.includes("/contents/state.json?")) return encode(snapshot);
+      if (route.includes("/contents/wakes.json?")) return encode(s.store.state);
+      return s.api.request(method, route);
+    },
+  };
+  const options = { grantId: grant.id, cwd: app.cwd, environment: {} };
+  assert.equal(
+    (await worker.prepare(api, config, ctx, options)).allowedBots,
+    "github-actions[bot]"
+  );
+
+  snapshot = policy.finish(state, grant.id, { status: "blocked" });
+  await assert.rejects(worker.prepare(api, config, ctx, options), /stale model reservation/);
+});
+
 test("dependency worker supplies fresh exact-commit facts without adding model tools or rewriting history", async (t) => {
   const app = repo(t);
   const runGit = (...args) => execFileSync("git", args, { cwd: app.cwd, encoding: "utf8" }).trim();
@@ -215,6 +274,7 @@ test("prepared worker is fresh, restricted and bound to a committed reservation"
     cwd: app.cwd,
     environment: {},
   });
+  assert.equal(prepared.allowedBots, "");
   assert.ok(prepared.claudeArgs.includes("--restricted"));
   assert.ok(prepared.claudeArgs.includes("--max-turns 20"));
   assert.ok(!/--resume|--continue/.test(prepared.claudeArgs));

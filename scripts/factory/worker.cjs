@@ -197,7 +197,8 @@ async function prepare(
   { grantId, cwd, environment = process.env, transport = fetch }
 ) {
   policy.assertSubscriptionEnv(environment);
-  context = await require("./trusted-wake.cjs").loadWakeContext(api, context, environment);
+  const wake = require("./trusted-wake.cjs");
+  context = await wake.loadWakeContext(api, context, environment);
   const { state } = await new Ledger(api).read();
   const grant = policy.preflight(state, grantId, context, config);
   if (git(cwd, ["rev-parse", "HEAD"]).trim() !== grant.head)
@@ -349,6 +350,7 @@ async function prepare(
     );
   fs.appendFileSync(path.join(cwd, ".git/info/exclude"), "\n.factory-input/\n.factory-output/\n");
   return {
+    allowedBots: wake.allowedModelBots(context, ticket),
     claudeArgs: buildArgs(config, grant.phase, drill, finding),
     promptJson: JSON.stringify(
       promptFor(grant.phase, grant.head, drill, ticket.origin === "dependency-pr", finding)

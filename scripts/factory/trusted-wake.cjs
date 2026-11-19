@@ -17,6 +17,17 @@ function isTrustedWakeContext(context, lane) {
       binding.runAttempt === context.runAttempt
   );
 }
+function allowedModelBots(context, ticket) {
+  if (
+    ticket?.origin !== "factory" ||
+    !ticket.automatic ||
+    ticket.finding ||
+    !isTrustedWakeContext(context, "app")
+  )
+    return "";
+  const { signalKind } = proofs.get(context.wake);
+  return ["issue", "monitor", "drain"].includes(signalKind) ? c.BOT : "";
+}
 async function verifySource(api, signal, bound) {
   const { criteriaHash } = require("./controller.cjs");
   const { eligibleIssue } = require("./automation.cjs");
@@ -185,7 +196,7 @@ async function verifyWake({
     sourceActor: receipt.signal.actor.login,
     producerRun: receipt.producer.runId,
   });
-  proofs.set(proof, { ...expected, lane });
+  proofs.set(proof, { ...expected, lane, signalKind: receipt.signal.kind });
   return proof;
 }
 async function loadWakeContext(api, context, env = process.env, { bind = false } = {}) {
@@ -214,6 +225,7 @@ async function loadWakeContext(api, context, env = process.env, { bind = false }
 module.exports = {
   PendingWakeBinding,
   isTrustedWakeContext,
+  allowedModelBots,
   verifySource,
   verifyWake,
   loadWakeContext,
