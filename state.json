@@ -2077,9 +2077,17 @@
       "reviews": 1,
       "retries": 0,
       "head": "a2459481356ec814f4a743a6450318a1d2726e9b",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 117,
-      "approval": null,
+      "approval": {
+        "head": "a2459481356ec814f4a743a6450318a1d2726e9b",
+        "pr": 117,
+        "grant": "be03fa02-c795-446a-8b59-a2ea72ba356c",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/44469622361"
+      },
       "criteriaHash": "ff30ed4c67ac129252bee8d777fd98d9c547ae4add0844b65d06891d00cb4fb6",
       "branch": "agent/saved-ci-review-recovery",
       "ci": {
@@ -2087,7 +2095,8 @@
         "head": "a2459481356ec814f4a743a6450318a1d2726e9b",
         "runId": 44469694122,
         "passed": true
-      }
+      },
+      "feedback": "{\"verdict\":\"pass\",\"head\":\"a2459481356ec814f4a743a6450318a1d2726e9b\",\"summary\":\"Reviewed the diff adding a one-off \\\"saved-CI independent review recovery\\\" path for ticket #112/PR #113: new workflow .github/workflows/factory-review-recovery.yml, scripts/factory/review-recovery.cjs, and wiring into controller.cjs, policy.cjs, worker.cjs and stop.cjs, plus scripts/tests/factory-review-recovery.test.cjs and docs/factory/SAVED-CI-REVIEW-RECOVERY.md. I read the new module in full alongside policy.cjs, controller.cjs, worker.cjs, active-tickets.cjs, github.cjs, wake-controller.cjs, trusted-wake.cjs, stop.cjs and recovery.cjs (the precedent one-off recovery for issue #11) to check consistency. review-recovery.cjs binds every action to a hardcoded SOURCE snapshot (ticket 112/PR 113/original run/original CI/original coding grant) and cross-checks it against policy.authorize/assertContext, ledger validateState (via validateReceipt), and live GitHub state (verifyOriginal, verifyHost, reviewedRevision) before allowing a single review reservation; it forbids autoMerge, forces phase=\\\"review\\\" with Read/Glob/Grep-only capabilities (via the unchanged capabilitiesFor/buildArgs in worker.cjs), reuses the existing Claude-subscription-only factory-model.yml invocation, and never creates a coding or merge job, satisfying the \\\"no coding, automatic retry, merge, deployment or paid AI API\\\" constraint. The branch-protection path (reviewedRevision) requires an exact merge-commit parentage, an unchanged two-file patch (via patch()), and a genuine green pull_request-triggered Factory CI \\\"verify\\\" job for the new head before reusing/rebinding CI evidence, matching the acceptance criterion about branch updates. stop.cjs adds the new workflow to AGENT_WORKFLOWS so emergency stop can cancel it, and the preview/live split in prepare() keeps preview read-only with zero reservations, matching \\\"preview-first\\\". The accompanying scripts/tests/factory-review-recovery.test.cjs exercises reserve/evidence-binding/authorize/patch-equality/reviewedRevision logic and is picked up by `yarn test:factory`, which runs inside the \\\"verify\\\" job of factory-ci.yml (the exact-head CI job this code itself depends on), and the supplied CI run link is treated as evidence that this suite passed on the reviewed head. Limits: this is a static, read-only review (no code execution) of a very defense-in-depth, narrowly single-incident-scoped module; I could not independently execute the test suite or query live GitHub API state (PR #113's actual files/CI), so correctness there rests on the internal consistency of the diff and the supplied CI evidence rather than direct execution.\",\"findings\":[]}"
     }
   },
   "grants": {
@@ -3060,15 +3069,12 @@
       "runId": "44469622361",
       "runAttempt": 1,
       "head": "a2459481356ec814f4a743a6450318a1d2726e9b",
-      "status": "reserved",
-      "at": "2026-11-19T06:05:36.957Z"
+      "status": "finished",
+      "at": "2026-11-19T06:05:36.957Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 116,
-    "runId": "44469622361",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -5501,6 +5507,14 @@
       "runId": "44469622361",
       "runAttempt": 1,
       "actor": "haideearus"
+    },
+    {
+      "at": "2026-11-19T06:22:28.629Z",
+      "event": "finished",
+      "ticket": 116,
+      "grant": "be03fa02-c795-446a-8b59-a2ea72ba356c",
+      "status": "reviewed",
+      "head": "a2459481356ec814f4a743a6450318a1d2726e9b"
     }
   ]
 }
