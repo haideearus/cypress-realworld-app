@@ -13272,6 +13272,29 @@
       },
       "status": "published",
       "commentId": 7013700265
+    },
+    "0354ff10c178b21a9200318e4187e2892b70ce3afad3332990abd1a8ff1b4f3f": {
+      "event": {
+        "id": "0354ff10c178b21a9200318e4187e2892b70ce3afad3332990abd1a8ff1b4f3f",
+        "producer": {
+          "runId": "44555703228",
+          "runAttempt": 1,
+          "workflow": "factory-agents.yml",
+          "workflowSha": "7b7482f165c618b6b7188e2726e82242a62c5dcc",
+          "phase": "job-135671218729-prepare",
+          "actor": "haideearus"
+        },
+        "kind": "review",
+        "state": "starting",
+        "subject": 123,
+        "head": "ad97b952cf23b89385100f90f66f8e1f7f4b1af7",
+        "summary": "Reserved role is preparing; this is not proof that Claude executed.",
+        "links": [
+          "https://github.com/haideearus/cypress-realworld-app/actions/runs/44555703228"
+        ]
+      },
+      "status": "intent",
+      "commentId": null
     }
   },
   "lastMonitor": {
