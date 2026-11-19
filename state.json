@@ -2249,7 +2249,11 @@
       "approval": null,
       "criteriaHash": "216e9eefaa5ab06b0cb4e5f84373c43410ed990d19e4289fe13f2737f63510d9",
       "branch": "agent/wait-for-required-pr-ci",
-      "ci": null
+      "ci": {
+        "requestId": "155156f1-6c5d-4f72-aeab-0c457511f08c",
+        "head": "453dc45ebfd44e1080e020a07d0e97be64853cd3",
+        "runId": null
+      }
     }
   },
   "grants": {
