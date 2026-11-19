@@ -2148,19 +2148,15 @@
     "118": {
       "coding": 0,
       "origin": "owner-pr",
-      "reviews": 1,
+      "reviews": 2,
       "retries": 0,
       "head": "055f08680cf248146d83c43aa70cecdc6d7f8e3c",
-      "status": "blocked",
+      "status": "reviewing",
       "pr": 119,
       "approval": null,
       "criteriaHash": "4e7554ef1055db601344ac70565f17dde380bb99b5f75b3d32535930c8add561",
       "branch": "agent/priority-delayed-retries",
-      "ci": {
-        "requestId": "02e9e1b4-93ae-41f6-8f1d-9e15b926bdc5",
-        "head": "055f08680cf248146d83c43aa70cecdc6d7f8e3c",
-        "runId": null
-      }
+      "ci": null
     }
   },
   "grants": {
@@ -3196,9 +3192,24 @@
       "status": "finished",
       "at": "2026-11-19T12:14:22.612Z",
       "outcome": "blocked"
+    },
+    "c3925d91-7ad6-4eec-adba-c2868f059b5e": {
+      "id": "c3925d91-7ad6-4eec-adba-c2868f059b5e",
+      "ticket": 118,
+      "phase": "review",
+      "slot": "existing",
+      "runId": "44524360948",
+      "runAttempt": 1,
+      "head": "055f08680cf248146d83c43aa70cecdc6d7f8e3c",
+      "status": "reserved",
+      "at": "2026-11-19T12:29:48.335Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 118,
+    "runId": "44524360948",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -5740,6 +5751,16 @@
       "ticket": 118,
       "actor": "haideearus",
       "runId": "44521988947"
+    },
+    {
+      "at": "2026-11-19T12:29:48.335Z",
+      "event": "reserved",
+      "ticket": 118,
+      "grant": "c3925d91-7ad6-4eec-adba-c2868f059b5e",
+      "phase": "review",
+      "runId": "44524360948",
+      "runAttempt": 1,
+      "actor": "haideearus"
     }
   ]
 }
