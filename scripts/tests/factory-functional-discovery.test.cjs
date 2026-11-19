@@ -67,6 +67,20 @@ test("browser discovery defaults to preview and separates tests from the publish
   assert.equal(workflow.jobs.publish.needs, "browser");
   assert.equal(workflow.jobs.publish.permissions.issues, "write");
   assert.doesNotMatch(JSON.stringify(workflow), /CLAUDE|ANTHROPIC|RENDER_DEPLOY|MONITOR_PASSWORD/);
+
+  const ci = yaml.load(
+    fs.readFileSync(path.join(__dirname, "../../.github/workflows/factory-ci.yml"), "utf8")
+  );
+  const approvedCheckout = ci.jobs.verify.steps.find((step) =>
+    step.uses?.startsWith("actions/checkout@")
+  ).uses;
+  assert.match(approvedCheckout, /^actions\/checkout@[0-9a-f]{40}$/);
+  for (const job of [workflow.jobs.browser, workflow.jobs.publish]) {
+    assert.deepEqual(
+      job.steps.map((step) => step.uses).filter((uses) => uses?.startsWith("actions/checkout@")),
+      [approvedCheckout]
+    );
+  }
 });
 
 test("preview, disabled, and inconclusive runs publish no ticket", async () => {

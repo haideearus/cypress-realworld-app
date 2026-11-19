@@ -50,7 +50,7 @@ jobs:
     env:
       TEST_DATABASE_URL: postgresql://factory_test:disposable-ci-password@127.0.0.1:5432/rwa_test
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38baf677262
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           ref: ${{ github.workflow_sha }}
           persist-credentials: false
@@ -76,7 +76,7 @@ jobs:
       contents: write
       issues: write
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38baf677262
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           ref: ${{ github.workflow_sha }}
           persist-credentials: false
