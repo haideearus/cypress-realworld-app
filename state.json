@@ -2363,7 +2363,8 @@
       "ci": {
         "requestId": "6fbd3d0a-61af-4362-b817-cc1749db441c",
         "head": "5781715dbbd59c5ece9af8008d1b2bffdda9ef76",
-        "runId": null
+        "runId": 44638628219,
+        "passed": true
       }
     }
   },
