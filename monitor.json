@@ -84,7 +84,7 @@
       "at": "2026-11-19T17:18:18.149Z",
       "day": "2026-11-19",
       "phase": "open",
-      "recovered": false,
+      "recovered": true,
       "source": {
         "runId": "44575401514",
         "runAttempt": 1,
