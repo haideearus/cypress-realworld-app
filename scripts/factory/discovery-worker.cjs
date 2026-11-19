@@ -99,8 +99,19 @@ async function buildImage(source, contextDir, head) {
   if (!s.IMAGE.test(image)) throw Error("Immutable image identity missing");
   return image;
 }
+async function readFresh(api, read) {
+  // A multi-request read can span a quota reset. Retry it from its first request.
+  // The GitHub client bounds the number of waits per job.
+  for (;;) {
+    const waits = api.quotaWaits;
+    const result = await read();
+    if (api.quotaWaits === waits) return result;
+  }
+}
 async function prepare(env, inputs, api, config) {
-  const snapshot = await new Ledger(api).read();
+  const ledger = new Ledger(api);
+  const snapshot = await readFresh(api, () => ledger.read());
+  const waitsAtSnapshot = api.quotaWaits;
   const g = snapshot.state.grants[inputs.grantId];
   const ticket = g && snapshot.state.tickets[String(g.ticket)];
   const context = {
@@ -114,11 +125,12 @@ async function prepare(env, inputs, api, config) {
   };
   await require("./discovery-run.cjs").verifyParent(api, context);
   p.preflight(snapshot.state, inputs.grantId, context, config);
-  await require("./discovery-run.cjs").testedMain(
-    api,
-    context,
-    env.GITHUB_EVENT_PATH ? JSON.parse(fs.readFileSync(env.GITHUB_EVENT_PATH, "utf8")) : {}
-  );
+  const event = env.GITHUB_EVENT_PATH
+    ? JSON.parse(fs.readFileSync(env.GITHUB_EVENT_PATH, "utf8"))
+    : {};
+  await readFresh(api, () => require("./discovery-run.cjs").testedMain(api, context, event));
+  if (api.quotaWaits !== waitsAtSnapshot)
+    p.preflight((await readFresh(api, () => ledger.read())).state, g.id, context, config);
   functional.assertCharter(ticket.discovery.charter);
   const root = path.join(env.RUNNER_TEMP, `factory-discovery-${g.id}`);
   fs.mkdirSync(root, { recursive: false });
@@ -160,7 +172,7 @@ async function prepare(env, inputs, api, config) {
   );
   const image = await withStage("image-build", () => buildImage(source, contextDir, g.head));
   // Build/installation can take time; admission must still be valid immediately before model access.
-  p.preflight((await new Ledger(api).read()).state, g.id, context, config);
+  p.preflight((await readFresh(api, () => ledger.read())).state, g.id, context, config);
   const identity = { head: g.head, grantId: g.id };
   const out = path.join(root, "output");
   fs.mkdirSync(out);
@@ -260,7 +272,8 @@ async function collect(env, inputs) {
 }
 async function replay(env, inputs, api, config) {
   const b = readJson(path.join(env.FACTORY_DISCOVERY_BUNDLE, "bundle.json"), 1500000);
-  const state = (await new Ledger(api).read()).state;
+  const ledger = new Ledger(api);
+  const { state } = await readFresh(api, () => ledger.read());
   const g = state.grants[inputs.grantId];
   const t = g && state.tickets[String(g.ticket)];
   const context = {
@@ -316,7 +329,9 @@ async function replay(env, inputs, api, config) {
     bundle: b,
     image: setup.image,
     output: setup.output,
-    before: async () => p.preflight((await new Ledger(api).read()).state, g.id, context, config),
+    before: async () =>
+      p.preflight((await readFresh(api, () => ledger.read())).state, g.id, context, config),
+    quotaWaited: () => api.quotaWaited,
   });
   await scanFiles([{ path: "discovery-evidence.json", content: JSON.stringify(result) }]);
   fs.writeFileSync(
@@ -331,12 +346,17 @@ async function replay(env, inputs, api, config) {
     env
   );
 }
-async function main(env = process.env) {
+async function main(env = process.env, { githubOptions } = {}) {
   p.assertSubscriptionEnv(env);
   const inputs = JSON.parse(env.FACTORY_INPUTS || "{}");
   const config = p.readConfig(JSON.parse(env.FACTORY_VARIABLES || "{}"));
   if (env.FACTORY_OPERATION === "collect") return collect(env, inputs);
-  const api = new GitHub({ token: env.GH_TOKEN });
+  const api = new GitHub({
+    ...githubOptions,
+    token: env.GH_TOKEN,
+    waitOnQuota: env.FACTORY_OPERATION === "replay",
+    onQuotaWait: (until) => console.log(`GitHub API quota exhausted; waiting until ${until}`),
+  });
   if (env.FACTORY_OPERATION === "prepare") return prepare(env, inputs, api, config);
   if (env.FACTORY_OPERATION === "replay") return replay(env, inputs, api, config);
   throw Error("Unknown discovery worker operation");

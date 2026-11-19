@@ -119,7 +119,8 @@ jobs:
     needs: [select, discover]
     if: ${{ needs.discover.result == 'success' && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_DISCOVERY_ENABLED == 'true' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 75
+    # Preserve replay time when the GitHub API needs up to 65 minutes to reset.
+    timeout-minutes: 145
     permissions:
       actions: read
       contents: read
@@ -160,7 +161,7 @@ jobs:
     needs: [select, discover, replay]
     if: ${{ always() && needs.select.outputs.grantId != '' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 75
     concurrency:
       group: factory-ledger
       cancel-in-progress: false

@@ -59,6 +59,11 @@ browser probe nor a claim that every page or backend path was tested.
   receives one `discover` grant, with zero coding/review attempts.
 - Failed builds, provider rejection, invalid reports, interruption and failed
   replay retain consumed reservations. No automatic model retries or refunds.
+- Replay and finalization wait for a confirmed GitHub API quota reset for up to
+  65 minutes per job. Replay refreshes its state checks after a wait and keeps a
+  five-minute execution budget per finding. Both jobs use the original evidence
+  and grant. If finalization cannot write the ledger within that budget, the
+  saved reservation remains available for owner reconciliation.
 - Up to four exploration batches per session, each with a five-minute outer
   deadline; the existing turn/minute limits still bound the model step.
 - Up to eight proposal files, two candidate findings and bounded text/log output.
