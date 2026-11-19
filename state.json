@@ -2066,7 +2066,8 @@
       "ci": {
         "requestId": "4d4c7250-3a88-4b72-8328-fd8929146dcd",
         "head": "b5f70973cbbfe752697e1542c6c2558a4c6687e5",
-        "runId": null
+        "runId": 44432947268,
+        "passed": true
       }
     }
   },
@@ -5436,6 +5437,23 @@
       "grant": "c3c7cde9-020e-47ea-bac4-e09c3c9f003a",
       "status": "awaiting_review",
       "head": "b5f70973cbbfe752697e1542c6c2558a4c6687e5"
+    },
+    {
+      "at": "2026-11-19T05:22:42.243Z",
+      "event": "owner-ci-evidence-recovered",
+      "actor": "haideearus",
+      "ticket": 112,
+      "pr": 113,
+      "head": "b5f70973cbbfe752697e1542c6c2558a4c6687e5",
+      "requestId": "4d4c7250-3a88-4b72-8328-fd8929146dcd",
+      "ciRunId": 44432947268,
+      "verifyJob": 135254617094,
+      "originalRun": "44431933780",
+      "originalRunAttempt": 1,
+      "failedControllerJob": 135254474255,
+      "originalCodingGrant": "c3c7cde9-020e-47ea-bac4-e09c3c9f003a",
+      "wakeReceipt": "5d6e288988e641d4fca4da7900e0f1af27ae58de134b8f22e6d86d69dd8d08a8",
+      "previousLedgerCommit": "70bfb7e64230f011f69a572c7b594959642825e8"
     }
   ]
 }
