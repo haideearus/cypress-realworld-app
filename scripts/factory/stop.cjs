@@ -15,6 +15,7 @@ const AGENT_WORKFLOWS = Object.freeze(
     "factory-model.yml",
     "factory-cycle.yml",
     "factory-pr-review.yml",
+    "factory-review-recovery.yml",
   ].map((file) => `.github/workflows/${file}`)
 );
 const monotonic = () => performance.now();

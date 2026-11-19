@@ -147,6 +147,7 @@ function validateState(state) {
     )
       deny("Invalid ledger ticket counters");
     const grants = Object.values(state.grants).filter((g) => g?.ticket === Number(id));
+    require("./review-recovery.cjs").validateReceipt(ticket, id, grants);
     if (ticket.origin === "discovery-sweep")
       require("./discovery-policy.cjs").validateTicket(ticket, grants);
     else if (
@@ -359,6 +360,9 @@ function dayKey(date, timezone) {
 }
 function authorize(request) {
   denyRetiredRun(request.runId);
+  const savedReview = require("./review-recovery.cjs");
+  if (request.workflowRef === savedReview.WORKFLOW_REF || request.slot === savedReview.SLOT)
+    savedReview.assertContext(request);
   if (require("./discovery-policy.cjs").contextOK(request)) return;
   if (
     request.workflowRef === require("./discovery-contract.cjs").WORKFLOW_REF ||
@@ -676,6 +680,8 @@ function preflight(state, grantId, context, config) {
   if (active.activeEntries(state).length > config.concurrent)
     deny("Pending reservation exceeds current concurrency limit");
   if (!config.enabled || !config.minutes || !config.turns) deny("Factory disabled");
+  if (context.slot === require("./review-recovery.cjs").SLOT && config.autoMerge !== false)
+    deny("Disable automatic merging before a saved-CI review");
   const automatic = isAutomaticContext(context);
   if (automatic && !config.automatic) deny("Automatic factory disabled");
   const grant = state.grants[grantId];
