@@ -2089,7 +2089,16 @@
           "passed": true
         }
       },
-      "feedback": "{\"head\":\"51ba1fb3fc82e1c3e4b2c89d4957d47f8765171f\",\"verdict\":\"pass\",\"summary\":\"Reviewed src/components/TransactionDetail.tsx and new src/components/__tests__/TransactionDetail.test.tsx against ticket #112. The diff adds aria-label=\\\"Like transaction\\\" to the existing IconButton (line 183) without touching any other prop, so the data-test selector, onClick handler, disabled logic, and visual markup (icon, size) are all unchanged, satisfying \\\"keep appearance, click behavior, and disabled state.\\\" The new Vitest test queries screen.getByRole(\\\"button\\\", { name: \\\"Like transaction\\\" }) to confirm the accessible name, verifies the click calls transactionLike with the transaction id while not disabled, then rerenders with a like from currentUser and asserts the button becomes disabled — covering both boundary states (liked/not-liked) required by the ticket. Confirmed vitest/testing-library/jest-dom are already wired via src/setup-tests.js (toBeDisabled works) and vite.config.ts setupFiles, so the test is runnable within the existing suite (test:unit / test:unit:ci scripts in package.json). Checked cypress/tests/ui/transaction-view.spec.ts, which exercises the same button via cy.getBySelLike(\\\"like-button\\\") (the data-test attribute), confirming no regression to the existing Cypress E2E coverage since that selector is untouched by the aria-label addition. No other files reference the button's data-test string outside TransactionDetail.tsx. This is a static read-only review (no commands executed); CI result for this change was not independently reproduced here.\",\"findings\":[]}"
+      "feedback": "{\"head\":\"51ba1fb3fc82e1c3e4b2c89d4957d47f8765171f\",\"verdict\":\"pass\",\"summary\":\"Reviewed src/components/TransactionDetail.tsx and new src/components/__tests__/TransactionDetail.test.tsx against ticket #112. The diff adds aria-label=\\\"Like transaction\\\" to the existing IconButton (line 183) without touching any other prop, so the data-test selector, onClick handler, disabled logic, and visual markup (icon, size) are all unchanged, satisfying \\\"keep appearance, click behavior, and disabled state.\\\" The new Vitest test queries screen.getByRole(\\\"button\\\", { name: \\\"Like transaction\\\" }) to confirm the accessible name, verifies the click calls transactionLike with the transaction id while not disabled, then rerenders with a like from currentUser and asserts the button becomes disabled — covering both boundary states (liked/not-liked) required by the ticket. Confirmed vitest/testing-library/jest-dom are already wired via src/setup-tests.js (toBeDisabled works) and vite.config.ts setupFiles, so the test is runnable within the existing suite (test:unit / test:unit:ci scripts in package.json). Checked cypress/tests/ui/transaction-view.spec.ts, which exercises the same button via cy.getBySelLike(\\\"like-button\\\") (the data-test attribute), confirming no regression to the existing Cypress E2E coverage since that selector is untouched by the aria-label addition. No other files reference the button's data-test string outside TransactionDetail.tsx. This is a static read-only review (no commands executed); CI result for this change was not independently reproduced here.\",\"findings\":[]}",
+      "merge": {
+        "status": "merged",
+        "head": "51ba1fb3fc82e1c3e4b2c89d4957d47f8765171f",
+        "pr": 113,
+        "at": "2026-11-19T13:09:21.621Z",
+        "runId": "44501388397",
+        "runAttempt": 1,
+        "mergeCommit": "8ba2922ce7bfc7ab977a9dd043014e8bd7b394f2"
+      }
     },
     "114": {
       "coding": 0,
@@ -5780,6 +5789,21 @@
       "grant": "c3925d91-7ad6-4eec-adba-c2868f059b5e",
       "status": "reviewed",
       "head": "055f08680cf248146d83c43aa70cecdc6d7f8e3c"
+    },
+    {
+      "at": "2026-11-19T13:09:21.621Z",
+      "event": "owner_merge_receipt_reconciled",
+      "actor": "haideearus",
+      "execution": "owner-local-reconciliation",
+      "ticket": 112,
+      "pr": 113,
+      "reviewedHead": "51ba1fb3fc82e1c3e4b2c89d4957d47f8765171f",
+      "mergeCommit": "8ba2922ce7bfc7ab977a9dd043014e8bd7b394f2",
+      "reviewRunId": "44500128704",
+      "evidenceRunId": "44501388397",
+      "evidenceRunAttempt": 1,
+      "deployRunId": "44503518763",
+      "previousLedgerCommit": "c105fd0ca884543d8be9ac7def28d900be135e15"
     }
   ]
 }
