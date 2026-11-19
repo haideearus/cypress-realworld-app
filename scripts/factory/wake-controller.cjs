@@ -121,12 +121,31 @@ async function classifySignal({ api, event, context, ledger = new Ledger(api) })
     }
     return null;
   }
-  if (source.path === ".github/workflows/factory-monitor.yml") {
-    const r = await verifiedRun(api, String(source.id), source.run_attempt, "factory-monitor.yml");
-    const { state: monitor } = await new MonitorStore(api).read();
+  const functional = require("./functional-discovery-contract.cjs");
+  if (
+    source.path === ".github/workflows/factory-monitor.yml" ||
+    source.path === functional.WORKFLOW_PATH
+  ) {
+    const functionalRun = source.path === functional.WORKFLOW_PATH;
+    const file = functionalRun ? functional.WORKFLOW_FILE : "factory-monitor.yml";
+    const r = await verifiedRun(api, String(source.id), source.run_attempt, file);
+    const { state: monitor } = await new MonitorStore(
+      api,
+      functionalRun ? "functional" : "production"
+    ).read();
     const incident = monitor.incidents[monitor.active];
-    if (!incident || incident.recovered) return null;
+    if (
+      !incident ||
+      incident.recovered ||
+      (functionalRun && incident.source.runId !== String(r.id))
+    )
+      return null;
     const issue = await api.request("GET", `${ROOT}/issues/${incident.issue}`);
+    if (
+      functionalRun &&
+      (issue.state !== "open" || !issue.labels?.some((label) => label.name === "factory-ready"))
+    )
+      return null;
     const proof = await verifyMonitorIssue(api, issue);
     if (state.tickets[String(issue.number)] || !proof) return null;
     return {

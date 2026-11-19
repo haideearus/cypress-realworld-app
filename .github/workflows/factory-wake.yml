@@ -6,6 +6,7 @@ on:
     workflows:
       [
         Production monitor,
+        Safe functional discovery,
         Factory CI,
         Automatic factory,
         Dependency maintenance,

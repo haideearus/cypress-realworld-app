@@ -1,0 +1,95 @@
+name: Safe functional discovery
+
+on:
+  schedule:
+    - cron: "12 2,14 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Run the approved checks without publishing a ticket
+        type: boolean
+        required: true
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: factory-functional-discovery
+  cancel-in-progress: false
+
+jobs:
+  browser:
+    if: >-
+      ${{ github.repository == 'haideearus/cypress-realworld-app' &&
+          github.ref == 'refs/heads/main' && github.run_attempt == 1 &&
+          github.actor == 'haideearus' && github.triggering_actor == 'haideearus' &&
+          ((github.event_name == 'workflow_dispatch' && inputs.dry_run) ||
+           vars.FACTORY_FUNCTIONAL_DISCOVERY_ENABLED == 'true') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    outputs:
+      status: ${{ steps.browser.outputs.status }}
+      check: ${{ steps.browser.outputs.check }}
+      assertion: ${{ steps.browser.outputs.assertion }}
+    services:
+      postgres:
+        image: postgres:17.6
+        env:
+          POSTGRES_USER: factory_test
+          POSTGRES_PASSWORD: disposable-ci-password
+          POSTGRES_DB: rwa_test
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U factory_test -d rwa_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql://factory_test:disposable-ci-password@127.0.0.1:5432/rwa_test
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38baf677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.20.0
+      - name: Prepare the disposable application
+        run: |
+          corepack enable && corepack prepare yarn@1.22.22 --activate
+          yarn install --frozen-lockfile
+          yarn predev:cognito:ci
+          yarn build:production
+      - name: Run approved browser checks
+        id: browser
+        run: node scripts/factory/functional-browser.cjs
+
+  publish:
+    if: ${{ needs.browser.result == 'success' }}
+    needs: browser
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      issues: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38baf677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+          sparse-checkout: scripts/factory
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.20.0
+      - name: Publish confirmed functional failure
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          FACTORY_FUNCTIONAL_DISCOVERY_ENABLED: ${{ vars.FACTORY_FUNCTIONAL_DISCOVERY_ENABLED }}
+          FACTORY_FUNCTIONAL_DRY_RUN: ${{ toJSON(inputs.dry_run) }}
+          FACTORY_FUNCTIONAL_STATUS: ${{ needs.browser.outputs.status }}
+          FACTORY_FUNCTIONAL_CHECK: ${{ needs.browser.outputs.check }}
+          FACTORY_FUNCTIONAL_ASSERTION: ${{ needs.browser.outputs.assertion }}
+        run: node scripts/factory/functional-discovery.cjs

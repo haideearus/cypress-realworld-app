@@ -53,6 +53,12 @@ async function verifySource(api, signal, bound) {
       });
       if (!proof || proof.runId !== signal.sourceRun || proof.incidentId !== signal.revision)
         throw Error("Wake monitor receipt changed");
+      if (
+        !bound &&
+        proof.probeMode === require("./functional-discovery-contract.cjs").PROBE_MODE &&
+        !issue.labels?.some((label) => label.name === "factory-ready")
+      )
+        throw Error("Functional wake issue is no longer ready");
     }
     if (signal.kind === "finding") {
       const proof = await require("./discovery-origin.cjs").verifyDiscoveryIssue(api, issue, {

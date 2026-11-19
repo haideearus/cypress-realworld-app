@@ -1,5 +1,6 @@
 // Pure receipt validation: safe to import from policy without a GitHub dependency cycle.
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
+const { PROBE_MODE } = require("./functional-discovery-contract.cjs");
 function validateMonitorProof(proof) {
   const contract = proof?.version === 2;
   return Boolean(
@@ -10,7 +11,7 @@ function validateMonitorProof(proof) {
         (contract
           ? "criteriaHash,incidentId,issue,probeMode,runAttempt,runId,version,workflowSha"
           : "criteriaHash,incidentId,issue,runAttempt,runId,version,workflowSha") &&
-      (contract ? proof.probeMode === "feed-contract" : proof.version === 1) &&
+      (contract ? ["feed-contract", PROBE_MODE].includes(proof.probeMode) : proof.version === 1) &&
       typeof proof.incidentId === "string" &&
       UUID.test(proof.incidentId) &&
       Number.isSafeInteger(proof.issue) &&

@@ -101,8 +101,20 @@ async function observeIncident({
   issueText: renderIssueText = issueText,
   labels = ["factory-ready"],
   verifiedRetirement = false,
+  probeMode,
 }) {
-  observation = validateObservation(observation);
+  const f = require("./functional-discovery-contract.cjs");
+  const functional = probeMode === f.PROBE_MODE;
+  if (functional) {
+    const { status, check, assertion } = f.validateFunctionalResult(
+      observation.status,
+      observation.check,
+      observation.assertion
+    );
+    if (status === "inconclusive" || verifiedRetirement)
+      throw Error("Invalid functional incident observation");
+    observation = { healthy: status === "healthy", check, assertion };
+  } else observation = validateObservation(observation);
   const at = now();
   if (
     typeof at !== "string" ||
@@ -111,21 +123,48 @@ async function observeIncident({
   )
     throw new Error("Invalid monitor time");
   const { state, commit } = await store.read();
-  const active = state.active && state.incidents[state.active];
+  let active = state.active && state.incidents[state.active];
   if (active?.phase === "pending")
     return { outcome: "publication_needs_owner_recovery", incident: active.id, observation };
   if (active?.acknowledgment?.phase === "intent")
     return { outcome: "acknowledgment_needs_owner_recovery", issue: active.issue, observation };
+  let issue;
   if (active) {
-    const issue = await api.request("GET", `${ROOT}/issues/${active.issue}`);
+    issue = await api.request("GET", `${ROOT}/issues/${active.issue}`);
     if (
       issue.number !== active.issue ||
       !["open", "closed"].includes(issue.state) ||
       issue.pull_request
     )
       throw new Error("Monitor issue identity changed");
-    if (active.probeMode === "feed-contract" && observation.appChecks?.feedContract === undefined)
+    if (
+      (active.probeMode === f.PROBE_MODE) !== functional ||
+      (active.probeMode === "feed-contract" && observation.appChecks?.feedContract === undefined)
+    )
       return { outcome: "required_probe_missing", issue: active.issue, observation };
+    const changedAssertion =
+      functional &&
+      !observation.healthy &&
+      (active.functionalCheck !== observation.check ||
+        active.functionalAssertion !== observation.assertion);
+    if (
+      functional &&
+      issue.state === "closed" &&
+      !observation.healthy &&
+      (active.recovered || changedAssertion)
+    ) {
+      active.recovered = true;
+      state.active = null;
+      active = null;
+    } else if (changedAssertion) {
+      if (!active.recovered) {
+        active.recovered = true;
+        await store.save(state, commit);
+      }
+      return { outcome: "another_functional_incident_active", issue: active.issue, observation };
+    }
+  }
+  if (active) {
     if (verifiedRetirement && observation.healthy) {
       try {
         const { retireIncident } = require("./monitor-recovery.cjs");
@@ -187,7 +226,15 @@ async function observeIncident({
     },
     criteriaHash: "",
     issue: null,
-    ...(observation.appChecks?.feedContract !== undefined ? { probeMode: "feed-contract" } : {}),
+    ...(functional
+      ? {
+          probeMode: f.PROBE_MODE,
+          functionalCheck: observation.check,
+          functionalAssertion: observation.assertion,
+        }
+      : observation.appChecks?.feedContract !== undefined
+        ? { probeMode: "feed-contract" }
+        : {}),
   };
   const text = renderIssueText(incident, observation);
   incident.criteriaHash = createHash("sha256")

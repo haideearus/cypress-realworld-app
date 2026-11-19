@@ -128,6 +128,7 @@ test("fixed monitor namespaces read and write isolated refs with the same regist
     [undefined, "factory/monitor"],
     ["production", "factory/monitor"],
     ["drill", "factory/monitor-drill"],
+    ["functional", "factory/monitor-functional"],
   ]) {
     const store = new MonitorStore(f.api, namespace);
     const before = await store.read();
@@ -136,7 +137,10 @@ test("fixed monitor namespaces read and write isolated refs with the same regist
     assert.deepEqual(await store.read(), { state: emptyMonitorState(), commit });
     assert.ok(f.calls.some((call) => call.route === `/git/ref/heads/${branch}`));
   }
-  assert.deepEqual([...f.refs.keys()], ["factory/monitor", "factory/monitor-drill"]);
+  assert.deepEqual(
+    [...f.refs.keys()],
+    ["factory/monitor", "factory/monitor-drill", "factory/monitor-functional"]
+  );
 });
 
 test("shared drill publication stores its actual source, custom text and separate label", async () => {

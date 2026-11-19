@@ -3,11 +3,22 @@ const { ROOT } = require("./github.cjs");
 const { REPOSITORY, OWNER } = require("./policy.cjs");
 const { MonitorStore } = require("./monitor-state.cjs");
 const { validateMonitorProof, proofFromIncident } = require("./monitor-proof.cjs");
+const functionalDiscovery = require("./functional-discovery-contract.cjs");
 const MONITOR_WORKFLOW = ".github/workflows/factory-monitor.yml";
 const criteriaHash = (issue) =>
   createHash("sha256")
     .update(JSON.stringify([issue.title, issue.body || ""]))
     .digest("hex");
+function successfulJob(jobs, name, step) {
+  const matches = jobs.filter((job) => job.name === name);
+  return (
+    matches.length === 1 &&
+    matches[0].status === "completed" &&
+    matches[0].conclusion === "success" &&
+    matches[0].steps?.filter((entry) => entry.name === step && entry.conclusion === "success")
+      .length === 1
+  );
+}
 async function verifyMonitorIssue(api, issue, { proof, requireActive = true } = {}) {
   if (
     issue?.user?.login !== "github-actions[bot]" ||
@@ -16,7 +27,10 @@ async function verifyMonitorIssue(api, issue, { proof, requireActive = true } = 
     (proof !== undefined && !validateMonitorProof(proof))
   )
     return null;
-  const { state } = await new MonitorStore(api).read();
+  const functionalCheck = functionalDiscovery.functionalIssueCheck(issue);
+  const functional = functionalCheck !== undefined;
+  const workflowPath = functional ? functionalDiscovery.WORKFLOW_PATH : MONITOR_WORKFLOW;
+  const { state } = await new MonitorStore(api, functional ? "functional" : "production").read();
   const matches = Object.values(state.incidents).filter(
     (item) => item.issue === issue.number && item.phase === "open"
   );
@@ -25,6 +39,10 @@ async function verifyMonitorIssue(api, issue, { proof, requireActive = true } = 
   const actual = proofFromIncident(incident);
   if (
     !validateMonitorProof(actual) ||
+    (actual.probeMode === functionalDiscovery.PROBE_MODE) !== functional ||
+    (functional &&
+      (incident.functionalCheck !== functionalCheck ||
+        !issue.body?.split("\n").includes(`Failed assertion: ${incident.functionalAssertion}`))) ||
     actual.criteriaHash !== criteriaHash(issue) ||
     (requireActive &&
       (state.active !== incident.id ||
@@ -35,7 +53,10 @@ async function verifyMonitorIssue(api, issue, { proof, requireActive = true } = 
     return null;
   let workflow, run, jobs;
   try {
-    workflow = await api.request("GET", `${ROOT}/actions/workflows/factory-monitor.yml`);
+    workflow = await api.request(
+      "GET",
+      `${ROOT}/actions/workflows/${workflowPath.split("/").at(-1)}`
+    );
     // Preserve the recorded successful attempt even if someone later reruns
     // the workflow (new publication attempts are forbidden by the workflow).
     run = await api.request("GET", `${ROOT}/actions/runs/${actual.runId}/attempts/1`);
@@ -48,11 +69,11 @@ async function verifyMonitorIssue(api, issue, { proof, requireActive = true } = 
     throw error;
   }
   if (
-    workflow.path !== MONITOR_WORKFLOW ||
+    workflow.path !== workflowPath ||
     !Number.isSafeInteger(workflow.id) ||
     run.id !== Number(actual.runId) ||
     run.workflow_id !== workflow.id ||
-    run.path !== MONITOR_WORKFLOW ||
+    run.path !== workflowPath ||
     run.repository?.full_name !== REPOSITORY ||
     run.head_repository?.full_name !== REPOSITORY ||
     run.head_branch !== "main" ||
@@ -65,18 +86,12 @@ async function verifyMonitorIssue(api, issue, { proof, requireActive = true } = 
     run.triggering_actor?.login !== OWNER
   )
     return null;
-  const publisher = Array.isArray(jobs.jobs) && jobs.jobs.filter((job) => job.name === "monitor");
-  if (
-    !publisher ||
-    publisher.length !== 1 ||
-    publisher[0].status !== "completed" ||
-    publisher[0].conclusion !== "success" ||
-    publisher[0].steps?.filter(
-      (step) =>
-        step.name === "Observe production and publish incident" && step.conclusion === "success"
-    ).length !== 1
-  )
-    return null;
+  if (!Array.isArray(jobs.jobs)) return null;
+  const verified = functional
+    ? successfulJob(jobs.jobs, "browser", "Run approved browser checks") &&
+      successfulJob(jobs.jobs, "publish", "Publish confirmed functional failure")
+    : successfulJob(jobs.jobs, "monitor", "Observe production and publish incident");
+  if (!verified) return null;
   return actual;
 }
 module.exports = { MONITOR_WORKFLOW, validateMonitorProof, proofFromIncident, verifyMonitorIssue };
