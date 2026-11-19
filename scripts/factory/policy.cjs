@@ -44,6 +44,7 @@ function readConfig(vars) {
     ["FACTORY_AUTOMERGE_ENABLED", "autoMerge"],
     ["FACTORY_EVENT_PICKUP_ENABLED", "eventPickup"],
     ["FACTORY_ACTIVITY_LOG_ENABLED", "activityLog"],
+    ["FACTORY_PRIORITY_RETRY_ENABLED", "priorityRetry"],
   ]) {
     if (![undefined, "true", "false"].includes(vars[key])) deny(`Invalid automatic boolean ${key}`);
     config[name] = vars[key] === "true";
@@ -148,6 +149,7 @@ function validateState(state) {
       deny("Invalid ledger ticket counters");
     const grants = Object.values(state.grants).filter((g) => g?.ticket === Number(id));
     require("./review-recovery.cjs").validateReceipt(ticket, id, grants);
+    if (ticket.delayedRetry !== undefined) require("./delayed-retry.cjs").validate(ticket, grants);
     if (ticket.origin === "discovery-sweep")
       require("./discovery-policy.cjs").validateTicket(ticket, grants);
     else if (
@@ -408,6 +410,7 @@ function isAutomaticContext(request) {
 function matchesAutomaticRun(ticket, context, config) {
   const a = ticket?.automatic;
   const parent =
+    ticket?.delayedRetry?.parent ||
     ticket?.findingApiRecovery ||
     ticket?.findingOutputRecovery ||
     ticket?.findingContinuation ||
@@ -415,6 +418,7 @@ function matchesAutomaticRun(ticket, context, config) {
     a;
   return Boolean(
     a &&
+      (!ticket.delayedRetry?.parent || config.priorityRetry) &&
       (!ticket.findingApiRecovery || (!config.discovery && !config.autoMerge)) &&
       a.workflowRef === context.workflowRef &&
       parent.workflowSha === context.workflowSha &&
@@ -447,6 +451,7 @@ function reserve(original, request, config, now = new Date()) {
       request.findingContinuation,
       request.findingOutputRecovery,
       request.findingApiRecovery,
+      request.delayedRetry,
     ].filter((value) => value !== undefined).length > 1
   )
     deny("Invalid mixed recovery handoffs");
@@ -462,6 +467,8 @@ function reserve(original, request, config, now = new Date()) {
   const state = structuredClone(original);
   const id = String(request.ticket);
   const existing = state.tickets[id];
+  if (request.delayedRetry !== undefined)
+    require("./delayed-retry.cjs").handoff(state, request, config, now);
   if (request.findingRetry !== undefined)
     existing.findingRetry = structuredClone(request.findingRetry);
   if (request.findingContinuation !== undefined)

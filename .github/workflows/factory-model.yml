@@ -118,6 +118,9 @@ jobs:
           FACTORY_OPERATION: prepare
           FACTORY_INPUTS: ${{ toJSON(inputs) }}
           FACTORY_FINDING_INPUT: ${{ runner.temp }}/finding-original
+      - name: Hold before Claude after a temporary GitHub gateway error
+        if: ${{ steps.prepare.outputs.temporaryGateway == 'true' }}
+        run: exit 1
       - name: Reject secrets in prepared context before the model sees it
         run: node "$RUNNER_TEMP/factory-control/secret-scan.cjs" file "$GITHUB_WORKSPACE/.factory-input/context.json"
       - name: Reject secrets in dependency facts before audit upload
