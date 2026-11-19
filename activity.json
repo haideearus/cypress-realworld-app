@@ -13686,6 +13686,29 @@
       },
       "status": "intent",
       "commentId": null
+    },
+    "6f9eea5ab2bd06e1e89199b459dea15e26ab3d7542190d4cee9e42f51f566f79": {
+      "event": {
+        "id": "6f9eea5ab2bd06e1e89199b459dea15e26ab3d7542190d4cee9e42f51f566f79",
+        "producer": {
+          "runId": "44575401514",
+          "runAttempt": 1,
+          "workflow": "factory-monitor.yml",
+          "workflowSha": "358d0a860f1574fc9fbdfbedcb55256758735f79",
+          "phase": "freshness",
+          "actor": "haideearus"
+        },
+        "kind": "monitor-recovered",
+        "state": "recovered",
+        "subject": 44575401514,
+        "head": "358d0a860f1574fc9fbdfbedcb55256758735f79",
+        "summary": "A newer successful production monitor completion was verified.",
+        "links": [
+          "https://github.com/haideearus/cypress-realworld-app/actions/runs/44575401514"
+        ]
+      },
+      "status": "intent",
+      "commentId": null
     }
   },
   "lastMonitor": {
