@@ -2,9 +2,11 @@ const slots = require("./active-tickets.cjs");
 const { terminalParent } = require("./active-runs.cjs");
 const policy = require("./policy.cjs");
 const { GitHub, Ledger, ROOT } = require("./github.cjs");
-const { Controller, runtimeContext, output } = require("./controller.cjs");
+const { Controller, criteriaHash, runtimeContext, output } = require("./controller.cjs");
 const { secretLike } = require("./artifacts.cjs");
 const { verifyMonitorIssue } = require("./monitor-origin.cjs");
+const { PROBE_MODE: FUNCTIONAL_MODE } = require("./functional-discovery-contract.cjs");
+const delayed = require("./delayed-retry.cjs");
 
 const QUEUE_LABEL = "factory-ready";
 const MAX_QUEUE_PAGES = 5;
@@ -48,6 +50,7 @@ class AutomaticCoordinator {
   }
 
   async candidate(state) {
+    let ordinary = null;
     for (let page = 1; page <= MAX_QUEUE_PAGES; page++) {
       const rows = await this.api.request(
         "GET",
@@ -67,19 +70,109 @@ class AutomaticCoordinator {
             Date.parse(left.created_at) - Date.parse(right.created_at) || left.number - right.number
         );
       for (const issue of candidates) {
-        if (eligibleIssue(issue)) return issue;
-        if (
-          issue.user?.login === "github-actions[bot]" &&
-          issue.user?.type === "Bot" &&
-          ((await verifyMonitorIssue(this.api, issue)) ||
+        if (eligibleIssue(issue)) {
+          if (!this.config.priorityRetry || issue.labels.some((l) => l.name === "factory-priority"))
+            return issue;
+          ordinary ??= issue;
+        } else if (issue.user?.login === "github-actions[bot]" && issue.user?.type === "Bot") {
+          const monitor = await verifyMonitorIssue(this.api, issue);
+          if (monitor && (!this.config.priorityRetry || monitor.probeMode !== FUNCTIONAL_MODE))
+            return issue;
+          if (
+            monitor ||
             (this.config.discovery &&
-              (await require("./discovery-origin.cjs").verifyDiscoveryIssue(this.api, issue))))
-        )
-          return issue;
+              (await require("./discovery-origin.cjs").verifyDiscoveryIssue(this.api, issue)))
+          ) {
+            if (!this.config.priorityRetry) return issue;
+            ordinary ??= issue;
+          }
+        }
       }
-      if (rows.length < 100) return null;
+      if (rows.length < 100) return ordinary;
+    }
+    if (this.config.priorityRetry)
+      throw Error("Priority queue exceeds the bounded lookup; no delayed retry admitted");
+    return null;
+  }
+
+  async delayedCandidate(state) {
+    if (
+      !this.config.priorityRetry ||
+      this.context.wake ||
+      this.context.actor !== policy.OWNER ||
+      this.context.runAttempt !== 1
+    )
+      return null;
+    const candidates = Object.entries(state.tickets)
+      .filter(([id, ticket]) => delayed.due(state, ticket, Number(id), this.config))
+      .sort(
+        ([left, a], [right, b]) =>
+          a.delayedRetry.notBefore.localeCompare(b.delayedRetry.notBefore) ||
+          Number(left) - Number(right)
+      );
+    for (const [id, ticket] of candidates) {
+      const issue = await this.api.request("GET", `${ROOT}/issues/${id}`);
+      if (!eligibleIssue(issue) || criteriaHash(issue) !== ticket.criteriaHash) continue;
+      const parent = await this.api.request(
+        "GET",
+        `${ROOT}/actions/runs/${ticket.automatic.runId}`
+      );
+      if (
+        parent.id === Number(ticket.automatic.runId) &&
+        parent.run_attempt === ticket.automatic.runAttempt &&
+        parent.status === "completed" &&
+        parent.path === ".github/workflows/factory-automatic.yml"
+      )
+        return issue;
     }
     return null;
+  }
+
+  async reserveDelayed(issue, state, commit) {
+    const ticket = issue.number;
+    await this.controller.rejectDrillIssue(issue);
+    const [main, ref, fresh] = await Promise.all([
+      this.api.request("GET", `${ROOT}/branches/main`),
+      this.api.request("GET", `${ROOT}/git/ref/heads/agent/factory-${ticket}`).catch((error) => {
+        if (error.status === 404) return null;
+        throw error;
+      }),
+      this.api.request("GET", `${ROOT}/issues/${ticket}`),
+    ]);
+    if (
+      ref ||
+      main.commit?.sha !== this.context.workflowSha ||
+      !eligibleIssue(fresh) ||
+      criteriaHash(fresh) !== state.tickets[ticket].criteriaHash
+    )
+      return {
+        ready: false,
+        reason: "Delayed retry held after publication, issue or main changed",
+      };
+    // Read the ready queue again after the slower provenance and branch checks.
+    if (await this.candidate(state))
+      return { ready: false, reason: "New work is ready; delayed retry remains queued" };
+    const unchanged = await this.api.request("GET", `${ROOT}/issues/${ticket}`);
+    if (!eligibleIssue(unchanged) || criteriaHash(unchanged) !== state.tickets[ticket].criteriaHash)
+      return { ready: false, reason: "Delayed retry issue changed before reservation" };
+    const saved = await this.ledger.update(
+      (current) => {
+        return policy.reserve(
+          current,
+          {
+            ...this.context,
+            ticket,
+            phase: "code",
+            slot: "cycle1",
+            head: main.commit.sha,
+            delayedRetry: true,
+          },
+          this.config
+        );
+      },
+      { expectedCommit: commit }
+    );
+    return { ...this.controller.result(saved.grant), kind: "ticket", delayedRetry: true };
   }
 
   async pick({ dryRun = false } = {}) {
@@ -88,7 +181,7 @@ class AutomaticCoordinator {
     if (!dryRun && (!this.config.enabled || !this.config.automatic))
       return { ready: false, reason: "Automatic pickup disabled; no model invocation" };
 
-    const { state } = await this.ledger.read();
+    const { state, commit } = await this.ledger.read();
     if (state.stop)
       return {
         ready: false,
@@ -183,15 +276,31 @@ class AutomaticCoordinator {
       };
 
     const candidate = await this.candidate(state);
-    if (!candidate)
+    if (!candidate) {
+      const due = await this.delayedCandidate(state);
+      if (due) {
+        if (dryRun)
+          return {
+            ready: false,
+            preview: true,
+            kind: "ticket",
+            ticket: due.number,
+            delayedRetry: true,
+            reason: `Preview only; issue #${due.number} is eligible for one delayed retry`,
+          };
+        return this.reserveDelayed(due, state, commit);
+      }
       return { ready: false, preview: dryRun, reason: "No eligible issue in the bounded queue" };
+    }
     if (dryRun)
       return {
         ready: false,
         preview: true,
         kind: "ticket",
         ticket: candidate.number,
-        reason: "Preview only; no reservation, model session or merge",
+        reason: this.config.priorityRetry
+          ? `Preview only; issue #${candidate.number} would be selected`
+          : "Preview only; no reservation, model session or merge",
       };
     try {
       const result = await this.controller.admit(candidate.number);
@@ -235,6 +344,8 @@ async function main(env = process.env) {
     "recover-finding",
     "retry-finding-api",
   ].includes(mode);
+  const readOnlyPreview =
+    dryRun && (config.priorityRetry || (operation === "auto_pick" && findingHandoff));
   const api = new GitHub({
     token: env.GH_TOKEN,
     retryReads: operation === "auto_pick" && findingHandoff,
@@ -243,7 +354,7 @@ async function main(env = process.env) {
     api,
     runtimeContext(env),
     env,
-    { bind: operation === "auto_pick" }
+    { bind: operation === "auto_pick" && !readOnlyPreview }
   );
   assertAutomaticContext(context);
   let result;
@@ -267,8 +378,7 @@ async function main(env = process.env) {
       dryRun,
     });
   }
-  if (!(operation === "auto_pick" && findingHandoff && dryRun))
-    await require("./activity.cjs").recordResult(api, context, result, env);
+  if (!readOnlyPreview) await require("./activity.cjs").recordResult(api, context, result, env);
   output(result, env);
   return result;
 }

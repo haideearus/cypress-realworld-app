@@ -481,10 +481,24 @@ async function main(env = process.env) {
   const cwd = env.GITHUB_WORKSPACE || process.cwd();
   if (env.FACTORY_OPERATION === "prepare") {
     const api = new GitHub({ token: env.GH_TOKEN, retryReads: true });
-    output(
-      await prepare(api, config, context, { grantId: inputs.grantId, cwd, environment: env }),
-      env
-    );
+    try {
+      output(
+        await prepare(api, config, context, { grantId: inputs.grantId, cwd, environment: env }),
+        env
+      );
+    } catch (error) {
+      if (
+        config.priorityRetry &&
+        context.workflowRef === policy.AUTOMATIC_WORKFLOW_REF &&
+        context.phase === "code" &&
+        context.slot === "cycle1" &&
+        [502, 503, 504].includes(error.status)
+      ) {
+        output({ temporaryGateway: true }, env);
+        return;
+      }
+      throw error;
+    }
     return;
   }
   if (env.FACTORY_OPERATION !== "collect") throw new Error("Unknown worker operation");

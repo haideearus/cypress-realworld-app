@@ -465,7 +465,7 @@ class Controller {
     });
     return this.result(result.grant);
   }
-  async block(ticket, reason) {
+  async block(ticket, reason, gatewayJob) {
     await this.ledger.update((original) => {
       const state = structuredClone(original);
       const active = slots.activeFor(state, ticket);
@@ -476,15 +476,39 @@ class Controller {
         active.runAttempt !== this.context.runAttempt
       )
         throw new Error("Cannot finish another active run");
+      const t = state.tickets[String(ticket)];
       for (const g of Object.values(state.grants))
         if (g.ticket === ticket && g.status === "reserved") {
           g.status = "finished";
           g.outcome = "blocked";
+          if (
+            gatewayJob &&
+            g.phase === "code" &&
+            g.slot === "cycle1" &&
+            g.runId === active.runId &&
+            g.runAttempt === active.runAttempt &&
+            require("./delayed-retry.cjs").ordinary(t) &&
+            !t.delayedRetry &&
+            t.coding === 1 &&
+            t.reviews === 0 &&
+            !t.pr &&
+            !t.branch &&
+            !t.ci &&
+            !t.approval
+          ) {
+            t.delayedRetry = require("./delayed-retry.cjs").receipt(g.id, gatewayJob);
+            policy.audit(state, "delayed_retry_queued", {
+              ticket,
+              sourceRun: g.runId,
+              grant: g.id,
+              ...t.delayedRetry,
+            });
+          }
         }
-      const t = state.tickets[String(ticket)];
+      const keepFeedback = t.delayedRetry?.parent && t.status === "retry" && t.feedback;
       t.status = "blocked";
       t.approval = null;
-      t.feedback = reason;
+      if (!keepFeedback) t.feedback = reason;
       slots.releaseActive(state, active);
       policy.audit(state, "blocked", { ticket, reason });
       return { state };
@@ -497,11 +521,28 @@ class Controller {
       results.coding !== "success" ||
       results.publication !== "success" ||
       results.ci !== "success"
-    )
+    ) {
+      let gatewayJob;
+      if (
+        this.config.priorityRetry &&
+        slot === "cycle1" &&
+        results.coding === "failure" &&
+        results.publication === "skipped" &&
+        results.ci === "skipped" &&
+        policy.isAutomaticContext(this.context)
+      ) {
+        gatewayJob = await require("./delayed-retry.cjs")
+          .failedJob(this.api, this.context)
+          .catch(() => null);
+      }
       return this.block(
         ticket,
-        "Agent, publication, or CI infrastructure failed; no automatic model retry"
+        gatewayJob
+          ? "Temporary GitHub gateway error before Claude; check delayed retry eligibility"
+          : "Agent, publication, or CI infrastructure failed; no automatic model retry",
+        gatewayJob
       );
+    }
     const { ticket: t } = await this.currentTicket(ticket);
     await this.matchingPR(t);
     const ci = await this.validateCI(ciId, t.head, t.ci);
@@ -553,6 +594,8 @@ class Controller {
         return { state };
       });
     }
+    if (t.delayedRetry?.parent)
+      return this.block(ticket, "Delayed retry used; owner inspection required");
     const nextSlot = nextCycleSlot(slot);
     if (nextSlot === null) return this.block(ticket, "Automatic retry pipeline limit reached");
     try {
