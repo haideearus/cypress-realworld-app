@@ -1,8 +1,8 @@
 # Safe functional discovery
 
 This workflow runs checked-in browser assertions against a disposable copy of the
-application with a synthetic database. It checks sign-in, Notifications
-navigation, opening Settings, and Settings form validation. It does not use
+application with a synthetic database. It checks sign-in, navigation between
+Home and Settings, opening Settings, and Settings form validation. It does not use
 production account secrets, a model, or a paid AI API.
 
 The runner reports a confirmed failure only when the same named assertion fails
