@@ -2193,7 +2193,11 @@
       "approval": null,
       "criteriaHash": "682699366295959481be745af1d0e3af8e012f3faab7ca716f74e07f4d789903",
       "branch": "agent/github-quota-saved-ci",
-      "ci": null
+      "ci": {
+        "requestId": "88b62017-8a33-482c-a437-f4c8dd58823c",
+        "head": "6e9f6629c42b10507c0fd649695c99a28027aeaf",
+        "runId": null
+      }
     }
   },
   "grants": {
