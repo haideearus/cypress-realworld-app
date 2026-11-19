@@ -1,0 +1,115 @@
+name: Saved CI independent review recovery
+on:
+  workflow_dispatch:
+    inputs:
+      preview:
+        description: Check issue 112 and PR 113 without reserving a review or calling Claude
+        type: boolean
+        required: true
+        default: true
+      updated_ci_run:
+        description: Passing Factory CI run ID if PR 113 was updated with a merge from main
+        type: string
+        required: false
+permissions:
+  contents: read
+concurrency:
+  group: factory-saved-ci-review-112
+  cancel-in-progress: false
+jobs:
+  preview:
+    if: ${{ inputs.preview && github.ref == 'refs/heads/main' && github.actor == 'haideearus' && github.run_attempt == '1' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+      issues: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: ./.github/actions/factory-control
+        with:
+          operation: saved_ci_review
+          variables_json: ${{ toJSON(vars) }}
+          parameters: ${{ toJSON(inputs) }}
+  reserve:
+    if: ${{ !inputs.preview && github.ref == 'refs/heads/main' && github.actor == 'haideearus' && github.run_attempt == '1' && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMERGE_ENABLED == 'false' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    concurrency:
+      group: factory-ledger
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      actions: read
+      issues: read
+      pull-requests: read
+    outputs:
+      ready: ${{ steps.control.outputs.ready }}
+      grantId: ${{ steps.control.outputs.grantId }}
+      head: ${{ steps.control.outputs.head }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - id: control
+        uses: ./.github/actions/factory-control
+        with:
+          operation: saved_ci_review
+          variables_json: ${{ toJSON(vars) }}
+          parameters: ${{ toJSON(inputs) }}
+  review:
+    needs: reserve
+    if: ${{ needs.reserve.outputs.ready == 'true' }}
+    permissions:
+      actions: read
+      contents: read
+      issues: read
+      pull-requests: read
+    uses: ./.github/workflows/factory-model.yml
+    with:
+      ticket: "112"
+      grantId: ${{ needs.reserve.outputs.grantId }}
+      head: ${{ needs.reserve.outputs.head }}
+      slot: review_recovery
+      phase: review
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+  assess:
+    needs: [reserve, review]
+    if: ${{ always() && !cancelled() && needs.reserve.outputs.ready == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    concurrency:
+      group: factory-ledger
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      actions: read
+      checks: write
+      issues: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        if: ${{ needs.review.result == 'success' }}
+        with:
+          name: review-${{ needs.reserve.outputs.grantId }}
+          path: ${{ runner.temp }}/factory-review
+      - uses: ./.github/actions/factory-control
+        with:
+          operation: assess_saved_ci_review
+          variables_json: ${{ toJSON(vars) }}
+          bundle_path: ${{ runner.temp }}/factory-review/bundle.json
+          parameters: >-
+            {"grantId":${{ toJSON(needs.reserve.outputs.grantId) }},
+            "updated_ci_run":${{ toJSON(inputs.updated_ci_run) }},
+            "reviewResult":${{ toJSON(needs.review.result) }}}
