@@ -8,6 +8,21 @@ const load = () =>
     fs.readFileSync(path.join(__dirname, "../../.github/workflows/factory-automatic.yml"), "utf8")
   );
 
+test("the pinned Claude action gets the bot allowance only from the verified worker step", () => {
+  const workflow = yaml.load(
+    fs.readFileSync(path.join(__dirname, "../../.github/workflows/factory-model.yml"), "utf8")
+  );
+  const steps = workflow.jobs.agent.steps;
+  const prepare = steps.find((step) => step.id === "prepare");
+  const model = steps.find((step) => step.id === "model");
+  assert.equal(prepare.env.FACTORY_OPERATION, "prepare");
+  assert.ok(steps.indexOf(prepare) < steps.indexOf(model));
+  assert.equal(model.with.allowed_bots, "${{ steps.prepare.outputs.allowedBots }}");
+  assert.equal(model.with.allowed_non_write_users, undefined);
+  assert.equal(model.with.anthropic_api_key, undefined);
+  assert.equal(model.with.claude_code_oauth_token, "${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}");
+});
+
 test("automatic entry is main-only scheduled with a default read-only manual preview", () => {
   const workflow = load();
   assert.deepEqual(Object.keys(workflow.on).sort(), ["schedule", "workflow_dispatch"]);

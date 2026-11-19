@@ -6,7 +6,7 @@ try {
 } catch (e) {
   if (e.code !== "MODULE_NOT_FOUND") throw e;
 }
-const { fixture } = require("./helpers/event-fixtures.cjs");
+const { fixture, receiverSetup } = require("./helpers/event-fixtures.cjs");
 
 test("wake receipts have a trusted implementation", () => assert.ok(wake));
 test("owner issue wake records intent before one dispatch; duplicate events never dispatch twice", async () => {
@@ -66,39 +66,12 @@ test("stop blocks wake and never changes usage state", async () => {
   assert.equal(s.dispatches.length, 0);
 });
 
-async function receiverSetup() {
-  const s = fixture();
-  await wake.handleWake(s);
-  const receiptId = Object.keys(s.store.state.receipts)[0];
-  const context = {
-    ...s.context,
-    actor: "github-actions[bot]",
-    triggeringActor: "github-actions[bot]",
-    event: "workflow_dispatch",
-    workflowRef: s.context.repository + "/.github/workflows/factory-automatic.yml@refs/heads/main",
-    runId: "900",
-  };
-  const base = s.api.request;
-  s.receiver = {
-    ...s.run,
-    id: 900,
-    workflow_id: 90,
-    path: ".github/workflows/factory-automatic.yml",
-    actor: { login: "github-actions[bot]", id: 41898282 },
-    triggering_actor: { login: "github-actions[bot]", id: 41898282 },
-    event: "workflow_dispatch",
-    display_title: `Automatic factory / wake ${receiptId}`,
-  };
-  s.api.request = async (method, path, body) =>
-    path.endsWith("/actions/runs/900/attempts/1")
-      ? structuredClone(s.receiver)
-      : path.endsWith("/actions/workflows/factory-automatic.yml")
-        ? { id: 90, path: s.receiver.path }
-        : base(method, path, body);
-  return { ...s, context, receiptId };
-}
 test("only a real bot dispatch can bind an intent and survive policy reservation without impersonating owner", async () => {
-  const { verifyWake, isTrustedWakeContext } = require("../factory/trusted-wake.cjs");
+  const {
+    verifyWake,
+    isTrustedWakeContext,
+    allowedModelBots,
+  } = require("../factory/trusted-wake.cjs");
   const p = require("../factory/policy.cjs");
   const { vars } = require("./helpers/factory-fixtures.cjs");
   const s = await receiverSetup();
@@ -113,19 +86,45 @@ test("only a real bot dispatch can bind an intent and survive policy reservation
     slot: "cycle1",
   };
   assert.equal(isTrustedWakeContext(context), true);
-  const result = p.reserve(
-    p.emptyState(s.context.repository),
-    context,
-    p.readConfig({
-      ...vars,
-      FACTORY_EVENT_PICKUP_ENABLED: "true",
-      FACTORY_AUTOMATION_ENABLED: "true",
-      FACTORY_GITHUB_APP_CLIENT_ID: "Iv1.fixture123456",
-      FACTORY_GITHUB_APP_SLUG: "fixture-factory",
-    })
-  );
+  const config = p.readConfig({
+    ...vars,
+    FACTORY_EVENT_PICKUP_ENABLED: "true",
+    FACTORY_AUTOMATION_ENABLED: "true",
+    FACTORY_GITHUB_APP_CLIENT_ID: "Iv1.fixture123456",
+    FACTORY_GITHUB_APP_SLUG: "fixture-factory",
+  });
+  const result = p.reserve(p.emptyState(s.context.repository), context, config);
   assert.equal(result.state.audit.at(-1).actor, "github-actions[bot]");
   assert.equal(s.store.state.receipts[s.receiptId].receiver.runId, "900");
+  const ticket = result.state.tickets["12"];
+  ticket.automatic = {
+    workflowRef: context.workflowRef,
+    workflowSha: context.workflowSha,
+    runId: context.runId,
+    runAttempt: context.runAttempt,
+    appSlug: config.appSlug,
+  };
+  assert.equal(p.preflight(result.state, result.grant.id, context, config).id, result.grant.id);
+  assert.equal(allowedModelBots(context, ticket), "github-actions[bot]");
+  assert.equal(allowedModelBots({ ...context, phase: "review" }, ticket), "github-actions[bot]");
+  for (const invalid of [
+    { ...context, wake: undefined },
+    { ...context, wake: JSON.parse(JSON.stringify(proof)) },
+    { ...context, runId: "901" },
+    { ...context, runAttempt: 2 },
+    { ...context, actor: "another[bot]" },
+    { ...context, triggeringActor: "haideearus" },
+    { ...context, workflowRef: context.workflowRef.replace("automatic", "dependencies") },
+  ])
+    assert.equal(allowedModelBots(invalid, ticket), "");
+  for (const outsideScope of [
+    { ...ticket, automatic: undefined },
+    { ...ticket, finding: {} },
+    { ...ticket, origin: "dependency-pr" },
+    { ...ticket, origin: "drill" },
+    { ...ticket, origin: "owner-pr" },
+  ])
+    assert.equal(allowedModelBots(context, outsideScope), "");
   assert.equal(
     isTrustedWakeContext({ ...context, wake: JSON.parse(JSON.stringify(proof)) }),
     false

@@ -105,8 +105,40 @@ function fixture() {
   };
   return s;
 }
+async function receiverSetup() {
+  const s = fixture();
+  await require("../../factory/wake-controller.cjs").handleWake(s);
+  const receiptId = Object.keys(s.store.state.receipts)[0];
+  const context = {
+    ...s.context,
+    actor: "github-actions[bot]",
+    triggeringActor: "github-actions[bot]",
+    event: "workflow_dispatch",
+    workflowRef: repository + "/.github/workflows/factory-automatic.yml@refs/heads/main",
+    runId: "900",
+  };
+  const base = s.api.request;
+  s.receiver = {
+    ...s.run,
+    id: 900,
+    workflow_id: 90,
+    path: ".github/workflows/factory-automatic.yml",
+    actor: { login: "github-actions[bot]", id: 41898282 },
+    triggering_actor: { login: "github-actions[bot]", id: 41898282 },
+    event: "workflow_dispatch",
+    display_title: `Automatic factory / wake ${receiptId}`,
+  };
+  s.api.request = async (method, path, body) =>
+    path.endsWith("/actions/runs/900/attempts/1")
+      ? structuredClone(s.receiver)
+      : path.endsWith("/actions/workflows/factory-automatic.yml")
+        ? { id: 90, path: s.receiver.path }
+        : base(method, path, body);
+  return { ...s, context, receiptId };
+}
 module.exports = {
   fixture,
+  receiverSetup,
   MemoryStore,
   repository,
   sha,
