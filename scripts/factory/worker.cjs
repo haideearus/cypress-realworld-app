@@ -296,18 +296,22 @@ async function prepare(
     );
   }
   if (grant.phase === "review") {
-    if (
-      !ticket.ci ||
-      ticket.ci.head !== grant.head ||
-      ticket.ci.passed !== true ||
-      !Number.isSafeInteger(ticket.ci.runId)
-    )
+    const recovery = require("./review-recovery.cjs");
+    const recovered =
+      grant.slot === recovery.SLOT ? recovery.reviewEvidence(ticket, grant, context) : null;
+    const ci = recovered ? recovered.ci : ticket.ci;
+    if (!ci || ci.head !== grant.head || ci.passed !== true || !Number.isSafeInteger(ci.runId))
       throw new Error("Review has no exact-head CI proof");
     const pr = await api.request("GET", `${ROOT}/pulls/${ticket.pr}`);
     if (
       pr.head?.sha !== grant.head ||
       pr.head.repo?.full_name !== policy.REPOSITORY ||
-      pr.base.ref !== "main"
+      pr.base.ref !== "main" ||
+      (recovered &&
+        (pr.state !== "open" ||
+          pr.draft !== false ||
+          pr.base.sha !== recovered.base ||
+          pr.user?.login !== `${recovery.SOURCE.appSlug}[bot]`))
     )
       throw new Error("Review PR head changed");
     if (!policy.SHA.test(pr.base.sha || "")) throw new Error("Invalid PR base");
@@ -330,7 +334,7 @@ async function prepare(
     ]);
     if (data.diff.length > 500000 || secretLike(data.diff))
       throw new Error("Review diff violates artifact boundary");
-    data.ci = `https://github.com/${policy.REPOSITORY}/actions/runs/${ticket.ci.runId}`;
+    data.ci = `https://github.com/${policy.REPOSITORY}/actions/runs/${ci.runId}`;
   }
   for (const folder of [".factory-input", ".factory-output"]) {
     const target = path.join(cwd, folder);
