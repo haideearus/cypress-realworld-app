@@ -2411,7 +2411,11 @@
       "approval": null,
       "criteriaHash": "050fe0a173d533dfbe37c89731d6d126a17a5c341877dc6b7e77b91cbc2061e0",
       "branch": "agent/dependabot-ticket-intake",
-      "ci": null
+      "ci": {
+        "requestId": "ec9a7ec0-3662-43f4-ad19-a6ea946595da",
+        "head": "52e67f8fd6d4fb5018b879aafae3c8466a33e967",
+        "runId": null
+      }
     }
   },
   "grants": {
