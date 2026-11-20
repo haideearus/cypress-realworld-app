@@ -163,6 +163,13 @@ function issueOK(issue, key, row, ready = true) {
 
 const hasLabel = (issue, name) => issue.labels?.some((label) => label.name === name);
 
+async function verifyAlertGitDiff(api, receipt) {
+  const comparison = await api.request("GET", `${ROOT}/compare/${receipt.base}...${receipt.head}`);
+  if (comparison.behind_by !== 0 || comparison.merge_base_commit?.sha !== receipt.base)
+    throw new AlertAdmissionHold("Refreshed dependency proposal requires current-main ancestry");
+  d.filesOK(comparison.files, true);
+}
+
 async function verifyAlertPR(api, pr, config, store = storeFor(api), reconcile = false) {
   const key = d.alertKey(pr?.head?.ref);
   if (!key) return null;
@@ -172,11 +179,19 @@ async function verifyAlertPR(api, pr, config, store = storeFor(api), reconcile =
     !row ||
     !["ready", "resolved"].includes(row.phase) ||
     row.pr !== pr.number ||
-    row.head !== pr.head.sha ||
-    (pr.state === "open" && !reconcile && row.base !== pr.base.sha)
+    row.head !== pr.head.sha
   )
     throw Error("Dependency alert proposal has no matching receipt");
   if (pr.state === "open" && !reconcile) {
+    // A non-force refresh can leave GitHub's PR base SHA cached at creation.
+    if (row.base !== pr.base.sha) {
+      const [main] = await Promise.all([
+        api.request("GET", `${ROOT}/git/ref/heads/main`),
+        verifyAlertGitDiff(api, row),
+      ]);
+      if (main.object?.sha !== row.base)
+        throw new AlertAdmissionHold("Refreshed dependency proposal requires current main");
+    }
     const issue = await api.request("GET", `${ROOT}/issues/${row.issue}`);
     if (!issueOK(issue, key, row))
       throw new AlertAdmissionHold("Dependency alert ticket is held or changed");
@@ -883,6 +898,7 @@ module.exports = {
   issueTitle,
   issueBody,
   verifyAlertPR,
+  verifyAlertGitDiff,
   patchLock,
   runRepair,
 };

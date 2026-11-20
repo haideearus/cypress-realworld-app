@@ -253,18 +253,19 @@ async function prepare(
     const a = require("./dependency-analysis.cjs");
     const attempt = d.matches(ticket, context, config);
     const pr = d.prOK(await api.request("GET", `${ROOT}/pulls/${ticket.pr}`), false, config);
-    await require("./dependency-alert-repair.cjs").verifyAlertPR(api, pr, config);
+    const receipt = await require("./dependency-alert-repair.cjs").verifyAlertPR(api, pr, config);
     if (
       pr.head.sha !== grant.head ||
       pr.head.ref !== ticket.branch ||
-      pr.base.sha !== attempt.base ||
+      (receipt?.base ?? pr.base.sha) !== attempt.base ||
       ticket.criteriaHash !== d.criteria(pr.number)
     )
       throw new Error("Dependency review identity changed");
-    d.filesOK(
-      await api.request("GET", `${ROOT}/pulls/${ticket.pr}/files?per_page=3`),
-      !!d.alertKey(pr.head.ref)
-    );
+    if (!receipt || receipt.base === pr.base.sha)
+      d.filesOK(
+        await api.request("GET", `${ROOT}/pulls/${ticket.pr}/files?per_page=3`),
+        Boolean(receipt)
+      );
     // Age was checked when accepted before CI. A separate fresh report is mandatory before merge.
     data.dependency = a.validateReport(
       ticket.analysis,
@@ -319,10 +320,13 @@ async function prepare(
     )
       throw new Error("Review PR head changed");
     if (!policy.SHA.test(pr.base.sha || "")) throw new Error("Invalid PR base");
+    let reviewBase = pr.base.sha;
     if (data.dependencyFacts) {
+      const receipt = await require("./dependency-alert-repair.cjs").verifyAlertPR(api, pr, config);
+      reviewBase = receipt?.base ?? reviewBase;
       const main = await api.request("GET", `${ROOT}/git/ref/heads/main`);
       if (
-        pr.base.sha !== data.dependencyFacts.base ||
+        reviewBase !== data.dependencyFacts.base ||
         main.object?.sha !== data.dependencyFacts.base
       )
         throw new Error("Dependency review base/main changed during evidence collection");
@@ -333,7 +337,7 @@ async function prepare(
       "diff",
       "--no-ext-diff",
       "--no-textconv",
-      `${pr.base.sha}...${grant.head}`,
+      `${reviewBase}...${grant.head}`,
       "--",
     ]);
     if (data.diff.length > 500000 || secretLike(data.diff))

@@ -231,18 +231,23 @@ class Controller {
       const d = require("./dependency-contract.cjs");
       const attempt = d.matches(t, this.context, this.config);
       d.prOK(pr, false, this.config);
-      await require("./dependency-alert-repair.cjs").verifyAlertPR(this.api, pr, this.config);
+      const receipt = await require("./dependency-alert-repair.cjs").verifyAlertPR(
+        this.api,
+        pr,
+        this.config
+      );
       if (
         pr.number !== t.pr ||
         pr.head.sha !== t.head ||
         pr.head.ref !== t.branch ||
-        pr.base.sha !== attempt.base
+        (receipt?.base ?? pr.base.sha) !== attempt.base
       )
         throw new Error("Dependency PR identity changed");
-      d.filesOK(
-        await this.api.request("GET", `${ROOT}/pulls/${t.pr}/files?per_page=3`),
-        !!d.alertKey(pr.head.ref)
-      );
+      if (!receipt || receipt.base === pr.base.sha)
+        d.filesOK(
+          await this.api.request("GET", `${ROOT}/pulls/${t.pr}/files?per_page=3`),
+          Boolean(receipt)
+        );
       return pr;
     }
     if (

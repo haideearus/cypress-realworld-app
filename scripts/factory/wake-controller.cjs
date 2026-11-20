@@ -27,12 +27,16 @@ async function verifyAlertCI(api, pr, run, config, bound = false) {
   )
     throw Error("Dependency alert CI identity changed");
 
-  const { verifyAlertPR } = require("./dependency-alert-repair.cjs");
+  const { verifyAlertPR, verifyAlertGitDiff } = require("./dependency-alert-repair.cjs");
   const receipt = await verifyAlertPR(api, pr, config, undefined, bound);
   if (!bound && receipt.phase !== "ready") throw Error("Dependency alert is not ready");
 
-  const files = await api.request("GET", `${ROOT}/pulls/${pr.number}/files?per_page=3`);
-  dependency.filesOK(files, true);
+  if (receipt.base === pr.base.sha) {
+    const files = await api.request("GET", `${ROOT}/pulls/${pr.number}/files?per_page=3`);
+    dependency.filesOK(files, true);
+  } else if (bound) {
+    await verifyAlertGitDiff(api, receipt);
+  }
   const jobs = await api.pages(
     `${ROOT}/actions/runs/${run.id}/attempts/${run.run_attempt}/jobs`,
     "jobs"
@@ -48,12 +52,12 @@ async function verifyAlertCI(api, pr, run, config, bound = false) {
     throw Error("Dependency alert CI verify job failed identity checks");
 
   if (!bound) {
-    const compare = await api.request("GET", `${ROOT}/compare/${pr.base.sha}...${pr.head.sha}`);
+    const compare = await api.request("GET", `${ROOT}/compare/${receipt.base}...${pr.head.sha}`);
     const main = await api.request("GET", `${ROOT}/git/ref/heads/main`);
     if (
-      main.object?.sha !== pr.base.sha ||
+      main.object?.sha !== receipt.base ||
       compare.behind_by !== 0 ||
-      compare.merge_base_commit?.sha !== pr.base.sha
+      compare.merge_base_commit?.sha !== receipt.base
     )
       throw Error("Dependency alert CI base is stale");
   }
@@ -232,9 +236,10 @@ async function classifySignal({ api, event, context, vars = {}, ledger = new Led
       }
       if (pr.number !== link.number || pr.head.sha !== r.head_sha) return null;
       const generated = Boolean(dependency.alertKey(pr.head.ref));
+      let revision = pr.base.sha;
       if (generated) {
         try {
-          await verifyAlertCI(api, pr, r, config);
+          revision = (await verifyAlertCI(api, pr, r, config)).base;
         } catch {
           return null;
         }
@@ -259,7 +264,7 @@ async function classifySignal({ api, event, context, vars = {}, ledger = new Led
         number: pr.number,
         head: pr.head.sha,
         criteriaHash: dependency.criteria(pr.number),
-        revision: pr.base.sha,
+        revision,
         sourceRun: String(r.id),
         sourceAttempt: r.run_attempt,
         actor: { login: r.actor.login, id: r.actor.id },

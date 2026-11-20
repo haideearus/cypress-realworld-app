@@ -171,11 +171,12 @@ async function pipeline() {
       if (endpoint === "/pulls") return response(fixture.pr ? [fixture.pr] : []);
       if (endpoint === "/pulls/9") return response(fixture.pr);
       if (endpoint === "/pulls/9/files")
-        return response([{ filename: "yarn.lock", status: "modified" }]);
+        return response(fixture.cachedPrFiles || [{ filename: "yarn.lock", status: "modified" }]);
       if (endpoint.startsWith("/compare/"))
         return response({
           behind_by: 0,
           merge_base_commit: { sha: fixture.main },
+          files: fixture.comparisonFiles || [{ filename: "yarn.lock", status: "modified" }],
           status: "identical",
         });
       if (endpoint.startsWith("/labels/")) return response({ name: endpoint.split("/").at(-1) });
@@ -700,4 +701,32 @@ test("hosted preview stays read-only and alert publication is explicitly opt-in"
       ".github/workflows/factory-dependency-alerts.yml"
     )
   );
+});
+
+test("a refreshed alert proposal uses verified Git ancestry when the PR API reports its old base", async () => {
+  const x = await pipeline();
+  assert.equal((await x.run()).outcome, "published");
+  const oldBase = x.fixture.pr.base.sha;
+  x.fixture.main = "f".repeat(40);
+  assert.equal((await x.run()).outcome, "refreshed");
+  assert.notEqual(oldBase, x.fixture.main);
+  assert.equal(x.fixture.pr.base.sha, oldBase);
+  x.fixture.cachedPrFiles = [{ filename: ".github/workflows/factory-ci.yml", status: "modified" }];
+
+  const selected = await x.coordinator.select(false);
+  assert.equal(selected.ready, true);
+  assert.equal(selected.ticket, x.fixture.pr.number);
+  const t = (await x.ledger.read()).state.tickets[selected.ticket];
+  assert.equal(t.dependency.attempts.at(-1).base, x.fixture.main);
+  await x.coordinator.controller.matchingPR(t);
+});
+
+test("a cached base cannot make a stale alert receipt current", async () => {
+  const x = await pipeline();
+  await x.run();
+  x.fixture.main = "f".repeat(40);
+  await x.run();
+  x.fixture.liveMain = "e".repeat(40);
+  assert.equal((await x.coordinator.select(false)).ready, false);
+  assert.deepEqual((await x.ledger.read()).state.grants, {});
 });
