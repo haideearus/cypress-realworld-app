@@ -10,6 +10,10 @@ on:
         default: preview
   schedule:
     - cron: "7,37 * * * *"
+  workflow_run:
+    workflows: [Factory CI]
+    branches: [main]
+    types: [completed]
 
 concurrency:
   group: factory-dependency-alerts
@@ -58,10 +62,22 @@ jobs:
     if: >-
       ${{ github.repository == 'haideearus/cypress-realworld-app' &&
           github.ref == 'refs/heads/main' && github.run_attempt == 1 &&
-          github.actor == 'haideearus' && github.triggering_actor == 'haideearus' &&
           vars.FACTORY_DEPENDENCY_ALERT_REPAIR_ENABLED == 'true' &&
           vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' &&
-          (github.event_name == 'schedule' || inputs.operation == 'run') }}
+          ((github.actor == 'haideearus' && github.triggering_actor == 'haideearus' &&
+            (github.event_name == 'schedule' ||
+             (github.event_name == 'workflow_dispatch' && inputs.operation == 'run'))) ||
+           (github.event_name == 'workflow_run' && vars.FACTORY_EVENT_PICKUP_ENABLED == 'true' &&
+            github.triggering_actor == github.actor &&
+            (github.actor == 'haideearus' ||
+             (vars.FACTORY_GITHUB_APP_SLUG != '' && github.actor == format('{0}[bot]', vars.FACTORY_GITHUB_APP_SLUG))) &&
+            github.event.workflow_run.event == 'push' &&
+            github.event.workflow_run.path == '.github/workflows/factory-ci.yml' &&
+            github.event.workflow_run.run_attempt == 1 &&
+            github.event.workflow_run.conclusion == 'success' &&
+            github.event.workflow_run.repository.full_name == github.repository &&
+            github.event.workflow_run.head_repository.full_name == github.repository &&
+            github.event.workflow_run.head_sha == github.sha)) }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     concurrency:

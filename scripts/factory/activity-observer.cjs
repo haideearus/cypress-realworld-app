@@ -3,6 +3,7 @@ const { GitHub, Ledger, ROOT } = require("./github.cjs");
 const { runtimeContext } = require("./controller.cjs");
 const a = require("./activity.cjs");
 const { ActivityStore } = require("./activity-store.cjs");
+const { triageHarnessFaults } = require("./activity-harness-faults.cjs");
 const { REPOSITORY, OWNER } = require("./wake-contract.cjs");
 const link = (id) => `https://github.com/${REPOSITORY}/actions/runs/${id}`;
 const stateFor = (status, conclusion) =>
@@ -178,6 +179,7 @@ async function observeRun({
   store = new ActivityStore(api),
   ledger = new Ledger(api),
   preview = false,
+  triage = false,
 }) {
   const run = await api.request("GET", `${ROOT}/actions/runs/${runId}/attempts/${runAttempt}`);
   const probe = a.buildActivityEvent({
@@ -189,8 +191,9 @@ async function observeRun({
     summary: "Verifying observed source",
     links: [link(run.id)],
   });
+  let trustedRun;
   try {
-    await a.verifyActivityProducer(api, probe);
+    trustedRun = await a.verifyActivityProducer(api, probe);
   } catch (e) {
     if (!(e instanceof require("./trusted-wake.cjs").PendingWakeBinding)) throw e;
     if (run.status === "completed" && !preview) {
@@ -212,6 +215,19 @@ async function observeRun({
     `${ROOT}/actions/runs/${run.id}/attempts/${run.run_attempt}/jobs`,
     "jobs"
   );
+  if (triage && !preview) {
+    // Infrastructure triage can succeed even if journal scanning is unavailable.
+    let result;
+    try {
+      result = await triageHarnessFaults({ api, store, ledger, run: trustedRun, jobs });
+    } catch {
+      result = "held";
+    }
+    if (result === "held")
+      console.warn(
+        "Harness maintenance ticket publication held. Check the durable activity receipt."
+      );
+  }
   const events = await collectRunActivity({ run, jobs, ledger });
   if (run.path === ".github/workflows/factory-deploy.yml") {
     const approvals = await api.request("GET", `${ROOT}/actions/runs/${run.id}/approvals`);
@@ -377,6 +393,30 @@ async function main(
   }
   const journalIssue = Number(vars.FACTORY_ACTIVITY_ISSUE_NUMBER);
   await a.journal(api, journalIssue);
+  const source = event.workflow_run;
+  if (
+    context.event === "workflow_run" &&
+    (!source ||
+      !a.WORKFLOWS.some(
+        (f) => f !== "factory-activity.yml" && source.path === `.github/workflows/${f}`
+      ))
+  )
+    throw Error("Unallowlisted activity source");
+  const observe = (triage) =>
+    observeRun({
+      api,
+      runId: source.id,
+      runAttempt: source.run_attempt,
+      journalIssue,
+      store,
+      triage,
+    });
+  const terminalCI =
+    context.event === "workflow_run" &&
+    event.action === "completed" &&
+    source.path === ".github/workflows/factory-ci.yml" &&
+    source.event === "push";
+  if (terminalCI) await observe(true);
   const controlRegistry = (await store.read()).state;
   const commandEvents = require("./activity-controls.cjs").controlEvents(
     await new Ledger(api).read(),
@@ -418,26 +458,12 @@ async function main(
       links: [`https://github.com/${REPOSITORY}/issues/${issue.number}`],
     });
     await a.publishActivity({ api, event: current, journalIssue, store });
-  } else if (context.event === "workflow_run") {
-    const source = event.workflow_run;
-    if (
-      !source ||
-      !a.WORKFLOWS.some(
-        (f) => f !== "factory-activity.yml" && source.path === `.github/workflows/${f}`
-      )
-    )
-      throw Error("Unallowlisted activity source");
+  } else if (context.event === "workflow_run" && !terminalCI) {
     // A bounded in-progress observer catches actual job/step transitions. A separate
     // completion delivery catches the final result even if this polling window ends.
     const max = event.action === "in_progress" ? 240 : 1;
     for (let n = 0; n < max; n++) {
-      const result = await observeRun({
-        api,
-        runId: source.id,
-        runAttempt: source.run_attempt,
-        journalIssue,
-        store,
-      });
+      const result = await observe(false);
       if (result.status === "completed" || max === 1) break;
       await sleep(20000);
     }

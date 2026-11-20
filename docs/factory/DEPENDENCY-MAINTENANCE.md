@@ -68,6 +68,19 @@ has no matching publication receipt. Verify the fix and close the held issue
 with evidence if that separate upgrade clears it. The held label cannot authorize
 a repair, review or merge.
 
+### Event-driven dependency handoff
+
+Successful push CI for the exact current main commit can wake **Dependabot
+alert intake** when event pickup is enabled. Alert intake checks the CI producer
+and its verification job before refreshing the existing proposal. It can
+continue on its existing schedule if GitHub misses the event.
+
+When PR CI succeeds for the refreshed head, **Factory event wake** revalidates
+the configured GitHub App and the exact ready alert ticket, PR and head in
+the durable registry. A valid event can start **Dependency maintenance**
+through the same receipt mechanism as a native Dependabot PR. Existing CI,
+independent review, budgets and protected merge requirements still apply.
+
 ## What happens
 
 Dependabot proposes changes to the application's library versions. The native

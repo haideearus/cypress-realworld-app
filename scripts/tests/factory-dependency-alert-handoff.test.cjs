@@ -129,7 +129,14 @@ async function pipeline() {
     const data = request.body && JSON.parse(request.body);
     const response = (body) => Response.json(body);
     if (request.method === "GET") {
-      if (endpoint === "/git/ref/heads/main") return response({ object: { sha: fixture.main } });
+      if (endpoint === "/actions/workflows/factory-ci.yml") return response(fixture.ciWorkflow);
+      if (endpoint === "/actions/runs/19") return response(fixture.ciRun);
+      if (endpoint === "/actions/runs/19/attempts/1/jobs") {
+        fixture.checkedCI = true;
+        return response({ total_count: fixture.ciJobs.length, jobs: fixture.ciJobs });
+      }
+      if (endpoint === "/git/ref/heads/main")
+        return response({ object: { sha: fixture.liveMain || fixture.main } });
       if (endpoint === "/git/ref/heads/factory/dependency-alerts")
         return registryHead
           ? response({ object: { sha: registryHead } })
@@ -256,6 +263,7 @@ async function pipeline() {
   const cfg = policy.readConfig({
     ...vars,
     FACTORY_AUTOMATION_ENABLED: "true",
+    FACTORY_EVENT_PICKUP_ENABLED: "true",
     FACTORY_DEPENDENCY_ALERT_REPAIR_ENABLED: "true",
     FACTORY_GITHUB_APP_CLIENT_ID: "Iv123456789",
     FACTORY_GITHUB_APP_SLUG: "factory-example",
@@ -308,7 +316,7 @@ async function pipeline() {
     }
     throw Error("unexpected metadata request");
   };
-  const run = (config = cfg) =>
+  const run = (config = cfg, trigger) =>
     a.runRepair({
       api,
       app: appApi,
@@ -319,6 +327,7 @@ async function pipeline() {
       manifest: JSON.stringify({ dependencies: { example: "^1.0.0" } }),
       tools,
       transport,
+      trigger,
     });
   async function reviewed() {
     assert.equal((await new DependencyCoordinator(api, cfg, ctx).select(false)).ready, true);
@@ -498,6 +507,121 @@ test("a removed label stays held and a normal main advance refreshes the same pr
   assert.equal((await x.coordinator.select(true)).ticket, 9);
 });
 
+async function pushRefresh(actor = { login: "haideearus", id: 101267861, type: "User" }) {
+  const x = await pipeline();
+  await x.run();
+  x.fixture.main = "f".repeat(40);
+  x.fixture.pr.base.sha = x.fixture.main;
+  const workflow = { path: ".github/workflows/factory-ci.yml", id: 21 };
+  const run = {
+    id: 19,
+    workflow_id: 21,
+    path: workflow.path,
+    event: "push",
+    head_branch: "main",
+    head_sha: x.fixture.main,
+    repository: repo,
+    head_repository: repo,
+    run_attempt: 1,
+    status: "completed",
+    conclusion: "success",
+    actor,
+    triggering_actor: actor,
+  };
+  x.fixture.ciWorkflow = workflow;
+  x.fixture.ciRun = run;
+  x.fixture.ciJobs = [
+    {
+      id: 22,
+      run_id: 19,
+      run_attempt: 1,
+      head_sha: x.fixture.main,
+      name: "verify",
+      status: "completed",
+      conclusion: "success",
+    },
+  ];
+  const trigger = {
+    env: {
+      GITHUB_REPOSITORY: d.REPOSITORY,
+      GITHUB_ACTOR: actor.login,
+      GITHUB_ACTOR_ID: String(actor.id),
+      GITHUB_TRIGGERING_ACTOR: actor.login,
+      GITHUB_REF: "refs/heads/main",
+      GITHUB_EVENT_NAME: "workflow_run",
+      GITHUB_RUN_ATTEMPT: "1",
+      GITHUB_SHA: x.fixture.main,
+      GITHUB_WORKFLOW_SHA: x.fixture.main,
+      GITHUB_WORKFLOW_REF: `${d.REPOSITORY}/.github/workflows/factory-dependency-alerts.yml@refs/heads/main`,
+    },
+    event: { action: "completed", repository: repo, workflow, workflow_run: { ...run } },
+  };
+  return { ...x, trigger };
+}
+
+test("successful main push CI refreshes the same proposal through the non-force App path", async () => {
+  const x = await pushRefresh({ login: "factory-example[bot]", id: 800, type: "Bot" });
+  const old = x.fixture.ref;
+  assert.equal((await x.run(x.cfg, x.trigger)).outcome, "refreshed");
+  assert.equal(x.fixture.checkedCI, true);
+  assert.notEqual(x.fixture.ref, old);
+  assert.equal(x.fixture.issuePosts, 1);
+  assert.equal(x.fixture.prPosts, 1);
+  assert.equal((await x.run(x.cfg, x.trigger)).outcome, "awaiting-dependency-pickup");
+  assert.equal(Object.keys((await x.ledger.read()).state.grants).length, 0);
+});
+
+test("main push CI intake rejects PR, dispatch, forged, stale and unverified evidence", async () => {
+  const changes = [
+    (x) => {
+      x.trigger.event.workflow_run.event = "pull_request";
+    },
+    (x) => {
+      x.fixture.ciRun.event = "workflow_dispatch";
+    },
+    (x) => {
+      x.fixture.ciRun.head_repository = { full_name: "other/fork" };
+    },
+    (x) => {
+      x.fixture.ciRun.actor = { login: "haideearus", id: 1, type: "User" };
+    },
+    (x) => {
+      x.fixture.ciRun.workflow_id = 20;
+    },
+    (x) => {
+      x.fixture.ciRun.run_attempt = 2;
+    },
+    (x) => {
+      x.fixture.ciRun.head_sha = base;
+    },
+    (x) => {
+      x.fixture.ciJobs[0].head_sha = base;
+    },
+    (x) => {
+      x.fixture.ciJobs[0].conclusion = "skipped";
+    },
+    (x) => {
+      x.fixture.ciJobs.push(x.fixture.ciJobs[0]);
+    },
+  ];
+  for (const change of changes) {
+    const x = await pushRefresh();
+    const old = x.fixture.ref;
+    change(x);
+    await assert.rejects(x.run(x.cfg, x.trigger), /Untrusted dependency alert/);
+    assert.equal(x.fixture.ref, old);
+    assert.equal(x.fixture.prPosts, 1);
+  }
+});
+
+test("verified push CI cannot refresh after main advances again", async () => {
+  const x = await pushRefresh();
+  const old = x.fixture.ref;
+  x.fixture.liveMain = "e".repeat(40);
+  await assert.rejects(x.run(x.cfg, x.trigger), /Dependency alert preparation is stale/);
+  assert.equal(x.fixture.ref, old);
+});
+
 test("a reviewed ticket that is held or stale releases the shared queue and preserves its spent review", async () => {
   for (const reason of ["ticket-held", "stale-base", "alert-repair-disabled"]) {
     const x = await pipeline();
@@ -560,6 +684,12 @@ test("hosted preview stays read-only and alert publication is explicitly opt-in"
     )
   );
   assert.equal(workflow.on.workflow_dispatch.inputs.operation.default, "preview");
+  assert.ok(workflow.on.schedule.length);
+  assert.deepEqual(workflow.on.workflow_run, {
+    workflows: ["Factory CI"],
+    branches: ["main"],
+    types: ["completed"],
+  });
   assert.deepEqual(workflow.permissions, { contents: "read" });
   assert.equal(workflow.jobs.preview.permissions, undefined);
   assert.match(workflow.jobs.repair.if, /FACTORY_DEPENDENCY_ALERT_REPAIR_ENABLED == 'true'/);

@@ -2,12 +2,14 @@ const fs = require("node:fs"),
   { randomUUID } = require("node:crypto");
 const { GitHub, Ledger, ROOT } = require("./github.cjs");
 const { OWNER, assertSubscriptionEnv } = require("./policy.cjs");
+const { activeEntries } = require("./active-tickets.cjs");
 const { MonitorStore } = require("./monitor-state.cjs");
 const { verifyMonitorIssue } = require("./monitor-origin.cjs");
 const { proofFromIncident } = require("./monitor-proof.cjs");
 const { probeApp } = require("./monitor-probe.cjs");
 const { monitorContext } = require("./app-checks-contract.cjs");
 const { publisherFetch } = require("./app-checks-budget.cjs");
+const { verifyOwnerRecovery } = require("./monitor-blocked-recovery.cjs");
 const {
   REASON,
   requireAck,
@@ -24,6 +26,7 @@ async function acknowledge({
   settings,
   issueNumber,
   dryRun = true,
+  blockedRepair = false,
   report,
   store = new MonitorStore(api),
   ledger = new Ledger(api),
@@ -31,18 +34,19 @@ async function acknowledge({
   now = () => new Date().toISOString(),
 }) {
   assertAckContext(context);
-  assertAckSettings(settings);
+  assertAckSettings(settings, blockedRepair);
   requireAck(Number.isSafeInteger(issueNumber) && issueNumber > 0 && typeof dryRun === "boolean");
   async function stopped() {
     const { state } = await ledger.read();
     requireAck(
       state.stop &&
-        state.active === null &&
-        !Object.hasOwn(state.tickets, String(issueNumber)) &&
-        !Object.values(state.grants).some(
-          (g) => g.status === "reserved" || g.ticket === issueNumber
-        )
+        activeEntries(state).length === 0 &&
+        !Object.values(state.grants).some((g) => g.status === "reserved") &&
+        (blockedRepair ||
+          (!Object.hasOwn(state.tickets, String(issueNumber)) &&
+            !Object.values(state.grants).some((g) => g.ticket === issueNumber)))
     );
+    return state;
   }
   async function target({ complete = false } = {}) {
     const { state, commit } = await store.read();
@@ -51,7 +55,9 @@ async function acknowledge({
     const incident = matches[0];
     requireAck(
       incident.phase === "open" &&
-        !Object.hasOwn(incident, "probeMode") &&
+        (blockedRepair
+          ? incident.probeMode === "feed-contract"
+          : !Object.hasOwn(incident, "probeMode")) &&
         !Object.hasOwn(incident, "retirement")
     );
     const issue = await api.request("GET", `${ROOT}/issues/${issueNumber}`);
@@ -82,7 +88,7 @@ async function acknowledge({
     }
     return { state, commit, incident, issue };
   }
-  validateAckReport(report, context, now());
+  validateAckReport(report, context, now(), blockedRepair);
   requireAck(report.result.healthy);
   const observation = await probe();
   requireAck(
@@ -95,11 +101,25 @@ async function acknowledge({
   );
   // Availability has its own retry budget. Start GitHub's shared metadata/
   // publication deadline only after these public reads have finished.
-  validateAckReport(report, context, now());
-  await stopped();
+  const assertFreshReport = () => validateAckReport(report, context, now(), blockedRepair);
+  const blockedEvidence = (state, incident) =>
+    blockedRepair
+      ? verifyOwnerRecovery({
+          api,
+          state,
+          incident,
+          release: observation.release,
+          now: now(),
+          runId: context.runId,
+        })
+      : undefined;
+  assertFreshReport();
+  let stoppedState = await stopped();
   let current = await target({ complete: true });
   if (current.incident.acknowledgment?.phase === "complete")
     return { outcome: "already_acknowledged", issue: issueNumber };
+  const blockedRecovery = await blockedEvidence(stoppedState, current.incident);
+  assertFreshReport();
   const verification = () => ({
     runId: context.runId,
     runAttempt: 1,
@@ -113,14 +133,18 @@ async function acknowledge({
     incident: current.incident.id,
     actor: OWNER,
     reason: REASON,
-    scope: "standard-only",
+    scope: blockedRepair ? "feed-contract" : "standard-only",
     release: observation.release,
+    ...(blockedRecovery ? { blockedRecovery } : {}),
   };
   if (dryRun) return { outcome: "acknowledgment_preview", ...result };
   const proof = proofFromIncident(current.incident);
-  await stopped();
+  stoppedState = await stopped();
   current = await target();
-  requireAck(same(proofFromIncident(current.incident), proof));
+  requireAck(
+    same(proofFromIncident(current.incident), proof) &&
+      same(await blockedEvidence(stoppedState, current.incident), blockedRecovery)
+  );
   const intent =
     current.incident.acknowledgment ||
     validateAcknowledgment({
@@ -134,19 +158,21 @@ async function acknowledge({
       proof,
       request: { runId: context.runId, runAttempt: 1, workflowSha: context.workflowSha },
       verification: verification(),
+      ...(blockedRecovery ? { blockedRecovery } : {}),
     });
   if (!current.incident.acknowledgment) {
-    validateAckReport(report, context, now());
+    assertFreshReport();
     current.incident.acknowledgment = intent;
     await store.save(current.state, current.commit);
   }
-  await stopped();
+  stoppedState = await stopped();
   current = await target();
   requireAck(
     same(current.incident.acknowledgment, intent) &&
-      same(proofFromIncident(current.incident), proof)
+      same(proofFromIncident(current.incident), proof) &&
+      same(await blockedEvidence(stoppedState, current.incident), blockedRecovery)
   );
-  validateAckReport(report, context, now());
+  assertFreshReport();
   if (current.issue.state === "open") {
     const closed = await api.request("PATCH", `${ROOT}/issues/${issueNumber}`, {
       state: "closed",
@@ -160,21 +186,28 @@ async function acknowledge({
         closed.body === current.issue.body
     );
   }
-  await stopped();
+  stoppedState = await stopped();
   current = await target();
   requireAck(
     current.issue.state === "closed" &&
       current.issue.state_reason === "not_planned" &&
       same(current.incident.acknowledgment, intent) &&
-      same(proofFromIncident(current.incident), proof)
+      same(proofFromIncident(current.incident), proof) &&
+      same(await blockedEvidence(stoppedState, current.incident), blockedRecovery)
   );
-  validateAckReport(report, context, now());
+  assertFreshReport();
   current.incident.acknowledgment = validateAcknowledgment({
     ...intent,
     phase: "complete",
-    verification: verification(),
+    verification: {
+      ...verification(),
+      ...(blockedRecovery && !same(blockedRecovery, intent.blockedRecovery)
+        ? { blockedRecovery }
+        : {}),
+    },
   });
   current.incident.recovered = true;
+  delete current.incident.blockedRecovery;
   current.state.active = null;
   await store.save(current.state, current.commit);
   return { outcome: "incident_acknowledged", ...result, operationId: intent.operationId };
@@ -187,19 +220,22 @@ async function main(env = process.env) {
       !env.FACTORY_MONITOR_USERNAME &&
         !env.FACTORY_MONITOR_PASSWORD &&
         ["true", "false"].includes(env.ACK_DRY_RUN) &&
+        [undefined, "true", "false"].includes(env.ACK_BLOCKED_REPAIR) &&
         /^[1-9]\d{0,15}$/.test(env.ACK_ISSUE || "")
     );
     const context = monitorContext(env);
     assertAckContext(context);
     const settings = JSON.parse(env.ACK_SETTINGS || "{}");
-    assertAckSettings(settings);
-    const report = readAckReport(env, context);
+    const blockedRepair = env.ACK_BLOCKED_REPAIR === "true";
+    assertAckSettings(settings, blockedRepair);
+    const report = readAckReport(env, context, undefined, blockedRepair);
     result = await acknowledge({
       api: new GitHub({ token: env.GITHUB_TOKEN, fetch: publisherFetch() }),
       context,
       settings,
       issueNumber: Number(env.ACK_ISSUE),
       dryRun: env.ACK_DRY_RUN === "true",
+      blockedRepair,
       report,
     });
   } catch {
@@ -213,7 +249,7 @@ async function main(env = process.env) {
   if (env.GITHUB_STEP_SUMMARY)
     fs.appendFileSync(
       env.GITHUB_STEP_SUMMARY,
-      `## Owner monitor acknowledgment\n\n\`\`\`json\n${JSON.stringify(result, null, 2)}\n\`\`\`\n\nStandard checks only. No AI code repair or deployment credited. No model invocation.\n`
+      `## Owner monitor acknowledgment\n\n\`\`\`json\n${JSON.stringify(result, null, 2)}\n\`\`\`\n\nOwner acknowledgment records observed recovery. No AI code repair or deployment credited. No model invocation.\n`
     );
   return result;
 }

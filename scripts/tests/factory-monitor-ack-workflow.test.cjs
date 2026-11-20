@@ -10,7 +10,12 @@ test("owner acknowledgment workflow is manual, preview by default and credential
     w = yaml.load(text),
     j = w.jobs.acknowledge;
   assert.deepEqual(Object.keys(w.on), ["workflow_dispatch"]);
-  assert.deepEqual(Object.keys(w.on.workflow_dispatch.inputs).sort(), ["dry_run", "issue"]);
+  assert.deepEqual(Object.keys(w.on.workflow_dispatch.inputs).sort(), [
+    "blocked_repair",
+    "dry_run",
+    "issue",
+  ]);
+  assert.equal(w.on.workflow_dispatch.inputs.blocked_repair.default, false);
   assert.equal(w.on.workflow_dispatch.inputs.dry_run.default, true);
   assert.equal(j["timeout-minutes"], 8);
   assert.equal(j["runs-on"], "ubuntu-latest");
@@ -28,7 +33,12 @@ test("owner acknowledgment workflow is manual, preview by default and credential
     "FACTORY_AUTOMERGE_ENABLED == 'false'",
   ])
     assert.ok(j.if.includes(value));
-  assert.deepEqual(j.permissions, { contents: "write", issues: "write", actions: "read" });
+  assert.deepEqual(j.permissions, {
+    contents: "write",
+    issues: "write",
+    actions: "read",
+    "pull-requests": "read",
+  });
   assert.deepEqual([...text.matchAll(/secrets\.([A-Z_]+)/g)].map((m) => m[1]).sort(), [
     "FACTORY_MONITOR_PASSWORD",
     "FACTORY_MONITOR_USERNAME",
@@ -37,16 +47,18 @@ test("owner acknowledgment workflow is manual, preview by default and credential
     !/claude-code-action|secrets\.(?:CLAUDE|ANTHROPIC|OPENAI|RENDER|FACTORY_GITHUB_APP)/i.test(text)
   );
   const [checker, scan, publisher] = [
-    "Check standard recovery with synthetic account",
+    "Check recovery with synthetic account",
     "Scan credential-free recovery report",
     "Preview or acknowledge recovered incident",
   ].map((name) => j.steps.find((s) => s.name === name));
   assert.ok(checker && scan && publisher);
   assert.deepEqual(Object.keys(checker.env).sort(), [
+    "ACK_BLOCKED_REPAIR",
     "FACTORY_MONITOR_PASSWORD",
     "FACTORY_MONITOR_USERNAME",
   ]);
   assert.ok(!Object.keys(publisher.env).some((k) => /USERNAME|PASSWORD/.test(k)));
+  assert.equal(publisher.env.ACK_BLOCKED_REPAIR, checker.env.ACK_BLOCKED_REPAIR);
   assert.equal(scan.run, "node scripts/factory/app-checks-scan.cjs");
   assert.ok(j.steps.indexOf(scan) > j.steps.indexOf(checker));
   assert.ok(j.steps.indexOf(scan) < j.steps.indexOf(publisher));

@@ -56,6 +56,45 @@ const STATES = Object.freeze([
   "stopped",
 ]);
 const MAX_EVENTS = 1400;
+const HARNESS_FAULTS = Object.freeze({
+  "ci-controller-validation": Object.freeze({
+    step: "Load the controller action and validate disabled configuration without AI or state writes",
+    title: "Factory maintenance: recurring controller validation failure",
+  }),
+  "ci-scanner-install": Object.freeze({
+    step: "Install the checksum-pinned secret scanner",
+    title: "Factory maintenance: recurring secret scanner installation failure",
+  }),
+});
+const issueOrRunNumber = (n) => Number.isSafeInteger(n) && n > 0;
+const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
+
+function validateHarnessFaults(faults) {
+  if (!faults || typeof faults !== "object" || Array.isArray(faults))
+    throw Error("Invalid harness fault registry");
+  for (const [key, row] of Object.entries(faults)) {
+    if (
+      !Object.hasOwn(HARNESS_FAULTS, key) ||
+      !exact(row, "evidence,claim,issue") ||
+      !Array.isArray(row.evidence) ||
+      row.evidence.length < 1 ||
+      row.evidence.length > 2 ||
+      row.evidence.some(
+        (r) =>
+          !exact(r, "runId,at") ||
+          !issueOrRunNumber(r.runId) ||
+          !Number.isSafeInteger(r.at) ||
+          r.at < 1
+      ) ||
+      (row.evidence.length === 2 && row.evidence[0].runId === row.evidence[1].runId) ||
+      (row.claim !== null &&
+        (typeof row.claim !== "string" || !UUID.test(row.claim) || row.issue !== null)) ||
+      (row.issue !== null && !issueOrRunNumber(row.issue)) ||
+      ((row.claim !== null || row.issue !== null) && row.evidence.length !== 2)
+    )
+      throw Error("Invalid harness fault receipt");
+  }
+}
 function validateProducer(p) {
   if (
     !exact(p, "runId,runAttempt,workflow,workflowSha,phase,actor") ||
@@ -130,8 +169,9 @@ function emptyActivity() {
   };
 }
 function validateActivity(s) {
+  const keys = "version,repository,events,lastMonitor,staleFor,controlAfter";
   if (
-    !exact(s, "version,repository,events,lastMonitor,staleFor,controlAfter") ||
+    !(exact(s, keys) || exact(s, `${keys},harnessFaults`)) ||
     s.version !== 1 ||
     s.repository !== REPOSITORY ||
     typeof s.controlAfter !== "string" ||
@@ -142,6 +182,7 @@ function validateActivity(s) {
     Object.keys(s.events).length > MAX_EVENTS
   )
     throw Error("Invalid activity registry");
+  if (Object.hasOwn(s, "harnessFaults")) validateHarnessFaults(s.harnessFaults);
   for (const [id, r] of Object.entries(s.events)) {
     if (
       !HASH.test(id) ||
@@ -176,6 +217,7 @@ module.exports = {
   KINDS,
   STATES,
   MAX_EVENTS,
+  HARNESS_FAULTS,
   buildActivityEvent,
   validateProducer,
   validateEvent,

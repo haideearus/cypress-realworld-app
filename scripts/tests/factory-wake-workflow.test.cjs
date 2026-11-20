@@ -39,6 +39,11 @@ test("receivers expose a typed wake id and retain read-only previews", () => {
     assert.ok(w["run-name"].includes("inputs.wake_id"));
   }
 });
+test("dependency jobs can read Actions provenance for a bound wake", () => {
+  const { jobs } = load("factory-dependencies");
+  for (const name of ["analysis", "premerge", "finalize"])
+    assert.equal(jobs[name].permissions.actions, "read");
+});
 test("idle completions, observer completions and owner harness CI cannot drain", async () => {
   for (const path of [
     ".github/workflows/factory-automatic.yml",

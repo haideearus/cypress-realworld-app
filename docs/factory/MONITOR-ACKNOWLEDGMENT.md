@@ -1,9 +1,10 @@
 # Acknowledge observed recovery without claiming a repair
 
-This is an owner operation for a standard monitor incident which has never
-entered the AI ledger. It does not prove an AI repair or replace the existing
-reviewed/merged/deployed repair path. Pagination-contract incidents and isolated
-drills are ineligible.
+This owner operation records observed production recovery without crediting an AI
+code repair or deployment. The standard mode is for monitor incidents that have
+never entered the AI ledger. Blocked repair mode is for a production
+pagination-contract incident whose factory attempt ended blocked before
+publishing a branch or PR. Isolated drills use their own workflow.
 
 Issue #65 is the motivating example: sign-in checks failed, then passed in a later
 preview while the separate pagination defect remained. Its cause has not been
@@ -55,6 +56,32 @@ remain separately limited per Bucharest day. Closing #65 does not repair the
 pagination defect. A later, separately authorized publication can enable that
 check and create its own genuine incident while agents remain disabled.
 
+## Recover a blocked pagination-contract repair
+
+Look for **Production monitor** summary
+`blocked_repair_recovery_ready` on the exact issue. The summary identifies the
+blocked repair run and two scheduled monitor runs that passed health, readiness,
+frontend, login, session, feed, pagination and logout on the same release.
+Independent scheduled observations must be at least five minutes and at most
+24 hours apart. An unhealthy observation discards the pair. The monitor may
+record evidence while agents are enabled. It leaves the issue open for the
+owner's decision.
+
+Stop the factory and wait for its ledger to be idle. With the three agent
+switches false, run **Acknowledge recovered monitor incident** on `main`. Enter
+the exact issue number, select **Blocked repair**, and leave **Preview** checked.
+Start a new run with **Preview** unchecked to record the decision. Both runs
+require the latest scheduled evidence to be no more than 90 minutes old and
+run the full pagination check on the observed release. The checker report can
+be at most ten minutes old when it is used. The production issue and receipt,
+terminal ledger grant, and absence of a publication branch or PR are checked
+again before the workflow writes.
+
+The acknowledgment keeps the failed attempt, original incident receipt and
+prior usage history. It closes the exact issue as **not planned** and records the
+owner's acknowledgment of observed recovery. The failure's cause remains
+unproven.
+
 ## Interrupted operation
 
 An ambiguous close or final registry write retains its durable intent. Normal
@@ -65,6 +92,9 @@ verification still apply. The operation reconciles a confirmed not-planned closu
 only when its matching intent exists; manual closure alone is insufficient.
 
 A completed acknowledgment is idempotent and cannot clear a newer incident.
+If production becomes unhealthy during an interrupted blocked-repair
+acknowledgment, the original intent is retained for audit. Two new healthy
+scheduled observations and a fresh owner run are required to finish it.
 Preserve the workflow URL and acknowledgment in `factory/monitor:monitor.json` as
 the human-action evidence. Do not label it as code-repair acceptance evidence.
 

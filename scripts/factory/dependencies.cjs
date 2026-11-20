@@ -359,13 +359,18 @@ class DependencyCoordinator {
       if (result) return result;
       state = (await this.ledger.read()).state;
     }
+    const target = require("./trusted-wake.cjs").dependencyWakeTarget(this.context);
+    if (this.context.wake && !target)
+      return { ready: false, reason: "No exact dependency CI wake for a new review" };
     let candidate, generated;
     const holds = [];
     for (let page = 1; page <= 5 && !candidate; page++) {
-      const rows = await this.api.request(
-        "GET",
-        `${ROOT}/pulls?state=open&base=main&sort=created&direction=asc&per_page=100&page=${page}`
-      );
+      const rows = target
+        ? [await readMergePR(this.api, target.number)]
+        : await this.api.request(
+            "GET",
+            `${ROOT}/pulls?state=open&base=main&sort=created&direction=asc&per_page=100&page=${page}`
+          );
       if (!Array.isArray(rows) || rows.length > 100)
         throw new Error("Invalid bounded dependency queue");
       for (const row of rows) {
@@ -374,6 +379,7 @@ class DependencyCoordinator {
         } catch {
           continue;
         }
+        if (target && (row.number !== target.number || row.head.sha !== target.head)) continue;
         const previous = state.tickets[String(row.number)];
         if (slots.activeFor(state, row.number)) continue;
         if (
@@ -386,10 +392,13 @@ class DependencyCoordinator {
         )
           continue;
         try {
+          if (generated && d.alertKey(row.head.ref)) continue;
+          const verified = await this.pr(row.number);
+          if (target && verified.head.sha !== target.head) continue;
           if (d.alertKey(row.head.ref)) {
-            if (!generated) generated = await this.pr(row.number);
+            generated = verified;
           } else {
-            candidate = await this.pr(row.number);
+            candidate = verified;
             break;
           }
         } catch (error) {

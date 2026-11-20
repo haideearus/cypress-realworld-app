@@ -164,6 +164,53 @@ PR head. Keep
 all grants and counters. Give a repeatable workflow defect its own dedicated
 harness maintenance ticket with links to the affected work and failed runs.
 
+### Queue a retry after a harness fix
+
+Use **Automatic factory → Run workflow** on `main`. Select
+`queue-blocked-retry`, supply the original issue as **ticket** and its merged
+harness fix as **fix_pr**, and leave **dry_run** checked for preview. The
+operation verifies the original terminal failure, frozen ready issue,
+unpublished branch, protected fix ancestry, and passing push CI for current
+main. The owner confirms that the linked PR addresses this failure.
+
+Uncheck **dry_run** to record one retry. Recording spends zero model
+reservations. Once 30 minutes have elapsed since the failed job, normal pickup can use the
+receipt after new eligible work. It rechecks the issue and successful CI on
+main, and uses the next allowed attempt on the original issue. Published
+repairs use their stage-specific recovery path.
+
+### Record recovery without a code change
+
+**Production monitor** can report recovery of a blocked repair when two
+trusted scheduled observations confirm the same release and complete signed-in
+checks. The **Acknowledge recovered monitor incident** workflow has a
+`blocked_repair` option. Use its preview to verify the exact receipt again.
+The owner confirmation is still required. This records observed recovery and
+preserves the failed repair attempt, with no claim that a patch shipped.
+
+### Route recurring harness faults
+
+**Factory activity** tracks repeat failures at the trusted controller
+validation and pinned secret scanner installation steps in push CI on main.
+Two distinct failures at the same step within 24 hours can open one
+`factory-priority` issue with both run links. The evidence is recorded
+before publication so the next observer can reconcile a lost response. These
+issues go through dedicated harness maintenance.
+
+### Verify the automatic handoff
+
+1. Leave an eligible alert repair PR and its ready label in place.
+2. On **Dependabot alert intake**, look for a run started by completed push CI
+   on current main. If it refreshed a proposal, verify the same PR has a new
+   head and that the patch branch is up to date.
+3. When CI passes on that PR, check **Factory event wake** for the receipt and
+   **Dependency maintenance** for selection, analysis, CI, independent review,
+   and protected merge. The scheduled pickups still cover missed events.
+4. For discovery, link a completed report, verified finding, ready issue,
+   repair PR, and protected merge. Record timestamps for both trials, including
+   the PC-off window. Approve a production deployment only at the existing
+   named environment gate.
+
 ## Stop and held work
 
 The supported owner emergency command is:

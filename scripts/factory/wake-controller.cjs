@@ -6,6 +6,60 @@ const { eligibleIssue } = require("./automation.cjs");
 const { verifyMonitorIssue } = require("./monitor-origin.cjs");
 const { MonitorStore } = require("./monitor-state.cjs");
 const slots = require("./active-tickets.cjs");
+const dependency = require("./dependency-contract.cjs");
+
+const alertWakeConfig = (vars) => ({
+  alertRepair: vars.FACTORY_DEPENDENCY_ALERT_REPAIR_ENABLED === "true",
+  appSlug: vars.FACTORY_GITHUB_APP_SLUG,
+});
+
+async function verifyAlertCI(api, pr, run, config, bound = false) {
+  if (
+    !dependency.alertKey(pr.head.ref) ||
+    run.event !== "pull_request" ||
+    run.head_sha !== pr.head.sha ||
+    run.head_branch !== pr.head.ref ||
+    run.display_title !== `Factory CI / ${pr.number}` ||
+    !run.pull_requests?.some((p) => p.number === pr.number) ||
+    run.actor?.type !== "Bot" ||
+    run.actor.login !== pr.user.login ||
+    run.actor.id !== pr.user.id
+  )
+    throw Error("Dependency alert CI identity changed");
+
+  const { verifyAlertPR } = require("./dependency-alert-repair.cjs");
+  const receipt = await verifyAlertPR(api, pr, config, undefined, bound);
+  if (!bound && receipt.phase !== "ready") throw Error("Dependency alert is not ready");
+
+  const files = await api.request("GET", `${ROOT}/pulls/${pr.number}/files?per_page=3`);
+  dependency.filesOK(files, true);
+  const jobs = await api.pages(
+    `${ROOT}/actions/runs/${run.id}/attempts/${run.run_attempt}/jobs`,
+    "jobs"
+  );
+  const verify = jobs.filter((job) => job.name === "verify");
+  if (
+    verify.length !== 1 ||
+    verify[0].run_id !== run.id ||
+    verify[0].head_sha !== run.head_sha ||
+    verify[0].status !== "completed" ||
+    verify[0].conclusion !== "success"
+  )
+    throw Error("Dependency alert CI verify job failed identity checks");
+
+  if (!bound) {
+    const compare = await api.request("GET", `${ROOT}/compare/${pr.base.sha}...${pr.head.sha}`);
+    const main = await api.request("GET", `${ROOT}/git/ref/heads/main`);
+    if (
+      main.object?.sha !== pr.base.sha ||
+      compare.behind_by !== 0 ||
+      compare.merge_base_commit?.sha !== pr.base.sha
+    )
+      throw Error("Dependency alert CI base is stale");
+  }
+  return receipt;
+}
+
 async function verifiedRun(api, id, attempt, file, { terminal = true, success = true } = {}) {
   const [run, workflow] = await Promise.all([
     api.request("GET", `${ROOT}/actions/runs/${id}/attempts/${attempt}`),
@@ -52,7 +106,7 @@ async function verifyProducer(api, context) {
     event: r.event,
   };
 }
-async function classifySignal({ api, event, context, ledger = new Ledger(api) }) {
+async function classifySignal({ api, event, context, vars = {}, ledger = new Ledger(api) }) {
   if (event.repository?.full_name !== c.REPOSITORY) return null;
   const { state } = await ledger.read();
   if (context.event === "issues") {
@@ -162,36 +216,49 @@ async function classifySignal({ api, event, context, ledger = new Ledger(api) })
   }
   if (source.path === ".github/workflows/factory-ci.yml") {
     const r = await verifiedRun(api, String(source.id), source.run_attempt, "factory-ci.yml");
-    // Only native PR CI can wake dependency intake, never owner harness/dispatch CI.
+    // Only PR CI can wake dependency intake.
     if (r.event !== "pull_request") return null;
-    const d = require("./dependency-contract.cjs");
+    const config = alertWakeConfig(vars);
     for (const link of r.pull_requests || []) {
       let pr;
       try {
-        pr = d.prOK(await api.request("GET", `${ROOT}/pulls/${link.number}`));
+        pr = dependency.prOK(
+          await api.request("GET", `${ROOT}/pulls/${link.number}`),
+          false,
+          config
+        );
       } catch {
         return null;
       }
-      if (pr.head.sha !== r.head_sha) return null;
-      d.filesOK(await api.request("GET", `${ROOT}/pulls/${pr.number}/files?per_page=3`));
-      const jobs = await api.pages(
-        `${ROOT}/actions/runs/${r.id}/attempts/${r.run_attempt}/jobs`,
-        "jobs"
-      );
-      if (
-        jobs.filter(
-          (j) => j.name === "verify" && j.conclusion === "success" && j.status === "completed"
-        ).length !== 1
-      )
-        return null;
-      const main = await api.request("GET", `${ROOT}/git/ref/heads/main`);
-      if (pr.base.sha !== main.object?.sha) return null;
+      if (pr.number !== link.number || pr.head.sha !== r.head_sha) return null;
+      const generated = Boolean(dependency.alertKey(pr.head.ref));
+      if (generated) {
+        try {
+          await verifyAlertCI(api, pr, r, config);
+        } catch {
+          return null;
+        }
+      } else {
+        dependency.filesOK(await api.request("GET", `${ROOT}/pulls/${pr.number}/files?per_page=3`));
+        const jobs = await api.pages(
+          `${ROOT}/actions/runs/${r.id}/attempts/${r.run_attempt}/jobs`,
+          "jobs"
+        );
+        if (
+          jobs.filter(
+            (j) => j.name === "verify" && j.conclusion === "success" && j.status === "completed"
+          ).length !== 1
+        )
+          return null;
+        const main = await api.request("GET", `${ROOT}/git/ref/heads/main`);
+        if (pr.base.sha !== main.object?.sha) return null;
+      }
       return {
-        kind: "dependency-ci",
+        kind: generated ? "dependency-alert-ci" : "dependency-ci",
         lane: "dependency",
         number: pr.number,
         head: pr.head.sha,
-        criteriaHash: d.criteria(pr.number),
+        criteriaHash: dependency.criteria(pr.number),
         revision: pr.base.sha,
         sourceRun: String(r.id),
         sourceAttempt: r.run_attempt,
@@ -257,7 +324,7 @@ async function handleWake({
     event.issue?.number === Number(vars.FACTORY_ACTIVITY_ISSUE_NUMBER)
   )
     return { outcome: "ignored" };
-  let signal = await classifySignal({ api, event, context, ledger });
+  let signal = await classifySignal({ api, event, context, vars, ledger });
   if (!signal) return { outcome: "ignored" };
   c.validateSignal(signal);
   if (preview) return { outcome: "preview", lane: signal.lane, number: signal.number };
@@ -267,39 +334,56 @@ async function handleWake({
     return { outcome: "disabled" };
   const concurrent = Number(vars.FACTORY_MAX_CONCURRENT_TICKETS);
   if (![1, 2].includes(concurrent)) throw Error("Invalid wake capacity setting");
-  let pendingId;
-  if (signal.kind === "drain") {
+  const busy = !slots.capacity(controls, concurrent);
+  const drain = signal.kind === "drain" ? signal : null;
+  const alreadyDrained = (state) =>
+    drain &&
+    Object.values(state.receipts).some(
+      (r) =>
+        r.signal.kind === "drain" &&
+        r.signal.sourceRun === drain.sourceRun &&
+        r.signal.sourceAttempt === drain.sourceAttempt &&
+        r.status !== "pending"
+    );
+  let pendingId, completedDrain;
+  if (drain) {
     const { state } = await store.read();
-    if (
-      Object.values(state.receipts).some(
-        (r) =>
-          r.signal.kind === "drain" &&
-          r.signal.sourceRun === signal.sourceRun &&
-          r.signal.sourceAttempt === signal.sourceAttempt &&
-          r.status !== "pending"
-      )
-    )
-      return { outcome: "duplicate" };
+    if (alreadyDrained(state)) return { outcome: "duplicate" };
     const pending = Object.values(state.receipts).find(
       (r) => r.status === "pending" && r.signal.kind !== "drain"
     );
     if (pending) {
-      signal = { ...signal, lane: pending.signal.lane };
-      pendingId = pending.id;
+      if (!busy && ["dependency-ci", "dependency-alert-ci"].includes(pending.signal.kind)) {
+        try {
+          await require("./trusted-wake.cjs").verifySource(api, pending.signal, false, vars);
+          completedDrain = c.createWake({ signal, producer });
+          signal = pending.signal;
+        } catch {
+          // Fall back to the ordinary drain when the queued CI proof is stale.
+        }
+      }
+      if (!completedDrain) {
+        signal = { ...signal, lane: pending.signal.lane };
+        pendingId = pending.id;
+      }
     }
   }
   const receipt = c.createWake({ signal, producer });
-  const busy = !slots.capacity(controls, concurrent);
   const claim = await store.update((state) => {
     c.validateWakes(state);
     const old = state.receipts[receipt.id];
-    if (old && old.status !== "pending") return { state, duplicate: true };
-    if (!old && Object.keys(state.receipts).length >= c.MAX_RECEIPTS)
+    const oldDrain = completedDrain && state.receipts[completedDrain.id];
+    if ((old && old.status !== "pending") || alreadyDrained(state))
+      return { state, duplicate: true };
+    const newReceipts = Number(!old) + Number(Boolean(completedDrain && !oldDrain));
+    if (Object.keys(state.receipts).length + newReceipts > c.MAX_RECEIPTS)
       throw Error("Wake registry full; retained receipts require owner maintenance");
     state.receipts[receipt.id] = old || receipt;
     if (!busy) {
       state.receipts[receipt.id].status = "intent";
       state.receipts[receipt.id].producer = producer;
+      if (completedDrain)
+        state.receipts[completedDrain.id] = { ...completedDrain, status: "observed" };
       if (pendingId && state.receipts[pendingId]?.status === "pending")
         state.receipts[pendingId].status = "observed";
     }
@@ -326,4 +410,11 @@ async function handleWake({
   });
   return { outcome: "dispatched", lane: signal.lane, receiptId: receipt.id };
 }
-module.exports = { classifySignal, verifiedRun, verifyProducer, handleWake };
+module.exports = {
+  classifySignal,
+  verifiedRun,
+  verifyProducer,
+  handleWake,
+  alertWakeConfig,
+  verifyAlertCI,
+};
