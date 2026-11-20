@@ -2806,7 +2806,12 @@
         "runAttempt": 1,
         "workflowSha": "1bcc7ff271394232074b053f5870c4451b061695"
       },
-      "branch": "agent/factory-156"
+      "branch": "agent/factory-156",
+      "ci": {
+        "requestId": "694b4438-6298-4b76-be36-113ce33e4590",
+        "head": "6589e881530753d67b51e4fc168190b9ae1a1a47",
+        "runId": null
+      }
     }
   },
   "grants": {
