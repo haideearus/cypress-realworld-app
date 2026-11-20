@@ -2762,7 +2762,11 @@
       "approval": null,
       "criteriaHash": "07a14c782359ca154e69245ea40fd40daa219c1a6698725c26ee3785be4ff9dc",
       "branch": "agent/factory-autonomy-reliability",
-      "ci": null
+      "ci": {
+        "requestId": "19bf5a3b-e3dc-4c3e-9a16-a47dee56c9a9",
+        "head": "0dbca314e5acdff23ee9d7314b91b4222d938768",
+        "runId": null
+      }
     }
   },
   "grants": {
