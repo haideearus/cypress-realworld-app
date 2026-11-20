@@ -53,6 +53,14 @@
       "phase": "tracking",
       "issue": 158,
       "pr": null
+    },
+    "60f3e11496f74361124fad6f503b4c7946a65fcea357f07f94f3ef65288dc99d": {
+      "name": "browserslist",
+      "day": "2026-11-21",
+      "trackingReason": "graph-held",
+      "phase": "tracking-intent",
+      "issue": null,
+      "pr": null
     }
   }
 }
