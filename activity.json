@@ -21046,6 +21046,29 @@
       },
       "status": "published",
       "commentId": 7046690203
+    },
+    "e6d93f46e1a4d80848c2f568d10d3416d40397d69a7303bd7027a4239e98cea7": {
+      "event": {
+        "id": "e6d93f46e1a4d80848c2f568d10d3416d40397d69a7303bd7027a4239e98cea7",
+        "producer": {
+          "runId": "44787373293",
+          "runAttempt": 1,
+          "workflow": "factory-agents.yml",
+          "workflowSha": "2d8b8ab991bd265216f9a314022028edd658ff25",
+          "phase": "run",
+          "actor": "haideearus"
+        },
+        "kind": "queue",
+        "state": "cancelled",
+        "subject": 44787373293,
+        "head": "2d8b8ab991bd265216f9a314022028edd658ff25",
+        "summary": "Workflow factory-agents.yml is cancelled. Check the linked run for authoritative evidence.",
+        "links": [
+          "https://github.com/haideearus/cypress-realworld-app/actions/runs/44787373293"
+        ]
+      },
+      "status": "intent",
+      "commentId": null
     }
   },
   "lastMonitor": {
