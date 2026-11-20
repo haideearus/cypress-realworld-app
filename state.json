@@ -2684,7 +2684,15 @@
           "remainingBaseline": []
         }
       },
-      "feedback": "{\"verdict\":\"pass\",\"head\":\"f1fc2a56c08130ef3f2613620ba33bd40d1a7d96\",\"summary\":\"Inspected yarn.lock (the only changed file) and package.json at head f1fc2a56. The diff bumps the transitive shell-quote dependency of concurrently@9.1.2 from 1.8.2 to 1.11.0, staying inside the already-declared range \\\"shell-quote ^1.8.1\\\" in yarn.lock:11944, so no package.json range change was needed and no other shell-quote entries exist to dedupe. dependencyFacts confirms the new tarball's integrity hash matches the npmjs.org registry record for 1.11.0, and both baseline advisories (GHSA-395f-4hp3-45gv, fixed at 1.9.0; GHSA-w7jw-789q-3m8p, fixed at 1.8.4) are satisfied by 1.11.0, consistent with the \\\"cleared\\\" list and empty remainingBaseline. Checked package.json scripts (lines 151-203) that invoke concurrently: all call sites pass only static, developer-defined script names (e.g. yarn:start:react), never untrusted input, so the historical shell-quote command-injection/quoting advisories were not reachable here even before the bump, and the minor-version jump (1.8.2->1.11.0) within the same major version carries low API-compatibility risk for this build-tool-only dependency. CI evidence (run 44786143997) shows yarn types/lint/test:unit:ci and the Cypress regression suite passing at this exact head, which validates app behavior broadly but, as expected for a devDependency used only by the concurrently script runner, none of the referenced test files exercise shell-quote's own parsing logic directly. No evidence of a package-takeover or unverifiable release was found; the registry/OSV facts are treated as authoritative for this base/head pair.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"The CI-verified test files (UserSettingsForm.test.tsx, auth.spec.ts, bankaccounts.spec.ts, user-settings.spec.ts) validate general app behavior but do not exercise shell-quote's own command-parsing code, since shell-quote is only reachable via concurrently's internal dev-script orchestration (package.json scripts 151-203), not application runtime code; this is expected for this kind of transitive devDependency bump but means the passing suite is indirect evidence, not targeted coverage, for this specific change.\"}]}"
+      "feedback": "{\"verdict\":\"pass\",\"head\":\"f1fc2a56c08130ef3f2613620ba33bd40d1a7d96\",\"summary\":\"Inspected yarn.lock (the only changed file) and package.json at head f1fc2a56. The diff bumps the transitive shell-quote dependency of concurrently@9.1.2 from 1.8.2 to 1.11.0, staying inside the already-declared range \\\"shell-quote ^1.8.1\\\" in yarn.lock:11944, so no package.json range change was needed and no other shell-quote entries exist to dedupe. dependencyFacts confirms the new tarball's integrity hash matches the npmjs.org registry record for 1.11.0, and both baseline advisories (GHSA-395f-4hp3-45gv, fixed at 1.9.0; GHSA-w7jw-789q-3m8p, fixed at 1.8.4) are satisfied by 1.11.0, consistent with the \\\"cleared\\\" list and empty remainingBaseline. Checked package.json scripts (lines 151-203) that invoke concurrently: all call sites pass only static, developer-defined script names (e.g. yarn:start:react), never untrusted input, so the historical shell-quote command-injection/quoting advisories were not reachable here even before the bump, and the minor-version jump (1.8.2->1.11.0) within the same major version carries low API-compatibility risk for this build-tool-only dependency. CI evidence (run 44786143997) shows yarn types/lint/test:unit:ci and the Cypress regression suite passing at this exact head, which validates app behavior broadly but, as expected for a devDependency used only by the concurrently script runner, none of the referenced test files exercise shell-quote's own parsing logic directly. No evidence of a package-takeover or unverifiable release was found; the registry/OSV facts are treated as authoritative for this base/head pair.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"The CI-verified test files (UserSettingsForm.test.tsx, auth.spec.ts, bankaccounts.spec.ts, user-settings.spec.ts) validate general app behavior but do not exercise shell-quote's own command-parsing code, since shell-quote is only reachable via concurrently's internal dev-script orchestration (package.json scripts 151-203), not application runtime code; this is expected for this kind of transitive devDependency bump but means the passing suite is indirect evidence, not targeted coverage, for this specific change.\"}]}",
+      "merge": {
+        "status": "intent",
+        "head": "f1fc2a56c08130ef3f2613620ba33bd40d1a7d96",
+        "pr": 148,
+        "at": "2026-11-20T18:04:17.323Z",
+        "runId": "44785927246",
+        "runAttempt": 1
+      }
     },
     "150": {
       "coding": 0,
@@ -3953,7 +3961,11 @@
       "outcome": "reviewed"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 148,
+    "runId": "44785927246",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
