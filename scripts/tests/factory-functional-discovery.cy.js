@@ -1,6 +1,12 @@
 const user = { username: "Heath93", password: "s3cret" };
 const firstName = "Ted";
 const settingsPath = "/user/settings";
+const onboarding = "bank-account-onboarding";
+const testBank = {
+  bankName: "Discovery Demo Bank",
+  accountNumber: "000000001",
+  routingNumber: "000000000",
+};
 
 function selector(id) {
   return `[data-test="${id}"]`;
@@ -43,22 +49,100 @@ function expectInputLabel(field, text, id) {
   });
 }
 
-function signInFixture() {
+function signInFixture(credentials = user) {
   cy.visit("/signin", { log: false });
   cy.window({ log: false }).then((win) => {
     // Set up other checks through the app's Cypress-only authentication hook.
-    win.authService.send("LOGIN", user);
+    win.authService.send("LOGIN", credentials);
   });
   cy.get(selector("sidenav-user-full-name"), { log: false }).should("be.visible");
 }
 
+function fillDemoBank() {
+  for (const [field, value] of Object.entries(testBank))
+    cy.get(selector(`bankaccount-${field}-input`))
+      .find("input")
+      .clear()
+      .type(value, { log: false });
+  cy.get(selector("bankaccount-submit")).click();
+}
+
+function bankAccountRequest(request, userId) {
+  const { operationName, query, variables } = request.body || {};
+  if (typeof query !== "string") return;
+  // Permit only the app's named, single-root GraphQL operations for this fixture.
+  const document = query.replace(/\s+/g, " ").trim();
+  if (
+    operationName === "ListBankAccount" &&
+    /^query ListBankAccount\s*\{\s*listBankAccount\s*\{[\w\s]+\}\s*\}$/.test(document)
+  )
+    return "list";
+  const save =
+    /^mutation CreateBankAccount\s*\([^{}]+\)\s*\{\s*createBankAccount\s*\(([^{}]+)\)\s*\{[\w\s]+\}\s*\}$/.exec(
+      document
+    );
+  if (
+    operationName === "CreateBankAccount" &&
+    userId &&
+    /^bankName:\s*\$bankName\s*,?\s*accountNumber:\s*\$accountNumber\s*,?\s*routingNumber:\s*\$routingNumber$/.test(
+      save?.[1].trim()
+    ) &&
+    Cypress._.isEqual(
+      variables,
+      variables?.userId === undefined ? testBank : { ...testBank, userId }
+    )
+  )
+    return "save";
+}
+
 describe("functional discovery", () => {
+  let onboardingUserId;
+  let onboardingCredentials;
+  let rejectFirstSave;
+  let sentDemoBank;
   beforeEach(() => {
     const origin = new URL(Cypress.config("baseUrl")).origin;
+    const checksOnboarding = Cypress.currentTest.title === onboarding;
+    onboardingUserId = undefined;
+    onboardingCredentials = undefined;
+    rejectFirstSave = true;
+    sentDemoBank = false;
     cy.intercept({ url: "**", middleware: true }, (request) => {
       const target = new URL(request.url);
       // Seed avatars and any other external URLs stay inside the disposable browser.
       if (target.origin !== origin) return request.reply({ statusCode: 204 });
+      if (checksOnboarding && request.method === "POST") {
+        if (target.pathname === "/api/login") {
+          if (
+            onboardingUserId &&
+            request.body?.username === onboardingCredentials.username &&
+            request.body?.password === onboardingCredentials.password
+          )
+            return;
+          return request.reply({ statusCode: 405 });
+        }
+        if (target.pathname === "/api/logout") return;
+        if (target.pathname === "/api/graphql") {
+          const operation = bankAccountRequest(request, onboardingUserId);
+          if (operation === "list") return;
+          if (operation === "save" && !sentDemoBank) {
+            request.alias = rejectFirstSave ? "onboardingRejected" : "onboardingSaved";
+            if (!rejectFirstSave) {
+              sentDemoBank = true;
+              return;
+            }
+            rejectFirstSave = false;
+            // A GraphQL error can arrive on HTTP 200. The database sees no failed write.
+            return request.reply({
+              statusCode: 200,
+              body: {
+                data: { createBankAccount: null },
+                errors: [{ message: "Test save rejected" }],
+              },
+            });
+          }
+        }
+      }
       if (
         request.method !== "GET" &&
         request.method !== "HEAD" &&
@@ -127,6 +211,77 @@ describe("functional discovery", () => {
       expect(
         $body.find(selector("user-settings-submit")).is(":disabled"),
         named("settings-save-disabled")
+      ).to.equal(true);
+    });
+  });
+
+  it(onboarding, () => {
+    const origin = new URL(Cypress.config("baseUrl")).origin;
+    const credentials = {
+      username: `discoveryonboarding${globalThis.crypto.randomUUID().replaceAll("-", "")}`,
+      password: user.password,
+    };
+    onboardingCredentials = credentials;
+    const dialog = selector("user-onboarding-dialog");
+    const title = selector("user-onboarding-dialog-title");
+    const next = selector("user-onboarding-next");
+
+    // cy.request bypasses browser interception. Only the loopback fixture is seeded.
+    expect(origin).to.equal("https://127.0.0.1:8443");
+    cy.request({
+      method: "POST",
+      url: origin + "/api/users",
+      followRedirect: false,
+      headers: { origin },
+      body: { ...credentials, firstName: "Discovery", lastName: "Fixture" },
+      log: false,
+    }).then(({ status, body }) => {
+      expect(status).to.equal(201);
+      expect(body.user.id).to.be.a("string");
+      onboardingUserId = body.user.id;
+    });
+
+    signInFixture(credentials);
+    expectVisible(dialog, "onboarding-wizard");
+    cy.get(next).click();
+    fillDemoBank();
+    cy.wait("@onboardingRejected", { log: false });
+    cy.get("body").should(($body) => {
+      const $dialog = $body.find(dialog);
+      const error = $dialog
+        .find('[role="alert"]')
+        .filter((_, node) => Cypress.dom.isVisible(node) && Boolean(node.textContent.trim()));
+      expect(
+        visible($dialog.find(selector("bankaccount-form"))) &&
+          !$dialog.find(title).text().includes("Finished") &&
+          error.length > 0,
+        named("onboarding-save-rejected")
+      ).to.equal(true);
+    });
+
+    fillDemoBank();
+    cy.wait("@onboardingSaved", { log: false }).should(({ response }) => {
+      expect(
+        response?.statusCode === 200 &&
+          !response.body.errors?.length &&
+          typeof response.body.data?.createBankAccount?.id === "string",
+        named("onboarding-save-confirmed")
+      ).to.equal(true);
+    });
+    cy.get(title).should(($title) =>
+      expect($title.text(), named("onboarding-finish")).to.equal("Finished")
+    );
+    cy.get(next).click();
+    cy.get(selector("sidenav-signout")).click();
+    expectRoute("/signin", "onboarding-sign-out");
+    signInFixture(credentials);
+    cy.visit("/bankaccounts");
+    cy.get("body").should(($body) => {
+      expect(
+        visible($body.find(selector("bankaccount-list"))) &&
+          $body.find(selector("bankaccount-list")).text().includes(testBank.bankName) &&
+          !$body.find(dialog).is(":visible"),
+        named("onboarding-account-after-sign-in")
       ).to.equal(true);
     });
   });

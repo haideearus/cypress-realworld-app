@@ -7,6 +7,7 @@ const CHECKS = Object.freeze({
   settings: "Opening Settings",
   "form-validation": "Settings form validation",
   "sign-in-accessibility": "Sign-in field labels",
+  "bank-account-onboarding": "Bank account onboarding",
 });
 const ASSERTIONS = Object.freeze({
   "sign-in": ["sign-in-form", "sign-in-route", "sign-in-identity", "sign-in-session"],
@@ -24,6 +25,14 @@ const ASSERTIONS = Object.freeze({
     "settings-save-disabled",
   ],
   "sign-in-accessibility": ["sign-in-username-label", "sign-in-password-label"],
+  "bank-account-onboarding": [
+    "onboarding-wizard",
+    "onboarding-save-rejected",
+    "onboarding-save-confirmed",
+    "onboarding-finish",
+    "onboarding-sign-out",
+    "onboarding-account-after-sign-in",
+  ],
 });
 
 function validAssertion(check, assertion) {

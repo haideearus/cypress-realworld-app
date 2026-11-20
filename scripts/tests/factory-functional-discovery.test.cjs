@@ -288,3 +288,25 @@ test("a different check does not reactivate or replace an unresolved functional 
   assert.equal(s.state.incidents[first].recovered, true);
   assert.equal(s.posts(), 2);
 });
+
+test("only a repeated named onboarding failure produces one ready repair ticket", async () => {
+  const { verifyFunctionalChecks } = require("../factory/functional-browser.cjs");
+  const { publishFunctional } = require("../factory/functional-discovery.cjs");
+  const s = publisherFixture();
+  const failure = {
+    status: "failed",
+    check: "bank-account-onboarding",
+    assertion: "onboarding-save-rejected",
+  };
+  const result = await verifyFunctionalChecks(async () => failure);
+  const options = { ...s, context, enabled: true, ...result };
+  assert.equal((await publishFunctional({ ...options, dryRun: true })).outcome, "preview");
+  assert.equal(s.posts(), 0);
+  assert.equal((await publishFunctional({ ...options, dryRun: false })).issue, 200);
+  assert.equal(
+    (await publishFunctional({ ...options, dryRun: false })).outcome,
+    "incident_existing"
+  );
+  assert.equal(s.posts(), 1);
+  assert.match(s.ticket().body, /Failed assertion: onboarding-save-rejected/);
+});
