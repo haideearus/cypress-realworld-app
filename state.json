@@ -6625,6 +6625,17 @@
       "grant": "d2e6375a-74f5-4994-a028-c2293cdad3f9",
       "status": "reviewed",
       "head": "ddcd4fe06c4b1f942b127c86566b641933b7a449"
+    },
+    {
+      "at": "2026-11-20T14:53:02.960Z",
+      "event": "automatic_merge_api_result",
+      "ticket": 137,
+      "pr": 137,
+      "head": "ddcd4fe06c4b1f942b127c86566b641933b7a449",
+      "runId": "44754992541",
+      "runAttempt": 1,
+      "outcome": "accepted",
+      "mergeCommit": "34f1fc8ffe70be8a7fcf9b5540f38fdca47f2612"
     }
   ]
 }
