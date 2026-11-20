@@ -42,13 +42,15 @@ function selectSweep({
     return { ready: false, reason: "Repairs or active work take priority" };
   if ((state.days[day] || []).length >= config.daily)
     return { ready: false, reason: "Daily ticket limit reached" };
-  if (
-    Object.values(state.grants).filter(
-      (g) => g.phase === "discover" && p.dayKey(new Date(g.at), config.timezone) === day
-    ).length >= 2
-  )
+  const usedToday = Object.values(state.grants).filter(
+    (g) => g.phase === "discover" && p.dayKey(new Date(g.at), config.timezone) === day
+  );
+  if (usedToday.length >= 2)
     return { ready: false, reason: "Discovery daily session limit reached" };
-  const offset = Number.parseInt(c.digest(day).slice(0, 4), 16) % CHARTERS.length;
+  const previousCharter = state.tickets[String(usedToday[0]?.ticket)]?.discovery?.charter;
+  const offset = CHARTERS.includes(previousCharter)
+    ? (CHARTERS.indexOf(previousCharter) + 1) % CHARTERS.length
+    : Number.parseInt(c.digest(day).slice(0, 4), 16) % CHARTERS.length;
   const charters = [...CHARTERS.slice(offset), ...CHARTERS.slice(0, offset)];
   const charter = charters.find((x) => !registry.sources[c.sweepKey(head, x, day)]);
   return charter
@@ -133,6 +135,8 @@ async function testedMain(api, context, event) {
   if (!run) throw Error("Successful current-main push CI required");
   if (context.event === "workflow_run" && event.workflow_run?.id !== run.id)
     throw Error("Stale or unrelated main CI event");
+  if (context.event === "workflow_run" && context.actor === c.FACTORY_APP && !c.factoryAppCIOK(run))
+    throw Error("Factory App main CI identity mismatch");
   const jobs = await api.pages(
     `${ROOT}/actions/runs/${run.id}/attempts/${run.run_attempt}/jobs?per_page=100`,
     "jobs"
@@ -151,9 +155,9 @@ async function verifyParent(api, context) {
     run.head_sha !== context.workflowSha ||
     run.head_branch !== "main" ||
     run.repository?.full_name !== p.REPOSITORY ||
-    run.actor?.login !== p.OWNER ||
-    run.actor.id !== 101267861 ||
-    run.triggering_actor?.login !== p.OWNER ||
+    run.actor?.login !== context.actor ||
+    !c.runActorOK(run) ||
+    (context.actor === c.FACTORY_APP && run.head_repository?.full_name !== c.REPOSITORY) ||
     run.event !== context.event ||
     run.status !== "in_progress"
   )

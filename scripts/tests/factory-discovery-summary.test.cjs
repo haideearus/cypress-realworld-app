@@ -1,6 +1,17 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const functional = require("../factory/discovery-functional.cjs");
+const { digest } = require("../factory/discovery-contract.cjs");
+
+function isolatedResult(code, log = code === 1 ? "not ok 1 - approved functional scenario" : "") {
+  return {
+    code,
+    networkIsolated: true,
+    exitState: code === 0 ? null : { status: "exited", exitCode: code, oomKilled: code === 137 },
+    log,
+    logHash: digest(log),
+  };
+}
 const { explorationSummary, intakeSummary } = require("../factory/discovery-summary.cjs");
 
 test("exploration reports executed input cases and replay decisions without echoing model text", () => {
@@ -25,12 +36,12 @@ test("exploration reports executed input cases and replay decisions without echo
         {
           number: 1,
           test: functional.proposal(charter, oracle),
-          result: { code: 1, log: "marker-do-not-echo" },
+          result: isolatedResult(1, "not ok 1 - approved functional scenario\nmarker-do-not-echo"),
         },
         {
           number: 2,
           test: functional.proposal(charter, { ...oracle, query: { page: 3, limit: 4 } }),
-          result: { code: 0 },
+          result: isolatedResult(0),
         },
       ],
       report: { checked: ["marker-do-not-echo"], skipped: ["marker-do-not-echo"] },
@@ -61,7 +72,7 @@ test("directory exploration describes the executed search without publishing its
         {
           number: 1,
           test: functional.proposal(charter, oracle),
-          result: { code: 0 },
+          result: isolatedResult(0),
         },
       ],
     },
@@ -107,4 +118,28 @@ test("the intake replay summary identifies which source scenario was rerun", () 
   });
   assert.match(result, /Current-main replay[\s\S]*page 2, limit 5/i);
   assert.match(result, /Skipped coverage[\s\S]*other source scenarios/i);
+});
+
+test("repeated and timed-out cases cannot make shallow exploration look complete", () => {
+  const charter = "functional-feed";
+  const batch = (page, code) => ({
+    test: functional.proposal(charter, {
+      kind: "feed-pagination",
+      route: "/transactions/public",
+      authenticated: true,
+      query: { page, limit: 5 },
+    }),
+    result: isolatedResult(code),
+  });
+  const summary = (batches) =>
+    explorationSummary({
+      charter,
+      bundle: { batches },
+      assessment: { findings: [] },
+    });
+  assert.match(summary([batch(1, 0), batch(1, 0), batch(2, 124)]), /1 distinct case.*partial/i);
+  assert.match(summary([batch(1, 0), batch(2, 1), batch(3, 0)]), /3 distinct cases.*target met/i);
+  assert.match(summary([batch(1, 0), batch(2, 125), batch(3, 137)]), /1 distinct case.*partial/i);
+  const earlyExit = { ...batch(2, 1), result: isolatedResult(1, "runner could not start test") };
+  assert.match(summary([batch(1, 0), earlyExit]), /1 distinct case.*partial/i);
 });

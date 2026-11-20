@@ -7,6 +7,7 @@ under owner harness issue #85. It does not enable discovery or publish bug ticke
 
 `Proactive app discovery` inspects a successful, current-main push-CI revision.
 New sweeps rotate between public-feed pagination and ordinary directory search.
+The second reservation of a day prefers the other charter even if main has moved.
 The model can read a small set of relevant frontend files at the frozen revision,
 choose input combinations for its assigned charter and inspect the test results.
 The broker turns approved inputs into fixed API tests that run against one
@@ -82,14 +83,19 @@ Ready repairs and active work take priority over new sweeps. Successful main CI
 and fallback UTC cron windows request discovery; the selector filters fallback
 hours to 03:12/15:12 Bucharest, subject to GitHub delay. These are opportunities,
 not promises of two runs or reliable timer delivery. The manual path uses the
-same counters. Automatic paths additionally require automatic pickup enabled.
+same counters. Automatic paths additionally require automatic pickup enabled. The repository's pinned
+Software Factory GitHub App may start a sweep after successful same-repository
+main push CI. Manual dispatch and schedule continue to require the owner.
 No cron receipt alone is an admission. Ordinary stop/quarantine controls apply.
 
 ## Reading the run summaries
 
 Open **Proactive app discovery → Summary** for executed scenario coverage, what
 was skipped, and what the replay verified. A report with zero findings describes
-the scenarios executed in that run. Look in **Verified discovery finding intake →
+the scenarios executed in that run. The summary flags coverage as partial below
+three distinct completed input cases. Claude is prompted to cover three cases
+within the current charter and can execute up to four. Repeats, timeouts and
+incomplete sandbox runs do not count toward the coverage target. Look in **Verified discovery finding intake →
 Summary** for links to published issues and their current-main verification
 results. **Safe functional discovery → Summary** reports the browser suite
 separately, including sign-in, navigation, Settings and form assertions.

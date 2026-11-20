@@ -138,7 +138,7 @@ test("discovery finalization retries a quota-rejected ledger write for the same 
         head_branch: "main",
         repository: { full_name: policy.REPOSITORY },
         actor: { login: policy.OWNER, id: 101267861 },
-        triggering_actor: { login: policy.OWNER },
+        triggering_actor: { login: policy.OWNER, id: 101267861 },
         event: "workflow_dispatch",
         status: "in_progress",
       });

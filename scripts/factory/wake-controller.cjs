@@ -14,13 +14,22 @@ const alertWakeConfig = (vars) => ({
 });
 
 async function verifyAlertCI(api, pr, run, config, bound = false) {
+  // GitHub can remove the PR association after merge. A bound receipt already
+  // pins the original association, head and CI run before allowing any work.
+  const associationRemoved =
+    bound &&
+    pr.state === "closed" &&
+    pr.merged === true &&
+    dependency.SHA.test(pr.merge_commit_sha || "") &&
+    Array.isArray(run.pull_requests) &&
+    run.pull_requests.length === 0;
   if (
     !dependency.alertKey(pr.head.ref) ||
     run.event !== "pull_request" ||
     run.head_sha !== pr.head.sha ||
     run.head_branch !== pr.head.ref ||
     run.display_title !== `Factory CI / ${pr.number}` ||
-    !run.pull_requests?.some((p) => p.number === pr.number) ||
+    (!associationRemoved && !run.pull_requests?.some((p) => p.number === pr.number)) ||
     run.actor?.type !== "Bot" ||
     run.actor.login !== pr.user.login ||
     run.actor.id !== pr.user.id

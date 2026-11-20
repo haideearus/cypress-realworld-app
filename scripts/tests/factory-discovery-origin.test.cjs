@@ -210,3 +210,28 @@ test("published receipt and current-head replay still require successful trusted
   issue.body += "edited";
   assert.equal(await origin.verifyDiscoveryIssue(api, issue, options), null);
 });
+
+test("a bot discovery artifact requires its exact successful main CI from the pinned App", async () => {
+  const x = sourceFixture(true);
+  const actor = { login: "haideearus-software-factory[bot]", id: 356310548, type: "Bot" };
+  Object.assign(x.run, { event: "workflow_run", actor, triggering_actor: actor });
+  const g = x.api.request;
+  const ci = {
+    id: 99,
+    path: ".github/workflows/factory-ci.yml",
+    event: "push",
+    run_attempt: 1,
+    head_sha: fx.head,
+    head_branch: "main",
+    status: "completed",
+    conclusion: "success",
+    repository: { full_name: c.REPOSITORY },
+    head_repository: { full_name: c.REPOSITORY },
+    actor,
+    triggering_actor: actor,
+  };
+  x.api.request = (method, url) => (url.endsWith("/actions/runs/99") ? ci : g(method, url));
+  assert.equal(await origin.verifySource(x.api, x.candidate, x.dependencies), true);
+  ci.triggering_actor = { ...actor, id: 123 };
+  assert.equal(await origin.verifySource(x.api, x.candidate, x.dependencies), false);
+});

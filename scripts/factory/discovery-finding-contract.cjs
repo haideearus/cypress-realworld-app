@@ -43,8 +43,7 @@ function contextOK(r) {
   return Boolean(
     r &&
       r.repository === c.REPOSITORY &&
-      r.actor === "haideearus" &&
-      r.triggeringActor === "haideearus" &&
+      c.actorAllowed(r.event, r.actor, r.triggeringActor) &&
       r.ref === "refs/heads/main" &&
       r.workflowRef === WORKFLOW_REF &&
       c.SHA.test(r.workflowSha || "") &&
