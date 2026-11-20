@@ -92,7 +92,23 @@
       },
       "criteriaHash": "10bcd061eca7ded0b585fccb61d8fe50c97773b38ebe3c854e9a614713e10f2a",
       "issue": 124,
-      "probeMode": "feed-contract"
+      "probeMode": "feed-contract",
+      "blockedRecovery": {
+        "repair": {
+          "grantId": "6f750f75-7521-4e49-9990-316149344b86",
+          "head": "4c600ec3ae87d3f155229618c8ab02a85de7c7eb",
+          "runId": "44627244008",
+          "runAttempt": 1
+        },
+        "observations": [
+          {
+            "runId": "44769169918",
+            "workflowSha": "34f1fc8ffe70be8a7fcf9b5540f38fdca47f2612",
+            "at": "2026-11-20T16:03:19.441Z",
+            "release": "34f1fc8ffe70be8a7fcf9b5540f38fdca47f2612"
+          }
+        ]
+      }
     }
   }
 }
