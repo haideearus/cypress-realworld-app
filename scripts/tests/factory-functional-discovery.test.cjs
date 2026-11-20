@@ -117,7 +117,7 @@ test("preview, disabled, and inconclusive runs publish no ticket", async () => {
 });
 
 test("only a verified fixed check can publish a deduplicated functional repair ticket", async () => {
-  const { publishFunctional } = require("../factory/functional-discovery.cjs");
+  const { publishFunctional, publicationSummary } = require("../factory/functional-discovery.cjs");
   const s = publisherFixture();
   const args = {
     ...s,
@@ -138,16 +138,23 @@ test("only a verified fixed check can publish a deduplicated functional repair t
     }),
     /current main/i
   );
-  assert.equal((await publishFunctional(args)).issue, 200);
+  const created = await publishFunctional(args);
+  assert.equal(created.issue, 200);
   assert.equal((await publishFunctional(args)).outcome, "incident_existing");
   assert.equal(s.posts(), 1);
   assert.equal(s.ticket().title, "Functional discovery: Settings form validation failed");
   assert.match(s.ticket().body, /form-validation/);
   assert.match(s.ticket().body, /Failed assertion: settings-email-invalid/);
   assert.equal(validateMonitorProof(proofFromIncident(s.state.incidents[s.state.active])), true);
+  assert.equal(typeof publicationSummary, "function", "the publisher needs an Actions summary");
+  assert.match(
+    publicationSummary(created),
+    /ready ticket.*\[#200\]\(https:\/\/github\.com\/haideearus\/cypress-realworld-app\/issues\/200\)/i
+  );
+  assert.match(publicationSummary(created), /settings-email-invalid/);
 });
 
-test("pickup and event wake accept a functional issue only with its retained workflow proof", async () => {
+test("pickup and event wake accept a sign-in accessibility issue only with its retained workflow proof", async () => {
   const { publishFunctional } = require("../factory/functional-discovery.cjs");
   const { verifyMonitorIssue } = require("../factory/monitor-origin.cjs");
   const { classifySignal } = require("../factory/wake-controller.cjs");
@@ -162,8 +169,8 @@ test("pickup and event wake accept a functional issue only with its retained wor
     ...s,
     context,
     status: "confirmed_failure",
-    check: "navigation",
-    assertion: "navigation-home-route",
+    check: "sign-in-accessibility",
+    assertion: "sign-in-username-label",
     enabled: true,
     dryRun: false,
   });

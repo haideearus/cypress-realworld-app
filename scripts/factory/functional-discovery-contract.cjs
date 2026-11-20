@@ -6,6 +6,7 @@ const CHECKS = Object.freeze({
   navigation: "Home and Settings navigation",
   settings: "Opening Settings",
   "form-validation": "Settings form validation",
+  "sign-in-accessibility": "Sign-in field labels",
 });
 const ASSERTIONS = Object.freeze({
   "sign-in": ["sign-in-form", "sign-in-route", "sign-in-identity", "sign-in-session"],
@@ -22,6 +23,7 @@ const ASSERTIONS = Object.freeze({
     "settings-email-invalid",
     "settings-save-disabled",
   ],
+  "sign-in-accessibility": ["sign-in-username-label", "sign-in-password-label"],
 });
 
 function validAssertion(check, assertion) {

@@ -154,6 +154,7 @@ module.exports = {
   HASH,
   digest,
   criteria,
+  branch,
   contextOK,
   alertKey,
   alertBranch,

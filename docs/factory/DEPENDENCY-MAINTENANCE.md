@@ -55,12 +55,28 @@ response against a matching GitHub object. It closes a ticket after the
 protected merge is recorded, the patched lock entries are on `main`, and
 GitHub reports no open alerts for the package.
 
+### Held vulnerability tickets
+
+When a reviewed compatible proposal is unavailable, intake can create one
+`factory-dependency-held` issue for the package in the root lockfile. Its
+status explains whether an updated parent or direct pin, a larger upgrade,
+fresh registry data, or complete advisory evidence is needed. Intake can
+reconsider the package on later scans and route the same issue through the
+existing protected dependency workflow once a compatible candidate is verified.
+The promoted issue links to its repair PR. An upgrade merged outside this path
+has no matching publication receipt. Verify the fix and close the held issue
+with evidence if that separate upgrade clears it. The held label cannot authorize
+a repair, review or merge.
+
 ## What happens
 
-Dependabot proposes changes to the application's library versions. The dependency
-workflow selects only genuine `dependabot[bot]` PRs in this repository against
-`main`. No `factory-ready` label is needed for this lane. App repair tickets still
-use their existing label and coding workflow.
+Dependabot proposes changes to the application's library versions. The native
+lane requires a genuine `dependabot[bot]` PR in this repository against `main`.
+The workflow creates one `factory-dependency-ready` tracking issue for each
+native PR. It preserves that link across head updates and records whether the
+PR merged or closed. Native PR eligibility remains governed by verified
+Dependabot provenance, CI, independent review and branch protection. App
+repair issues use `factory-ready` and their existing coding workflow.
 
 ```text
 Dependabot PR -> metadata admission -> version/source/OSV checks -> exact-head CI

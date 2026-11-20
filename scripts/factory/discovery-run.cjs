@@ -4,9 +4,15 @@ const c = require("./discovery-contract.cjs");
 const { GitHub, Ledger, ROOT } = require("./github.cjs");
 const { diagnostic, withStage } = require("./discovery-diagnostics.cjs");
 const { DiscoveryStore } = require("./discovery-store.cjs");
-const { runtimeContext, output } = require("./controller.cjs");
+const { runtimeContext, output: writeOutputs } = require("./controller.cjs");
 const active = require("./active-tickets.cjs");
 const { CHARTERS } = require("./discovery-functional.cjs");
+const { sweepSummary, writeSummary } = require("./discovery-summary.cjs");
+
+function output(values, env) {
+  writeOutputs(values, { ...env, GITHUB_STEP_SUMMARY: undefined });
+  writeSummary(env, sweepSummary(values));
+}
 function selectSweep({
   state,
   registry,

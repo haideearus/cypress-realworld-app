@@ -66,6 +66,15 @@ jobs:
       - name: Run approved browser checks
         id: browser
         run: node scripts/factory/functional-browser.cjs
+      - name: Report incomplete browser coverage
+        if: ${{ failure() }}
+        run: |
+          cat <<'SUMMARY' >> "$GITHUB_STEP_SUMMARY"
+          ## Safe functional discovery
+
+          Setup or execution ended before a browser verdict was recorded.
+          Coverage is unconfirmed. Ticket publication was skipped.
+          SUMMARY
 
   publish:
     if: ${{ needs.browser.result == 'success' }}

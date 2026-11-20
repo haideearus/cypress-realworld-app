@@ -1,7 +1,11 @@
 const { fork } = require("node:child_process");
 const { appendFileSync } = require("node:fs");
 const { origin, withProductionBrowser } = require("../test-production-browser.cjs");
-const { ASSERTIONS } = require("./functional-discovery-contract.cjs");
+const {
+  ASSERTIONS,
+  CHECKS,
+  validateFunctionalResult,
+} = require("./functional-discovery-contract.cjs");
 
 const spec = "scripts/tests/factory-functional-discovery.cy.js";
 const suite = "functional discovery";
@@ -133,6 +137,36 @@ async function verifyFunctionalChecks(run) {
   return inconclusive;
 }
 
+function browserSummary({ status, check, assertion }) {
+  validateFunctionalResult(status, check, assertion);
+  const message = {
+    healthy: "All approved browser checks passed.",
+    confirmed_failure: "Two browser invocations confirmed the same failure.",
+    inconclusive: "Coverage is inconclusive. None confirmed.",
+  };
+  return [
+    "## Safe functional discovery",
+    "",
+    message[status],
+    "",
+    "### Browser scenarios",
+    "",
+    ...checks.map((id) => {
+      const result =
+        status === "inconclusive"
+          ? "unconfirmed"
+          : id === check
+            ? `failed at \`${assertion}\``
+            : "passed";
+      return `- ${CHECKS[id]} — ${result}`;
+    }),
+    "",
+    "### Skipped coverage",
+    "",
+    "- Account-changing writes, other browser journeys, external services and production.",
+  ].join("\n");
+}
+
 async function runCypress() {
   const report = await require("cypress").run({
     browser: "electron",
@@ -191,7 +225,8 @@ async function main() {
       process.env.GITHUB_OUTPUT,
       `status=${status}\ncheck=${check}\nassertion=${assertion}\n`
     );
-  if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, line);
+  if (process.env.GITHUB_STEP_SUMMARY)
+    appendFileSync(process.env.GITHUB_STEP_SUMMARY, browserSummary(verdict) + "\n");
   process.stdout.write(line);
 }
 
@@ -207,4 +242,5 @@ module.exports = {
   isDisposableDatabase,
   isolatedBrowserEnvironment,
   verifyFunctionalChecks,
+  browserSummary,
 };

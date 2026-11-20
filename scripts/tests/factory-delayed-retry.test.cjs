@@ -317,3 +317,33 @@ test("priority preview with the activity journal enabled only reads GitHub", asy
   assert.equal(requests.length, 3);
   assert.ok(requests.every(([method]) => method === "GET"));
 });
+
+test("receipt-backed bot tickets can be reconsidered after a proven pre-model gateway failure", () => {
+  const { next } = blocked();
+  const due = new Date("2026-11-19T12:31:00Z");
+  const t = next.tickets[120];
+  assert.equal(retry.due(next, { ...t, monitor: { issue: 120 } }, 120, config, due), true);
+  const finding = { ...t, finding: { intake: { head: oldHead } } };
+  assert.equal(retry.due(next, finding, 120, config, due), false);
+  assert.equal(retry.due(next, finding, 120, { ...config, discovery: true }, due), true);
+});
+
+test("a labeled bot ticket cannot retry from stale discovery replay or an unknown origin", async () => {
+  const { next } = blocked();
+  const candidate = { ...issue(120), user: { login: "github-actions[bot]", type: "Bot" } };
+  const t = { ...next.tickets[120], criteriaHash: criteriaHash(candidate) };
+  const coordinator = new AutomaticCoordinator(
+    { request: async () => assert.fail("Stale or unknown provenance never makes a request") },
+    { ...config, discovery: true },
+    { ...run, runId: "82", workflowSha: newHead }
+  );
+
+  assert.equal(await coordinator.verifyDelayedIssue(candidate, t), false);
+  assert.equal(
+    await coordinator.verifyDelayedIssue(candidate, {
+      ...t,
+      finding: { intake: { head: oldHead } },
+    }),
+    false
+  );
+});

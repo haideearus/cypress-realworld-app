@@ -2,7 +2,8 @@ const assert = require("node:assert/strict");
 const { test } = require("node:test");
 
 function report(failures = {}) {
-  const tests = ["sign-in", "navigation", "settings", "form-validation"].map((check) => {
+  const checks = ["sign-in", "navigation", "settings", "form-validation", "sign-in-accessibility"];
+  const tests = checks.map((check) => {
     const error = failures[check];
     const state = error ? "failed" : "passed";
     return {
@@ -15,11 +16,11 @@ function report(failures = {}) {
     };
   });
   const count = Object.keys(failures).length;
-  const stats = { tests: 4, passes: 4 - count, failures: count, pending: 0, skipped: 0 };
+  const stats = { tests: 5, passes: 5 - count, failures: count, pending: 0, skipped: 0 };
   return {
     browserName: "electron",
-    totalTests: 4,
-    totalPassed: 4 - count,
+    totalTests: 5,
+    totalPassed: 5 - count,
     totalFailed: count,
     totalPending: 0,
     totalSkipped: 0,
@@ -33,6 +34,26 @@ function report(failures = {}) {
     ],
   };
 }
+
+test("missing sign-in field labels can qualify as a verified browser assertion", async () => {
+  const failure = report({ "sign-in-accessibility": assertion("sign-in-password-label") });
+  assert.deepEqual(await verify(failure, failure), {
+    status: "confirmed_failure",
+    check: "sign-in-accessibility",
+    assertion: "sign-in-password-label",
+  });
+});
+
+test("inconclusive browser summary shows unconfirmed coverage with no pass claim", () => {
+  const { browserSummary } = require("../factory/functional-browser.cjs");
+  assert.equal(typeof browserSummary, "function", "browser checks need an Actions summary");
+  const summary = browserSummary({ status: "inconclusive", check: "", assertion: "" });
+  assert.match(summary, /none confirmed/i);
+  assert.match(summary, /Browser sign-in/i);
+  assert.match(summary, /sign-in field labels/i);
+  assert.match(summary, /Skipped coverage[\s\S]*writes[\s\S]*production/i);
+  assert.doesNotMatch(summary, /passed/i);
+});
 
 const inconclusive = { status: "inconclusive", check: "", assertion: "" };
 const healthy = { status: "healthy", check: "", assertion: "" };
@@ -48,7 +69,7 @@ async function verify(...reports) {
   return verdict;
 }
 
-test("all four passing checks produce a healthy verdict without a retry", async () => {
+test("all five passing checks produce a healthy verdict without a retry", async () => {
   assert.deepEqual(await verify(report()), healthy);
 });
 
@@ -106,7 +127,7 @@ test("boot errors, partial results, skipped tests, and another spec cannot repor
   const browserError = report();
   browserError.runs[0].error = "browser crashed";
   const inconsistent = report();
-  inconsistent.runs[0].stats.passes = 3;
+  inconsistent.runs[0].stats.passes = 4;
   for (const badReport of [
     undefined,
     { status: "failed", failures: 1 },

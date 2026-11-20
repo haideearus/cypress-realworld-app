@@ -822,9 +822,19 @@ test("workflow preserves preview, trusted source, readonly model and isolated cr
     yaml.load(fs.readFileSync(path.resolve(__dirname, "../../.github/" + name), "utf8"));
   const w = file("workflows/factory-dependencies.yml");
   assert.equal(w.on.workflow_dispatch.inputs.preview.default, true);
-  assert.match(w.jobs.select.if, /inputs.preview/);
+  assert.match(w.jobs.preview.if, /workflow_dispatch.*&& inputs.preview/);
+  assert.match(w.jobs.select.if, /!\(.*inputs.preview\)/);
+  assert.deepEqual(w.jobs.preview.permissions, {
+    contents: "read",
+    issues: "read",
+    "pull-requests": "read",
+    actions: "read",
+  });
+  assert.equal(w.jobs.select.permissions.issues, "write");
+  for (const name of ["preview", "select"])
+    assert.ok(w.jobs[name].steps.some((step) => step.with?.operation === "dep_track"));
   for (const [name, job] of Object.entries(w.jobs)) {
-    if (name !== "select" && name !== "finalize") {
+    if (name !== "preview" && name !== "finalize") {
       assert.match(job.if, /FACTORY_ENABLED/);
       assert.match(job.if, /FACTORY_AUTOMATION_ENABLED/);
     }
@@ -832,7 +842,16 @@ test("workflow preserves preview, trusted source, readonly model and isolated cr
       if (step.uses?.startsWith("actions/checkout@"))
         assert.equal(step.with.ref, "${{ github.workflow_sha }}");
   }
-  for (const name of ["analysis", "premerge", "ci", "select", "reserve", "assess", "finalize"])
+  for (const name of [
+    "analysis",
+    "premerge",
+    "ci",
+    "preview",
+    "select",
+    "reserve",
+    "assess",
+    "finalize",
+  ])
     assert.doesNotMatch(JSON.stringify(w.jobs[name]), /secrets\./);
   assert.equal(w.jobs.review.with.phase, "review");
   assert.equal(w.jobs.review.with.slot, "dependency");

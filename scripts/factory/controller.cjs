@@ -564,7 +564,7 @@ class Controller {
             g.slot === "cycle1" &&
             g.runId === active.runId &&
             g.runAttempt === active.runAttempt &&
-            require("./delayed-retry.cjs").ordinary(t) &&
+            require("./delayed-retry.cjs").retryableTicket(t) &&
             !t.delayedRetry &&
             t.coding === 1 &&
             t.reviews === 0 &&

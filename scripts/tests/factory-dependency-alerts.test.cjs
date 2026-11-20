@@ -61,7 +61,7 @@ test("selects the smallest compatible release outside every known advisory range
       .candidate,
     "2.1.0"
   );
-  assert.equal(planGroup(group, ["3.0.0"], [], semver).status, "no-common-candidate");
+  assert.equal(planGroup(group, ["3.0.0"], [], semver).holdReason, "major-held");
   assert.equal(planGroup(group, ["2.0.1"], ["unrecognized"], semver).status, "advisory-held");
 });
 
@@ -77,6 +77,7 @@ test("stale alerts are excluded and an exact lockfile pin can hold a candidate",
   const plan = planGroup(group, ["2.0.1"], [], semver);
   assert.deepEqual(plan.alerts, [1]);
   assert.equal(plan.status, "no-common-candidate");
+  assert.equal(plan.holdReason, "selector-held");
 });
 
 test("an aliased npm resolution is included under its canonical package", () => {
@@ -95,6 +96,7 @@ test("an aliased npm resolution is included under its canonical package", () => 
     alerts: [1],
     locked: ["1.0.3", "1.0.4"],
     status: "no-common-candidate",
+    holdReason: "selector-held",
   });
 });
 
@@ -107,7 +109,7 @@ test("separate compatible release lines hold for individual fixes", () => {
     },
     semver
   );
-  assert.equal(planGroup(group, ["2.0.1", "3.0.1"], [], semver).status, "no-common-candidate");
+  assert.equal(planGroup(group, ["2.0.1", "3.0.1"], [], semver).holdReason, "no-common-candidate");
 });
 
 test("alert pagination stays on GitHub and the same repository", async () => {

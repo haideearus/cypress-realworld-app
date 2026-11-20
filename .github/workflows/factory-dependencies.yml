@@ -21,13 +21,38 @@ concurrency:
   group: factory-dependencies-${{ github.run_id }}
   cancel-in-progress: false
 jobs:
+  preview:
+    if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && inputs.preview }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
+      actions: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: ./.github/actions/factory-control
+        with:
+          operation: dep_select
+          variables_json: ${{ toJSON(vars) }}
+          parameters: "${{ toJSON(inputs) }}"
+      - uses: ./.github/actions/factory-control
+        with:
+          operation: dep_track
+          variables_json: ${{ toJSON(vars) }}
+          parameters: "${{ toJSON(inputs) }}"
+
   select:
-    if: ${{ github.ref == 'refs/heads/main' && ((github.event_name == 'workflow_dispatch' && inputs.preview) || (vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true')) }}
+    if: ${{ github.ref == 'refs/heads/main' && !(github.event_name == 'workflow_dispatch' && inputs.preview) && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
       contents: write
-      issues: read
+      issues: write
       pull-requests: read
       actions: read
     concurrency:
@@ -47,6 +72,14 @@ jobs:
         uses: ./.github/actions/factory-control
         with:
           operation: dep_select
+          variables_json: ${{ toJSON(vars) }}
+          parameters: "${{ toJSON(inputs) }}"
+      - name: Track native Dependabot proposals
+        if: ${{ always() && !cancelled() }}
+        continue-on-error: true
+        uses: ./.github/actions/factory-control
+        with:
+          operation: dep_track
           variables_json: ${{ toJSON(vars) }}
           parameters: "${{ toJSON(inputs) }}"
 

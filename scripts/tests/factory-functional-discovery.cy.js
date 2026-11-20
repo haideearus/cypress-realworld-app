@@ -31,6 +31,18 @@ function expectValidation(field, text, id) {
   });
 }
 
+function expectInputLabel(field, text, id) {
+  cy.get("body").should(($body) => {
+    const $input = $body.find(`input#${field}`);
+    const labels = Array.from($input[0]?.labels || []);
+    expect(
+      visible($input) &&
+        labels.some((label) => Cypress.dom.isVisible(label) && label.textContent.trim() === text),
+      named(id)
+    ).to.equal(true);
+  });
+}
+
 function signInFixture() {
   cy.visit("/signin", { log: false });
   cy.window({ log: false }).then((win) => {
@@ -117,5 +129,11 @@ describe("functional discovery", () => {
         named("settings-save-disabled")
       ).to.equal(true);
     });
+  });
+
+  it("sign-in-accessibility", () => {
+    cy.visit("/signin");
+    expectInputLabel("username", "Username", "sign-in-username-label");
+    expectInputLabel("password", "Password", "sign-in-password-label");
   });
 });
