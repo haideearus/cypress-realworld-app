@@ -26,9 +26,14 @@
       "base": "4f9c7117dbe92cbf3e2a620d7af13de147a1d595",
       "head": "07a87a25b5fdc1e3db1bea024a12358859d9e460",
       "name": "shell-quote",
-      "phase": "ready",
+      "phase": "refresh",
       "issue": 147,
-      "pr": 148
+      "pr": 148,
+      "refresh": {
+        "base": "2d8b8ab991bd265216f9a314022028edd658ff25",
+        "head": "f1fc2a56c08130ef3f2613620ba33bd40d1a7d96",
+        "resume": "ready"
+      }
     }
   }
 }
