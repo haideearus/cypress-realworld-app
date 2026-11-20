@@ -2470,7 +2470,8 @@
       "ci": {
         "requestId": "cd19249e-1c97-4394-9029-bff4c744d3f4",
         "head": "cc27de7538a80bd662b2120ce07d26db8b3adb4d",
-        "runId": null
+        "runId": 44733459171,
+        "passed": true
       }
     }
   },
