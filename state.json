@@ -2603,7 +2603,11 @@
       "approval": null,
       "criteriaHash": "aaf4740e4b533a82188cba4b69df6e4045a1e9df8e65ad1ff183600ce93e4752",
       "branch": "agent/144-upgrade-xml-dependencies",
-      "ci": null
+      "ci": {
+        "requestId": "c08de2fa-051d-4dde-b516-968d74df967f",
+        "head": "3afc848442380a4809368c15459bccc064102f72",
+        "runId": null
+      }
     },
     "146": {
       "coding": 0,
