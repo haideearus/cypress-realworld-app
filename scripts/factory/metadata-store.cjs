@@ -3,7 +3,16 @@ const SHA = /^[a-f0-9]{40}$/;
 // Dedicated metadata namespaces. Never aliases the usage, monitor or grant ledger.
 class MetadataStore {
   constructor(api, namespace, empty, validate) {
-    if (!["wakes", "activity", "discovery", "findings", "dependency-alerts"].includes(namespace))
+    if (
+      ![
+        "wakes",
+        "activity",
+        "discovery",
+        "findings",
+        "dependency-alerts",
+        "dependency-tracking",
+      ].includes(namespace)
+    )
       throw Error("Invalid metadata namespace");
     Object.assign(this, {
       api,
@@ -13,8 +22,14 @@ class MetadataStore {
       validate,
     });
   }
-  async read() {
-    const ref = await this.api.request("GET", `${ROOT}/git/ref/heads/${this.branch}`);
+  async read({ allowMissing = false } = {}) {
+    let ref;
+    try {
+      ref = await this.api.request("GET", `${ROOT}/git/ref/heads/${this.branch}`);
+    } catch (error) {
+      if (allowMissing && error.status === 404) return { state: this.empty(), commit: null };
+      throw error;
+    }
     const commit = ref.object?.sha;
     if (!SHA.test(commit || "")) throw Error("Invalid metadata commit");
     const file = await this.api.request("GET", `${ROOT}/contents/${this.file}?ref=${commit}`);
@@ -70,9 +85,9 @@ class MetadataStore {
     }
     throw Error("Metadata already initialized");
   }
-  async update(fn) {
+  async update(fn, options) {
     for (let attempt = 0; attempt < 3; attempt++) {
-      const { state, commit } = await this.read();
+      const { state, commit } = await this.read(options);
       const result = await fn(state);
       if (!result?.state) throw Error("Metadata mutation must return state");
       try {

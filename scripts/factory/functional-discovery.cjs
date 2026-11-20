@@ -1,15 +1,16 @@
-const fs = require("node:fs");
 const { GitHub, ROOT } = require("./github.cjs");
 const { REPOSITORY, OWNER, SHA, assertSubscriptionEnv } = require("./policy.cjs");
 const {
   CHECKS,
   WORKFLOW_PATH,
   PROBE_MODE,
+  validAssertion,
   validateFunctionalResult,
 } = require("./functional-discovery-contract.cjs");
 const { MonitorStore } = require("./monitor-state.cjs");
 const { monitorContext } = require("./app-checks-contract.cjs");
 const { observeIncident } = require("./monitor.cjs");
+const { writeSummary, issueLink, statusText } = require("./discovery-summary.cjs");
 
 function renderIssueText(incident, { check, assertion }) {
   return {
@@ -77,6 +78,22 @@ async function publishFunctional({
   return { ...result, modelCalls: 0 };
 }
 
+function publicationSummary({ outcome, issue, observation }) {
+  const link = issueLink(issue);
+  const ticketLabel =
+    outcome === "incident_created" ? "Ready ticket published" : "Existing functional incident";
+  const failure = validAssertion(observation?.check, observation?.assertion)
+    ? `- Confirmed finding — ${CHECKS[observation.check]} at \`${observation.assertion}\``
+    : null;
+  return [
+    "## Functional finding publication",
+    "",
+    `- Outcome — ${statusText(outcome)}`,
+    ...(failure ? [failure] : []),
+    link ? `- ${ticketLabel} — ${link}` : "- No ticket published by this run.",
+  ].join("\n");
+}
+
 async function main(env = process.env) {
   assertSubscriptionEnv(env);
   const result = await publishFunctional({
@@ -88,11 +105,7 @@ async function main(env = process.env) {
     enabled: env.FACTORY_FUNCTIONAL_DISCOVERY_ENABLED === "true",
     dryRun: env.GITHUB_EVENT_NAME !== "schedule" && env.FACTORY_FUNCTIONAL_DRY_RUN !== "false",
   });
-  if (env.GITHUB_STEP_SUMMARY)
-    fs.appendFileSync(
-      env.GITHUB_STEP_SUMMARY,
-      `## Safe functional discovery\n\n${JSON.stringify(result)}\n`
-    );
+  writeSummary(env, publicationSummary(result));
   console.log(JSON.stringify(result));
 }
 
@@ -104,4 +117,4 @@ if (require.main === module)
     process.exitCode = 1;
   });
 
-module.exports = { publishFunctional };
+module.exports = { publishFunctional, publicationSummary };

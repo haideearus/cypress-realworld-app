@@ -10,14 +10,18 @@ const pub = require("./discovery-publication.cjs");
 const intake = require("./discovery-intake.cjs");
 const functional = require("./discovery-functional.cjs");
 const { runtimeContext, output: writeOutputs } = require("./controller.cjs");
-function output(values, env) {
-  writeOutputs(values, env);
+const { intakeSummary, writeSummary } = require("./discovery-summary.cjs");
+function output(values, env, summary = {}) {
+  writeOutputs(values, { ...env, GITHUB_STEP_SUMMARY: undefined });
   console.log(JSON.stringify(values, null, 2));
-  if (env.GITHUB_STEP_SUMMARY)
-    fs.appendFileSync(
-      env.GITHUB_STEP_SUMMARY,
-      `\nFinding intake: ${values.outcome}. No model session is started by this workflow.\n`
-    );
+  writeSummary(
+    env,
+    intakeSummary(values.outcome, {
+      sourceRun: values.sourceRun,
+      heldSources: values.heldSources,
+      ...summary,
+    })
+  );
   return values;
 }
 function readBounded(file) {
@@ -293,6 +297,17 @@ async function main(env = process.env, dependencies = {}) {
       await pub.appendDuplicates({ api, store, ledger, config, context, key });
     }
     const after = (await store.read()).state;
+    writeSummary(
+      env,
+      intakeSummary("publication-reviewed", {
+        sourceRun: g.runId,
+        findings: candidates.map((candidate, index) => ({
+          candidate,
+          row: after.records[staged.keys[index]],
+          duplicate: candidate.key !== staged.keys[index],
+        })),
+      })
+    );
     const head = await require("./discovery-run.cjs").testedMain(
       api,
       { ...context, event: "workflow_dispatch" },
@@ -360,7 +375,10 @@ async function main(env = process.env, dependencies = {}) {
       path.join(env.FACTORY_FINDING_OUTPUT, "replay.json"),
       JSON.stringify(evidence)
     );
-    return output({ outcome: result.outcome, modelCalls: 0 }, env);
+    return output({ outcome: result.outcome, modelCalls: 0 }, env, {
+      sourceRun: row.candidate.source.runId,
+      replayed: row.candidate,
+    });
   }
   if (op === "finish") {
     let result = null;
@@ -389,7 +407,20 @@ async function main(env = process.env, dependencies = {}) {
     await pub.noteResolution({ api, store, ledger, config, key: row.candidate.key, context });
     return output(
       { outcome: saved.receipt.outcome, issue: row.publication.issue, modelCalls: 0 },
-      env
+      env,
+      {
+        sourceRun: row.candidate.source.runId,
+        findings: [
+          {
+            row: {
+              ...row,
+              intake: saved.receipt,
+              status:
+                saved.receipt.outcome === "observed-resolved" ? "observed-resolved" : row.status,
+            },
+          },
+        ],
+      }
     );
   }
   throw Error("Unknown finding operation");

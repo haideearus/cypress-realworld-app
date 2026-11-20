@@ -5,7 +5,7 @@ const HOLD_STEP = "Hold before Claude after a temporary GitHub gateway error";
 const MODEL_STEP = "Run the one reserved Claude subscription session";
 const DELAY_MS = 30 * 60 * 1000;
 const SHA = /^[0-9a-f]{40}$/;
-const ordinary = (t) => t?.origin === "factory" && t.automatic && !t.finding && !t.monitor;
+const retryableTicket = (t) => t?.origin === "factory" && Boolean(t.automatic);
 
 function receipt(grantId, jobId, now = new Date()) {
   return { grantId, jobId, notBefore: new Date(now.getTime() + DELAY_MS).toISOString() };
@@ -16,7 +16,7 @@ function validate(ticket, grants) {
   if (r === undefined) return;
   const failed = grants.find((g) => g.id === r?.grantId);
   if (
-    !ordinary(ticket) ||
+    !retryableTicket(ticket) ||
     !r ||
     !["grantId,jobId,notBefore", "grantId,jobId,notBefore,parent"].includes(
       Object.keys(r).sort().join(",")
@@ -43,6 +43,7 @@ function validate(ticket, grants) {
     parent.runAttempt !== 1 ||
     parent.runId === failed.runId ||
     !SHA.test(parent.workflowSha || "") ||
+    (ticket.finding && ticket.finding.intake.head !== parent.workflowSha) ||
     !grants.some(
       (g) =>
         g.phase === "code" &&
@@ -61,7 +62,8 @@ function due(state, ticket, id, config, now = new Date()) {
   const r = ticket?.delayedRetry;
   return Boolean(
     config.priorityRetry &&
-      ordinary(ticket) &&
+      retryableTicket(ticket) &&
+      (!ticket.finding || config.discovery) &&
       r &&
       r.parent === undefined &&
       ticket.status === "blocked" &&
@@ -93,7 +95,8 @@ function handoff(state, request, config, now) {
     request.runId === ticket.automatic.runId ||
     request.phase !== "code" ||
     request.slot !== "cycle1" ||
-    request.head !== request.workflowSha
+    request.head !== request.workflowSha ||
+    (ticket.finding && ticket.finding.intake.head !== request.head)
   )
     throw Error("Delayed retry is not eligible for this run");
   ticket.delayedRetry.parent = {
@@ -130,4 +133,13 @@ async function failedJob(api, context) {
   return matchesStep(HOLD_STEP, "failure") && matchesStep(MODEL_STEP, "skipped") ? job.id : null;
 }
 
-module.exports = { HOLD_STEP, MODEL_STEP, receipt, validate, due, handoff, failedJob, ordinary };
+module.exports = {
+  HOLD_STEP,
+  MODEL_STEP,
+  receipt,
+  validate,
+  due,
+  handoff,
+  failedJob,
+  retryableTicket,
+};

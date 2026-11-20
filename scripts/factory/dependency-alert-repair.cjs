@@ -10,15 +10,48 @@ const { inspectUpdate, queryOsv, toolsAt } = require("./dependency-analysis.cjs"
 const { preview, listAlerts, readJSON } = require("./dependency-alerts.cjs");
 
 const READY_LABEL = "factory-dependency-ready";
+const HELD_LABEL = "factory-dependency-held";
 const PKG = /^(?:@[a-z0-9._-]+\/)?[a-z0-9._-]+$/;
 const RELEASE = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 const PUBLISH_PHASES = ["prepared", "issue-intent", "issue", "pr-intent", "linked"];
 const PHASES = [...PUBLISH_PHASES, "ready", "refresh", "resolved", "held"];
+const TRACKING_PHASES = ["tracking-intent", "tracking", "tracking-uncertain"];
+const TRACKING_REASONS = {
+  "selector-held": [
+    "A patched release is outside an existing lockfile selector.",
+    "Identify the direct pin or parent dependency that sets the range and prepare a reviewed update.",
+  ],
+  "major-held": [
+    "The available patched releases require a major version update.",
+    "Review compatibility and prepare a tested direct or parent dependency upgrade.",
+  ],
+  "no-common-candidate": [
+    "There is no single verified patched release for the affected lockfile selections.",
+    "Check the affected release lines and prepare a tested update for each selection that needs one.",
+  ],
+  "advisory-held": [
+    "Advisory evidence is incomplete or cannot establish a patched release.",
+    "Confirm the affected versions and patched versions using reviewed advisories before proposing a change.",
+  ],
+  "metadata-held": [
+    "The advisory catalog or registry evidence was unavailable or incomplete.",
+    "Recheck the advisory and registry metadata before proposing a change.",
+  ],
+  "graph-held": [
+    "The candidate would change the dependency graph or a pinned lockfile selection.",
+    "Trace the dependency through the direct pin or parent package and prepare a tested update.",
+  ],
+  "candidate-held": [
+    "The compatible release lacks complete lockfile or vulnerability clearance evidence.",
+    "Verify the exact release, lockfile change and advisory clearance before proposing a repair.",
+  ],
+};
 const WORKFLOW_FILE = ".github/workflows/factory-dependency-alerts.yml";
 const validId = (n) => Number.isSafeInteger(n) && n > 0;
 const empty = () => ({ version: 1, cursor: 0, records: {} });
 class UncertainPublication extends Error {}
 class AlertAdmissionHold extends Error {}
+class CandidateGraphHold extends Error {}
 
 function validate(state) {
   if (
@@ -35,19 +68,41 @@ function validate(state) {
   const issues = new Set(),
     prs = new Set();
   for (const [key, row] of Object.entries(state.records)) {
+    const hasTrackingReason = Object.hasOwn(TRACKING_REASONS, row?.trackingReason);
+    if (
+      !d.HASH.test(key) ||
+      typeof row?.name !== "string" ||
+      row.name.length > 214 ||
+      !PKG.test(row.name) ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(row.day || "") ||
+      (row.trackingReason !== undefined && !hasTrackingReason)
+    )
+      throw Error("Invalid dependency alert receipt");
+    if (TRACKING_PHASES.includes(row.phase)) {
+      if (
+        !hasTrackingReason ||
+        row.candidate !== undefined ||
+        row.base !== undefined ||
+        row.head !== undefined ||
+        row.hold !== undefined ||
+        row.refresh !== undefined ||
+        row.pr !== null ||
+        (row.phase === "tracking"
+          ? !validId(row.issue) || issues.has(row.issue)
+          : row.issue !== null)
+      )
+        throw Error("Invalid held dependency alert receipt");
+      if (row.issue) issues.add(row.issue);
+      continue;
+    }
     const phase = PHASES.indexOf(row?.phase);
     const identityPhase = row?.phase === "refresh" ? PHASES.indexOf(row.refresh?.resume) : phase;
     const hasIssue = identityPhase >= 2 && (row.phase !== "held" || row.issue !== null);
     const hasPR = identityPhase >= 4 && (row.phase !== "held" || row.pr !== null);
     if (
-      !d.HASH.test(key) ||
       phase < 0 ||
-      typeof row.name !== "string" ||
-      row.name.length > 214 ||
-      !PKG.test(row.name) ||
       typeof row.candidate !== "string" ||
       !RELEASE.test(row.candidate) ||
-      !/^\d{4}-\d{2}-\d{2}$/.test(row.day || "") ||
       !d.SHA.test(row.base || "") ||
       !d.SHA.test(row.head || "") ||
       row.base === row.head ||
@@ -72,13 +127,25 @@ function validate(state) {
 }
 
 const storeFor = (api) => new MetadataStore(api, "dependency-alerts", empty, validate);
-const issueTitle = (r) => `Security maintenance: update ${r.name} to ${r.candidate}`;
-const issueBody = (key, r) =>
-  `Update \`${r.name}\` to \`${r.candidate}\` within the existing version range. The factory will verify the exact update with dependency analysis, CI and independent review.\n\n<!-- factory-dependency-alert:${key} -->`;
+const pullTitle = (r) => `Security maintenance: update ${r.name} to ${r.candidate}`;
+const issueTitle = (r) =>
+  r.trackingReason ? `Security maintenance: investigate ${r.name}` : pullTitle(r);
+function issueBody(key, row) {
+  const marker = `<!-- factory-dependency-alert:${key} -->`;
+  if (row.trackingReason) {
+    const [reason, action] = TRACKING_REASONS[row.trackingReason];
+    return `Track an open vulnerability for \`${row.name}\` in the Yarn lockfile.\n\nInitial hold: ${reason}\n\nNext step: ${action}\n\nThe factory will add \`${READY_LABEL}\` after it verifies a compatible lockfile repair and links its proposal.\n\n${marker}`;
+  }
+  return `Update \`${row.name}\` to \`${row.candidate}\` within the existing version range. The factory will verify the exact update with dependency analysis, CI and independent review.\n\n${marker}`;
+}
+const linkedIssueBody = (key, row) =>
+  `${issueBody(key, row)}\n\nRepair proposal [#${row.pr}](https://github.com/${d.REPOSITORY}/pull/${row.pr}).`;
 const pullBody = (r) =>
   `Tracks #${r.issue}.\n\nApply the prepared Yarn lockfile update for \`${r.name}\` \`${r.candidate}\`.`;
 
 function issueOK(issue, key, row, ready = true) {
+  const original = issueBody(key, row);
+  const linked = row.trackingReason && row.pr ? linkedIssueBody(key, row) : original;
   return (
     validId(issue?.number) &&
     (!row.issue || row.issue === issue.number) &&
@@ -87,10 +154,12 @@ function issueOK(issue, key, row, ready = true) {
     issue.user?.login === "github-actions[bot]" &&
     issue.user.id === 41898282 &&
     issue.title === issueTitle(row) &&
-    issue.body === issueBody(key, row) &&
-    (!ready || issue.labels?.some((l) => l.name === READY_LABEL))
+    (issue.body === linked || (!ready && issue.body === original)) &&
+    (!ready || (hasLabel(issue, READY_LABEL) && !hasLabel(issue, HELD_LABEL)))
   );
 }
+
+const hasLabel = (issue, name) => issue.labels?.some((label) => label.name === name);
 
 async function verifyAlertPR(api, pr, config, store = storeFor(api), reconcile = false) {
   const key = d.alertKey(pr?.head?.ref);
@@ -148,7 +217,9 @@ function patchLock(lock, plan, release, tools) {
       sortedMap(entry.dependencies) !== sortedMap(release.dependencies) ||
       sortedMap(entry.optionalDependencies) !== sortedMap(release.optionalDependencies)
     )
-      throw Error("Update would change the dependency graph or a pinned selection");
+      throw new CandidateGraphHold(
+        "Update would change the dependency graph or a pinned selection"
+      );
     parsed.object[selector] = {
       ...entry,
       version: candidate,
@@ -199,6 +270,19 @@ async function advance(store, key, row, patch) {
   return saved;
 }
 
+const openRecord = (registry, name) =>
+  Object.entries(registry.records).find(([, row]) => row.name === name && row.phase !== "resolved");
+
+async function addRecord(store, key, row) {
+  const { saved } = await store.update((state) => {
+    if (state.records[key] || openRecord(state, row.name))
+      throw Error("Dependency alert already tracked");
+    state.records[key] = row;
+    return { state, saved: row };
+  });
+  return saved;
+}
+
 async function issueMatching(api, key, row) {
   const issues = await api.pages(`${ROOT}/issues?state=all&sort=created&direction=desc`);
   const matches = issues.filter((i) => issueOK(i, key, row, false));
@@ -218,16 +302,54 @@ async function ensureRef(api, ref, head) {
   if (result.object?.sha !== head) throw Error("Dependency alert branch changed");
 }
 
-async function ensureLabel(api) {
+async function ensureLabel(api, name, color, description) {
+  const endpoint = `${ROOT}/labels/${name}`;
+  let label;
   try {
-    await api.request("GET", `${ROOT}/labels/${READY_LABEL}`);
+    label = await api.request("GET", endpoint);
   } catch (error) {
     if (error.status !== 404) throw error;
-    await api.request("POST", `${ROOT}/labels`, {
-      name: READY_LABEL,
-      color: "b60205",
-      description: "Verified factory dependency update",
-    });
+    try {
+      label = await api.request("POST", `${ROOT}/labels`, { name, color, description });
+    } catch (conflict) {
+      if (![409, 422].includes(conflict.status)) throw conflict;
+      label = await api.request("GET", endpoint);
+    }
+  }
+  if (label?.name !== name) throw Error("Dependency alert label not acknowledged");
+}
+
+function trackingIssueOK(issue, key, row) {
+  return (
+    issueOK(issue, key, row, false) && hasLabel(issue, HELD_LABEL) && !hasLabel(issue, READY_LABEL)
+  );
+}
+
+async function postTrackingIssue(api, store, base, key, row) {
+  await current(api, base);
+  const issue = await api.request("POST", `${ROOT}/issues`, {
+    title: issueTitle(row),
+    body: issueBody(key, row),
+    labels: [HELD_LABEL],
+  });
+  if (!trackingIssueOK(issue, key, row)) throw Error("Held dependency issue not acknowledged");
+  await advance(store, key, row, { phase: "tracking", issue: issue.number });
+  return { outcome: "tracked-held", issue: issue.number };
+}
+
+async function recoverTrackingIssue(api, store, base, key, row) {
+  try {
+    const issue = await issueMatching(api, key, row);
+    if (!trackingIssueOK(issue, key, row))
+      throw new UncertainPublication("Held dependency issue requires reconciliation");
+    await current(api, base);
+    await advance(store, key, row, { phase: "tracking", issue: issue.number });
+    return { outcome: "tracked-held", issue: issue.number };
+  } catch (error) {
+    if (!(error instanceof UncertainPublication)) throw error;
+    await current(api, base);
+    await advance(store, key, row, { phase: "tracking-uncertain" });
+    return { outcome: "held-publication-uncertain" };
   }
 }
 
@@ -256,17 +378,21 @@ async function publish(api, app, config, store, key, row) {
       pr.head.sha !== row.head ||
       pr.base.sha !== row.base ||
       pr.body !== pullBody(row) ||
-      pr.title !== issueTitle(row)
+      pr.title !== pullTitle(row)
     )
       throw Error("Dependency PR creation not acknowledged");
     return advance(store, key, row, { phase: "linked", pr: pr.number });
   }
   if (row.phase === "issue") {
+    if (row.trackingReason) {
+      const issue = await api.request("GET", `${ROOT}/issues/${row.issue}`);
+      if (!trackingIssueOK(issue, key, row)) throw Error("Held dependency issue changed");
+    }
     row = await advance(store, key, row, { phase: "pr-intent" });
     await current(api, row.base);
     row = await link(
       await app.request("POST", `${ROOT}/pulls`, {
-        title: issueTitle(row),
+        title: pullTitle(row),
         body: pullBody(row),
         base: "main",
         head: ref,
@@ -280,18 +406,45 @@ async function publish(api, app, config, store, key, row) {
     row = await link(rows[0]);
   }
   await current(api, row.base);
-  const issue = await api.request("GET", `${ROOT}/issues/${row.issue}`);
+  let issue = await api.request("GET", `${ROOT}/issues/${row.issue}`);
   if (!issueOK(issue, key, row, false)) throw Error("Dependency alert ticket changed");
-  if (!issue.labels?.some((l) => l.name === READY_LABEL)) {
-    await ensureLabel(api);
+  if (row.trackingReason) {
+    const body = linkedIssueBody(key, row);
+    if (issue.body !== body) {
+      await current(api, row.base);
+      issue = await api.request("PATCH", `${ROOT}/issues/${row.issue}`, { body });
+      if (issue.body !== body || !issueOK(issue, key, row, false))
+        throw Error("Dependency issue link not acknowledged");
+    }
+  }
+  if (!hasLabel(issue, READY_LABEL))
+    await ensureLabel(api, READY_LABEL, "b60205", "Verified factory dependency update");
+  if (row.trackingReason && hasLabel(issue, HELD_LABEL)) {
     await current(api, row.base);
-    await api.request("POST", `${ROOT}/issues/${row.issue}/labels`, { labels: [READY_LABEL] });
+    const remaining = await api.request(
+      "DELETE",
+      `${ROOT}/issues/${row.issue}/labels/${HELD_LABEL}`
+    );
+    if (!Array.isArray(remaining) || remaining.some((label) => label.name === HELD_LABEL))
+      throw Error("Held dependency label removal not acknowledged");
+  }
+  if (!hasLabel(issue, READY_LABEL)) {
+    await current(api, row.base);
+    const labels = await api.request("POST", `${ROOT}/issues/${row.issue}/labels`, {
+      labels: [READY_LABEL],
+    });
+    if (
+      !Array.isArray(labels) ||
+      !hasLabel({ labels }, READY_LABEL) ||
+      hasLabel({ labels }, HELD_LABEL)
+    )
+      throw Error("Ready dependency label not acknowledged");
   }
   return advance(store, key, row, { phase: "ready" });
 }
 
 async function buildCandidate(plan, lock, manifest, tools, transport) {
-  if (plan?.status !== "compatible-candidate") return null;
+  if (plan?.status !== "compatible-candidate") return { reason: plan?.holdReason || plan?.status };
   try {
     const { body } = await readJSON(
       new URL(`https://registry.npmjs.org/${encodeURIComponent(plan.package)}/${plan.candidate}`),
@@ -299,17 +452,22 @@ async function buildCandidate(plan, lock, manifest, tools, transport) {
     );
     const candidate = patchLock(lock, plan, body, tools);
     const details = inspectUpdate(manifest, manifest, lock, candidate, tools);
-    return (await queryOsv(details.queries, transport)).cleared.length ? candidate : null;
-  } catch {
-    return null;
+    if ((await queryOsv(details.queries, transport)).cleared.length) return { candidate };
+  } catch (error) {
+    if (error instanceof CandidateGraphHold) return { reason: "graph-held" };
   }
+  return { reason: "candidate-held" };
 }
 
 async function finishRefresh(api, app, store, base, key, row) {
   const ref = `${ROOT}/git/ref/heads/${d.alertBranch(key)}`;
   const { base: nextBase, head, resume } = row.refresh;
   const result = await api.request("GET", ref).catch((error) => {
-    if (error.status === 404 && resume === "prepared") return { object: { sha: null } };
+    if (
+      error.status === 404 &&
+      (resume === "prepared" || (resume === "issue" && row.trackingReason))
+    )
+      return { object: { sha: null } };
     throw error;
   });
   const saved = { base: nextBase, head, phase: resume, refresh: undefined };
@@ -407,7 +565,7 @@ async function runRepair({
   const refresh = async (key, row) => {
     const { plans } = await preview(token, lock, tools, transport, { packageName: row.name });
     const plan = plans.find((p) => p.candidate === row.candidate);
-    const candidate = await buildCandidate(plan, lock, manifest, tools, transport);
+    const { candidate } = await buildCandidate(plan, lock, manifest, tools, transport);
     if (!candidate) return null;
     await current(api, base);
     const head = await makeCommit(api, base, candidate, row.head);
@@ -419,9 +577,12 @@ async function runRepair({
   };
   const pending = active.length
     ? null
-    : Object.entries(registry.records).find(([, row]) => PUBLISH_PHASES.includes(row.phase));
+    : Object.entries(registry.records).find(
+        ([, row]) => PUBLISH_PHASES.includes(row.phase) || row.phase === "tracking-intent"
+      );
   if (pending) {
     const [key, row] = pending;
+    if (row.phase === "tracking-intent") return recoverTrackingIssue(api, store, base, key, row);
     if (row.base !== base) {
       if (["prepared", "issue", "linked"].includes(row.phase)) {
         const recovered = await refresh(key, row);
@@ -431,8 +592,8 @@ async function runRepair({
       return { outcome: "held-stale-preparation" };
     }
     try {
-      await publish(api, app, config, store, key, row);
-      return { outcome: "published" };
+      const published = await publish(api, app, config, store, key, row);
+      return { outcome: "published", issue: published.issue, pr: published.pr };
     } catch (error) {
       if (!(error instanceof UncertainPublication)) throw error;
       const latest = (await store.read()).state.records[key];
@@ -488,7 +649,8 @@ async function runRepair({
       if (pr.state !== "open" || !issueOK(issue, key, row)) continue;
       if (pr.head.sha !== row.head || pr.head.ref !== d.alertBranch(key))
         throw Error("Dependency alert proposal changed externally");
-      if (row.base === base && !result) return { outcome: "awaiting-dependency-pickup" };
+      if (row.base === base && !result)
+        return { outcome: "awaiting-dependency-pickup", issue: row.issue, pr: row.pr };
       if (
         row.base !== base &&
         (!result || result.dependency?.attempts.length < Math.min(10, config.reviews))
@@ -528,30 +690,53 @@ async function runRepair({
     offset: registry.cursor,
   });
   for (const plan of plans) {
-    if (plan.status !== "compatible-candidate") continue;
-    const key = d.digest([plan.package, plan.candidate, plan.locked]);
-    if (registry.records[key] || linked.some(([, r]) => r.name === plan.package && r.base === base))
+    const tracked = openRecord(registry, plan.package);
+    if (tracked && (tracked[1].phase !== "tracking" || plan.status !== "compatible-candidate"))
       continue;
-    const candidate = await buildCandidate(plan, lock, manifest, tools, transport);
-    if (!candidate) continue;
-    await current(api, base);
-    const head = await makeCommit(api, base, candidate);
-    const { saved } = await store.update((draft) => {
-      if (draft.records[key]) throw Error("Dependency alert already prepared");
-      const saved = (draft.records[key] = {
+    const { candidate, reason } = await buildCandidate(plan, lock, manifest, tools, transport);
+    if (!candidate) {
+      if (tracked || !Object.hasOwn(TRACKING_REASONS, reason)) continue;
+      const earlier = Object.values(registry.records).filter(
+        (row) => row.name === plan.package && row.trackingReason
+      ).length;
+      const key = d.digest(["yarn.lock", plan.package, earlier]);
+      await current(api, base);
+      await ensureLabel(
+        api,
+        HELD_LABEL,
+        "fbca04",
+        "Tracked dependency vulnerability awaiting evidence or a wider update"
+      );
+      const row = await addRecord(store, key, {
         name: plan.package,
-        candidate: plan.candidate,
         day,
-        base,
-        head,
-        phase: "prepared",
+        trackingReason: reason,
+        phase: "tracking-intent",
         issue: null,
         pr: null,
       });
-      return { state: draft, saved };
-    });
-    await publish(api, app, config, store, key, saved);
-    return { outcome: "published" };
+      return postTrackingIssue(api, store, base, key, row);
+    }
+    const key = tracked?.[0] || d.digest([plan.package, plan.candidate, plan.locked]);
+    if (tracked) {
+      const row = tracked[1];
+      const issue = await api.request("GET", `${ROOT}/issues/${row.issue}`);
+      if (!trackingIssueOK(issue, key, row)) continue;
+    } else if (registry.records[key]) continue;
+    await current(api, base);
+    const head = await makeCommit(api, base, candidate);
+    const preparation = { candidate: plan.candidate, day, base, head };
+    const saved = tracked
+      ? await advance(store, key, tracked[1], { ...preparation, phase: "issue" })
+      : await addRecord(store, key, {
+          ...preparation,
+          name: plan.package,
+          phase: "prepared",
+          issue: null,
+          pr: null,
+        });
+    const published = await publish(api, app, config, store, key, saved);
+    return { outcome: "published", issue: published.issue, pr: published.pr };
   }
   if (registry.cursor !== nextOffset) {
     await current(api, base);
@@ -588,6 +773,23 @@ async function main(env = process.env) {
     tools: toolsAt(path.join(__dirname, "dependency-tools")),
   });
   console.log(JSON.stringify({ ...result, modelCalls: 0 }));
+  if (env.GITHUB_STEP_SUMMARY) {
+    const repo = `https://github.com/${policy.REPOSITORY}`;
+    const links = [
+      validId(result.issue) && `[Issue #${result.issue}](${repo}/issues/${result.issue})`,
+      validId(result.pr) && `[PR #${result.pr}](${repo}/pull/${result.pr})`,
+    ].filter(Boolean);
+    fs.appendFileSync(
+      env.GITHUB_STEP_SUMMARY,
+      [
+        "## Dependabot alert intake",
+        "",
+        `Outcome ` + result.outcome.replaceAll("-", " "),
+        ...(links.length ? ["", links.join(" · ")] : []),
+        "",
+      ].join("\n")
+    );
+  }
 }
 
 if (require.main === module)

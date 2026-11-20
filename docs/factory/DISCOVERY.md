@@ -85,6 +85,19 @@ not promises of two runs or reliable timer delivery. The manual path uses the
 same counters. Automatic paths additionally require automatic pickup enabled.
 No cron receipt alone is an admission. Ordinary stop/quarantine controls apply.
 
+## Reading the run summaries
+
+Open **Proactive app discovery → Summary** for executed scenario coverage, what
+was skipped, and what the replay verified. A report with zero findings describes
+the scenarios executed in that run. Look in **Verified discovery finding intake →
+Summary** for links to published issues and their current-main verification
+results. **Safe functional discovery → Summary** reports the browser suite
+separately, including sign-in, navigation, Settings and form assertions.
+
+The limits stay at two Claude discovery reservations and four new finding ticket
+intents per Bucharest day. A limit increases the number of opportunities. The
+verified scenario and browser contracts determine the actual coverage.
+
 ## Candidate evidence and replay
 
 Candidate reports preserve the exact source/grant identity, generated test text

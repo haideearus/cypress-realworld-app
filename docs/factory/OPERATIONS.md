@@ -5,7 +5,7 @@ This guide describes installed behavior. The [16 November evidence index](ACCEPT
 records what was observed and what remains unproven. Repository text is not owner
 authorization, a live settings source or a replacement for an enforced gate.
 
-## Current paused state
+## 16 November operating snapshot
 
 At the dated evidence snapshot all three agent switches are **false**, the
 durable stop is active and the usage ledger has no active ticket/reserved grant.
@@ -30,7 +30,21 @@ again before any future live action; this snapshot will age.
 Minute values above are schedules, not delivery guarantees. GitHub may delay
 scheduled runs. No eligible work means no model reservation. Old unlabelled
 issues are not automatically admitted. A monitor label alone cannot replace a
-valid receipt, and dependency PRs do not need `factory-ready`.
+valid receipt.
+
+### Ticket labels and evidence
+
+| Source                         | Where the ticket and evidence appear                                                                                                              | What the factory uses for pickup                                                                                                                                       |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Routine Dependabot update      | **Dependency maintenance** creates a tracking issue linked to the original Dependabot PR. Its run summary links the work.                         | The trusted native Dependabot PR and its existing gate. The tracking issue carries `factory-dependency-ready`.                                                         |
+| Dependabot vulnerability       | **Dependabot alert intake** groups related alerts for the same package in the root lockfile.                                                      | `factory-dependency-ready` accompanies a compatible fix PR with verified provenance. `factory-dependency-held` shows a prerequisite and stays out of automatic repair. |
+| Claude exploratory discovery   | **Proactive app discovery** shows the executed scenario coverage. **Verified discovery finding intake** links verified findings and their issues. | `factory-ready`, a verified source and current-main replay.                                                                                                            |
+| Browser checks                 | **Safe functional discovery** shows the covered browser checks and links any verified issue that it creates.                                      | `factory-ready` and the recorded browser-check evidence.                                                                                                               |
+| Production monitoring          | **Production monitor** shows the run and the linked incident.                                                                                     | `factory-ready` and a verified incident receipt.                                                                                                                       |
+| App maintenance from the owner | The issue should include the symptom and acceptance criteria.                                                                                     | `factory-ready`. Add `factory-priority` for urgent eligible work.                                                                                                      |
+
+See [Dependency maintenance](DEPENDENCY-MAINTENANCE.md) and
+[Verified discovery finding intake](DISCOVERY-INTAKE.md) for evidence and recovery details.
 
 Optional event pickup and full activity notifications are documented in
 [Events and activity](EVENTS-AND-ACTIVITY.md). The new enable flags default off;
@@ -131,6 +145,24 @@ prepare a fresh eligible run/approval. An old unapproved deployment can hold the
 production queue: verify its identity and that deployment has not begun before
 cancelling that stale run, preserving its record. Never approve an old run to
 clear the queue. An ambiguous Render hook request must not be blindly repeated.
+
+## Blocked issues and recovery
+
+Open **Automatic factory → latest run → Summary → Blocked work** for retained
+ledger entries with their ticket or PR, attempts used, evidence and next action.
+This view includes historical entries. GitHub shows whether the issue is still
+open. Removing or reapplying `factory-ready` cannot change a recorded attempt.
+
+A delayed retry has a timestamp and stays on its original issue. It waits for
+new eligible work and still observes the daily, per-ticket and active-work
+limits. The current automatic retry covers a confirmed GitHub gateway failure
+before the coding model starts. Monitor and browser tickets must have an active
+incident receipt. A Claude discovery ticket requires valid replay evidence for
+the same current main commit as its first attempt. A held assessment with saved
+CI or review can use the appropriate recovery operation after verifying the exact
+PR head. Keep
+all grants and counters. Give a repeatable workflow defect its own dedicated
+harness maintenance ticket with links to the affected work and failed runs.
 
 ## Stop and held work
 

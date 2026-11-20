@@ -11,6 +11,7 @@ const { GitHub, Ledger, ROOT } = require("./github.cjs");
 const { withStage, diagnostic } = require("./discovery-diagnostics.cjs");
 const { runtimeContext, readJson, output } = require("./controller.cjs");
 const { scanFiles } = require("./secret-scan.cjs");
+const { explorationSummary, writeSummary } = require("./discovery-summary.cjs");
 function manifestFor(folder) {
   const out = {};
   let total = 0;
@@ -338,12 +339,16 @@ async function replay(env, inputs, api, config) {
     path.join(env.FACTORY_DISCOVERY_BUNDLE, "evidence.json"),
     JSON.stringify(result)
   );
+  writeSummary(
+    env,
+    explorationSummary({ charter: t.discovery.charter, bundle: b, assessment: result })
+  );
   output(
     {
       assessmentComplete: true,
       outcome: result.findings.length ? "candidates-assessed" : "no-findings",
     },
-    env
+    { ...env, GITHUB_STEP_SUMMARY: undefined }
   );
 }
 async function main(env = process.env, { githubOptions } = {}) {

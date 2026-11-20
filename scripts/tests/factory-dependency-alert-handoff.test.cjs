@@ -109,13 +109,13 @@ async function pipeline() {
       integrity,
     },
   });
-  let registry = { version: 1, cursor: 0, records: {} };
+  let registryHead;
   const store = {
-    read: async () => ({ state: structuredClone(registry) }),
-    update: async (fn) => {
-      const result = await fn(structuredClone(registry));
-      registry = structuredClone(result.state);
-      return result;
+    read: async () => {
+      const commit = f.objects.get(registryHead);
+      const tree = f.objects.get(commit.tree);
+      const blob = f.objects.get(tree.tree[0].sha);
+      return { state: JSON.parse(Buffer.from(blob.content, "base64").toString("utf8")) };
     },
   };
   const fixture = { main: base, issuePosts: 0, prPosts: 0, labelPosts: 0, ref: null };
@@ -131,13 +131,18 @@ async function pipeline() {
     if (request.method === "GET") {
       if (endpoint === "/git/ref/heads/main") return response({ object: { sha: fixture.main } });
       if (endpoint === "/git/ref/heads/factory/dependency-alerts")
-        return response({ object: { sha: "e".repeat(40) } });
-      if (endpoint === "/contents/dependency-alerts.json")
+        return registryHead
+          ? response({ object: { sha: registryHead } })
+          : new Response(null, { status: 404 });
+      if (endpoint === "/contents/dependency-alerts.json") {
+        assert.equal(url.searchParams.get("ref"), registryHead);
+        const { state } = await store.read();
         return response({
           type: "file",
           encoding: "base64",
-          content: Buffer.from(JSON.stringify(registry)).toString("base64"),
+          content: Buffer.from(JSON.stringify(state)).toString("base64"),
         });
+      }
       if (endpoint === "/contents/yarn.lock") {
         const text = url.searchParams.get("ref") === base ? lock : locked();
         return response({
@@ -166,7 +171,22 @@ async function pipeline() {
           merge_base_commit: { sha: fixture.main },
           status: "identical",
         });
-      if (endpoint.startsWith("/labels/")) return response({ name: a.READY_LABEL });
+      if (endpoint.startsWith("/labels/")) return response({ name: endpoint.split("/").at(-1) });
+    }
+    if (
+      request.method === "POST" &&
+      endpoint === "/git/refs" &&
+      data.ref === "refs/heads/factory/dependency-alerts"
+    ) {
+      assert.equal(registryHead, undefined);
+      registryHead = data.sha;
+      return response({ object: { sha: registryHead } });
+    }
+    if (request.method === "PATCH" && endpoint === "/git/refs/heads/factory/dependency-alerts") {
+      assert.equal(data.force, false);
+      assert.deepEqual(f.objects.get(data.sha).parents, [registryHead]);
+      registryHead = data.sha;
+      return response({ object: { sha: registryHead } });
     }
     if (
       request.method === "POST" &&
@@ -194,6 +214,7 @@ async function pipeline() {
         number: 8,
         state: "open",
         user: { login: "github-actions[bot]", id: 41898282 },
+        labels: data.labels.map((name) => ({ name })),
       };
       if (fixture.lostIssueResponse) throw Error("lost response");
       return response(fixture.issue);
@@ -215,8 +236,15 @@ async function pipeline() {
       fixture.issue.labels = data.labels.map((name) => ({ name }));
       return response(fixture.issue.labels);
     }
+    if (request.method === "DELETE" && endpoint === "/issues/8/labels/factory-dependency-held") {
+      fixture.issue.labels = fixture.issue.labels.filter(
+        (label) => label.name !== "factory-dependency-held"
+      );
+      return response(fixture.issue.labels);
+    }
     if (request.method === "PATCH" && endpoint === "/issues/8") {
       fixture.issue = { ...fixture.issue, ...data };
+      if (data.body && fixture.lostIssueUpdateResponse) throw Error("lost issue update response");
       return response(fixture.issue);
     }
     return oldFetch(url, request);
@@ -239,7 +267,7 @@ async function pipeline() {
     if (String(url).includes("/dependabot/alerts"))
       return Response.json([
         {
-          number: 1,
+          number: fixture.alertNumber || 1,
           state: "open",
           dependency: {
             package: { ecosystem: "npm", name: "example" },
@@ -253,13 +281,17 @@ async function pipeline() {
           },
         },
       ]);
-    if (String(url).includes("/advisories")) return Response.json([]);
+    if (String(url).includes("/advisories"))
+      return fixture.advisoriesUnavailable
+        ? new Response(null, { status: 503 })
+        : Response.json([]);
     if (String(url).endsWith("registry.npmjs.org/example"))
-      return Response.json({ versions: { "1.1.0": {} } });
+      return Response.json({ versions: fixture.versions || { "1.1.0": {} } });
     if (String(url).endsWith("registry.npmjs.org/example/1.1.0"))
       return Response.json({
         name: "example",
         version: "1.1.0",
+        ...(fixture.releaseDependencies && { dependencies: fixture.releaseDependencies }),
         dist: {
           tarball: "https://registry.npmjs.org/example/-/example-1.1.0.tgz",
           shasum: base,
@@ -280,7 +312,6 @@ async function pipeline() {
     a.runRepair({
       api,
       app: appApi,
-      store,
       token: "alerts-fixture",
       config,
       base: fixture.main,
@@ -335,6 +366,99 @@ async function pipeline() {
     cfg,
   };
 }
+
+test("a wider dependency update gets one labeled tracking issue across main and alert changes", async () => {
+  const x = await pipeline();
+  x.fixture.versions = { "2.0.0": {} };
+  const tracked = await x.run();
+  assert.equal(tracked.outcome, "tracked-held");
+  assert.equal(tracked.issue, x.fixture.issue.number);
+  assert.equal(x.fixture.issuePosts, 1);
+  assert.deepEqual(x.fixture.issue.labels, [{ name: "factory-dependency-held" }]);
+  assert.match(x.fixture.issue.body, /major|release line/i);
+  assert.match(x.fixture.issue.body, /next step/i);
+  assert.equal(x.fixture.prPosts, 0);
+  assert.equal(x.fixture.ref, null);
+  assert.equal((await x.coordinator.select(false)).ready, false);
+  x.fixture.main = "f".repeat(40);
+  x.fixture.alertNumber = 2;
+  await x.run();
+  assert.equal(x.fixture.issuePosts, 1);
+  const { state } = await x.ledger.read();
+  assert.deepEqual(state.grants, {});
+  assert.deepEqual(state.days, {});
+});
+
+test("a compatible release with changed dependency edges gets a held issue without a PR", async () => {
+  const x = await pipeline();
+  x.fixture.releaseDependencies = { child: "^1.0.0" };
+  assert.equal((await x.run()).outcome, "tracked-held");
+  assert.match(x.fixture.issue.body, /dependency graph/i);
+  assert.match(x.fixture.issue.body, /parent/i);
+  assert.equal(x.fixture.prPosts, 0);
+  assert.equal(x.fixture.ref, null);
+});
+
+test("a held alert becomes a protected proposal on the same issue when evidence supports it", async () => {
+  const x = await pipeline();
+  x.fixture.advisoriesUnavailable = true;
+  assert.equal((await x.run()).outcome, "tracked-held");
+  assert.match(x.fixture.issue.body, /advisory|metadata/i);
+  const issue = x.fixture.issue.number;
+  x.fixture.advisoriesUnavailable = false;
+  const published = await x.run();
+  assert.equal(published.outcome, "published");
+  assert.equal(published.issue, issue);
+  assert.equal(published.pr, 9);
+  assert.equal(x.fixture.issue.number, issue);
+  assert.equal(x.fixture.issuePosts, 1);
+  assert.equal(x.fixture.prPosts, 1);
+  assert.match(x.fixture.issue.body, new RegExp(`https://github.com/${d.REPOSITORY}/pull/9`));
+  assert.deepEqual(x.fixture.issue.labels, [{ name: a.READY_LABEL }]);
+  assert.equal((await x.coordinator.select(false)).ready, true);
+});
+
+test("promotion recovers a lost response when linking the exact PR from the tracking issue", async () => {
+  const x = await pipeline();
+  x.fixture.advisoriesUnavailable = true;
+  await x.run();
+  x.fixture.advisoriesUnavailable = false;
+  x.fixture.lostIssueUpdateResponse = true;
+  await assert.rejects(x.run(), /lost issue update response/);
+  assert.deepEqual(x.fixture.issue.labels, [{ name: "factory-dependency-held" }]);
+  assert.equal((await x.coordinator.select(false)).ready, false);
+  x.fixture.lostIssueUpdateResponse = false;
+  assert.equal((await x.run()).outcome, "published");
+  assert.equal(x.fixture.issuePosts, 1);
+  assert.equal(x.fixture.prPosts, 1);
+  assert.deepEqual(x.fixture.issue.labels, [{ name: a.READY_LABEL }]);
+});
+
+test("a lost held issue response reconciles the matching issue without reposting", async () => {
+  const x = await pipeline();
+  x.fixture.advisoriesUnavailable = true;
+  x.fixture.lostIssueResponse = true;
+  await assert.rejects(x.run(), /lost response/);
+  assert.equal(x.fixture.issuePosts, 1);
+  x.fixture.lostIssueResponse = false;
+  assert.equal((await x.run()).outcome, "tracked-held");
+  assert.equal(x.fixture.issuePosts, 1);
+  assert.equal(x.fixture.prPosts, 0);
+});
+
+test("an unconfirmed held publication never reposts or admits a replacement proposal", async () => {
+  const x = await pipeline();
+  x.fixture.advisoriesUnavailable = true;
+  x.fixture.lostIssueResponse = true;
+  await assert.rejects(x.run(), /lost response/);
+  x.fixture.issue = null;
+  x.fixture.lostIssueResponse = false;
+  x.fixture.advisoriesUnavailable = false;
+  assert.equal((await x.run()).outcome, "held-publication-uncertain");
+  await x.run();
+  assert.equal(x.fixture.issuePosts, 1);
+  assert.equal(x.fixture.prPosts, 0);
+});
 
 test("intake reconciles a lost issue response and exactly one linked PR enters the shared dependency ledger", async () => {
   const x = await pipeline();

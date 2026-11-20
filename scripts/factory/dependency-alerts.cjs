@@ -127,24 +127,29 @@ function planGroup(group, releases, knownRanges, semver) {
     group.alerts.some((a) => !a.range || a.severity < 0 || !semver.valid(a.patched))
   )
     return { ...result, status: "advisory-held" };
-  const next = releases
+  const stable = releases
     .filter((v) => semver.valid(v) && !semver.prerelease(v))
-    .sort(semver.compare)
-    .find(
-      (v) =>
-        group.entries.length > 0 &&
-        group.entries.every(
-          (e) =>
-            semver.gt(v, e.version) &&
-            semver.major(v) === semver.major(e.version) &&
-            semver.satisfies(v, e.selector)
-        ) &&
-        group.alerts.every((a) => semver.gte(v, a.patched) && !semver.satisfies(v, a.range)) &&
-        excluded.every((range) => !semver.satisfies(v, range))
-    );
-  return next
-    ? { ...result, status: "compatible-candidate", candidate: next }
-    : { ...result, status: "no-common-candidate" };
+    .sort(semver.compare);
+  const majors = new Set(group.entries.map((e) => semver.major(e.version)));
+  let holdReason = "no-common-candidate";
+  for (const v of stable) {
+    if (
+      !group.entries.length ||
+      !group.entries.every((e) => semver.gt(v, e.version)) ||
+      !group.alerts.every((a) => semver.gte(v, a.patched) && !semver.satisfies(v, a.range)) ||
+      excluded.some((range) => semver.satisfies(v, range))
+    )
+      continue;
+    if (majors.size !== 1) break;
+    if (majors.has(semver.major(v))) {
+      if (group.entries.every((e) => semver.satisfies(v, e.selector)))
+        return { ...result, status: "compatible-candidate", candidate: v };
+      holdReason = "selector-held";
+    } else if (holdReason !== "selector-held") {
+      holdReason = "major-held";
+    }
+  }
+  return { ...result, status: "no-common-candidate", holdReason };
 }
 
 async function packagePlan(group, semver, transport) {

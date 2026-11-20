@@ -4,6 +4,7 @@ const policy = require("./policy.cjs");
 const { GitHub, ROOT } = require("./github.cjs");
 const { runtimeContext, output, readJson } = require("./controller.cjs");
 const { DependencyCoordinator, DependencyMerger, expectedReport } = require("./dependencies.cjs");
+const { trackNativeDependencies } = require("./dependency-tracking.cjs");
 const {
   inspectUpdate,
   queryOsv,
@@ -79,23 +80,22 @@ async function analyze(coordinator, number, stage, { transport = fetch } = {}) {
 async function main(env = process.env) {
   policy.assertSubscriptionEnv(env);
   const config = policy.readConfig(JSON.parse(env.FACTORY_VARIABLES || "{}"));
-  const inputs = JSON.parse(env.FACTORY_INPUTS || "{}");
+  const inputs = JSON.parse(env.FACTORY_INPUTS || "{}") || {};
+  const op = env.FACTORY_OPERATION;
+  const runtime = runtimeContext(env);
+  const preview =
+    inputs.preview === undefined ? runtime.event === "workflow_dispatch" : inputs.preview;
   const api = new GitHub({ token: env.GH_TOKEN });
-  const context = await require("./trusted-wake.cjs").loadWakeContext(
-    api,
-    runtimeContext(env),
-    env,
-    { bind: env.FACTORY_OPERATION === "dep_select" }
-  );
+  const context = await require("./trusted-wake.cjs").loadWakeContext(api, runtime, env, {
+    bind: op === "dep_select" && preview === false,
+  });
   const c = new DependencyCoordinator(api, config, context);
   c.authorize();
-  const n = Number(inputs.ticket),
-    op = env.FACTORY_OPERATION;
+  const n = Number(inputs.ticket);
   let result;
-  if (op === "dep_select")
-    result = await c.select(
-      inputs.preview === undefined ? context.event === "workflow_dispatch" : inputs.preview
-    );
+  if (op === "dep_select") result = await c.select(preview);
+  else if (op === "dep_track")
+    result = await trackNativeDependencies(api, config, context, preview);
   else if (op === "dep_analysis" || op === "dep_premerge") {
     const stage = op === "dep_analysis" ? "analysis" : "premerge";
     const report = await analyze(c, n, stage);
@@ -125,8 +125,18 @@ async function main(env = process.env) {
     ).merge(n);
   else if (op === "dep_finalize") result = await c.finalize(n);
   else throw new Error("Unknown dependency operation");
-  await require("./activity.cjs").recordResult(api, context, result, env);
+  if (op !== "dep_track" && !(op === "dep_select" && preview))
+    await require("./activity.cjs").recordResult(api, context, result, env);
   output(result, env);
+  if (op === "dep_track" && result.links?.length && env.GITHUB_STEP_SUMMARY) {
+    const home = `https://github.com/${policy.REPOSITORY}`;
+    const lines = result.links.map(({ pr, issue, status }) => {
+      const proposal = `[PR #${pr}](${home}/pull/${pr})`;
+      const ticket = issue ? ` · [Issue #${issue}](${home}/issues/${issue})` : "";
+      return `- ${proposal}${ticket} · ${status}`;
+    });
+    fs.appendFileSync(env.GITHUB_STEP_SUMMARY, `\n${lines.join("\n")}\n`);
+  }
   return result;
 }
 if (require.main === module)

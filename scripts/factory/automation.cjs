@@ -95,6 +95,28 @@ class AutomaticCoordinator {
     return null;
   }
 
+  async verifyDelayedIssue(issue, ticket) {
+    if (!queueIssue(issue) || criteriaHash(issue) !== ticket.criteriaHash) return false;
+    if (ticket.monitor) {
+      return Boolean(await verifyMonitorIssue(this.api, issue, { proof: ticket.monitor }));
+    }
+    if (ticket.finding) {
+      return (
+        this.config.discovery &&
+        ticket.finding.intake.head === this.context.workflowSha &&
+        (await require("./discovery-origin.cjs").verifyRepairOrigin(
+          this.api,
+          issue,
+          ticket.finding,
+          {
+            requireCurrent: true,
+          }
+        ))
+      );
+    }
+    return eligibleIssue(issue);
+  }
+
   async delayedCandidate(state) {
     if (
       !this.config.priorityRetry ||
@@ -112,7 +134,7 @@ class AutomaticCoordinator {
       );
     for (const [id, ticket] of candidates) {
       const issue = await this.api.request("GET", `${ROOT}/issues/${id}`);
-      if (!eligibleIssue(issue) || criteriaHash(issue) !== ticket.criteriaHash) continue;
+      if (!(await this.verifyDelayedIssue(issue, ticket))) continue;
       const parent = await this.api.request(
         "GET",
         `${ROOT}/actions/runs/${ticket.automatic.runId}`
@@ -142,8 +164,7 @@ class AutomaticCoordinator {
     if (
       ref ||
       main.commit?.sha !== this.context.workflowSha ||
-      !eligibleIssue(fresh) ||
-      criteriaHash(fresh) !== state.tickets[ticket].criteriaHash
+      !(await this.verifyDelayedIssue(fresh, state.tickets[ticket]))
     )
       return {
         ready: false,
@@ -153,7 +174,7 @@ class AutomaticCoordinator {
     if (await this.candidate(state))
       return { ready: false, reason: "New work is ready; delayed retry remains queued" };
     const unchanged = await this.api.request("GET", `${ROOT}/issues/${ticket}`);
-    if (!eligibleIssue(unchanged) || criteriaHash(unchanged) !== state.tickets[ticket].criteriaHash)
+    if (!(await this.verifyDelayedIssue(unchanged, state.tickets[ticket])))
       return { ready: false, reason: "Delayed retry issue changed before reservation" };
     const saved = await this.ledger.update(
       (current) => {
@@ -175,13 +196,17 @@ class AutomaticCoordinator {
     return { ...this.controller.result(saved.grant), kind: "ticket", delayedRetry: true };
   }
 
-  async pick({ dryRun = false } = {}) {
+  async pick({ dryRun = false, summaryPath } = {}) {
     if (typeof dryRun !== "boolean") throw new Error("Preview mode must be a boolean");
     assertAutomaticContext(this.context);
     if (!dryRun && (!this.config.enabled || !this.config.automatic))
       return { ready: false, reason: "Automatic pickup disabled; no model invocation" };
 
     const { state, commit } = await this.ledger.read();
+    if (summaryPath) {
+      const summary = require("./queue-summary.cjs").queueSummary(state, this.config);
+      if (summary) require("node:fs").appendFileSync(summaryPath, summary);
+    }
     if (state.stop)
       return {
         ready: false,
@@ -370,7 +395,10 @@ async function main(env = process.env) {
         ...(mode === "retry-finding-api" ? { apiRecovery: true } : {}),
       });
     } else {
-      result = await new AutomaticCoordinator(api, config, context).pick({ dryRun });
+      result = await new AutomaticCoordinator(api, config, context).pick({
+        dryRun,
+        summaryPath: env.GITHUB_STEP_SUMMARY,
+      });
     }
   } else {
     const { AutomaticMerger } = require("./merge.cjs");

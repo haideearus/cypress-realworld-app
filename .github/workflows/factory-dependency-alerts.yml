@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       operation:
-        description: Preview or prepare one automatic dependency repair
+        description: Preview alerts or track one package and prepare a repair when verified
         type: choice
         options: [preview, run]
         default: preview
@@ -100,7 +100,7 @@ jobs:
           repositories: cypress-realworld-app
           permission-contents: write
           permission-pull-requests: write
-      - name: Publish one verified lockfile proposal and route its ticket
+      - name: Track one dependency vulnerability or publish a verified repair
         env:
           GH_TOKEN: ${{ github.token }}
           DEPENDABOT_READ_TOKEN: ${{ steps.alerts.outputs.token }}
