@@ -2434,9 +2434,17 @@
       "reviews": 1,
       "retries": 0,
       "head": "73dcca870d0c4e93e4ce4e3a318fbe3c44ab48ba",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 139,
-      "approval": null,
+      "approval": {
+        "head": "73dcca870d0c4e93e4ce4e3a318fbe3c44ab48ba",
+        "pr": 139,
+        "grant": "6496d5d7-c7cb-4e0b-9079-ebc1478c6e1a",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/44721895106"
+      },
       "criteriaHash": "cd1dc11a176a7f58a2920c15741b40559a06d1d39617824b4d42f10dbb1faa69",
       "branch": "agent/factory-ticket-visibility",
       "ci": {
@@ -2444,7 +2452,8 @@
         "head": "73dcca870d0c4e93e4ce4e3a318fbe3c44ab48ba",
         "runId": 44721988199,
         "passed": true
-      }
+      },
+      "feedback": "{\"head\":\"73dcca870d0c4e93e4ce4e3a318fbe3c44ab48ba\",\"verdict\":\"pass\",\"summary\":\"Reviewed ticket #138 against the diff and current source at 73dcca87, focusing on scripts/factory/dependency-tracking.cjs (new), discovery-summary.cjs (new), queue-summary.cjs (new), and their wiring into dependency-run.cjs, discovery-run.cjs, discovery-finding-run.cjs, discovery-worker.cjs, functional-discovery.cjs, automation.cjs, dependency-alert-repair.cjs, delayed-retry.cjs, plus the three factory-*.yml workflows and matching tests under scripts/tests/. AC1 (one tracking issue per genuine Dependabot PR, link retained across head changes) is implemented in dependency-tracking.cjs, scoped to native Dependabot identity only (dependency-contract.cjs prOK with no alertRepair config), and exercised by a dedicated head-refresh test plus concurrency, rejection-memory and bounded-eligibility-scan tests. AC2 (alert tracking needing parent/major update or evidence, linked repair PR) is largely pre-existing from PR #135 with this change adding an issue/PR link summary block in dependency-alert-repair.cjs. AC3 (scenario coverage, findings, ticket links in summaries) is implemented via discovery-summary.cjs, wired into discovery sweep, finding intake, discovery-worker exploration, and functional-discovery browser-check publication; its tests explicitly assert that untrusted model-authored titles/summaries/log text are never echoed into the rendered Markdown. AC4 (blocked work, evidence, retry timing, preserved attempt history, fresh verification before retry) is implemented via queue-summary.cjs wired into AutomaticCoordinator.pick, with a test confirming private ticket feedback is never exposed and dependency tickets link correctly; delayed-retry.cjs's existing validate/due/handoff logic (unchanged in substance) still requires a fresh parent run proof before pickup. AC5 (branch protections, model limits, subscription-only auth, production approval) remains intact: policy.assertSubscriptionEnv is still called in every entrypoint touched, workflow permissions are scoped minimally per job, and ledger-mutating jobs keep the factory-ledger concurrency group. I did not execute any test suite or the CI run linked in the ticket context myself (read-only review); I'm relying on the referenced CI URL as unverified evidence and on static reading of the test files, which do appear to assert the right properties for the new/changed modules.\",\"findings\":[]}"
     }
   },
   "grants": {
@@ -3609,15 +3618,12 @@
       "runId": "44721895106",
       "runAttempt": 1,
       "head": "73dcca870d0c4e93e4ce4e3a318fbe3c44ab48ba",
-      "status": "reserved",
-      "at": "2026-11-20T10:45:44.962Z"
+      "status": "finished",
+      "at": "2026-11-20T10:45:44.962Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 138,
-    "runId": "44721895106",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -6373,6 +6379,14 @@
       "runId": "44721895106",
       "runAttempt": 1,
       "actor": "haideearus"
+    },
+    {
+      "at": "2026-11-20T11:06:31.327Z",
+      "event": "finished",
+      "ticket": 138,
+      "grant": "6496d5d7-c7cb-4e0b-9079-ebc1478c6e1a",
+      "status": "reviewed",
+      "head": "73dcca870d0c4e93e4ce4e3a318fbe3c44ab48ba"
     }
   ]
 }
