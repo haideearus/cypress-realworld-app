@@ -105,6 +105,9 @@ export const dataMachine = (machineId: string) =>
           entry: ["setMessage"],
           on: {
             FETCH: "loading",
+            CREATE: "creating",
+            UPDATE: "updating",
+            DELETE: "deleting",
           },
         },
       },
@@ -121,8 +124,8 @@ export const dataMachine = (machineId: string) =>
           pageData: event.data.pageData,
         })),
 
-        setMessage: /* istanbul ignore next */ assign((ctx, event: any) => ({
-          message: event.message,
+        setMessage: assign((ctx, event: any) => ({
+          message: event.data?.message ?? event.message,
         })),
       },
       guards: {

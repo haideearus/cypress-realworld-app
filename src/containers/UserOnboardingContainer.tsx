@@ -1,5 +1,6 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
+  Alert,
   Button,
   Box,
   useTheme,
@@ -45,12 +46,25 @@ const UserOnboardingContainer: React.FC<Props> = ({ authService, bankAccountsSer
   const [bankAccountsState, sendBankAccounts] = useActor(bankAccountsService);
   const [authState, sendAuth] = useActor(authService);
   const [userOnboardingState, sendUserOnboarding] = useMachine(userOnboardingMachine);
+  const [awaitingBankAccountSave, setAwaitingBankAccountSave] = useState(false);
+  const [bankAccountError, setBankAccountError] = useState<string | undefined>();
 
   const currentUser = authState?.context?.user;
 
   useEffect(() => {
     sendBankAccounts("FETCH");
   }, [sendBankAccounts]);
+
+  useEffect(() => {
+    if (!awaitingBankAccountSave) return;
+    if (bankAccountsState.matches("failure")) {
+      setAwaitingBankAccountSave(false);
+      setBankAccountError(bankAccountsState.context.message || "Unable to save bank account");
+    } else if (bankAccountsState.matches("success")) {
+      setAwaitingBankAccountSave(false);
+      sendUserOnboarding("NEXT");
+    }
+  }, [awaitingBankAccountSave, bankAccountsState, sendUserOnboarding]);
 
   const noBankAccounts =
     bankAccountsState?.matches("success.withoutData") &&
@@ -65,8 +79,9 @@ const UserOnboardingContainer: React.FC<Props> = ({ authService, bankAccountsSer
   const nextStep = () => sendUserOnboarding("NEXT");
 
   const createBankAccountWithNextStep = (payload: any) => {
+    setBankAccountError(undefined);
+    setAwaitingBankAccountSave(true);
     sendBankAccounts({ type: "CREATE", ...payload });
-    nextStep();
   };
 
   return (
@@ -91,11 +106,18 @@ const UserOnboardingContainer: React.FC<Props> = ({ authService, bankAccountsSer
             </>
           )}
           {userOnboardingState.matches("stepTwo") && (
-            <BankAccountForm
-              userId={currentUser?.id!}
-              createBankAccount={createBankAccountWithNextStep}
-              onboarding
-            />
+            <Box display="flex" flexDirection="column" width="100%">
+              {bankAccountError && (
+                <Alert severity="error" role="alert" data-test="user-onboarding-bankaccount-error">
+                  {bankAccountError}
+                </Alert>
+              )}
+              <BankAccountForm
+                userId={currentUser?.id!}
+                createBankAccount={createBankAccountWithNextStep}
+                onboarding
+              />
+            </Box>
           )}
           {userOnboardingState.matches("stepThree") && (
             <>

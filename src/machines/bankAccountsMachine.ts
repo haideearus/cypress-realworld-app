@@ -70,6 +70,10 @@ export const bankAccountsMachine = dataMachine("bankAccounts").withConfig({
         query: createBankAccountMutation.loc?.source.body,
         variables: payload,
       });
+      // A GraphQL error can arrive on HTTP 200, so a missing createBankAccount must fail the save.
+      if (resp.data.errors?.length) {
+        throw new Error(resp.data.errors[0].message);
+      }
       return resp.data;
     },
   },
