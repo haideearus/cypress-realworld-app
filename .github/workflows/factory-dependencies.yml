@@ -27,6 +27,7 @@ jobs:
     timeout-minutes: 5
     permissions:
       contents: write
+      issues: read
       pull-requests: read
       actions: read
     concurrency:
@@ -56,6 +57,7 @@ jobs:
     timeout-minutes: 8
     permissions:
       contents: read
+      issues: read
       pull-requests: read
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -92,6 +94,7 @@ jobs:
     timeout-minutes: 35
     permissions:
       contents: write
+      issues: read
       pull-requests: read
       actions: write
     concurrency:
@@ -127,6 +130,7 @@ jobs:
     timeout-minutes: 5
     permissions:
       contents: write
+      issues: read
       pull-requests: read
       actions: read
     concurrency:
@@ -170,6 +174,7 @@ jobs:
     timeout-minutes: 5
     permissions:
       contents: write
+      issues: read
       pull-requests: read
       actions: read
       checks: write
@@ -202,6 +207,7 @@ jobs:
     timeout-minutes: 8
     permissions:
       contents: read
+      issues: read
       pull-requests: read
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -271,6 +277,7 @@ jobs:
     timeout-minutes: 5
     permissions:
       contents: write
+      issues: read
       pull-requests: read
     concurrency:
       group: factory-ledger

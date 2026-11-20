@@ -45,6 +45,7 @@ function readConfig(vars) {
     ["FACTORY_EVENT_PICKUP_ENABLED", "eventPickup"],
     ["FACTORY_ACTIVITY_LOG_ENABLED", "activityLog"],
     ["FACTORY_PRIORITY_RETRY_ENABLED", "priorityRetry"],
+    ["FACTORY_DEPENDENCY_ALERT_REPAIR_ENABLED", "alertRepair"],
   ]) {
     if (![undefined, "true", "false"].includes(vars[key])) deny(`Invalid automatic boolean ${key}`);
     config[name] = vars[key] === "true";

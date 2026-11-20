@@ -1,7 +1,19 @@
-name: Dependabot ticket preview
+name: Dependabot alert intake
 
 on:
   workflow_dispatch:
+    inputs:
+      operation:
+        description: Preview or prepare one automatic dependency repair
+        type: choice
+        options: [preview, run]
+        default: preview
+  schedule:
+    - cron: "7,37 * * * *"
+
+concurrency:
+  group: factory-dependency-alerts
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -11,7 +23,8 @@ jobs:
     if: >-
       ${{ github.repository == 'haideearus/cypress-realworld-app' &&
           github.ref == 'refs/heads/main' && github.run_attempt == 1 &&
-          github.actor == 'haideearus' && github.triggering_actor == 'haideearus' }}
+          github.actor == 'haideearus' && github.triggering_actor == 'haideearus' &&
+          github.event_name == 'workflow_dispatch' && inputs.operation == 'preview' }}
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
@@ -41,3 +54,63 @@ jobs:
         run: |
           test -n "$EXPECTED_APP_SLUG" && test "$ACTUAL_APP_SLUG" = "$EXPECTED_APP_SLUG"
           node scripts/factory/dependency-alerts.cjs
+  repair:
+    if: >-
+      ${{ github.repository == 'haideearus/cypress-realworld-app' &&
+          github.ref == 'refs/heads/main' && github.run_attempt == 1 &&
+          github.actor == 'haideearus' && github.triggering_actor == 'haideearus' &&
+          vars.FACTORY_DEPENDENCY_ALERT_REPAIR_ENABLED == 'true' &&
+          vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' &&
+          (github.event_name == 'schedule' || inputs.operation == 'run') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: factory-ledger
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: read
+      actions: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.20.0
+      - name: Install pinned lockfile analysis tools
+        working-directory: scripts/factory/dependency-tools
+        run: npm ci --ignore-scripts --no-audit --fund=false
+      - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
+        id: alerts
+        with:
+          client-id: ${{ vars.FACTORY_GITHUB_APP_CLIENT_ID }}
+          private-key: ${{ secrets.FACTORY_GITHUB_APP_PRIVATE_KEY }}
+          owner: haideearus
+          repositories: cypress-realworld-app
+          permission-vulnerability-alerts: read
+      - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
+        id: publisher
+        with:
+          client-id: ${{ vars.FACTORY_GITHUB_APP_CLIENT_ID }}
+          private-key: ${{ secrets.FACTORY_GITHUB_APP_PRIVATE_KEY }}
+          owner: haideearus
+          repositories: cypress-realworld-app
+          permission-contents: write
+          permission-pull-requests: write
+      - name: Publish one verified lockfile proposal and route its ticket
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEPENDABOT_READ_TOKEN: ${{ steps.alerts.outputs.token }}
+          DEPENDENCY_PUBLISH_TOKEN: ${{ steps.publisher.outputs.token }}
+          ALERT_APP_SLUG: ${{ steps.alerts.outputs.app-slug }}
+          PUBLISHER_APP_SLUG: ${{ steps.publisher.outputs.app-slug }}
+          EXPECTED_APP_SLUG: ${{ vars.FACTORY_GITHUB_APP_SLUG }}
+          FACTORY_VARIABLES: ${{ toJSON(vars) }}
+        run: |
+          test -n "$EXPECTED_APP_SLUG"
+          test "$ALERT_APP_SLUG" = "$EXPECTED_APP_SLUG"
+          test "$PUBLISHER_APP_SLUG" = "$EXPECTED_APP_SLUG"
+          node scripts/factory/dependency-alert-repair.cjs

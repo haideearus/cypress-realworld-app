@@ -230,7 +230,8 @@ class Controller {
     if (t.origin === "dependency-pr") {
       const d = require("./dependency-contract.cjs");
       const attempt = d.matches(t, this.context, this.config);
-      d.prOK(pr);
+      d.prOK(pr, false, this.config);
+      await require("./dependency-alert-repair.cjs").verifyAlertPR(this.api, pr, this.config);
       if (
         pr.number !== t.pr ||
         pr.head.sha !== t.head ||
@@ -238,7 +239,10 @@ class Controller {
         pr.base.sha !== attempt.base
       )
         throw new Error("Dependency PR identity changed");
-      d.filesOK(await this.api.request("GET", `${ROOT}/pulls/${t.pr}/files?per_page=3`));
+      d.filesOK(
+        await this.api.request("GET", `${ROOT}/pulls/${t.pr}/files?per_page=3`),
+        !!d.alertKey(pr.head.ref)
+      );
       return pr;
     }
     if (

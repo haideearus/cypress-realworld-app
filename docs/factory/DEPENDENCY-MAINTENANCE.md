@@ -16,11 +16,11 @@ Earlier PR #52 analysis/review holds remain historical evidence. The retained-ve
 [verification record](retained-advisory-fix-verification-2026-11-15.md).
 No extended scheduled-operation acceptance is claimed by that controlled run.
 
-## Preview tickets from Dependabot alerts
+## Turn Dependabot alerts into repair tickets
 
-The **Dependabot ticket preview** workflow reads the open alerts for this
-repository and compares them with the root Yarn lockfile on `main`. It ranks
-package groups by severity, then runtime exposure, and evaluates up to ten.
+**Dependabot alert intake** compares open alerts with the root Yarn lockfile on
+`main`. The manual `preview` operation ranks package groups by severity, then
+runtime exposure, and evaluates up to ten.
 Public job logs and summaries show aggregate counts.
 Each compatible candidate satisfies the existing version selectors and is
 outside the affected ranges in the reviewed advisory catalog. A hold may require
@@ -28,8 +28,32 @@ updating a parent or a direct pin, reviewing unavailable evidence, or fixing
 separate release lines individually. Candidate versions still need the existing
 lockfile analysis, CI, independent review and branch protection before merge.
 
-The GitHub App needs **Dependabot alerts: Read-only** on this repository to
-run the preview. It creates no tickets or PRs and uses no Claude sessions.
+The GitHub App needs **Dependabot alerts: Read-only** on this repository. The
+preview creates no tickets or PRs and uses no Claude sessions.
+
+After the App permission and a hosted preview are verified, a separately
+enabled run can prepare a repair. Set
+`FACTORY_DEPENDENCY_ALERT_REPAIR_ENABLED=true` to opt in. The main factory
+and automatic pickup switches must also be on. Intake checks at minutes 07
+and 37 of each hour. It gives eligible app work and current native Dependabot
+PRs priority, prepares one proposal at a time, and keeps a limit of ten new
+preparations per Bucharest day plus the shared maintenance admission budget.
+
+The workflow creates a ticket and an App-authored lockfile PR and applies
+`factory-dependency-ready` after recording their exact identities. The normal
+hourly **Dependency maintenance** workflow revalidates the ticket and PR, then
+runs dependency analysis, CI, and one independent Claude Pro review through
+the existing ledger. Both required checks and the existing merging switch
+govern merge. Production deployment retains its approval gate.
+
+Intake can prepare in-range lockfile updates with unchanged dependency edges.
+Updates that require new dependency edges, a parent update, or unsupported
+advisory evidence stay held. It preserves attempts when refreshing the same
+PR against a newer `main` and honors removal of the ready label. It records a
+publication intent before creating a ticket or PR, and only reconciles a lost
+response against a matching GitHub object. It closes a ticket after the
+protected merge is recorded, the patched lock entries are on `main`, and
+GitHub reports no open alerts for the package.
 
 ## What happens
 

@@ -174,7 +174,13 @@ async function packagePlan(group, semver, transport) {
   return planGroup(group, Object.keys(registry.body.versions), affected, semver);
 }
 
-async function preview(token, lockText, tools, transport = fetch) {
+async function preview(
+  token,
+  lockText,
+  tools,
+  transport = fetch,
+  { offset = 0, packageName } = {}
+) {
   if (
     typeof lockText !== "string" ||
     Buffer.byteLength(lockText) > 2097152 ||
@@ -185,9 +191,12 @@ async function preview(token, lockText, tools, transport = fetch) {
   if (parsed.type !== "success" || !parsed.object || Object.keys(parsed.object).length > 10000)
     throw Error("Invalid alert preview lockfile");
   const alerts = await listAlerts(token, transport);
-  const groups = groupsFor(alerts, parsed.object, tools.semver);
+  const groups = groupsFor(alerts, parsed.object, tools.semver).filter(
+    (g) => !packageName || g.name === packageName
+  );
+  const start = offset < groups.length ? offset : 0;
   const plans = [];
-  for (const group of groups.slice(0, PREVIEW_LIMIT)) {
+  for (const group of groups.slice(start, start + PREVIEW_LIMIT)) {
     try {
       plans.push(await packagePlan(group, tools.semver, transport));
     } catch {
@@ -203,6 +212,7 @@ async function preview(token, lockText, tools, transport = fetch) {
     modelCalls: 0,
     openAlerts: alerts.length,
     groups: groups.length,
+    nextOffset: start + PREVIEW_LIMIT < groups.length ? start + PREVIEW_LIMIT : 0,
     plans,
   };
 }
@@ -255,4 +265,4 @@ if (require.main === module)
     process.exitCode = 1;
   });
 
-module.exports = { groupsFor, planGroup, listAlerts, preview, publicSummary, main };
+module.exports = { groupsFor, planGroup, listAlerts, readJSON, preview, publicSummary, main };

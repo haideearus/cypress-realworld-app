@@ -9,6 +9,7 @@ const { Controller } = require("./controller.cjs");
 const { AutomaticMerger } = require("./merge.cjs");
 const { validateReview } = require("./artifacts.cjs");
 const { ConfirmationUnavailable, readMergePR } = require("./merge-confirmation.cjs");
+const { verifyAlertPR, AlertAdmissionHold } = require("./dependency-alert-repair.cjs");
 
 function expectedReport(ticket, context, stage) {
   const a = d.validateTicket(ticket);
@@ -106,16 +107,73 @@ class DependencyCoordinator {
     policy.authorize(this.context);
     if (!d.contextOK(this.context)) throw new Error("Unauthorized dependency context");
   }
+  async alertHold(t, pr) {
+    if (!d.alertKey(t.branch) || t.merge || pr.state !== "open") return null;
+    if (!this.config.alertRepair) return "alert-repair-disabled";
+    if (pr.head.sha === t.head) {
+      const main = await this.api.request("GET", `${ROOT}/git/ref/heads/main`);
+      if (!d.SHA.test(main.object?.sha || "")) throw Error("Invalid main revision");
+      if (main.object.sha !== d.validateTicket(t).base) return "stale-base";
+    }
+    try {
+      await verifyAlertPR(this.api, pr, this.config);
+    } catch (error) {
+      if (!(error instanceof AlertAdmissionHold)) throw error;
+      return "ticket-held";
+    }
+    return null;
+  }
   async pending(t, preview) {
     let observed;
     try {
-      observed = d.prOK(await readMergePR(this.api, t.pr, t.merge?.status === "intent"), true);
+      observed = d.prOK(
+        await readMergePR(this.api, t.pr, t.merge?.status === "intent"),
+        true,
+        d.alertKey(t.branch) ? { ...this.config, alertRepair: true } : this.config
+      );
     } catch (error) {
       if (!(error instanceof ConfirmationUnavailable)) throw error;
       return { ready: false, reason: "merge_confirmation_unavailable" };
     }
     if (observed.number !== t.pr || observed.head.ref !== t.branch)
       throw new Error("Dependency PR identity changed");
+    const alertHold = await this.alertHold(t, observed);
+    if (alertHold) {
+      if (preview) return { ready: false, reason: alertHold };
+      await this.ledger.update(async (s) => {
+        policy.assertNotStopped(s);
+        const current = s.tickets[String(t.pr)];
+        const entry = slots.activeFor(s, t.pr);
+        if (
+          JSON.stringify(current) !== JSON.stringify(t) ||
+          Object.values(s.grants).some((g) => g.ticket === t.pr && g.status === "reserved") ||
+          (entry && !(await terminalParent(this.api, entry)))
+        )
+          throw Error("Alert proposal history changed");
+        const latest = d.prOK(await readMergePR(this.api, t.pr), true, {
+          ...this.config,
+          alertRepair: true,
+        });
+        if (
+          latest.number !== t.pr ||
+          latest.head.ref !== t.branch ||
+          latest.head.sha !== observed.head.sha ||
+          (await this.alertHold(t, latest)) !== alertHold
+        )
+          throw Error("Alert proposal changed during hold");
+        policy.audit(s, "dependency_alert_approval_retired", {
+          ticket: t.pr,
+          head: t.head,
+          grant: t.approval?.grant,
+          reason: alertHold,
+        });
+        current.status = "blocked";
+        current.approval = null;
+        if (entry) slots.releaseActive(s, entry);
+        return { state: s };
+      });
+      return null;
+    }
     if (observed.head.sha !== t.head) {
       if (t.merge?.status === "intent")
         return {
@@ -153,7 +211,12 @@ class DependencyCoordinator {
           (entry && (!slots.owns(entry, expectedOwner) || !(await terminalParent(this.api, entry))))
         )
           throw new Error("Dependency history changed during stale-proof reconciliation");
-        const latest = d.prOK(await this.api.request("GET", `${ROOT}/pulls/${t.pr}`));
+        const latest = d.prOK(
+          await this.api.request("GET", `${ROOT}/pulls/${t.pr}`),
+          false,
+          this.config
+        );
+        await verifyAlertPR(this.api, latest, this.config);
         if (
           latest.number !== t.pr ||
           latest.head.ref !== t.branch ||
@@ -188,14 +251,24 @@ class DependencyCoordinator {
   }
   async pr(number, { closed = false, expected, confirmation = false } = {}) {
     if (!Number.isSafeInteger(number) || number < 1) throw new Error("Invalid dependency PR");
-    const pr = d.prOK(await readMergePR(this.api, number, confirmation), closed);
+    const observed = await readMergePR(this.api, number, confirmation);
+    const reconciling = confirmation && expected?.merge?.status === "intent";
+    const config =
+      expected && (reconciling || (closed && observed.state === "closed"))
+        ? { ...this.config, alertRepair: true }
+        : this.config;
+    const pr = d.prOK(observed, closed, config);
     if (
       pr.number !== number ||
       (expected && (pr.head.sha !== expected.head || pr.head.ref !== expected.branch))
     )
       throw new Error("Dependency head changed");
+    await verifyAlertPR(this.api, pr, config, undefined, reconciling);
     if (pr.state === "open" && !confirmation) {
-      d.filesOK(await this.api.request("GET", `${ROOT}/pulls/${number}/files?per_page=3`));
+      d.filesOK(
+        await this.api.request("GET", `${ROOT}/pulls/${number}/files?per_page=3`),
+        !!d.alertKey(pr.head.ref)
+      );
       const main = await this.api.request("GET", `${ROOT}/git/ref/heads/main`);
       const compare = await this.api.request(
         "GET",
@@ -286,7 +359,7 @@ class DependencyCoordinator {
       if (result) return result;
       state = (await this.ledger.read()).state;
     }
-    let candidate;
+    let candidate, generated;
     const holds = [];
     for (let page = 1; page <= 5 && !candidate; page++) {
       const rows = await this.api.request(
@@ -297,7 +370,7 @@ class DependencyCoordinator {
         throw new Error("Invalid bounded dependency queue");
       for (const row of rows) {
         try {
-          d.prOK(row);
+          d.prOK(row, false, this.config);
         } catch {
           continue;
         }
@@ -313,8 +386,12 @@ class DependencyCoordinator {
         )
           continue;
         try {
-          candidate = await this.pr(row.number);
-          break;
+          if (d.alertKey(row.head.ref)) {
+            if (!generated) generated = await this.pr(row.number);
+          } else {
+            candidate = await this.pr(row.number);
+            break;
+          }
         } catch (error) {
           if (holds.length < 5)
             holds.push({
@@ -329,6 +406,18 @@ class DependencyCoordinator {
       }
       if (rows.length < 100) break;
     }
+    if (
+      !candidate &&
+      generated &&
+      !(await new (require("./automation.cjs").AutomaticCoordinator)(
+        this.api,
+        this.config,
+        {}
+      ).candidate(state))
+    )
+      candidate = generated;
+    if (!candidate && generated)
+      return { ready: false, reason: "App work takes priority over dependency alert repair" };
     if (!candidate)
       return holds.length
         ? {
@@ -338,7 +427,7 @@ class DependencyCoordinator {
             holds,
             reason: "Dependabot proposals held; refresh or prerequisite verification required",
           }
-        : { ready: false, reason: "No eligible Dependabot PR in the bounded queue" };
+        : { ready: false, reason: "No eligible dependency PR in the bounded queue" };
     if (preview)
       return {
         ready: false,
@@ -347,14 +436,22 @@ class DependencyCoordinator {
         head: candidate.head.sha,
         reason: "Preview only; no reservation, model session or merge",
       };
-    await this.ledger.update(async (s) => ({
-      state: lifecycle.claimDependency(
-        s,
-        await this.pr(candidate.number),
-        this.context,
-        this.config
-      ),
-    }));
+    await this.ledger.update(async (s) => {
+      const pr = await this.pr(candidate.number);
+      const receipt = await verifyAlertPR(this.api, pr, this.config);
+      if (
+        receipt &&
+        (await new (require("./automation.cjs").AutomaticCoordinator)(
+          this.api,
+          this.config,
+          {}
+        ).candidate(s))
+      )
+        throw Error("App work takes priority over dependency alert repair");
+      return {
+        state: lifecycle.claimDependency(s, pr, this.context, this.config, new Date(), receipt),
+      };
+    });
     return { ready: true, mode: "review", ticket: candidate.number, head: candidate.head.sha };
   }
   async ticket(number, active = true) {

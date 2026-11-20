@@ -3,7 +3,7 @@ const SHA = /^[a-f0-9]{40}$/;
 // Dedicated metadata namespaces. Never aliases the usage, monitor or grant ledger.
 class MetadataStore {
   constructor(api, namespace, empty, validate) {
-    if (!["wakes", "activity", "discovery", "findings"].includes(namespace))
+    if (!["wakes", "activity", "discovery", "findings", "dependency-alerts"].includes(namespace))
       throw Error("Invalid metadata namespace");
     Object.assign(this, {
       api,

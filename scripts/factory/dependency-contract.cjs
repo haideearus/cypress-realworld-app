@@ -12,6 +12,8 @@ const branch = (s) =>
   typeof s === "string" &&
   /^dependabot\/npm_and_yarn\/[A-Za-z0-9._/-]{1,180}$/.test(s) &&
   !s.split("/").some((x) => x === "." || x === "..");
+const alertKey = (ref) => /^agent\/dependency-alert-([a-f0-9]{64})$/.exec(ref || "")?.[1];
+const alertBranch = (key) => `agent/dependency-alert-${key}`;
 function contextOK(c) {
   return !!(
     c &&
@@ -27,7 +29,16 @@ function contextOK(c) {
     c.runAttempt > 0
   );
 }
-function prOK(pr, closed = false) {
+function prOK(pr, closed = false, config = {}) {
+  const native =
+    branch(pr?.head?.ref) && pr?.user?.login === "dependabot[bot]" && pr.user.id === 49699333;
+  const generated =
+    config.alertRepair === true &&
+    config.appSlug &&
+    alertKey(pr?.head?.ref) &&
+    pr?.user?.login === `${config.appSlug}[bot]` &&
+    Number.isSafeInteger(pr.user.id) &&
+    pr.user.id > 0;
   if (
     !pr ||
     !Number.isSafeInteger(pr.number) ||
@@ -35,20 +46,18 @@ function prOK(pr, closed = false) {
     (!closed && pr.state !== "open") ||
     (closed && !["open", "closed"].includes(pr.state)) ||
     pr.draft !== false ||
-    pr.user?.login !== "dependabot[bot]" ||
     pr.user?.type !== "Bot" ||
-    pr.user?.id !== 49699333 ||
+    (!native && !generated) ||
     pr.head?.repo?.full_name !== REPOSITORY ||
     pr.base?.repo?.full_name !== REPOSITORY ||
     pr.base?.ref !== "main" ||
     !SHA.test(pr.head?.sha || "") ||
-    !SHA.test(pr.base?.sha || "") ||
-    !branch(pr.head?.ref)
+    !SHA.test(pr.base?.sha || "")
   )
     throw new Error("Untrusted dependency PR identity");
   return pr;
 }
-function filesOK(files) {
+function filesOK(files, lockOnly = false) {
   if (
     !Array.isArray(files) ||
     files.length < 1 ||
@@ -56,7 +65,7 @@ function filesOK(files) {
     new Set(files.map((f) => f.filename)).size !== files.length ||
     files.some(
       (f) =>
-        !["package.json", "yarn.lock"].includes(f.filename) ||
+        !(lockOnly ? ["yarn.lock"] : ["package.json", "yarn.lock"]).includes(f.filename) ||
         f.status !== "modified" ||
         f.previous_filename !== undefined
     )
@@ -75,7 +84,7 @@ function validateTicket(t, grants = []) {
     !Number.isSafeInteger(t.pr) ||
     t.pr < 1 ||
     t.criteriaHash !== criteria(t.pr) ||
-    !branch(t.branch) ||
+    (!branch(t.branch) && !alertKey(t.branch)) ||
     ["automatic", "monitor", "drill", "recovery"].some((k) => t[k] !== undefined) ||
     d.workflowRef !== WORKFLOW ||
     !SHA.test(d.workflowSha || "") ||
@@ -146,6 +155,8 @@ module.exports = {
   digest,
   criteria,
   contextOK,
+  alertKey,
+  alertBranch,
   prOK,
   filesOK,
   validateTicket,
