@@ -67,7 +67,7 @@ const BankAccountForm: React.FC<BankAccountFormProps> = ({
     <StyledFormik
       initialValues={initialValues}
       validationSchema={validationSchema}
-      onSubmit={(values, { setSubmitting }) => {
+      onSubmit={async (values, { setSubmitting }) => {
         setSubmitting(true);
 
         createBankAccount({ ...values, userId });
