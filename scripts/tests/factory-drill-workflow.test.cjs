@@ -166,6 +166,7 @@ test("rehearsal runs remain bounded and ledger writes serialize without cancelli
     assert.deepEqual(flow.jobs[name].concurrency, {
       group: "factory-ledger",
       "cancel-in-progress": false,
+      queue: "max",
     });
   for (const job of Object.values(flow.jobs)) {
     if (job.uses) continue;

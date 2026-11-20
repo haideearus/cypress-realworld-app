@@ -54,6 +54,7 @@ jobs:
     concurrency:
       group: factory-ledger
       cancel-in-progress: false
+      queue: max
     outputs:
       ready: ${{ steps.control.outputs.ready }}
       grantId: ${{ steps.control.outputs.grantId }}

@@ -2,6 +2,15 @@ const user = { username: "Heath93", password: "s3cret" };
 const firstName = "Ted";
 const settingsPath = "/user/settings";
 const onboarding = "bank-account-onboarding";
+const settingsPersistence = "settings-persistence";
+const settingsProfile = {
+  firstName: "Discovery",
+  lastName: "Fixture",
+  email: "discovery@example.test",
+  phoneNumber: "2025550100",
+  defaultPrivacyLevel: "private",
+};
+const savedFirstName = "Updated";
 const testBank = {
   bankName: "Discovery Demo Bank",
   accountNumber: "000000001",
@@ -50,12 +59,41 @@ function expectInputLabel(field, text, id) {
 }
 
 function signInFixture(credentials = user) {
-  cy.visit("/signin", { log: false });
+  cy.visit("/signin", {
+    log: false,
+    onBeforeLoad(win) {
+      win.localStorage.removeItem("authState");
+    },
+  });
   cy.window({ log: false }).then((win) => {
     // Set up other checks through the app's Cypress-only authentication hook.
     win.authService.send("LOGIN", credentials);
   });
   cy.get(selector("sidenav-user-full-name"), { log: false }).should("be.visible");
+}
+
+function seedSyntheticUser(scenario, profile) {
+  const origin = new URL(Cypress.config("baseUrl")).origin;
+  const credentials = {
+    username: `discovery${scenario}${globalThis.crypto.randomUUID().replaceAll("-", "")}`,
+    password: user.password,
+  };
+  // cy.request bypasses browser interception. Seed only the disposable loopback app.
+  expect(origin).to.equal("https://127.0.0.1:8443");
+  return cy
+    .request({
+      method: "POST",
+      url: origin + "/api/users",
+      followRedirect: false,
+      headers: { origin },
+      body: { ...credentials, ...profile },
+      log: false,
+    })
+    .then(({ status, body }) => {
+      expect(status).to.equal(201);
+      expect(body.user.id).to.be.a("string");
+      return { credentials, id: body.user.id };
+    });
 }
 
 function fillDemoBank() {
@@ -96,34 +134,71 @@ function bankAccountRequest(request, userId) {
 }
 
 describe("functional discovery", () => {
-  let onboardingUserId;
-  let onboardingCredentials;
+  let syntheticUser;
+  let sentSettingsUpdate;
   let rejectFirstSave;
   let sentDemoBank;
   beforeEach(() => {
     const origin = new URL(Cypress.config("baseUrl")).origin;
     const checksOnboarding = Cypress.currentTest.title === onboarding;
-    onboardingUserId = undefined;
-    onboardingCredentials = undefined;
+    const checksSettingsPersistence = Cypress.currentTest.title === settingsPersistence;
+    syntheticUser = undefined;
+    sentSettingsUpdate = false;
     rejectFirstSave = true;
     sentDemoBank = false;
     cy.intercept({ url: "**", middleware: true }, (request) => {
       const target = new URL(request.url);
       // Seed avatars and any other external URLs stay inside the disposable browser.
       if (target.origin !== origin) return request.reply({ statusCode: 204 });
-      if (checksOnboarding && request.method === "POST") {
-        if (target.pathname === "/api/login") {
-          if (
-            onboardingUserId &&
-            request.body?.username === onboardingCredentials.username &&
-            request.body?.password === onboardingCredentials.password
-          )
-            return;
-          return request.reply({ statusCode: 405 });
+      if (
+        (checksOnboarding || checksSettingsPersistence) &&
+        request.method === "POST" &&
+        target.pathname === "/api/login"
+      ) {
+        if (
+          syntheticUser &&
+          request.body?.username === syntheticUser.credentials.username &&
+          request.body?.password === syntheticUser.credentials.password
+        ) {
+          request.alias = "syntheticLogin";
+          return;
         }
+        return request.reply({ statusCode: 405 });
+      }
+      if (
+        checksSettingsPersistence &&
+        request.method === "PATCH" &&
+        syntheticUser &&
+        !sentSettingsUpdate &&
+        target.pathname === `/api/users/${syntheticUser.id}` &&
+        !target.search &&
+        Cypress._.isEqual(request.body, {
+          ...settingsProfile,
+          id: syntheticUser.id,
+          firstName: savedFirstName,
+        })
+      ) {
+        sentSettingsUpdate = true;
+        request.alias = "settingsSaved";
+        return;
+      }
+      if (
+        checksSettingsPersistence &&
+        syntheticUser &&
+        request.method === "POST" &&
+        target.pathname === "/api/graphql" &&
+        bankAccountRequest(request, syntheticUser.id) === "list"
+      ) {
+        // Exercise an onboarded Settings user without creating a bank account in this check.
+        return request.reply({
+          statusCode: 200,
+          body: { data: { listBankAccount: [{ id: "settings-bank-fixture", ...testBank }] } },
+        });
+      }
+      if (checksOnboarding && request.method === "POST") {
         if (target.pathname === "/api/logout") return;
         if (target.pathname === "/api/graphql") {
-          const operation = bankAccountRequest(request, onboardingUserId);
+          const operation = bankAccountRequest(request, syntheticUser?.id);
           if (operation === "list") return;
           if (operation === "save" && !sentDemoBank) {
             request.alias = rejectFirstSave ? "onboardingRejected" : "onboardingSaved";
@@ -215,33 +290,44 @@ describe("functional discovery", () => {
     });
   });
 
+  it(settingsPersistence, () => {
+    seedSyntheticUser("settings", settingsProfile).then((fixture) => {
+      syntheticUser = fixture;
+      signInFixture(fixture.credentials);
+    });
+    cy.wait("@syntheticLogin", { log: false });
+    cy.visit(settingsPath);
+    const field = "#user-settings-firstName-input";
+    cy.get(field).clear().type(savedFirstName).blur();
+    cy.get(selector("user-settings-submit")).click();
+    cy.wait("@settingsSaved", { log: false }).should(({ response }) => {
+      expect(response?.statusCode, named("settings-persistence-saved")).to.equal(204);
+    });
+    // Read the saved profile from a fresh session rather than using cached form state.
+    cy.clearCookies({ log: false });
+    cy.then(() => signInFixture(syntheticUser.credentials));
+    cy.wait("@syntheticLogin", { log: false }).then(({ response }) => {
+      expect(response?.body?.user?.id).to.equal(syntheticUser.id);
+    });
+    cy.visit(settingsPath);
+    cy.get("body").should(($body) => {
+      expect($body.find(field).val(), named("settings-persistence-reloaded")).to.equal(
+        savedFirstName
+      );
+    });
+  });
+
   it(onboarding, () => {
-    const origin = new URL(Cypress.config("baseUrl")).origin;
-    const credentials = {
-      username: `discoveryonboarding${globalThis.crypto.randomUUID().replaceAll("-", "")}`,
-      password: user.password,
-    };
-    onboardingCredentials = credentials;
     const dialog = selector("user-onboarding-dialog");
     const title = selector("user-onboarding-dialog-title");
     const next = selector("user-onboarding-next");
 
-    // cy.request bypasses browser interception. Only the loopback fixture is seeded.
-    expect(origin).to.equal("https://127.0.0.1:8443");
-    cy.request({
-      method: "POST",
-      url: origin + "/api/users",
-      followRedirect: false,
-      headers: { origin },
-      body: { ...credentials, firstName: "Discovery", lastName: "Fixture" },
-      log: false,
-    }).then(({ status, body }) => {
-      expect(status).to.equal(201);
-      expect(body.user.id).to.be.a("string");
-      onboardingUserId = body.user.id;
-    });
-
-    signInFixture(credentials);
+    seedSyntheticUser("onboarding", { firstName: "Discovery", lastName: "Fixture" }).then(
+      (fixture) => {
+        syntheticUser = fixture;
+        signInFixture(fixture.credentials);
+      }
+    );
     expectVisible(dialog, "onboarding-wizard");
     cy.get(next).click();
     fillDemoBank();
@@ -274,7 +360,7 @@ describe("functional discovery", () => {
     cy.get(next).click();
     cy.get(selector("sidenav-signout")).click();
     expectRoute("/signin", "onboarding-sign-out");
-    signInFixture(credentials);
+    cy.then(() => signInFixture(syntheticUser.credentials));
     cy.visit("/bankaccounts");
     cy.get("body").should(($body) => {
       expect(

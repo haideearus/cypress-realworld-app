@@ -15,6 +15,7 @@ const KINDS = [
   "unexpected-server-error",
   "protected-route",
   "feed-pagination",
+  "notification-list",
   "account-isolation",
   "bank-account-isolation",
   "private-transaction-isolation",
@@ -36,6 +37,7 @@ const PRIVACY = {
 // A denial status alone is not proof: arbitrary/renamed payloads can still leak
 // a record. Unknown error shapes deliberately hold until separately supported.
 const DENIALS = ["Unauthorized", "Forbidden", "Not Found", "denied"];
+const NOTIFICATION_CHECKS = Object.freeze(["envelope", "unread", "items"]);
 const hash = (s) => createHash("sha256").update(s).digest("hex");
 function validateOracle(o) {
   if (
@@ -47,14 +49,18 @@ function validateOracle(o) {
     !o.query ||
     typeof o.query !== "object" ||
     Array.isArray(o.query) ||
-    Object.keys(o.query).some((k) => !["page", "limit", "q"].includes(k))
+    Object.keys(o.query).some(
+      (k) => !(o.kind === "notification-list" ? ["check"] : ["page", "limit", "q"]).includes(k)
+    )
   )
     throw Error("Unsupported discovery oracle");
   for (const [key, value] of Object.entries(o.query))
     if (
-      key === "q"
-        ? typeof value !== "string" || value.length > 100
-        : !Number.isSafeInteger(value) || value < -1 || value > 100000
+      key === "check"
+        ? !NOTIFICATION_CHECKS.includes(value)
+        : key === "q"
+          ? typeof value !== "string" || value.length > 100
+          : !Number.isSafeInteger(value) || value < -1 || value > 100000
     )
       throw Error("Unsupported discovery oracle input");
   if (
@@ -62,6 +68,8 @@ function validateOracle(o) {
       (o.authenticated ||
         !["/users", "/transactions", "/bankAccounts", "/notifications"].includes(o.route))) ||
     (o.kind === "feed-pagination" && (!o.authenticated || o.route !== "/transactions/public")) ||
+    (o.kind === "notification-list" &&
+      (!o.authenticated || o.route !== "/notifications" || !Object.hasOwn(o.query, "check"))) ||
     (o.kind === "account-isolation" && (!o.authenticated || o.route !== "/users/:other")) ||
     (o.route === "/users/:other" && o.kind !== "account-isolation") ||
     (PRIVACY[o.kind] &&
@@ -83,9 +91,65 @@ function oracleHash(o) {
     ])
   );
 }
+function projectNotifications(body, seed) {
+  const expected = seed.notifications?.filter(
+    (row) => row.userId === seed.users[0].id && row.isRead === false
+  );
+  if (!expected?.length || expected.some(({ id }) => typeof id !== "string" || !id))
+    throw Error("Unread synthetic notification fixture missing");
+  const expectedIds = new Set(expected.map(({ id }) => id));
+  if (expectedIds.size !== expected.length)
+    throw Error("Unread synthetic notification fixture IDs must be distinct");
+  const hasList = Array.isArray(body?.results);
+  const rows = hasList ? body.results : [];
+  const hasItems = rows.length > 0;
+  const ids = new Set();
+  const nonempty = (value) => typeof value === "string" && value.trim().length > 0;
+  const validItems =
+    hasItems &&
+    rows.every((row) => {
+      if (
+        !nonempty(row?.id) ||
+        ids.has(row.id) ||
+        !nonempty(row.transactionId) ||
+        !nonempty(row.userFullName)
+      )
+        return false;
+      ids.add(row.id);
+      const variants = [nonempty(row.likeId), nonempty(row.commentId)];
+      return (
+        variants.filter(Boolean).length +
+          Number(["requested", "received", "incomplete"].includes(row.status)) ===
+        1
+      );
+    });
+  const matchesUnread =
+    rows.length === expectedIds.size &&
+    new Set(rows.map((row) => row?.id)).size === expectedIds.size &&
+    rows.every((row) => row?.isRead === false && expectedIds.has(row.id));
+  return { hasList, hasItems, matchesUnread, validItems };
+}
+function notificationSymptom(check, status, projected) {
+  if (
+    !projected ||
+    Object.keys(projected).sort().join(",") !== "hasItems,hasList,matchesUnread,validItems" ||
+    !Object.values(projected).every((value) => typeof value === "boolean") ||
+    (projected.hasItems && !projected.hasList) ||
+    ((projected.matchesUnread || projected.validItems) && !projected.hasItems)
+  )
+    throw Error("Invalid synthetic notification observation");
+  if (status >= 500 && status <= 599) return "server-error";
+  if (status !== 200) return "none";
+  if (!projected.hasList) return "notifications-envelope";
+  if (check === "unread" && !projected.matchesUnread) return "notifications-unread";
+  if (check === "items" && !projected.hasItems) return "notifications-unread";
+  if (check === "items" && !projected.validItems) return "notifications-items";
+  return "none";
+}
 function observe(o, status, body) {
   validateOracle(o);
   let symptom = "none";
+  if (o.kind === "notification-list") symptom = notificationSymptom(o.query.check, status, body);
   if (o.kind === "unexpected-server-error" && status >= 500 && status <= 599)
     symptom = "server-error";
   if (o.kind === "protected-route" && status >= 200 && status < 300)
@@ -298,8 +362,9 @@ async function probe(o, { request = fetch, seed: fixture } = {}) {
   const seed = fixture || require("/source/data/database-seed.json");
   if (PRIVACY[o.kind]) return privacyProbe(o, request, seed);
   if (o.authenticated) {
-    const r = await fetch(base + "/login", {
+    const r = await request(base + "/login", {
       method: "POST",
+      ...(o.kind === "notification-list" ? { redirect: "manual" } : {}),
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         username: seed.users[0].username,
@@ -310,12 +375,25 @@ async function probe(o, { request = fetch, seed: fixture } = {}) {
     if (r.status !== 200) throw Error("Sandbox authentication setup failed");
     cookie = r.headers.get("set-cookie")?.split(";")[0] || "";
     if (!cookie) throw Error("Synthetic session missing");
+    if (o.kind === "notification-list") {
+      const expectedUser = seed.users[0].id;
+      const loginText = await r.text();
+      let login;
+      if (loginText.length <= 100000) {
+        try {
+          login = JSON.parse(loginText);
+        } catch {}
+      }
+      if (typeof expectedUser !== "string" || !expectedUser || login?.user?.id !== expectedUser)
+        throw Error("Synthetic notification session identity failed");
+    }
   }
   let route =
     o.route === "/users/:other" ? "/users/" + encodeURIComponent(seed.users[1].id) : o.route;
   const url = new URL(base + route);
-  for (const [key, value] of Object.entries(o.query)) url.searchParams.set(key, String(value));
-  const r = await fetch(url, {
+  if (o.kind !== "notification-list")
+    for (const [key, value] of Object.entries(o.query)) url.searchParams.set(key, String(value));
+  const r = await request(url, {
     headers: cookie ? { cookie } : {},
     redirect: "manual",
     signal: AbortSignal.timeout(8000),
@@ -328,6 +406,7 @@ async function probe(o, { request = fetch, seed: fixture } = {}) {
   } catch {
     body = { text: text.slice(0, 20000) };
   }
+  if (o.kind === "notification-list") body = projectNotifications(body, seed);
   return observe(o, r.status, body);
 }
 module.exports = { KINDS, validateOracle, oracleHash, observe, probe, privacyHealthy };

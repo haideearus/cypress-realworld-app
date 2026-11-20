@@ -7,6 +7,30 @@ const root = path.resolve(__dirname, "../..");
 function load(name) {
   return yaml.load(fs.readFileSync(path.join(root, ".github/workflows", name), "utf8"));
 }
+test("every factory ledger user preserves waiting work and keeps the active writer running", () => {
+  let ledgerUsers = 0;
+  const directory = path.join(root, ".github/workflows");
+  for (const name of fs.readdirSync(directory).filter((file) => /\.ya?ml$/.test(file))) {
+    const flow = load(name);
+    const entries = [["workflow", flow], ...Object.entries(flow.jobs || {})];
+    for (const [scope, job] of entries) {
+      if (job.concurrency?.group !== "factory-ledger") continue;
+      ledgerUsers++;
+      assert.equal(
+        job.concurrency.queue,
+        "max",
+        `${name}: ${scope} must preserve pending ledger jobs`
+      );
+      assert.equal(
+        job.concurrency["cancel-in-progress"],
+        false,
+        `${name}: ${scope} must preserve the active ledger writer`
+      );
+    }
+  }
+  assert.ok(ledgerUsers > 0, "Expected workflows using the shared ledger");
+});
+
 test("entry point admits only explicit manual operations and uses standard runners", () => {
   const flow = load("factory-agents.yml");
   assert.deepEqual(Object.keys(flow.on), ["workflow_dispatch"]);

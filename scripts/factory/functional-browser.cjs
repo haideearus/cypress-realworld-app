@@ -85,7 +85,7 @@ function inspectAttempt(report) {
     return;
   }
 
-  let failure;
+  const failures = {};
   const seen = new Set();
   for (const test of run.tests) {
     if (!Array.isArray(test?.title) || test.title.length !== 2) return;
@@ -97,7 +97,7 @@ function inspectAttempt(report) {
     const [attempt] = test.attempts;
     if (attempt?.state !== test.state) return;
     if (test.state === "passed" && test.displayError === null) continue;
-    if (failure || test.state !== "failed" || typeof test.displayError !== "string") return;
+    if (test.state !== "failed" || typeof test.displayError !== "string") return;
 
     // The Cypress module API exposes the error type in displayError and the attempt's state separately.
     const assertion =
@@ -105,10 +105,10 @@ function inspectAttempt(report) {
         test.displayError
       )?.[1];
     if (!ASSERTIONS[check].includes(assertion)) return;
-    failure = { status: "failed", check, assertion };
+    failures[check] = assertion;
   }
 
-  const failed = failure ? 1 : 0;
+  const failed = Object.keys(failures).length;
   const passed = checks.length - failed;
   if (
     report.totalFailed !== failed ||
@@ -118,30 +118,35 @@ function inspectAttempt(report) {
   ) {
     return;
   }
-  return failure || { status: "healthy", check: "", assertion: "" };
+  return failed ? { status: "failed", failures } : { status: "healthy", check: "", assertion: "" };
 }
 
 async function verifyFunctionalChecks(run) {
   const first = await run();
   if (first?.status === "healthy") return first;
-  if (first?.status !== "failed") return inconclusive;
+  if (first?.status !== "failed" || !first.failures) return inconclusive;
 
   const second = await run();
-  if (
-    second?.status === "failed" &&
-    first.check === second.check &&
-    first.assertion === second.assertion
-  ) {
-    return { status: "confirmed_failure", check: first.check, assertion: first.assertion };
-  }
-  return inconclusive;
+  if (second?.status !== "failed" || !second.failures) return inconclusive;
+
+  const check = checks.find(
+    (id) => first.failures[id] && first.failures[id] === second.failures[id]
+  );
+  if (!check) return inconclusive;
+
+  return {
+    status: "confirmed_failure",
+    check,
+    assertion: first.failures[check],
+    passedChecks: checks.filter((id) => !first.failures[id] && !second.failures[id]),
+  };
 }
 
-function browserSummary({ status, check, assertion }) {
+function browserSummary({ status, check, assertion, passedChecks = [] }) {
   validateFunctionalResult(status, check, assertion);
   const message = {
     healthy: "All approved browser checks passed.",
-    confirmed_failure: "Two browser invocations confirmed the same failure.",
+    confirmed_failure: "Two browser invocations confirmed the failure selected for publication.",
     inconclusive: "Coverage is inconclusive. None confirmed.",
   };
   return [
@@ -153,17 +158,17 @@ function browserSummary({ status, check, assertion }) {
     "",
     ...checks.map((id) => {
       const result =
-        status === "inconclusive"
-          ? "unconfirmed"
-          : id === check
-            ? `failed at \`${assertion}\``
-            : "passed";
+        id === check
+          ? `failed at \`${assertion}\``
+          : status === "healthy" || (status === "confirmed_failure" && passedChecks.includes(id))
+            ? "passed"
+            : "unconfirmed";
       return `- ${CHECKS[id]} — ${result}`;
     }),
     "",
     "### Skipped coverage",
     "",
-    "- Writes outside the synthetic onboarding fixture, other browser journeys, external services and production.",
+    "- Writes outside the synthetic Settings and onboarding fixtures, other browser journeys, external services and production.",
   ].join("\n");
 }
 

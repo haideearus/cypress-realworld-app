@@ -128,8 +128,8 @@ const props = {
   oracle: {
     type: "object",
     properties: {
-      kind: { enum: ["feed-pagination", "unexpected-server-error"] },
-      route: { enum: ["/transactions/public", "/users/search"] },
+      kind: { enum: ["feed-pagination", "unexpected-server-error", "notification-list"] },
+      route: { enum: ["/transactions/public", "/users/search", "/notifications"] },
       authenticated: { const: true },
       query: { type: "object" },
     },

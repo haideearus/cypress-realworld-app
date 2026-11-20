@@ -299,3 +299,40 @@ test("polls a known CI run directly, then checks its correlation is unique befor
   );
   assert.equal((await f.ledger.read()).state.tickets[10].ci.runId, null);
 });
+
+test("owner review preflight waits for quota with read-only access and pins the head", async () => {
+  const fixture = new FactoryFixture();
+  fixture.branchHeads.set("agent/owner-harness", head);
+  fixture.prs.push({
+    number: 30,
+    branch: "agent/owner-harness",
+    state: "open",
+    user: { login: policy.OWNER },
+  });
+  await new Ledger(new GitHub({ token: "fixture-only", fetch: fixture.fetch })).initialize();
+  const c = clock();
+  let quota = true;
+  const api = new GitHub({
+    token: "fixture-only",
+    waitOnQuota: true,
+    now: c.now,
+    sleep: c.sleep,
+    fetch: async (url, options) => {
+      assert.equal(options.method, "GET", "the preflight must never mutate state");
+      if (url.pathname.endsWith("/issues/10") && quota) {
+        quota = false;
+        return rate();
+      }
+      return fixture.fetch(url, options);
+    },
+  });
+  const controller = new Controller(api, policy.readConfig(vars), context);
+  const result = await controller.preflightOwnerReview(10, 30);
+  assert.deepEqual(result, { ready: true, head });
+  assert.equal(c.waits.length, 1);
+  assert.deepEqual((await controller.ledger.read()).state.grants, {});
+
+  fixture.prHeadOverride = "e".repeat(40);
+  await assert.rejects(controller.admitPR(10, 30, result.head), /changed.*preflight/i);
+  assert.deepEqual((await controller.ledger.read()).state.grants, {});
+});

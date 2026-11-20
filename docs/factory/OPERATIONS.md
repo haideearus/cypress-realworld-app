@@ -19,18 +19,26 @@ again before any future live action; this snapshot will age.
 
 ## What happens when operation is authorized
 
-| Lane                   | Trigger and eligibility                                                                                   | Work                                                                                                                                                                      |
-| ---------------------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Production monitor     | Enabled monitor; best-effort ticks at minutes 7 and 37 UTC                                                | Health/readiness/frontend, synthetic login/session/feed/logout and optional pagination contract; persistent eligible failure publishes a receipt-backed maintenance issue |
-| App maintenance        | Automatic factory at minutes 17 and 47 UTC; eligible owner `factory-ready` issue or valid monitor receipt | Bounded coding, failing-before regression evidence, exact-head CI, independent review and protected merge                                                                 |
-| Dependency maintenance | Hourly at minute 29 UTC; eligible genuine Dependabot PR against current main                              | Version/source/advisory checks, exact-head CI, read-only independent review, fresh premerge checks and protected merge                                                    |
-| Dependabot proposals   | Weekly Monday 06:15 Europe/Bucharest for version updates; native security updates separately              | Dependency PRs; major-version proposals held by configuration                                                                                                             |
-| Production deployment  | Successful current-main push CI                                                                           | Prepare exact tested commit, wait for named human approval, request one Render deployment and verify the live release                                                     |
+| Lane                      | Trigger and eligibility                                                                                               | Work                                                                                                                                                                      |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Production monitor        | Enabled monitor; best-effort ticks at minutes 7 and 37 UTC                                                            | Health/readiness/frontend, synthetic login/session/feed/logout and optional pagination contract; persistent eligible failure publishes a receipt-backed maintenance issue |
+| Safe functional discovery | 02:12 and 14:12 UTC or successful same-repository push CI for current `main` from the owner or trusted factory App    | Disposable browser checks including Settings save-and-reload and bank onboarding; one verified finding can publish a receipt-backed `factory-ready` issue                 |
+| App maintenance           | Eligible event wake or Automatic factory at minutes 17 and 47 UTC; eligible `factory-ready` issue with trusted origin | Bounded coding, failing-before regression evidence, exact-head CI, independent review and protected merge                                                                 |
+| Dependency maintenance    | Eligible event wake or hourly at minute 29 UTC; eligible Dependabot or verified alert repair PR against current main  | Version/source/advisory checks, exact-head CI, read-only independent review, fresh premerge checks and protected merge                                                    |
+| Dependabot proposals      | Weekly Monday 06:15 Europe/Bucharest for version updates; native security updates separately                          | Dependency PRs; major-version proposals held by configuration                                                                                                             |
+| Production deployment     | Successful current-main push CI                                                                                       | Prepare exact tested commit, wait for named human approval, request one Render deployment and verify the live release                                                     |
 
-Minute values above are schedules, not delivery guarantees. GitHub may delay
-scheduled runs. No eligible work means no model reservation. Old unlabelled
-issues are not automatically admitted. A monitor label alone cannot replace a
-valid receipt.
+Scheduled times are GitHub trigger times. GitHub may delay or drop a scheduled
+run, and a queue can delay execution after triggering. Event pickup offers
+another path when an eligible event arrives. A model reservation requires
+eligible work, and a monitor or browser ticket also requires a verified receipt.
+[GitHub schedule behavior](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule)
+
+Jobs that reserve or update usage share the `factory-ledger` concurrency group.
+`queue: max` lets up to 100 jobs wait in that group while one job holds the lock.
+GitHub can cancel arrivals after the queue fills. The factory's own priority,
+per-ticket usage, and active-ticket limits still apply at admission.
+[GitHub concurrency settings](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idconcurrency)
 
 ### Ticket labels and evidence
 
@@ -45,6 +53,8 @@ valid receipt.
 
 See [Dependency maintenance](DEPENDENCY-MAINTENANCE.md) and
 [Verified discovery finding intake](DISCOVERY-INTAKE.md) for evidence and recovery details.
+See [Safe functional discovery](FUNCTIONAL-DISCOVERY.md) for its trigger checks
+and the browser incident slot.
 
 Optional event pickup and full activity notifications are documented in
 [Events and activity](EVENTS-AND-ACTIVITY.md). The new enable flags default off;
@@ -196,6 +206,16 @@ Two distinct failures at the same step within 24 hours can open one
 `factory-priority` issue with both run links. The evidence is recorded
 before publication so the next observer can reconcile a lost response. These
 issues go through dedicated harness maintenance.
+
+### Owner PR review waiting for GitHub quota
+
+In **Factory agents → review**, **Check GitHub quota and pin owner PR head
+without a reservation** can wait for a confirmed GitHub API quota reset within
+its 65-minute total wait budget. This preflight holds no shared ledger lock and
+uses no review reservation. Admission then checks that the PR head still matches
+the exact preflight SHA before reserving a review. If preflight times out or the
+head changed, inspect the run before starting a fresh review. Previously
+consumed attempts remain in the ledger.
 
 ### Verify the automatic handoff
 

@@ -5,6 +5,7 @@ const CHECKS = Object.freeze({
   "sign-in": "Browser sign-in",
   navigation: "Home and Settings navigation",
   settings: "Opening Settings",
+  "settings-persistence": "Saving Settings and reloading the profile",
   "form-validation": "Settings form validation",
   "sign-in-accessibility": "Sign-in field labels",
   "bank-account-onboarding": "Bank account onboarding",
@@ -18,6 +19,7 @@ const ASSERTIONS = Object.freeze({
     "navigation-home-route",
   ],
   settings: ["settings-form", "settings-profile"],
+  "settings-persistence": ["settings-persistence-saved", "settings-persistence-reloaded"],
   "form-validation": [
     "settings-first-name-required",
     "settings-email-required",

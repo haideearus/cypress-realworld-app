@@ -1,9 +1,10 @@
 const assert = require("node:assert/strict");
 const { test } = require("node:test");
+const { ASSERTIONS } = require("../factory/functional-discovery-contract.cjs");
+
+const checks = Object.keys(ASSERTIONS);
 
 function report(failures = {}) {
-  const { ASSERTIONS } = require("../factory/functional-discovery-contract.cjs");
-  const checks = Object.keys(ASSERTIONS);
   const tests = checks.map((check) => {
     const error = failures[check];
     const state = error ? "failed" : "passed";
@@ -48,6 +49,7 @@ test("missing sign-in field labels can qualify as a verified browser assertion",
     status: "confirmed_failure",
     check: "sign-in-accessibility",
     assertion: "sign-in-password-label",
+    passedChecks: checks.filter((id) => id !== "sign-in-accessibility"),
   });
 });
 
@@ -71,8 +73,11 @@ function assertion(id, detail = "expected a visible element") {
 
 async function verify(...reports) {
   const { inspectAttempt, verifyFunctionalChecks } = require("../factory/functional-browser.cjs");
-  const verdict = await verifyFunctionalChecks(async () => inspectAttempt(reports.shift()));
-  assert.equal(reports.length, 0, "unexpected number of browser invocations");
+  const verdict = await verifyFunctionalChecks(async () => {
+    assert.notEqual(reports.length, 0, "too many browser invocations");
+    return inspectAttempt(reports.shift());
+  });
+  assert.equal(reports.length, 0, "too few browser invocations");
   return verdict;
 }
 
@@ -96,6 +101,7 @@ test("two invocations reporting the same typed assertion confirm its fixed check
       status: "confirmed_failure",
       check: "form-validation",
       assertion: "settings-email-required",
+      passedChecks: checks.filter((id) => id !== "form-validation"),
     }
   );
 });
@@ -106,7 +112,65 @@ test("the onboarding classifier accepts its own repeated, named failure", async 
     status: "confirmed_failure",
     check: "bank-account-onboarding",
     assertion: "onboarding-save-rejected",
+    passedChecks: checks.filter((id) => id !== "bank-account-onboarding"),
   });
+});
+
+test("multiple repeated failures select one assertion in catalog order", async () => {
+  const first = report({
+    settings: assertion("settings-profile"),
+    "form-validation": assertion("settings-email-required"),
+  });
+  const second = report({
+    settings: assertion("settings-profile"),
+    "form-validation": assertion("settings-email-required"),
+  });
+  first.runs[0].tests.reverse();
+  const result = await verify(first, second);
+  assert.equal(result.status, "confirmed_failure");
+  assert.equal(result.check, "settings");
+  assert.equal(result.assertion, "settings-profile");
+
+  const { browserSummary } = require("../factory/functional-browser.cjs");
+  const summary = browserSummary(result);
+  assert.match(summary, /Opening Settings — failed at `settings-profile`/);
+  assert.match(summary, /Settings form validation — unconfirmed/);
+  assert.match(summary, /Browser sign-in — passed/);
+});
+
+test("only unchanged assertion IDs are eligible when browser attempts disagree", async () => {
+  const result = await verify(
+    report({
+      settings: assertion("settings-profile"),
+      "form-validation": assertion("settings-email-invalid"),
+    }),
+    report({
+      settings: assertion("settings-form"),
+      "form-validation": assertion("settings-email-invalid"),
+      "sign-in-accessibility": assertion("sign-in-password-label"),
+    })
+  );
+  assert.equal(result.status, "confirmed_failure");
+  assert.equal(result.check, "form-validation");
+  assert.equal(result.assertion, "settings-email-invalid");
+
+  const { browserSummary } = require("../factory/functional-browser.cjs");
+  const summary = browserSummary(result);
+  assert.match(summary, /Opening Settings — unconfirmed/);
+  assert.match(summary, /Sign-in field labels — unconfirmed/);
+});
+
+test("a repeated assertion cannot be confirmed by a malformed or partial browser retry", async () => {
+  const known = assertion("settings-email-required");
+  const valid = report({ "form-validation": known });
+  const partial = report({ "form-validation": known });
+  partial.runs[0].tests.pop();
+
+  assert.deepEqual(await verify(valid, partial), inconclusive);
+  assert.deepEqual(
+    await verify(valid, report({ "form-validation": known, settings: assertion("unknown-check") })),
+    inconclusive
+  );
 });
 
 test("a passing confirmation or two different assertions in the same check is inconclusive", async () => {
@@ -125,7 +189,7 @@ test("unrecognized, untyped, misplaced and mixed failures are inconclusive", asy
     report({ "form-validation": { ...known, name: "TypeError" } }),
     report({ "form-validation": { ...known, message: `Application error: ${known.message}` } }),
     report({ settings: known }),
-    report({ "form-validation": known, settings: assertion("settings-profile") }),
+    report({ "form-validation": known, settings: assertion("unknown-check") }),
   ]) {
     assert.deepEqual(await verify(badReport), inconclusive);
   }

@@ -21,7 +21,7 @@ test("new discovery selects only functional charters", () => {
     day: "2026-11-19",
     config: { enabled: true, discovery: true, daily: 20, timezone: "Europe/Bucharest" },
   });
-  assert.ok(["functional-feed", "functional-directory"].includes(chosen.charter));
+  assert.ok(functional.CHARTERS.includes(chosen.charter));
 });
 
 test("the discovery broker rejects model-supplied executable text", async (t) => {

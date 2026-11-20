@@ -1,5 +1,7 @@
+const { readFileSync } = require("node:fs");
 const { GitHub, ROOT } = require("./github.cjs");
-const { REPOSITORY, OWNER, SHA, assertSubscriptionEnv } = require("./policy.cjs");
+const { REPOSITORY, SHA, assertSubscriptionEnv } = require("./policy.cjs");
+const { actorAllowed, runActorOK } = require("./discovery-contract.cjs");
 const {
   CHECKS,
   WORKFLOW_PATH,
@@ -11,6 +13,89 @@ const { MonitorStore } = require("./monitor-state.cjs");
 const { monitorContext } = require("./app-checks-contract.cjs");
 const { observeIncident } = require("./monitor.cjs");
 const { writeSummary, issueLink, statusText } = require("./discovery-summary.cjs");
+
+const CI_WORKFLOW = ".github/workflows/factory-ci.yml";
+
+function assertContext(context) {
+  if (
+    context.repository !== REPOSITORY ||
+    context.ref !== "refs/heads/main" ||
+    context.workflowRef !== `${REPOSITORY}/${WORKFLOW_PATH}@refs/heads/main` ||
+    !SHA.test(context.workflowSha || "") ||
+    context.sha !== context.workflowSha ||
+    !/^[1-9]\d*$/.test(context.runId || "") ||
+    context.runAttempt !== 1 ||
+    !["schedule", "workflow_dispatch", "workflow_run"].includes(context.eventName) ||
+    !actorAllowed(context.eventName, context.actor, context.triggeringActor)
+  )
+    throw Error("Untrusted functional discovery context");
+}
+
+async function assertCurrentMain(api, context) {
+  const main = await api.request("GET", `${ROOT}/branches/main`);
+  if (main.commit?.sha !== context.workflowSha)
+    throw Error("Functional check is stale for current main");
+}
+
+function trustedPush(run, head) {
+  return (
+    Number.isSafeInteger(run?.id) &&
+    run.id > 0 &&
+    run.path === CI_WORKFLOW &&
+    run.event === "push" &&
+    run.head_branch === "main" &&
+    run.head_sha === head &&
+    run.repository?.full_name === REPOSITORY &&
+    run.head_repository?.full_name === REPOSITORY &&
+    run.run_attempt === 1 &&
+    run.status === "completed" &&
+    run.conclusion === "success"
+  );
+}
+
+async function verifyCITrigger(api, context, event) {
+  assertContext(context);
+  const source = event?.workflow_run;
+  const head = context.workflowSha;
+  if (
+    context.eventName !== "workflow_run" ||
+    event?.action !== "completed" ||
+    event.repository?.full_name !== REPOSITORY ||
+    !trustedPush(source, head) ||
+    event.workflow?.path !== CI_WORKFLOW ||
+    !Number.isSafeInteger(source.workflow_id) ||
+    source.workflow_id < 1 ||
+    event.workflow.id !== source.workflow_id
+  )
+    throw Error("Untrusted functional discovery CI event");
+  const attempt = `${ROOT}/actions/runs/${source.id}/attempts/1`;
+  const [workflow, run, { jobs }] = await Promise.all([
+    api.request("GET", `${ROOT}/actions/workflows/factory-ci.yml`),
+    api.request("GET", attempt),
+    api.request("GET", `${attempt}/jobs?per_page=100`),
+  ]);
+  if (
+    workflow.path !== CI_WORKFLOW ||
+    workflow.id !== source.workflow_id ||
+    !trustedPush(run, head) ||
+    run.id !== source.id ||
+    run.workflow_id !== workflow.id ||
+    run.actor?.login !== context.actor ||
+    run.triggering_actor?.login !== context.triggeringActor ||
+    !runActorOK(run, "workflow_run")
+  )
+    throw Error("Untrusted functional discovery CI run");
+  const verify = Array.isArray(jobs) ? jobs.filter((job) => job.name === "verify") : [];
+  if (
+    verify.length !== 1 ||
+    verify[0].run_id !== run.id ||
+    verify[0].run_attempt !== 1 ||
+    verify[0].head_sha !== head ||
+    verify[0].status !== "completed" ||
+    verify[0].conclusion !== "success"
+  )
+    throw Error("Untrusted functional discovery CI verify job");
+}
 
 function renderIssueText(incident, { check, assertion }) {
   return {
@@ -37,6 +122,7 @@ Evidence: https://github.com/${REPOSITORY}/actions/runs/${incident.source.runId}
 async function publishFunctional({
   api,
   context,
+  event,
   status,
   check,
   assertion,
@@ -44,29 +130,19 @@ async function publishFunctional({
   dryRun,
   store = new MonitorStore(api, "functional"),
 }) {
+  assertContext(context);
   if (
-    context.repository !== REPOSITORY ||
-    context.ref !== "refs/heads/main" ||
-    context.workflowRef !== `${REPOSITORY}/${WORKFLOW_PATH}@refs/heads/main` ||
-    !SHA.test(context.workflowSha || "") ||
-    context.sha !== context.workflowSha ||
-    !/^[1-9]\d*$/.test(context.runId || "") ||
-    context.runAttempt !== 1 ||
-    !["schedule", "workflow_dispatch"].includes(context.eventName) ||
-    context.actor !== OWNER ||
-    context.triggeringActor !== OWNER ||
     typeof enabled !== "boolean" ||
     typeof dryRun !== "boolean" ||
-    (context.eventName === "schedule" && dryRun)
+    (context.eventName !== "workflow_dispatch" && dryRun)
   )
     throw Error("Untrusted functional discovery context");
   const observation = validateFunctionalResult(status, check, assertion);
   if (dryRun) return { outcome: "preview", observation, modelCalls: 0 };
   if (!enabled) return { outcome: "disabled", modelCalls: 0 };
   if (observation.status === "inconclusive") return { outcome: "inconclusive", modelCalls: 0 };
-  const main = await api.request("GET", `${ROOT}/branches/main`);
-  if (main.commit?.sha !== context.workflowSha)
-    throw Error("Functional check is stale for current main");
+  if (context.eventName === "workflow_run") await verifyCITrigger(api, context, event);
+  await assertCurrentMain(api, context);
   const result = await observeIncident({
     api,
     context,
@@ -96,14 +172,28 @@ function publicationSummary({ outcome, issue, observation }) {
 
 async function main(env = process.env) {
   assertSubscriptionEnv(env);
+  const api = new GitHub({ token: env.GITHUB_TOKEN });
+  const context = monitorContext(env);
+  const event =
+    context.eventName === "workflow_run"
+      ? JSON.parse(readFileSync(env.GITHUB_EVENT_PATH, "utf8"))
+      : undefined;
+  if (env.FACTORY_FUNCTIONAL_OPERATION === "verify-trigger") {
+    await verifyCITrigger(api, context, event);
+    await assertCurrentMain(api, context);
+    return;
+  }
   const result = await publishFunctional({
-    api: new GitHub({ token: env.GITHUB_TOKEN }),
-    context: monitorContext(env),
+    api,
+    context,
+    event,
     status: env.FACTORY_FUNCTIONAL_STATUS,
     check: env.FACTORY_FUNCTIONAL_CHECK || "",
     assertion: env.FACTORY_FUNCTIONAL_ASSERTION || "",
     enabled: env.FACTORY_FUNCTIONAL_DISCOVERY_ENABLED === "true",
-    dryRun: env.GITHUB_EVENT_NAME !== "schedule" && env.FACTORY_FUNCTIONAL_DRY_RUN !== "false",
+    dryRun:
+      !["schedule", "workflow_run"].includes(context.eventName) &&
+      env.FACTORY_FUNCTIONAL_DRY_RUN !== "false",
   });
   writeSummary(env, publicationSummary(result));
   console.log(JSON.stringify(result));

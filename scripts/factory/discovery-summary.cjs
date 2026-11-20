@@ -7,6 +7,12 @@ const repositoryUrl = `https://github.com/${REPOSITORY}`;
 const charterNames = {
   "functional-feed": "Public feed pagination",
   "functional-directory": "Directory search",
+  "functional-notifications": "Notifications list",
+};
+const notificationCases = {
+  envelope: "response envelope",
+  unread: "seeded unread items",
+  items: "notification item display fields and types",
 };
 const heldReasons = {
   "baseline-failed": "The proposed test did not fail consistently in isolation",
@@ -53,12 +59,14 @@ function scenarioLabel({ kind, query }) {
     return `Public feed pagination (page ${query.page}, limit ${query.limit})`;
   if (kind === "unexpected-server-error" && typeof query?.q === "string")
     return `Directory search (${query.q.length}-character synthetic phrase)`;
+  if (kind === "notification-list" && Object.hasOwn(notificationCases, query?.check))
+    return `Notifications list (${notificationCases[query.check]})`;
   return "Functional API contract";
 }
 
 function explorationSummary({ charter, bundle, assessment }) {
   const selected = functional.assertCharter(charter);
-  const alternate = functional.CHARTERS.find((value) => value !== selected);
+  const alternates = functional.CHARTERS.filter((value) => value !== selected);
   const distinct = new Set();
   const checks = bundle.batches.map((batch, index) => {
     const oracle = functional.verifyProposal(selected, batch.test);
@@ -67,7 +75,9 @@ function explorationSummary({ charter, bundle, assessment }) {
     const failed =
       result.code === 1 &&
       failedIsolated(result) &&
-      /^not ok 1 - approved functional scenario\r?$/m.test(result.log);
+      /^not ok 1 - approved functional scenario\r?$/m.test(result.log) &&
+      (selected !== "functional-notifications" ||
+        result.log.split(/\r?\n/).includes(`# ${functional.NOTIFICATION_RESPONSE}`));
     if (passed || failed) distinct.add(JSON.stringify(oracle));
     const status = passed
       ? "passed"
@@ -101,7 +111,9 @@ function explorationSummary({ charter, bundle, assessment }) {
     "",
     "### Skipped coverage",
     "",
-    `- ${charterNames[alternate]} was outside this run's charter.`,
+    ...alternates.map(
+      (alternate) => `- ${charterNames[alternate]} was outside this run's charter.`
+    ),
     "- Further inputs, browser journeys, account-changing operations, external services and production were outside this sweep.",
     `- ${unused} unused or unrecorded API batch slots out of 4.`,
     "",
