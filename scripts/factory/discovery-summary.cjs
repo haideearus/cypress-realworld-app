@@ -8,11 +8,17 @@ const charterNames = {
   "functional-feed": "Public feed pagination",
   "functional-directory": "Directory search",
   "functional-notifications": "Notifications list",
+  "functional-settings": "Settings profile",
 };
 const notificationCases = {
   envelope: "response envelope",
   unread: "seeded unread items",
   items: "notification item display fields and types",
+};
+const settingsCases = {
+  identity: "signed-in identity",
+  details: "Settings form fields",
+  preference: "saved default preference",
 };
 const heldReasons = {
   "baseline-failed": "The proposed test did not fail consistently in isolation",
@@ -61,6 +67,8 @@ function scenarioLabel({ kind, query }) {
     return `Directory search (${query.q.length}-character synthetic phrase)`;
   if (kind === "notification-list" && Object.hasOwn(notificationCases, query?.check))
     return `Notifications list (${notificationCases[query.check]})`;
+  if (kind === "settings-profile" && Object.hasOwn(settingsCases, query?.check))
+    return `Settings profile (${settingsCases[query.check]})`;
   return "Functional API contract";
 }
 
@@ -68,6 +76,7 @@ function explorationSummary({ charter, bundle, assessment }) {
   const selected = functional.assertCharter(charter);
   const alternates = functional.CHARTERS.filter((value) => value !== selected);
   const distinct = new Set();
+  const marker = functional.responseMarker(selected);
   const checks = bundle.batches.map((batch, index) => {
     const oracle = functional.verifyProposal(selected, batch.test);
     const result = batch.result;
@@ -76,8 +85,7 @@ function explorationSummary({ charter, bundle, assessment }) {
       result.code === 1 &&
       failedIsolated(result) &&
       /^not ok 1 - approved functional scenario\r?$/m.test(result.log) &&
-      (selected !== "functional-notifications" ||
-        result.log.split(/\r?\n/).includes(`# ${functional.NOTIFICATION_RESPONSE}`));
+      (!marker || result.log.split(/\r?\n/).includes(`# ${marker}`));
     if (passed || failed) distinct.add(JSON.stringify(oracle));
     const status = passed
       ? "passed"

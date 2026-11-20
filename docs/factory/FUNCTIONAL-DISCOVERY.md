@@ -3,8 +3,15 @@
 This workflow runs checked-in browser assertions against a disposable copy of the
 application with a synthetic database. It checks sign-in and its accessible
 field labels, navigation between Home and Settings, opening Settings, Settings
-form validation, saving and reloading Settings, and bank-account onboarding.
+form validation, saving and reloading Settings, bank-account onboarding, the
+Everyone/Friends/Mine feed tabs, the new transaction form, and Notifications.
 It runs with zero model calls against the disposable app.
+
+The transaction form check finds a seeded recipient and verifies that the request
+and payment controls are disabled for missing values and enabled with valid
+values. The check ends before submission. Notifications checks use seeded
+unread like and comment items for the populated view and a fixed empty
+response for the empty view. The browser does not mark notifications as read.
 
 The Settings persistence check creates its own synthetic user. It changes the
 first name through the form, checks that the save succeeds, then starts a

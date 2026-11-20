@@ -6,8 +6,8 @@ under owner harness issue #85. It does not enable discovery or publish bug ticke
 ## What the new role does
 
 `Proactive app discovery` inspects a successful, current-main push-CI revision.
-New sweeps rotate among public-feed pagination, ordinary directory search and the
-notifications list. The selector prefers the least recently reserved eligible
+New sweeps rotate among public-feed pagination, ordinary directory search, the
+notifications list and the Settings profile. The selector prefers the least recently reserved eligible
 charter, so each area can get a turn even when only one session runs per day.
 The second reservation of a day excludes the charter already reserved that day,
 including when `main` has moved.
@@ -125,12 +125,14 @@ check for server errors. The notifications charter uses one read-only
 cases check the list response, the known seeded unread items, and the display
 fields and supported types of returned items. Case selectors stay in the broker
 and trusted verifier. The app receives the same path without query parameters.
-Both the generated test and independent verifier confirm that the sign-in
-response identifies the seeded account before reading notifications.
+The Settings charter uses a read-only `GET /checkAuth`. Its three cases check
+the active profile identity, seeded fields displayed in Settings, and the saved
+default transaction preference. Both the generated tests and the independent
+verifiers confirm that sign-in identifies the seeded account before either read.
 
-Notification evidence records the case, HTTP status and the verifier's boolean
-checks. It omits the response rows, notification IDs and display names. The
-independent replay must observe the same contract failure twice before intake can
+Notifications and Settings evidence record the case, HTTP status and the
+verifier's boolean checks. They omit notification rows and profile field values.
+The independent replay must observe the same contract failure twice before intake can
 publish a ticket. An absent synthetic fixture or failed sign-in holds the
 finding. A successful intake rechecks the finding on current `main` before
 repair can start. The broker controls all request targets, methods and sessions.

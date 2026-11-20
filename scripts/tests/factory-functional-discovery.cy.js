@@ -39,11 +39,22 @@ function expectVisible(query, id) {
   });
 }
 
-function expectValidation(field, text, id) {
+function expectText(query, text, id) {
   cy.get("body").should(($body) => {
-    const $message = $body.find(`#user-settings-${field}-input-helper-text`);
-    expect(visible($message) && $message.text().includes(text), named(id)).to.equal(true);
+    const $element = $body.find(query);
+    expect(visible($element) && $element.text().includes(text), named(id)).to.equal(true);
   });
+}
+
+function expectValidation(field, text, id) {
+  expectText(`#user-settings-${field}-input-helper-text`, text, id);
+}
+
+function openNotifications(scenario) {
+  const link = selector("sidenav-notifications");
+  expectVisible(link, `notifications-${scenario}-link`);
+  cy.get(link).click();
+  expectRoute("/notifications", `notifications-${scenario}-route`);
 }
 
 function expectInputLabel(field, text, id) {
@@ -368,6 +379,121 @@ describe("functional discovery", () => {
           $body.find(selector("bankaccount-list")).text().includes(testBank.bankName) &&
           !$body.find(dialog).is(":visible"),
         named("onboarding-account-after-sign-in")
+      ).to.equal(true);
+    });
+  });
+
+  it("feed-tabs", () => {
+    signInFixture();
+    for (const [tab, label, path] of [
+      ["contacts", "friends", "/contacts"],
+      ["personal", "mine", "/personal"],
+      ["public", "everyone", "/"],
+    ]) {
+      const query = selector(`nav-${tab}-tab`);
+      expectVisible(query, `feed-${label}-tab`);
+      cy.get(query).click();
+      expectRoute(path, `feed-${label}-route`);
+      cy.get("body").should(($body) => {
+        expect($body.find(query).attr("aria-selected"), named(`feed-${label}-selected`)).to.equal(
+          "true"
+        );
+      });
+    }
+  });
+
+  it("transaction-form-validation", () => {
+    signInFixture();
+    const start = selector("nav-top-new-transaction");
+    const search = selector("user-list-search-input");
+    const recipient = selector("user-list-item-GjWovtg2hr");
+    const unrelatedRecipient = selector("user-list-item-_XblMqbuoP");
+    const amount = selector("transaction-create-amount-input") + " input";
+    const note = selector("transaction-create-description-input") + " input";
+    const submit = [
+      selector("transaction-create-submit-request"),
+      selector("transaction-create-submit-payment"),
+    ].join(",");
+    expectVisible(start, "transaction-new-link");
+    cy.get(start).click();
+    expectRoute("/transaction/new", "transaction-new-route");
+    expectVisible(search, "transaction-recipient-search");
+    expectVisible(unrelatedRecipient, "transaction-fixture-users-loaded");
+    cy.get(search).type("Kristian");
+    cy.get("body").should(($body) => {
+      const $recipient = $body.find(recipient);
+      expect(
+        visible($recipient) &&
+          $recipient.text().includes("Kristian") &&
+          !$body.find(unrelatedRecipient).is(":visible"),
+        named("transaction-fixture-recipient")
+      ).to.equal(true);
+    });
+    cy.get(recipient).click();
+    expectVisible(selector("transaction-create-form"), "transaction-form");
+
+    cy.get(amount).type("43").clear().blur();
+    expectText(
+      "#transaction-create-amount-input-helper-text",
+      "Please enter a valid amount",
+      "transaction-amount-required"
+    );
+    cy.get(note).type("Discovery fixture").clear().blur();
+    expectText(
+      "#transaction-create-description-input-helper-text",
+      "Please enter a note",
+      "transaction-note-required"
+    );
+    cy.get("body").should(($body) => {
+      const buttons = $body.find(submit);
+      expect(
+        buttons.length === 2 && buttons.filter(":disabled").length === 2,
+        named("transaction-submit-disabled")
+      ).to.equal(true);
+    });
+
+    cy.get(amount).type("43").blur();
+    cy.get(note).type("Discovery fixture").blur();
+    cy.get("body").should(($body) => {
+      const buttons = $body.find(submit);
+      expect(
+        buttons.length === 2 && buttons.filter(":enabled").length === 2,
+        named("transaction-submit-enabled")
+      ).to.equal(true);
+    });
+  });
+
+  it("notifications-populated", () => {
+    signInFixture();
+    openNotifications("list");
+    expectVisible(selector("notifications-list"), "notifications-list-present");
+    expectText(
+      selector("notification-list-item-8NnQy36xaMtB"),
+      "liked a transaction.",
+      "notifications-seed-items"
+    );
+    expectText(
+      selector("notification-list-item-mq-7Xnl-74JR"),
+      "commented on a transaction.",
+      "notifications-seed-comment"
+    );
+  });
+
+  it("notifications-empty", () => {
+    signInFixture();
+    expectText(selector("nav-top-notifications-count"), "8", "notifications-empty-seeded");
+    cy.intercept("GET", "/api/notifications", { statusCode: 200, body: { results: [] } }).as(
+      "emptyNotificationList"
+    );
+    openNotifications("empty");
+    cy.wait("@emptyNotificationList", { log: false });
+    cy.get("body").should(($body) => {
+      const $empty = $body.find(selector("empty-list-header"));
+      expect(
+        visible($empty) &&
+          $empty.text().includes("No Notifications") &&
+          !$body.find(selector("notifications-list")).is(":visible"),
+        named("notifications-empty-view")
       ).to.equal(true);
     });
   });

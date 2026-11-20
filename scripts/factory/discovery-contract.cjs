@@ -7,6 +7,7 @@ const FUNCTIONAL_CHARTERS = Object.freeze([
   "functional-feed",
   "functional-directory",
   "functional-notifications",
+  "functional-settings",
 ]);
 const CHARTERS = Object.freeze(["session", "feed", "profile", "journeys", ...FUNCTIONAL_CHARTERS]);
 const digest = (value) =>

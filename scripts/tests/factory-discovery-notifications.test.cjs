@@ -272,11 +272,13 @@ test("daily rotation gives skipped charters a turn and never repeats the same da
       days: {},
       grants: {
         prior: { phase: "discover", ticket: 12, at: "2026-11-18T14:00:00Z" },
+        settings: { phase: "discover", ticket: 14, at: "2026-11-18T10:00:00Z" },
         today: { phase: "discover", ticket: 13, at: "2026-11-19T12:00:00Z" },
       },
       tickets: {
         12: { discovery: { charter: "functional-directory" } },
         13: { discovery: { charter: "functional-feed" } },
+        14: { discovery: { charter: "functional-settings" } },
       },
       activeTickets: {},
     },
@@ -290,7 +292,7 @@ test("daily rotation gives skipped charters a turn and never repeats the same da
     ...input,
     registry: {
       sources: Object.fromEntries(
-        ["functional-directory", charter].map((id) => [
+        ["functional-directory", "functional-settings", charter].map((id) => [
           contract.sweepKey(head, id, input.day),
           { status: "created" },
         ])

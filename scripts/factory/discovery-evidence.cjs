@@ -49,12 +49,19 @@ function observationMatches(value, oracle) {
       "notifications-envelope",
       "notifications-unread",
       "notifications-items",
+      "settings-session",
+      "settings-identity",
+      "settings-details",
+      "settings-preference",
       "other-bank-account-access",
       "private-transaction-access",
     ].includes(value.symptom) &&
-    (!["bank-account-isolation", "private-transaction-isolation", "notification-list"].includes(
-      oracle.kind
-    ) ||
+    (![
+      "bank-account-isolation",
+      "private-transaction-isolation",
+      "notification-list",
+      "settings-profile",
+    ].includes(oracle.kind) ||
       (() => {
         try {
           const actual = o.observe(oracle, value.status, JSON.parse(value.response));

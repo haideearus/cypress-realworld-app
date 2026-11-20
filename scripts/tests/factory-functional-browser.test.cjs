@@ -81,6 +81,23 @@ async function verify(...reports) {
   return verdict;
 }
 
+test("new browser journeys confirm only exact approved repeat failures", async () => {
+  for (const [check, id] of [
+    ["transaction-form-validation", "transaction-submit-disabled"],
+    ["notifications-populated", "notifications-seed-items"],
+    ["notifications-empty", "notifications-empty-view"],
+    ["feed-tabs", "feed-mine-selected"],
+  ]) {
+    const failure = report({ [check]: assertion(id) });
+    assert.deepEqual(await verify(failure, failure), {
+      status: "confirmed_failure",
+      check,
+      assertion: id,
+      passedChecks: checks.filter((known) => known !== check),
+    });
+  }
+});
+
 test("all passing checks produce a healthy verdict without a retry", async () => {
   assert.deepEqual(await verify(report()), healthy);
 });

@@ -7,6 +7,7 @@ const ROUTES = [
   "/transactions/public",
   "/bankAccounts",
   "/notifications",
+  "/checkAuth",
   "/users/:other",
   "/bankAccounts/:other",
   "/transactions/:private",
@@ -16,6 +17,7 @@ const KINDS = [
   "protected-route",
   "feed-pagination",
   "notification-list",
+  "settings-profile",
   "account-isolation",
   "bank-account-isolation",
   "private-transaction-isolation",
@@ -37,7 +39,12 @@ const PRIVACY = {
 // A denial status alone is not proof: arbitrary/renamed payloads can still leak
 // a record. Unknown error shapes deliberately hold until separately supported.
 const DENIALS = ["Unauthorized", "Forbidden", "Not Found", "denied"];
-const NOTIFICATION_CHECKS = Object.freeze(["envelope", "unread", "items"]);
+const CHECKS = new Map([
+  ["notification-list", ["envelope", "unread", "items"]],
+  ["settings-profile", ["identity", "details", "preference"]],
+]);
+const settingsFields = ["firstName", "lastName", "email", "phoneNumber"];
+const privacyLevels = ["public", "private", "contacts"];
 const hash = (s) => createHash("sha256").update(s).digest("hex");
 function validateOracle(o) {
   if (
@@ -50,14 +57,14 @@ function validateOracle(o) {
     typeof o.query !== "object" ||
     Array.isArray(o.query) ||
     Object.keys(o.query).some(
-      (k) => !(o.kind === "notification-list" ? ["check"] : ["page", "limit", "q"]).includes(k)
+      (k) => !(CHECKS.has(o.kind) ? ["check"] : ["page", "limit", "q"]).includes(k)
     )
   )
     throw Error("Unsupported discovery oracle");
   for (const [key, value] of Object.entries(o.query))
     if (
       key === "check"
-        ? !NOTIFICATION_CHECKS.includes(value)
+        ? !CHECKS.get(o.kind)?.includes(value)
         : key === "q"
           ? typeof value !== "string" || value.length > 100
           : !Number.isSafeInteger(value) || value < -1 || value > 100000
@@ -70,6 +77,11 @@ function validateOracle(o) {
     (o.kind === "feed-pagination" && (!o.authenticated || o.route !== "/transactions/public")) ||
     (o.kind === "notification-list" &&
       (!o.authenticated || o.route !== "/notifications" || !Object.hasOwn(o.query, "check"))) ||
+    ((o.kind === "settings-profile" || o.route === "/checkAuth") &&
+      (o.kind !== "settings-profile" ||
+        o.route !== "/checkAuth" ||
+        !o.authenticated ||
+        !Object.hasOwn(o.query, "check"))) ||
     (o.kind === "account-isolation" && (!o.authenticated || o.route !== "/users/:other")) ||
     (o.route === "/users/:other" && o.kind !== "account-isolation") ||
     (PRIVACY[o.kind] &&
@@ -146,10 +158,51 @@ function notificationSymptom(check, status, projected) {
   if (check === "items" && !projected.validItems) return "notifications-items";
   return "none";
 }
+function settingsFixture(user) {
+  if (
+    !user ||
+    !["id", "username", ...settingsFields].every(
+      (field) => typeof user[field] === "string" && user[field].trim().length > 0
+    ) ||
+    !privacyLevels.includes(user.defaultPrivacyLevel)
+  )
+    throw Error("Synthetic Settings fixture is incomplete");
+  return user;
+}
+function projectSettings(body, fixture) {
+  const profile = body?.user;
+  const matchesIdentity = profile?.id === fixture.id && profile?.username === fixture.username;
+  return {
+    matchesIdentity,
+    matchesDetails:
+      matchesIdentity && settingsFields.every((field) => profile[field] === fixture[field]),
+    matchesPreference:
+      matchesIdentity && profile.defaultPrivacyLevel === fixture.defaultPrivacyLevel,
+  };
+}
+function settingsSymptom(check, status, projected) {
+  if (
+    !projected ||
+    Object.keys(projected).sort().join(",") !==
+      "matchesDetails,matchesIdentity,matchesPreference" ||
+    !Object.values(projected).every((value) => typeof value === "boolean") ||
+    (!projected.matchesIdentity && (projected.matchesDetails || projected.matchesPreference))
+  )
+    throw Error("Invalid synthetic Settings profile observation");
+  if (status >= 500 && status <= 599) return "server-error";
+  // The generated test rejects Fetch redirects before recording an endpoint response.
+  if ([301, 302, 303, 307, 308].includes(status)) return "none";
+  if (status !== 200) return "settings-session";
+  if (!projected.matchesIdentity) return "settings-identity";
+  if (check === "details" && !projected.matchesDetails) return "settings-details";
+  if (check === "preference" && !projected.matchesPreference) return "settings-preference";
+  return "none";
+}
 function observe(o, status, body) {
   validateOracle(o);
   let symptom = "none";
   if (o.kind === "notification-list") symptom = notificationSymptom(o.query.check, status, body);
+  if (o.kind === "settings-profile") symptom = settingsSymptom(o.query.check, status, body);
   if (o.kind === "unexpected-server-error" && status >= 500 && status <= 599)
     symptom = "server-error";
   if (o.kind === "protected-route" && status >= 200 && status < 300)
@@ -361,10 +414,12 @@ async function probe(o, { request = fetch, seed: fixture } = {}) {
   let cookie = "";
   const seed = fixture || require("/source/data/database-seed.json");
   if (PRIVACY[o.kind]) return privacyProbe(o, request, seed);
+  const settings = o.kind === "settings-profile" ? settingsFixture(seed.users?.[0]) : null;
+  const fixedCheck = CHECKS.has(o.kind);
   if (o.authenticated) {
     const r = await request(base + "/login", {
       method: "POST",
-      ...(o.kind === "notification-list" ? { redirect: "manual" } : {}),
+      ...(fixedCheck ? { redirect: "manual" } : {}),
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         username: seed.users[0].username,
@@ -375,7 +430,7 @@ async function probe(o, { request = fetch, seed: fixture } = {}) {
     if (r.status !== 200) throw Error("Sandbox authentication setup failed");
     cookie = r.headers.get("set-cookie")?.split(";")[0] || "";
     if (!cookie) throw Error("Synthetic session missing");
-    if (o.kind === "notification-list") {
+    if (fixedCheck) {
       const expectedUser = seed.users[0].id;
       const loginText = await r.text();
       let login;
@@ -385,13 +440,13 @@ async function probe(o, { request = fetch, seed: fixture } = {}) {
         } catch {}
       }
       if (typeof expectedUser !== "string" || !expectedUser || login?.user?.id !== expectedUser)
-        throw Error("Synthetic notification session identity failed");
+        throw Error("Synthetic functional session identity failed");
     }
   }
   let route =
     o.route === "/users/:other" ? "/users/" + encodeURIComponent(seed.users[1].id) : o.route;
   const url = new URL(base + route);
-  if (o.kind !== "notification-list")
+  if (!fixedCheck)
     for (const [key, value] of Object.entries(o.query)) url.searchParams.set(key, String(value));
   const r = await request(url, {
     headers: cookie ? { cookie } : {},
@@ -407,6 +462,7 @@ async function probe(o, { request = fetch, seed: fixture } = {}) {
     body = { text: text.slice(0, 20000) };
   }
   if (o.kind === "notification-list") body = projectNotifications(body, seed);
+  if (settings) body = projectSettings(body, settings);
   return observe(o, r.status, body);
 }
 module.exports = { KINDS, validateOracle, oracleHash, observe, probe, privacyHealthy };

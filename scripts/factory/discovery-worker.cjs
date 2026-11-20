@@ -68,6 +68,15 @@ function promptFor(identity, charter) {
       },
       "Use each fixed check once: envelope checks the list response, unread checks retention and unread state of seeded notifications, and items checks display fields and supported notification types. The case selector stays in the test and never goes to the app.",
     ],
+    "functional-settings": [
+      {
+        kind: "settings-profile",
+        route: "/checkAuth",
+        authenticated: true,
+        query: { check: "identity" },
+      },
+      "Use each fixed check once: identity checks the rehydrated session profile, details checks seeded fields used by the Settings form, and preference checks the saved default transaction preference. The case selector stays in the test and never goes to the app.",
+    ],
   };
   const [scenario, instructions] = choices[charter];
   return [
