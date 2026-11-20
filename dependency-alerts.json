@@ -26,8 +26,8 @@
       "base": "4f9c7117dbe92cbf3e2a620d7af13de147a1d595",
       "head": "07a87a25b5fdc1e3db1bea024a12358859d9e460",
       "name": "shell-quote",
-      "phase": "issue-intent",
-      "issue": null,
+      "phase": "issue",
+      "issue": 147,
       "pr": null
     }
   }
