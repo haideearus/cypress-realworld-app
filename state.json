@@ -2810,7 +2810,8 @@
       "ci": {
         "requestId": "694b4438-6298-4b76-be36-113ce33e4590",
         "head": "6589e881530753d67b51e4fc168190b9ae1a1a47",
-        "runId": null
+        "runId": 44816866234,
+        "passed": true
       }
     }
   },
