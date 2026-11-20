@@ -402,7 +402,7 @@ describe("functional discovery", () => {
     }
   });
 
-  it("transaction-form-validation", () => {
+  it("transaction-form-validation", { scrollBehavior: "center" }, () => {
     signInFixture();
     const start = selector("nav-top-new-transaction");
     const search = selector("user-list-search-input");
