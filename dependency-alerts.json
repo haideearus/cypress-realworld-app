@@ -8,7 +8,7 @@
       "day": "2026-11-20",
       "base": "1db558a69cc13d6010185822114aa0d849ef3905",
       "head": "ddcd4fe06c4b1f942b127c86566b641933b7a449",
-      "phase": "ready",
+      "phase": "resolved",
       "issue": 136,
       "pr": 137
     },
