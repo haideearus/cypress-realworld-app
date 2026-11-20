@@ -2490,9 +2490,17 @@
       "reviews": 1,
       "retries": 0,
       "head": "3b25693438f091a7cedb97f35370e00a47c5f1cf",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 142,
-      "approval": null,
+      "approval": {
+        "head": "3b25693438f091a7cedb97f35370e00a47c5f1cf",
+        "pr": 142,
+        "grant": "1b62960c-b63f-417b-b3b0-949516148125",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/44746088863"
+      },
       "criteriaHash": "5f305a3e1d7a7ea3690a95b82c7432287fb02b06ca9f383e9a13e1af22742bfc",
       "branch": "agent/dependency-alert-base-proof",
       "ci": {
@@ -2500,7 +2508,8 @@
         "head": "3b25693438f091a7cedb97f35370e00a47c5f1cf",
         "runId": 44746174427,
         "passed": true
-      }
+      },
+      "feedback": "{\"head\":\"3b25693438f091a7cedb97f35370e00a47c5f1cf\",\"verdict\":\"pass\",\"summary\":\"Reviewed the diff touching scripts/factory/{dependency-alert-repair,controller,dependencies,wake-controller,worker}.cjs plus the updated tests in scripts/tests/factory-dependency-alert-{handoff,wake}.test.cjs at commit 3b256934, which is PR #142's fix for GitHub caching a dependency-alert PR's stale base after a non-force refresh. The new verifyAlertGitDiff() in dependency-alert-repair.cjs only accepts a row.base that differs from the live pr.base.sha after independently re-proving, via the /compare endpoint, that row.base is the exact current main ref, that row.head is a clean fast-forward ancestor of it (behind_by 0, matching merge_base_commit), and that the diff is lockfile-only (d.filesOK with lockOnly=true) — all four call sites (controller.matchingPR, dependencies.cjs DependencyCoordinator.pr/select, worker.cjs prepare(), wake-controller.cjs verifyAlertCI) consistently substitute this verified base for the cached pr.base.sha and skip the now-untrustworthy /pulls/.../files cache check only when the substitution occurred, falling back to the compare-derived file list instead. I traced the two new handoff tests (\\\"uses verified Git ancestry when the PR API reports its old base\\\" and \\\"a cached base cannot make a stale alert receipt current\\\") against dependency-alert-repair.cjs, dependencies.cjs and dependency-policy.cjs's claimDependency and confirmed the override is accepted only when main truly matches, and is correctly refused (select() returns ready:false, no grant created) once main advances past the cached record's base — so the required 'current main' invariant remains enforced, as does lockfile-only scope, GitHub App identity (dependency-contract.cjs prOK unchanged), ready-issue gating (issueOK still runs unconditionally for open PRs), and protected-merge/wake-binding behavior (wake-controller's bound-mode path intentionally skips the main-currency recheck, consistent with the pre-existing bound/reconcile precedent used for 'dependency-ci' wakes). I did not execute any code; this is a static read of the repository and the supplied diff, and I'm treating the linked CI run as external evidence I cannot independently inspect.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"worker.cjs's prepare() (lines ~251-335) applies the same receipt?.base ?? pr.base.sha override and reviewBase re-verification used elsewhere, but no test in scripts/tests/factory-worker.test.cjs exercises the stale-cached-base/override branch through this specific code path (only the normal matching-base case is covered there); the override is only directly tested via dependencies.cjs/dependency-alert-repair.cjs and wake-controller.cjs in the other two test files. Risk is low since it reuses the already heavily-tested verifyAlertPR primitive and fails closed, but this is a real regression-coverage gap for the code path that bounds what diff content reaches the model review.\"}]}"
     }
   },
   "grants": {
@@ -3689,15 +3698,12 @@
       "runId": "44746088863",
       "runAttempt": 1,
       "head": "3b25693438f091a7cedb97f35370e00a47c5f1cf",
-      "status": "reserved",
-      "at": "2026-11-20T13:38:49.750Z"
+      "status": "finished",
+      "at": "2026-11-20T13:38:49.750Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 143,
-    "runId": "44746088863",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -6489,6 +6495,14 @@
       "runId": "44746088863",
       "runAttempt": 1,
       "actor": "haideearus"
+    },
+    {
+      "at": "2026-11-20T14:00:29.301Z",
+      "event": "finished",
+      "ticket": 143,
+      "grant": "1b62960c-b63f-417b-b3b0-949516148125",
+      "status": "reviewed",
+      "head": "3b25693438f091a7cedb97f35370e00a47c5f1cf"
     }
   ]
 }
