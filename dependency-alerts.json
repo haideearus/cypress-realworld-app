@@ -19,6 +19,16 @@
       "phase": "tracking",
       "issue": 144,
       "pr": null
+    },
+    "6284a42f853d6218bc8c064e987b6f86f7d1fa1d1393e1c51ab4dc97b3e3f2f2": {
+      "candidate": "1.11.0",
+      "day": "2026-11-20",
+      "base": "4f9c7117dbe92cbf3e2a620d7af13de147a1d595",
+      "head": "07a87a25b5fdc1e3db1bea024a12358859d9e460",
+      "name": "shell-quote",
+      "phase": "prepared",
+      "issue": null,
+      "pr": null
     }
   }
 }
