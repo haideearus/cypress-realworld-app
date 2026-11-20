@@ -2495,7 +2495,11 @@
       "approval": null,
       "criteriaHash": "5f305a3e1d7a7ea3690a95b82c7432287fb02b06ca9f383e9a13e1af22742bfc",
       "branch": "agent/dependency-alert-base-proof",
-      "ci": null
+      "ci": {
+        "requestId": "44d1f153-e504-4724-a69b-0ce05b31ba3d",
+        "head": "3b25693438f091a7cedb97f35370e00a47c5f1cf",
+        "runId": null
+      }
     }
   },
   "grants": {
