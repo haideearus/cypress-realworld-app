@@ -1,6 +1,7 @@
 const { createHash } = require("node:crypto");
 const { ROOT } = require("./github.cjs");
 const { REPOSITORY, OWNER } = require("./policy.cjs");
+const { runActorOK } = require("./discovery-contract.cjs");
 const { MonitorStore } = require("./monitor-state.cjs");
 const { validateMonitorProof, proofFromIncident } = require("./monitor-proof.cjs");
 const functionalDiscovery = require("./functional-discovery-contract.cjs");
@@ -68,6 +69,12 @@ async function verifyMonitorIssue(api, issue, { proof, requireActive = true } = 
     if (error.status === 404) return null;
     throw error;
   }
+  const functionalCI = functional && run.event === "workflow_run";
+  const trustedActor = functionalCI
+    ? runActorOK(run)
+    : ["schedule", "workflow_dispatch"].includes(run.event) &&
+      run.actor?.login === OWNER &&
+      run.triggering_actor?.login === OWNER;
   if (
     workflow.path !== workflowPath ||
     !Number.isSafeInteger(workflow.id) ||
@@ -81,14 +88,14 @@ async function verifyMonitorIssue(api, issue, { proof, requireActive = true } = 
     run.run_attempt !== 1 ||
     run.status !== "completed" ||
     run.conclusion !== "success" ||
-    !["schedule", "workflow_dispatch"].includes(run.event) ||
-    run.actor?.login !== OWNER ||
-    run.triggering_actor?.login !== OWNER
+    !trustedActor
   )
     return null;
   if (!Array.isArray(jobs.jobs)) return null;
   const verified = functional
     ? successfulJob(jobs.jobs, "browser", "Run approved browser checks") &&
+      (!functionalCI ||
+        successfulJob(jobs.jobs, "browser", "Verify functional discovery CI trigger")) &&
       successfulJob(jobs.jobs, "publish", "Publish confirmed functional failure")
     : successfulJob(jobs.jobs, "monitor", "Observe production and publish incident");
   if (!verified) return null;

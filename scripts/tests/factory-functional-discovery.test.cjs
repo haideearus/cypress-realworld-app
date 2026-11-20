@@ -63,7 +63,25 @@ test("browser discovery defaults to preview and separates tests from the publish
     )
   );
   assert.equal(workflow.on.workflow_dispatch.inputs.dry_run.default, true);
-  assert.deepEqual(workflow.jobs.browser.permissions, { contents: "read" });
+  assert.deepEqual(workflow.on.workflow_run, {
+    workflows: ["Factory CI"],
+    branches: ["main"],
+    types: ["completed"],
+  });
+  assert.deepEqual(workflow.jobs.browser.permissions, { contents: "read", actions: "read" });
+  const browserSteps = workflow.jobs.browser.steps;
+  const preflight = browserSteps.find(
+    (step) => step.name === "Verify functional discovery CI trigger"
+  );
+  assert.match(preflight.if, /github.event_name == 'workflow_run'/);
+  assert.ok(
+    browserSteps.indexOf(preflight) <
+      browserSteps.findIndex((step) => step.name === "Prepare the disposable application")
+  );
+  assert.deepEqual(
+    browserSteps.filter((step) => step.env?.GITHUB_TOKEN),
+    [preflight]
+  );
   assert.equal(workflow.jobs.publish.needs, "browser");
   assert.equal(workflow.jobs.publish.permissions.issues, "write");
   assert.doesNotMatch(JSON.stringify(workflow), /CLAUDE|ANTHROPIC|RENDER_DEPLOY|MONITOR_PASSWORD/);
@@ -114,6 +132,92 @@ test("preview, disabled, and inconclusive runs publish no ticket", async () => {
   );
   assert.equal(s.posts(), 0);
   assert.deepEqual(s.state, emptyMonitorState());
+});
+
+test("a first successful current-main CI push by the factory can publish the same finding only once", async () => {
+  const { publishFunctional } = require("../factory/functional-discovery.cjs");
+  const { FACTORY_APP } = require("../factory/discovery-contract.cjs");
+  const app = { login: FACTORY_APP, id: 356310548, type: "Bot" };
+  const repository = { full_name: p.REPOSITORY };
+  const workflow = { id: 33, path: ".github/workflows/factory-ci.yml" };
+  const source = {
+    id: 513,
+    workflow_id: workflow.id,
+    path: workflow.path,
+    repository,
+    head_repository: repository,
+    head_branch: "main",
+    head_sha: sha,
+    run_attempt: 1,
+    event: "push",
+    status: "completed",
+    conclusion: "success",
+    actor: app,
+    triggering_actor: app,
+  };
+  const event = { action: "completed", repository, workflow, workflow_run: source };
+  const verify = {
+    name: "verify",
+    run_id: source.id,
+    run_attempt: 1,
+    head_sha: sha,
+    status: "completed",
+    conclusion: "success",
+  };
+  const s = publisherFixture();
+  let recordedRun = source;
+  let jobs = [verify];
+  let mainHead = sha;
+  const api = {
+    async request(method, route, body) {
+      if (route.endsWith("/actions/workflows/factory-ci.yml")) return workflow;
+      if (route.endsWith("/actions/runs/513/attempts/1")) return recordedRun;
+      if (route.endsWith("/actions/runs/513/attempts/1/jobs?per_page=100")) return { jobs };
+      if (route.endsWith("/branches/main")) return { commit: { sha: mainHead } };
+      return s.api.request(method, route, body);
+    },
+  };
+  const args = {
+    ...s,
+    api,
+    context: {
+      ...context,
+      eventName: "workflow_run",
+      actor: FACTORY_APP,
+      triggeringActor: FACTORY_APP,
+    },
+    event,
+    status: "confirmed_failure",
+    check: "settings",
+    assertion: "settings-profile",
+    enabled: true,
+    dryRun: false,
+  };
+  for (const invalid of [
+    { event: "pull_request" },
+    { run_attempt: 2 },
+    { head_sha: "b".repeat(40) },
+    { head_repository: { full_name: "someone/other" } },
+    { conclusion: "failure" },
+  ]) {
+    await assert.rejects(
+      publishFunctional({ ...args, event: { ...event, workflow_run: { ...source, ...invalid } } })
+    );
+  }
+  await assert.rejects(publishFunctional({ ...args, dryRun: true }));
+  recordedRun = { ...source, actor: { ...app, id: 1 } };
+  await assert.rejects(publishFunctional(args));
+  recordedRun = source;
+  jobs = [{ ...verify, conclusion: "skipped" }];
+  await assert.rejects(publishFunctional(args));
+  jobs = [verify];
+  mainHead = "c".repeat(40);
+  await assert.rejects(publishFunctional(args), /stale for current main/);
+  assert.equal(s.posts(), 0);
+  mainHead = sha;
+  assert.equal((await publishFunctional(args)).issue, 200);
+  assert.equal((await publishFunctional(args)).outcome, "incident_existing");
+  assert.equal(s.posts(), 1);
 });
 
 test("only a verified fixed check can publish a deduplicated functional repair ticket", async () => {
@@ -245,13 +349,26 @@ test("pickup and event wake accept a sign-in accessibility issue only with its r
   assert.equal(await wake(), null);
   issue.labels = [{ name: "factory-ready" }];
 
+  const { FACTORY_APP } = require("../factory/discovery-contract.cjs");
+  const factoryApp = { login: FACTORY_APP, id: 356310548, type: "Bot" };
+  run.event = "workflow_run";
+  run.actor = run.triggering_actor = factoryApp;
+  assert.equal(await verifyMonitorIssue(api, issue), null);
+  jobs[0].steps.push({ name: "Verify functional discovery CI trigger", conclusion: "success" });
+  assert.equal((await verifyMonitorIssue(api, issue)).probeMode, PROBE_MODE);
+  assert.equal((await coordinator.candidate(ledgerState)).number, 200);
+  assert.equal((await wake()).kind, "monitor");
+  run.actor = { ...factoryApp, id: 1 };
+  assert.equal(await verifyMonitorIssue(api, issue), null);
+  run.actor = factoryApp;
+
   jobs = [jobs[1]];
   assert.equal(await verifyMonitorIssue(api, issue), null);
   assert.equal(await coordinator.candidate(ledgerState), null);
   assert.equal(await wake(), null);
 });
 
-test("a different check does not reactivate or replace an unresolved functional incident", async () => {
+test("another confirmed assertion cannot mark the active functional incident recovered", async () => {
   const { publishFunctional } = require("../factory/functional-discovery.cjs");
   const { ASSERTIONS } = require("../factory/functional-discovery-contract.cjs");
   const s = publisherFixture();
@@ -264,7 +381,7 @@ test("a different check does not reactivate or replace an unresolved functional 
     "another_functional_incident_active"
   );
   assert.equal(s.state.incidents[first].functionalCheck, "sign-in");
-  assert.equal(s.state.incidents[first].recovered, true);
+  assert.equal(s.state.incidents[first].recovered, false);
   await run("confirmed_failure", "sign-in");
   assert.equal(s.state.incidents[first].recovered, false);
   assert.equal(
@@ -272,7 +389,14 @@ test("a different check does not reactivate or replace an unresolved functional 
     "another_functional_incident_active"
   );
   assert.equal(s.state.incidents[first].functionalAssertion, "sign-in-form");
-  assert.equal(s.state.incidents[first].recovered, true);
+  assert.equal(s.state.incidents[first].recovered, false);
+  s.ticket().state = "closed";
+  assert.equal(
+    (await run("confirmed_failure", "settings")).outcome,
+    "another_functional_incident_active"
+  );
+  assert.equal(s.state.incidents[first].recovered, false);
+  s.ticket().state = "open";
   await run("healthy", "");
   assert.equal(s.state.incidents[first].recovered, true);
   assert.equal(
@@ -295,8 +419,7 @@ test("only a repeated named onboarding failure produces one ready repair ticket"
   const s = publisherFixture();
   const failure = {
     status: "failed",
-    check: "bank-account-onboarding",
-    assertion: "onboarding-save-rejected",
+    failures: { "bank-account-onboarding": "onboarding-save-rejected" },
   };
   const result = await verifyFunctionalChecks(async () => failure);
   const options = { ...s, context, enabled: true, ...result };

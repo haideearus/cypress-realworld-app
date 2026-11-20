@@ -7,8 +7,20 @@ const SOURCE = Object.freeze({
     "src/machines/publicTransactionsMachine.ts",
   ],
   "functional-directory": ["src/components/UserListSearchForm.tsx", "src/components/UsersList.tsx"],
+  "functional-notifications": [
+    "src/components/NotificationList.tsx",
+    "src/components/NotificationListItem.tsx",
+    "src/models/notification.ts",
+  ],
+  "functional-settings": [
+    "src/components/UserSettingsForm.tsx",
+    "src/containers/UserSettingsContainer.tsx",
+    "src/models/user.ts",
+  ],
 });
 const PREFIX = "// Factory functional scenario ";
+const NOTIFICATION_RESPONSE = "Notification endpoint responded";
+const SETTINGS_RESPONSE = "Settings profile endpoint responded";
 const inRange = (value) => Number.isInteger(value) && value >= 1 && value <= 25;
 
 function assertCharter(charter) {
@@ -24,32 +36,42 @@ function scenario(charter, oracle) {
   assertCharter(charter);
   validateOracle(oracle);
   const { kind, route, authenticated, query } = oracle;
-  const feed = charter === "functional-feed";
+  let inputs;
   if (
-    !authenticated ||
-    (feed
-      ? kind !== "feed-pagination" ||
-        route !== "/transactions/public" ||
-        Object.keys(query).length !== 2 ||
-        !inRange(query.page) ||
-        !inRange(query.limit)
-      : kind !== "unexpected-server-error" ||
-        route !== "/users/search" ||
-        Object.keys(query).length !== 1 ||
-        !/^[A-Za-z][A-Za-z0-9 ]{0,23}$/.test(query.q || ""))
+    charter === "functional-feed" &&
+    kind === "feed-pagination" &&
+    route === "/transactions/public" &&
+    Object.keys(query).length === 2 &&
+    inRange(query.page) &&
+    inRange(query.limit)
   )
-    throw Error("Functional scenario outside the approved charter");
-  return {
-    kind,
-    route,
-    authenticated,
-    query: feed ? { page: query.page, limit: query.limit } : { q: query.q },
-  };
+    inputs = { page: query.page, limit: query.limit };
+  if (
+    charter === "functional-directory" &&
+    kind === "unexpected-server-error" &&
+    route === "/users/search" &&
+    Object.keys(query).length === 1 &&
+    /^[A-Za-z][A-Za-z0-9 ]{0,23}$/.test(query.q || "")
+  )
+    inputs = { q: query.q };
+  if (charter === "functional-notifications" && kind === "notification-list")
+    inputs = { check: query.check };
+  if (charter === "functional-settings" && kind === "settings-profile")
+    inputs = { check: query.check };
+  if (!authenticated || !inputs) throw Error("Functional scenario outside the approved charter");
+  return { kind, route, authenticated, query: inputs };
+}
+
+function responseMarker(charter) {
+  if (charter === "functional-notifications") return NOTIFICATION_RESPONSE;
+  if (charter === "functional-settings") return SETTINGS_RESPONSE;
+  return null;
 }
 
 function proposal(charter, oracle) {
   const input = scenario(charter, oracle);
   const wire = JSON.stringify(input);
+  const marker = responseMarker(charter);
   const lines = [
     PREFIX + wire,
     'const test = require("node:test");',
@@ -68,11 +90,31 @@ function proposal(charter, oracle) {
     '  const cookie = session.headers.get("set-cookie")?.split(";")[0];',
     '  assert.ok(cookie, "synthetic session cookie");',
     "  const scenario = " + wire + ";",
+    ...(charter === "functional-notifications"
+      ? [
+          "  const login = await session.json().catch(() => null);",
+          '  assert.ok(typeof users[0].id === "string" && users[0].id && login?.user?.id === users[0].id, "synthetic session identity");',
+          '  const { notifications } = require("../data/database-seed.json");',
+          "  const expected = notifications.filter((row) => row.userId === users[0].id && row.isRead === false);",
+          '  assert.ok(expected.length, "unread synthetic fixture is populated");',
+        ]
+      : []),
+    ...(charter === "functional-settings"
+      ? [
+          "  const fixture = users[0];",
+          '  const fields = ["firstName", "lastName", "email", "phoneNumber"];',
+          '  assert.ok(fixture && ["id", "username", ...fields].every((field) => typeof fixture[field] === "string" && fixture[field].trim()), "synthetic Settings fixture fields");',
+          '  assert.ok(["public", "private", "contacts"].includes(fixture.defaultPrivacyLevel), "synthetic Settings fixture default");',
+          "  const login = await session.json().catch(() => null);",
+          '  assert.ok(login?.user?.id === fixture.id, "synthetic session identity");',
+        ]
+      : []),
     "  const url = new URL(scenario.route, base);",
-    "  url.search = new URLSearchParams(scenario.query);",
+    ...(marker ? [] : ["  url.search = new URLSearchParams(scenario.query);"]),
     "  const response = await fetch(url, {",
     '    redirect: "error", headers: { cookie }, signal: AbortSignal.timeout(8000),',
     "  });",
+    ...(marker ? [`  console.log(${JSON.stringify(marker)});`] : []),
     '  assert.equal(response.status, 200, "functional request succeeded");',
   ];
   if (charter === "functional-feed")
@@ -83,6 +125,31 @@ function proposal(charter, oracle) {
       "  assert.ok(Number.isInteger(pageData.totalPages) && pageData.totalPages >= 0);",
       "  assert.equal(pageData.hasNextPages, pageData.page < pageData.totalPages);",
       "  if (pageData.page > pageData.totalPages) assert.equal(results.length, 0);"
+    );
+  if (charter === "functional-notifications")
+    lines.push(
+      "  const payload = await response.json().catch(() => null);",
+      "  const results = payload?.results;",
+      '  assert.ok(Array.isArray(results), "expected a notification results list");',
+      '  if (scenario.query.check === "unread") {',
+      '    assert.equal(results.length, expected.length, "expected all seeded unread items");',
+      '    assert.ok(expected.every((row) => results.some((item) => item?.id === row.id && item.isRead === false)), "each seeded unread item is present and unread");',
+      "  }",
+      '  if (scenario.query.check === "items") {',
+      '    assert.ok(results.length, "expected synthetic notification items to inspect");',
+      '    const populated = (value) => typeof value === "string" && value.trim().length > 0;',
+      '    assert.ok(results.every((item) => item && populated(item.id) && populated(item.transactionId) && populated(item.userFullName)), "items include the fields used by the UI");',
+      '    assert.ok(results.every((item) => [populated(item.likeId), populated(item.commentId), ["requested", "received", "incomplete"].includes(item.status)].filter(Boolean).length === 1), "items have one supported notification type");',
+      '    assert.equal(new Set(results.map((item) => item.id)).size, results.length, "notification IDs are unique");',
+      "  }"
+    );
+  if (charter === "functional-settings")
+    lines.push(
+      "  const body = await response.json().catch(() => null);",
+      "  const profile = body?.user;",
+      '  assert.ok(profile?.id === fixture.id && profile?.username === fixture.username, "expected synthetic Settings profile");',
+      '  if (scenario.query.check === "details") assert.ok(fields.every((field) => profile[field] === fixture[field]), "expected seeded Settings form fields");',
+      '  if (scenario.query.check === "preference") assert.ok(profile.defaultPrivacyLevel === fixture.defaultPrivacyLevel, "expected saved default preference");'
     );
   return lines.concat("});", "").join("\n");
 }
@@ -99,16 +166,27 @@ function describeFinding(charter, finding) {
   const oracle = scenario(charter, finding.oracle);
   if (finding.mode !== "api" || !finding.test.endsWith(".api.test.cjs"))
     throw Error("Functional discovery accepts fixed API proposals only");
+  if (charter === "functional-settings")
+    return {
+      ...finding,
+      oracle,
+      title: "Settings profile contract failed",
+      summary: "The synthetic account profile failed its fixed Settings check after sign-in.",
+    };
   const feed = charter === "functional-feed";
   return {
     ...finding,
     oracle,
     title: feed
       ? "Public feed pagination contract failed"
-      : "Directory search returned a server error",
+      : charter === "functional-notifications"
+        ? "Notifications list contract failed"
+        : "Directory search returned a server error",
     summary: feed
       ? "The public feed returned inconsistent pagination on a positive page and page size."
-      : "An ordinary directory search returned a server error for the synthetic account.",
+      : charter === "functional-notifications"
+        ? "The notifications list failed its fixed functional check for the synthetic account."
+        : "An ordinary directory search returned a server error for the synthetic account.",
   };
 }
 
@@ -129,7 +207,10 @@ function verifyFindings(charter, report, batches) {
       latest?.test !== proposal(charter, expected.oracle) ||
       !Number.isInteger(latest.result?.code) ||
       latest.result.code <= 0 ||
-      latest.result.code === 124
+      latest.result.code === 124 ||
+      (charter === "functional-settings" &&
+        (typeof latest.result.log !== "string" ||
+          !latest.result.log.split(/\r?\n/).includes(`# ${SETTINGS_RESPONSE}`)))
     )
       throw Error("Finding does not match its executed failing functional proposal");
   }
@@ -152,6 +233,8 @@ function eligibleCandidate(candidate) {
 
 module.exports = {
   CHARTERS,
+  NOTIFICATION_RESPONSE,
+  responseMarker,
   assertCharter,
   sourceAllowed,
   proposal,

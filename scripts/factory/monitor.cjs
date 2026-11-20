@@ -220,20 +220,10 @@ async function observeIncident({
       !observation.healthy &&
       (active.functionalCheck !== observation.check ||
         active.functionalAssertion !== observation.assertion);
-    if (
-      functional &&
-      issue.state === "closed" &&
-      !observation.healthy &&
-      (active.recovered || changedAssertion)
-    ) {
-      active.recovered = true;
+    if (functional && issue.state === "closed" && !observation.healthy && active.recovered) {
       state.active = null;
       active = null;
     } else if (changedAssertion) {
-      if (!active.recovered) {
-        active.recovered = true;
-        await store.save(state, commit);
-      }
       return { outcome: "another_functional_incident_active", issue: active.issue, observation };
     }
   }

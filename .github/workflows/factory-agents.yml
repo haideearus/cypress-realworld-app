@@ -30,6 +30,7 @@ jobs:
     concurrency:
       group: factory-ledger
       cancel-in-progress: false
+      queue: max
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -49,6 +50,7 @@ jobs:
     concurrency:
       group: factory-ledger
       cancel-in-progress: false
+      queue: max
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -69,6 +71,7 @@ jobs:
     concurrency:
       group: factory-ledger
       cancel-in-progress: false
+      queue: max
     outputs:
       ready: ${{ steps.control.outputs.ready }}
       grantId: ${{ steps.control.outputs.grantId }}
@@ -102,8 +105,32 @@ jobs:
       slot: cycle1
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-  admit_pr:
+  preflight_review:
     if: ${{ inputs.operation == 'review' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 70
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
+    outputs:
+      ready: ${{ steps.preflight.outputs.ready }}
+      head: ${{ steps.preflight.outputs.head }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - id: preflight
+        name: Check GitHub quota and pin owner PR head without a reservation
+        uses: ./.github/actions/factory-control
+        with:
+          operation: preflight_pr
+          variables_json: ${{ toJSON(vars) }}
+          parameters: ${{ toJSON(inputs) }}
+  admit_pr:
+    needs: preflight_review
+    if: ${{ inputs.operation == 'review' && needs.preflight_review.outputs.ready == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -113,6 +140,7 @@ jobs:
     concurrency:
       group: factory-ledger
       cancel-in-progress: false
+      queue: max
     outputs:
       ready: ${{ steps.control.outputs.ready }}
       grantId: ${{ steps.control.outputs.grantId }}
@@ -128,7 +156,9 @@ jobs:
         with:
           operation: admit_pr
           variables_json: ${{ toJSON(vars) }}
-          parameters: ${{ toJSON(inputs) }}
+          parameters: >-
+            {"ticket":${{ toJSON(inputs.ticket) }},"pr":${{ toJSON(inputs.pr) }},
+            "expectedHead":${{ toJSON(needs.preflight_review.outputs.head) }}}
   review_existing:
     needs: admit_pr
     if: ${{ needs.admit_pr.outputs.ready == 'true' && vars.FACTORY_ENABLED == 'true' }}

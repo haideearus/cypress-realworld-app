@@ -63,6 +63,7 @@ jobs:
     concurrency:
       group: factory-ledger
       cancel-in-progress: false
+      queue: max
     outputs:
       ready: ${{ steps.control.outputs.ready }}
       pr: ${{ steps.control.outputs.pr }}
@@ -126,6 +127,7 @@ jobs:
     concurrency:
       group: factory-ledger
       cancel-in-progress: false
+      queue: max
     outputs:
       ready: ${{ steps.control.outputs.ready }}
       grantId: ${{ steps.control.outputs.grantId }}
@@ -172,6 +174,7 @@ jobs:
     concurrency:
       group: factory-ledger
       cancel-in-progress: false
+      queue: max
     outputs:
       retry: ${{ steps.control.outputs.retry }}
       grantId: ${{ steps.control.outputs.grantId }}

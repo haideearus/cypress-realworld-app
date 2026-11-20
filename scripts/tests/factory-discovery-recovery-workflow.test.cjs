@@ -69,6 +69,7 @@ test("only selection and finalization can write ledger state and share uncancell
     assert.deepEqual(jobs[name].concurrency, {
       group: "factory-ledger",
       "cancel-in-progress": false,
+      queue: "max",
     });
   }
   assert.deepEqual(jobs.replay.permissions, { actions: "read", contents: "read", issues: "read" });

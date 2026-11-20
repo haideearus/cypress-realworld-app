@@ -83,6 +83,7 @@ jobs:
     concurrency:
       group: factory-ledger
       cancel-in-progress: false
+      queue: max
     permissions:
       contents: write
       issues: write

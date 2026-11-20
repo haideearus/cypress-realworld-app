@@ -6,8 +6,11 @@ under owner harness issue #85. It does not enable discovery or publish bug ticke
 ## What the new role does
 
 `Proactive app discovery` inspects a successful, current-main push-CI revision.
-New sweeps rotate between public-feed pagination and ordinary directory search.
-The second reservation of a day prefers the other charter even if main has moved.
+New sweeps rotate among public-feed pagination, ordinary directory search, the
+notifications list and the Settings profile. The selector prefers the least recently reserved eligible
+charter, so each area can get a turn even when only one session runs per day.
+The second reservation of a day excludes the charter already reserved that day,
+including when `main` has moved.
 The model can read a small set of relevant frontend files at the frozen revision,
 choose input combinations for its assigned charter and inspect the test results.
 The broker turns approved inputs into fixed API tests that run against one
@@ -117,8 +120,22 @@ reservation, rebuilds the exact source/baseline and replays each proposed failur
 twice against independent fresh data. It separately evaluates a fixed trusted
 oracle twice in fresh sandboxes. Feed scenarios use positive page and page size
 values from 1 to 25. Directory scenarios use short plain-text search terms and
-check for server errors. The broker controls the request targets, method and
-synthetic session.
+check for server errors. The notifications charter uses one read-only
+`GET /notifications` from the pinned synthetic account in every case. Its three
+cases check the list response, the known seeded unread items, and the display
+fields and supported types of returned items. Case selectors stay in the broker
+and trusted verifier. The app receives the same path without query parameters.
+The Settings charter uses a read-only `GET /checkAuth`. Its three cases check
+the active profile identity, seeded fields displayed in Settings, and the saved
+default transaction preference. Both the generated tests and the independent
+verifiers confirm that sign-in identifies the seeded account before either read.
+
+Notifications and Settings evidence record the case, HTTP status and the
+verifier's boolean checks. They omit notification rows and profile field values.
+The independent replay must observe the same contract failure twice before intake can
+publish a ticket. An absent synthetic fixture or failed sign-in holds the
+finding. A successful intake rechecks the finding on current `main` before
+repair can start. The broker controls all request targets, methods and sessions.
 
 Generated assertions, logs, screenshots and model opinions cannot establish
 these oracles. Unsupported expectations, inconsistent failures, setup failures

@@ -58,6 +58,7 @@ jobs:
     concurrency:
       group: factory-ledger
       cancel-in-progress: false
+      queue: max
     outputs:
       ready: ${{ steps.control.outputs.ready }}
       mode: ${{ steps.control.outputs.mode }}
@@ -134,6 +135,7 @@ jobs:
     concurrency:
       group: factory-ledger
       cancel-in-progress: false
+      queue: max
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -170,6 +172,7 @@ jobs:
     concurrency:
       group: factory-ledger
       cancel-in-progress: false
+      queue: max
     outputs:
       grantId: ${{ steps.control.outputs.grantId }}
     steps:
@@ -215,6 +218,7 @@ jobs:
     concurrency:
       group: factory-ledger
       cancel-in-progress: false
+      queue: max
     outputs:
       reviewed: ${{ steps.control.outputs.reviewed }}
     steps:
@@ -318,6 +322,7 @@ jobs:
     concurrency:
       group: factory-ledger
       cancel-in-progress: false
+      queue: max
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:

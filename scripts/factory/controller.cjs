@@ -20,7 +20,7 @@ function nextCycleSlot(slot) {
 }
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const CI_POLL_MS = 30000;
-const QUOTA_WAIT_OPERATIONS = new Set(["ci", "review", "assess", "assess_pr"]);
+const QUOTA_WAIT_OPERATIONS = new Set(["ci", "review", "assess", "assess_pr", "preflight_pr"]);
 const identity = (ctx, extra = {}) => ({ ...ctx, ...extra });
 class Controller {
   constructor(api, config, context, { sleep = delay, maxPolls = 60 } = {}) {
@@ -183,10 +183,7 @@ class Controller {
     if (t.origin === "drill") throw new Error("Drill tickets cannot enter ordinary factory work");
     return { ...loaded, ticket: t };
   }
-  async admitPR(ticket, prNumber) {
-    this.authorize();
-    if (!this.config.enabled)
-      return { ready: false, reason: "Factory disabled; no model invocation" };
+  async ownerReviewTarget(ticket, prNumber) {
     if (!Number.isSafeInteger(prNumber) || prNumber < 1) throw new Error("Invalid owner PR");
     const issue = await this.issue(ticket);
     await this.rejectDrillIssue(issue);
@@ -200,6 +197,24 @@ class Controller {
       !pr.head?.ref
     )
       throw new Error("Review needs an open owner-authored PR in this repository targeting main");
+    return { issue, pr };
+  }
+  async preflightOwnerReview(ticket, prNumber) {
+    this.authorize();
+    if (!this.config.enabled)
+      return { ready: false, reason: "Factory disabled; no model invocation" };
+    const { pr } = await this.ownerReviewTarget(ticket, prNumber);
+    const { state } = await this.ledger.read();
+    policy.assertNotStopped(state);
+    return { ready: true, head: pr.head.sha };
+  }
+  async admitPR(ticket, prNumber, expectedHead) {
+    this.authorize();
+    if (!this.config.enabled)
+      return { ready: false, reason: "Factory disabled; no model invocation" };
+    const { issue, pr } = await this.ownerReviewTarget(ticket, prNumber);
+    if (expectedHead !== undefined && pr.head.sha !== expectedHead)
+      throw new Error("Owner PR head changed after review preflight");
     const saved = await this.ledger.update((state) => {
       const previous = state.tickets[String(ticket)];
       if (previous?.criteriaHash && previous.criteriaHash !== criteriaHash(issue))
@@ -859,7 +874,9 @@ async function main(env = process.env) {
   }
   const api = new GitHub({
     token: env.GH_TOKEN,
-    retryReads: ["publish", "saved_ci_review", "assess_saved_ci_review"].includes(operation),
+    retryReads: ["publish", "saved_ci_review", "assess_saved_ci_review", "preflight_pr"].includes(
+      operation
+    ),
     waitOnQuota: QUOTA_WAIT_OPERATIONS.has(operation),
     onQuotaWait: (until) => console.log(`GitHub API quota exhausted; waiting until ${until}`),
   });
@@ -879,8 +896,13 @@ async function main(env = process.env) {
     case "admit":
       result = await controller.admit(ticket, { recover: inputs.operation === "recover" });
       break;
+    case "preflight_pr":
+      result = await controller.preflightOwnerReview(ticket, Number(inputs.pr));
+      break;
     case "admit_pr":
-      result = await controller.admitPR(ticket, Number(inputs.pr));
+      if (!policy.SHA.test(inputs.expectedHead || ""))
+        throw new Error("Owner review admission requires its preflight head");
+      result = await controller.admitPR(ticket, Number(inputs.pr), inputs.expectedHead);
       break;
     case "publish":
       result = await controller.publish(inputs.grantId, readJson(env.FACTORY_BUNDLE_PATH));
