@@ -2628,7 +2628,11 @@
       "approval": null,
       "criteriaHash": "551f47eb43867ee30ec1fe58fbf49dffa0e44dde77899b2aea0a52e9e73fc088",
       "branch": "agent/onboarding-discovery-check",
-      "ci": null
+      "ci": {
+        "requestId": "3c9bb611-630f-41c4-9a43-b8a90877e59b",
+        "head": "019ec2937b8887d4c20f8cae16e6f3e53786eae1",
+        "runId": null
+      }
     }
   },
   "grants": {
