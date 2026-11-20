@@ -26,7 +26,7 @@
       "base": "2d8b8ab991bd265216f9a314022028edd658ff25",
       "head": "f1fc2a56c08130ef3f2613620ba33bd40d1a7d96",
       "name": "shell-quote",
-      "phase": "ready",
+      "phase": "resolved",
       "issue": 147,
       "pr": 148
     }
