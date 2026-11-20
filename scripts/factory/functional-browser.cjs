@@ -163,7 +163,7 @@ function browserSummary({ status, check, assertion }) {
     "",
     "### Skipped coverage",
     "",
-    "- Account-changing writes, other browser journeys, external services and production.",
+    "- Writes outside the synthetic onboarding fixture, other browser journeys, external services and production.",
   ].join("\n");
 }
 

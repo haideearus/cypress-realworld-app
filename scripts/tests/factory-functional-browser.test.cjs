@@ -2,7 +2,8 @@ const assert = require("node:assert/strict");
 const { test } = require("node:test");
 
 function report(failures = {}) {
-  const checks = ["sign-in", "navigation", "settings", "form-validation", "sign-in-accessibility"];
+  const { ASSERTIONS } = require("../factory/functional-discovery-contract.cjs");
+  const checks = Object.keys(ASSERTIONS);
   const tests = checks.map((check) => {
     const error = failures[check];
     const state = error ? "failed" : "passed";
@@ -16,11 +17,17 @@ function report(failures = {}) {
     };
   });
   const count = Object.keys(failures).length;
-  const stats = { tests: 5, passes: 5 - count, failures: count, pending: 0, skipped: 0 };
+  const stats = {
+    tests: checks.length,
+    passes: checks.length - count,
+    failures: count,
+    pending: 0,
+    skipped: 0,
+  };
   return {
     browserName: "electron",
-    totalTests: 5,
-    totalPassed: 5 - count,
+    totalTests: stats.tests,
+    totalPassed: stats.passes,
     totalFailed: count,
     totalPending: 0,
     totalSkipped: 0,
@@ -69,7 +76,7 @@ async function verify(...reports) {
   return verdict;
 }
 
-test("all five passing checks produce a healthy verdict without a retry", async () => {
+test("all passing checks produce a healthy verdict without a retry", async () => {
   assert.deepEqual(await verify(report()), healthy);
 });
 
@@ -91,6 +98,15 @@ test("two invocations reporting the same typed assertion confirm its fixed check
       assertion: "settings-email-required",
     }
   );
+});
+
+test("the onboarding classifier accepts its own repeated, named failure", async () => {
+  const failure = report({ "bank-account-onboarding": assertion("onboarding-save-rejected") });
+  assert.deepEqual(await verify(failure, failure), {
+    status: "confirmed_failure",
+    check: "bank-account-onboarding",
+    assertion: "onboarding-save-rejected",
+  });
 });
 
 test("a passing confirmation or two different assertions in the same check is inconclusive", async () => {

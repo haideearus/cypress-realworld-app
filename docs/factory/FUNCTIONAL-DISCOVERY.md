@@ -2,8 +2,14 @@
 
 This workflow runs checked-in browser assertions against a disposable copy of the
 application with a synthetic database. It checks sign-in, navigation between
-Home and Settings, opening Settings, and Settings form validation. It does not use
-production account secrets, a model, or a paid AI API.
+Home and Settings, opening Settings, Settings form validation, and bank-account
+onboarding. It does not use production account secrets, a model, or a paid AI API.
+
+The onboarding check creates a fresh synthetic user on loopback for each attempt.
+It simulates one rejected GraphQL save and expects the form to remain open with a
+visible error. A second save uses the disposable database. The check signs out,
+signs in again, and verifies that the account is listed and the wizard stays
+closed. Other account-changing browser requests remain blocked.
 
 The runner reports a confirmed failure only when the same named assertion fails
 in two browser runs on the same checkout. Installation, application startup,
@@ -27,10 +33,11 @@ ordinary repair admission.
 2. Inspect the **browser** and **publish** jobs. Expect `outcome=preview`,
    `modelCalls=0`, and a result of `healthy`, `confirmed_failure`, or
    `inconclusive`. A preview creates no ticket or incident receipt.
-3. After a healthy preview, save `FACTORY_FUNCTIONAL_DISCOVERY_ENABLED=true`
-   to authorize publishing on future runs. The schedule is 02:12 and 14:12 UTC.
-   GitHub may delay scheduled starts. A fresh manual run with the checkbox
-   unchecked uses the same controls and incident limits.
+3. Check that the preview is healthy or confirmed the expected assertion before
+   allowing publication. With `FACTORY_FUNCTIONAL_DISCOVERY_ENABLED=true`, the
+   approved checks can publish on the 02:12 and 14:12 UTC schedule. GitHub may
+   delay scheduled starts. A fresh manual run with the checkbox unchecked uses
+   the same controls and incident limits.
 
 Keep the earlier **Proactive app discovery** and **Verified discovery finding
 intake** workflows paused for this rollout. The existing event-pickup and
