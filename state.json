@@ -2498,12 +2498,13 @@
       },
       "feedback": "{\"head\":\"ddcd4fe06c4b1f942b127c86566b641933b7a449\",\"verdict\":\"pass\",\"summary\":\"Reviewed the yarn.lock-only diff (ddcd4fe0, no package.json change) bumping proxy-addr from 2.0.7 to 2.0.8 within express's existing \\\"~2.0.7\\\" range (yarn.lock:7475, 11160-11166). Sub-dependencies forwarded@0.2.0 and ipaddr.js@1.9.1 are unchanged. Per dependencyFacts, the new tarball's integrity hash matches the npm registry record (integrityMatched: true) and the bump moves off the version range affected by GHSA-jqcg-44mw-7w3h (introduced 1.1.0, fixed 2.0.8), clearing that advisory with no newly introduced vulnerable packages. Checked backend/app.ts:46, where \\\"trust proxy\\\" is only enabled when config.production is true, and confirmed via grep that no backend code reads req.ip or X-Forwarded-For, so this demo app's exposure to proxy-addr's IP-parsing logic is minimal. The CI receipt (run 44755266611) shows types/lint/unit tests and API+browser regression passing, but the cited testFiles (UserSettingsForm.test.tsx, auth.spec.ts, bankaccounts.spec.ts, user-settings.spec.ts) are Formik/Yup form and auth/UI tests unrelated to proxy/IP handling, so there is no targeted regression test for the trust-proxy code path — a pre-existing gap, not introduced by this change. Given the isolated, in-range, integrity-verified patch bump with no app code changes, I find no blocking correctness, compatibility, or security issues.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"No test in the repository (unit or Cypress) exercises backend/app.ts's trust-proxy configuration or X-Forwarded-For/IP parsing, so the CI-passing test files cited (UserSettingsForm.test.tsx, auth.spec.ts, bankaccounts.spec.ts, user-settings.spec.ts) provide only general regression coverage, not targeted verification of proxy-addr's affected behavior. This is a pre-existing gap unrelated to this specific lockfile bump.\"}]}",
       "merge": {
-        "status": "intent",
+        "status": "merged",
         "head": "ddcd4fe06c4b1f942b127c86566b641933b7a449",
         "pr": 137,
-        "at": "2026-11-20T14:52:47.009Z",
+        "at": "2026-11-20T14:53:06.935Z",
         "runId": "44754992541",
-        "runAttempt": 1
+        "runAttempt": 1,
+        "mergeCommit": "34f1fc8ffe70be8a7fcf9b5540f38fdca47f2612"
       }
     },
     "138": {
@@ -3791,11 +3792,7 @@
       "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 137,
-    "runId": "44754992541",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
