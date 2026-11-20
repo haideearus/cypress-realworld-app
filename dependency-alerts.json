@@ -42,8 +42,8 @@
       "name": "vitest",
       "day": "2026-11-20",
       "trackingReason": "major-held",
-      "phase": "tracking-intent",
-      "issue": null,
+      "phase": "tracking",
+      "issue": 155,
       "pr": null
     }
   }
