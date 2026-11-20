@@ -96,7 +96,8 @@
       150,
       148,
       144,
-      154
+      154,
+      156
     ]
   },
   "tickets": {
@@ -2777,6 +2778,34 @@
         "passed": true
       },
       "feedback": "{\"head\":\"0dbca314e5acdff23ee9d7314b91b4222d938768\",\"verdict\":\"pass\",\"summary\":\"Reviewed the base-to-head diff (PR #152) against scripts/factory/controller.cjs, github.cjs, policy.cjs, discovery-run.cjs, discovery-functional.cjs, discovery-oracles.cjs, discovery-evidence.cjs, discovery-replay.cjs, discovery-worker.cjs, monitor-origin.cjs, monitor.cjs, functional-discovery.cjs, the .github/workflows/factory-*.yml files, docs/factory/*.md, and the associated scripts/tests/*.test.cjs plus the new factory-discovery-notifications.test.cjs/factory-discovery-settings.test.cjs/factory-functional-discovery.cy.js. Ledger write serialization (Ledger.update's CAS retry over refs/heads/factory/state in github.cjs) is untouched; the diff adds `queue: max` to the shared `factory-ledger` concurrency group across all factory-*.yml workflows so pending ledger-writing jobs are queued (up to 100) instead of GitHub silently dropping all but one pending run, and this is documented (docs/factory/OPERATIONS.md) and asserted by scripts/tests/factory-workflows.test.cjs. Quota-vs-review-attempt separation is implemented correctly: controller.cjs splits `admit_pr` into a new no-reservation `preflightOwnerReview`/`preflight_pr` operation (added to QUOTA_WAIT_OPERATIONS, only performs GET requests and ledger.read, confirmed never mutates state) and a fast `admitPR` that now takes `expectedHead` and throws 'Owner PR head changed after review preflight' if the PR's head moved since the preflight — i.e. admission rechecks the exact PR commit. This exact behavior (GET-only preflight during a quota wait leaves grants empty, and admitPR rejects a changed head) is directly covered by the new test in scripts/tests/factory-ci-quota.test.cjs ('owner review preflight waits for quota with read-only access and pins the head'), and the factory-agents.yml workflow wiring (preflight_review -> admit_pr with expectedHead) matches. Discovery continues to operate only against the disposable sandboxed app (http://app:3001 / seed users, 'discovery-only-password') for the two new oracle kinds (notification-list, settings-profile) in discovery-oracles.cjs, and the repeatable-evidence gate for ticket creation (discovery-evidence.cjs verifyReproducer, requiring two independent trusted-oracle replays with a matching non-'none' symptom) is charter-agnostic and unchanged in its guarantees, so findings still require repeatable evidence before intake. The new functional-discovery.yml workflow_run trigger (after Factory CI on main) is gated by a new verifyCITrigger/assertContext chain in functional-discovery.cjs mirroring the existing testedMain pattern, and monitor-origin.cjs's verifyMonitorIssue was extended to also check the new 'Verify functional discovery CI trigger' step for workflow_run-sourced incidents, preserving the review/merge-protection chain of trust. I did not execute tests or workflows in this read-only session; I relied on static reading of the current repository source (already at the reviewed head) plus the embedded diff text, and the ci field in the provided context was only a run URL with no inline pass/fail detail, so I could not independently confirm CI outcome beyond what the PR's own new assertions encode.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"scripts/factory/discovery-functional.cjs:193-216 (verifyFindings) only enforces the live-response marker check (that the executed batch log actually reached the endpoint, via `# ${SETTINGS_RESPONSE}`) for the 'functional-settings' charter; the parallel 'functional-notifications' charter defines and injects NOTIFICATION_RESPONSE into its generated proposal (same file, lines 22, 65-69, 117) but verifyFindings never checks for it, unlike discovery-summary.cjs's explorationSummary which does apply the marker generically to both charters for coverage-counting purposes. A notifications batch that failed before reaching the endpoint (e.g. a login failure) could still pass verifyFindings with a misleading 'Notifications list contract failed' title, whereas the equivalent settings scenario is explicitly rejected (and is covered by a dedicated test in scripts/tests/factory-discovery-settings.test.cjs, with no analogous test for notifications). The stronger discovery-evidence.cjs verifyReproducer double-replay gate still independently re-verifies reproducibility for both charters before any ticket is created, so this asymmetry is a defense-in-depth/consistency gap rather than a path to a fabricated ticket.\"}]}"
+    },
+    "156": {
+      "coding": 1,
+      "origin": "factory",
+      "reviews": 0,
+      "retries": 0,
+      "head": "1bcc7ff271394232074b053f5870c4451b061695",
+      "status": "coding",
+      "pr": null,
+      "approval": null,
+      "criteriaHash": "da67eb7c00982fc30f031c552c564f2ebafa4c05a6191bee4c90bc0e1abdf8df",
+      "automatic": {
+        "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-automatic.yml@refs/heads/main",
+        "workflowSha": "1bcc7ff271394232074b053f5870c4451b061695",
+        "runId": "44815110813",
+        "runAttempt": 1,
+        "appSlug": "haideearus-software-factory"
+      },
+      "monitor": {
+        "version": 2,
+        "probeMode": "functional-browser",
+        "incidentId": "a407d5c8-024f-40aa-accb-130dabcbd204",
+        "issue": 156,
+        "criteriaHash": "da67eb7c00982fc30f031c552c564f2ebafa4c05a6191bee4c90bc0e1abdf8df",
+        "runId": "44814628510",
+        "runAttempt": 1,
+        "workflowSha": "1bcc7ff271394232074b053f5870c4451b061695"
+      }
     }
   },
   "grants": {
@@ -4052,9 +4081,24 @@
       "status": "finished",
       "at": "2026-11-20T20:11:27.058Z",
       "outcome": "reviewed"
+    },
+    "da7adcfb-abee-4541-84b9-9284e75a1cb2": {
+      "id": "da7adcfb-abee-4541-84b9-9284e75a1cb2",
+      "ticket": 156,
+      "phase": "code",
+      "slot": "cycle1",
+      "runId": "44815110813",
+      "runAttempt": 1,
+      "head": "1bcc7ff271394232074b053f5870c4451b061695",
+      "status": "reserved",
+      "at": "2026-11-20T20:51:54.273Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 156,
+    "runId": "44815110813",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -7026,6 +7070,18 @@
       "grant": "da68d3b3-a6f2-4cfd-b3f9-320992fd7aee",
       "status": "reviewed",
       "head": "0dbca314e5acdff23ee9d7314b91b4222d938768"
+    },
+    {
+      "at": "2026-11-20T20:51:54.273Z",
+      "event": "reserved",
+      "ticket": 156,
+      "grant": "da7adcfb-abee-4541-84b9-9284e75a1cb2",
+      "phase": "code",
+      "runId": "44815110813",
+      "runAttempt": 1,
+      "actor": "github-actions[bot]",
+      "wakeReceipt": "6f3a17b81cca433d0d45f8630ac20963722cf44406c8d4ad5b9e8ceb62ec2b4e",
+      "sourceActor": "haideearus"
     }
   ]
 }
