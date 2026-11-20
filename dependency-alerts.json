@@ -45,6 +45,14 @@
       "phase": "tracking",
       "issue": 155,
       "pr": null
+    },
+    "e5c1a51e5993f4845424762f6adac535905376fbce7ce659e6fa7484f127b9ad": {
+      "name": "@graphql-tools/utils",
+      "day": "2026-11-20",
+      "trackingReason": "no-common-candidate",
+      "phase": "tracking-intent",
+      "issue": null,
+      "pr": null
     }
   }
 }
