@@ -16,6 +16,21 @@ Earlier PR #52 analysis/review holds remain historical evidence. The retained-ve
 [verification record](retained-advisory-fix-verification-2026-11-15.md).
 No extended scheduled-operation acceptance is claimed by that controlled run.
 
+## Preview tickets from Dependabot alerts
+
+The **Dependabot ticket preview** workflow reads the open alerts for this
+repository and compares them with the root Yarn lockfile on `main`. It ranks
+package groups by severity, then runtime exposure, and evaluates up to ten.
+Public job logs and summaries show aggregate counts.
+Each compatible candidate satisfies the existing version selectors and is
+outside the affected ranges in the reviewed advisory catalog. A hold may require
+updating a parent or a direct pin, reviewing unavailable evidence, or fixing
+separate release lines individually. Candidate versions still need the existing
+lockfile analysis, CI, independent review and branch protection before merge.
+
+The GitHub App needs **Dependabot alerts: Read-only** on this repository to
+run the preview. It creates no tickets or PRs and uses no Claude sessions.
+
 ## What happens
 
 Dependabot proposes changes to the application's library versions. The dependency
