@@ -34,8 +34,8 @@
       "name": "tinypool",
       "day": "2026-11-20",
       "trackingReason": "major-held",
-      "phase": "tracking-intent",
-      "issue": null,
+      "phase": "tracking",
+      "issue": 153,
       "pr": null
     }
   }
