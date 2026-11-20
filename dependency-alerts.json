@@ -11,6 +11,14 @@
       "phase": "ready",
       "issue": 136,
       "pr": 137
+    },
+    "5844bec173b3e1dc91781614d1899d1a9da6c2727ec0b8be25719539f53a7b01": {
+      "name": "fast-xml-parser",
+      "day": "2026-11-20",
+      "trackingReason": "major-held",
+      "phase": "tracking-intent",
+      "issue": null,
+      "pr": null
     }
   }
 }
