@@ -2598,9 +2598,17 @@
       "reviews": 2,
       "retries": 0,
       "head": "eb12258ca71600d4ea5a28fce347fdf0f49c84ab",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 151,
-      "approval": null,
+      "approval": {
+        "head": "eb12258ca71600d4ea5a28fce347fdf0f49c84ab",
+        "pr": 151,
+        "grant": "977da09a-ba71-4a2b-b86a-21a89a64315a",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/44799604010"
+      },
       "criteriaHash": "aaf4740e4b533a82188cba4b69df6e4045a1e9df8e65ad1ff183600ce93e4752",
       "branch": "agent/144-upgrade-xml-dependencies",
       "ci": {
@@ -2609,7 +2617,7 @@
         "runId": 44799704092,
         "passed": true
       },
-      "feedback": "{\"head\":\"3afc848442380a4809368c15459bccc064102f72\",\"verdict\":\"pass\",\"summary\":\"Ticket #144 asks to remediate the fast-xml-parser advisory via a tested direct/parent dependency upgrade. The diff touches only package.json:36 (aws-amplify \\\"^6.0.16\\\" -> pinned \\\"6.22.2\\\", alphabetical ordering preserved) and yarn.lock. I confirmed in the actual checked-out yarn.lock that @aws-amplify/storage now resolves to 6.17.0 depending on fast-xml-parser \\\"^5.7.2\\\" (yarn.lock:163) instead of the vulnerable \\\"^4.4.1\\\", and that fast-xml-parser@^5.7.2 resolves to 5.12.1 (yarn.lock:6764-6773) with no remaining 4.x entries anywhere in the lockfile (verified via grep across the full diff and the live file) — the old @aws-sdk/core@3.621.0 block that also pinned fast-xml-parser \\\"4.4.1\\\" was removed entirely as part of the aws-sdk transitive tree refresh. The only in-repo consumer of aws-amplify is cypress/support/auth-provider-commands/cognito.ts, which uses the stable v6 Auth Gen2 surface (Amplify.configure, signIn, fetchAuthSession) that is unaffected by this intra-major (6.0.16 -> 6.22.2) bump, so regression risk to the Cognito e2e login flow looks low. All new lockfile entries have well-formed registry.yarnpkg.com URLs and sha512 integrity hashes, consistent with a real `yarn` resolution rather than a hand-edited lockfile. Limits: this is a read-only review — I did not run yarn/install/test or open the linked GitHub Actions run, so I'm relying on the lockfile's internal consistency and the existing e2e auth helper's API usage rather than an executed build/test pass.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"fast-xml-parser 5.12.1 pulls in several unfamiliar low-profile transitive packages (@nodable/entities, fast-xml-builder, is-unsafe, path-expression-matcher, xml-naming, anynum) that weren't previously in the dependency tree (yarn.lock around line 6764). The lockfile entries look well-formed (valid yarnpkg URLs and sha512 hashes), but since this is a security-maintenance change, it would be worth a quick `yarn why`/registry provenance check on these new packages before relying on the fix, since I could not execute installs in this read-only session to verify them myself.\"}]}"
+      "feedback": "{\"findings\":[{\"severity\":\"minor\",\"message\":\"The yarn.lock upgrade (package.json:36, yarn.lock:6756-6774) pulls fast-xml-parser up to 5.12.1, which now depends on several transitive packages not previously in the tree (@nodable/entities, fast-xml-builder, is-unsafe, path-expression-matcher, xml-naming, anynum at yarn.lock:4618, 6756-6774, 7957, 10023, 12681). All entries have well-formed registry.yarnpkg.com URLs and sha512 integrity hashes consistent with genuine yarn resolution, but I have no way in this read-only session to independently confirm their registry provenance (e.g. via `yarn why`/npm view), so a quick manual provenance check before relying on this security fix is still warranted.\"}],\"head\":\"eb12258ca71600d4ea5a28fce347fdf0f49c84ab\",\"summary\":\"Reviewed the diff for ticket #144 (fast-xml-parser advisory remediation), which touches only package.json:36 (aws-amplify \\\"^6.0.16\\\" -> pinned \\\"6.22.2\\\") and yarn.lock. I independently confirmed in the live yarn.lock that @aws-amplify/storage now resolves to 6.17.0 (yarn.lock:154-163) depending on fast-xml-parser \\\"^5.7.2\\\" instead of the vulnerable \\\"^4.4.1\\\", that fast-xml-parser resolves to 5.12.1 (yarn.lock:6764-6774) with exactly one fast-xml-parser@ entry and zero remaining fast-xml-parser \\\"^4\\\" dependents in the whole lockfile, and that @aws-sdk/core@3.981.0 (yarn.lock:254-266) no longer pulls fast-xml-parser at all (it now uses @aws-sdk/xml-builder), matching the claim that the old vulnerable transitive edge was removed via the aws-sdk tree refresh, not just shadowed. I also checked the only two in-repo consumers of aws-amplify (src/containers/AppCognito.tsx and cypress/support/auth-provider-commands/cognito.ts): both import only the stable v6 Auth surface (Amplify.configure/signIn/signInWithRedirect/fetchAuthSession/signOut), with no direct use of aws-amplify/storage, so the intra-major bump (6.0.16->6.22.2) and the newly-introduced XML parser code path carry low practical regression/exploitability risk for this app. The diff is scoped to exactly these two files with no unrelated changes, matching the ticket's narrow security-maintenance intent. Limits: this is a read-only review with Read/Glob/Grep only — I did not execute yarn/install/build/test and did not open the linked GitHub Actions run (https://github.com/haideearus/cypress-realworld-app/actions/runs/44799704092), so I'm relying on the lockfile's internal structural consistency (valid yarnpkg URLs, sha512 hashes, single consistent resolution per package) rather than an executed install/test pass, and I cannot independently verify the handful of unfamiliar new transitive packages against the live npm registry.\",\"verdict\":\"pass\"}"
     },
     "146": {
       "coding": 0,
@@ -4001,15 +4009,12 @@
       "runId": "44799604010",
       "runAttempt": 1,
       "head": "eb12258ca71600d4ea5a28fce347fdf0f49c84ab",
-      "status": "reserved",
-      "at": "2026-11-20T19:10:25.478Z"
+      "status": "finished",
+      "at": "2026-11-20T19:10:25.478Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 144,
-    "runId": "44799604010",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -6955,6 +6960,14 @@
       "runId": "44799604010",
       "runAttempt": 1,
       "actor": "haideearus"
+    },
+    {
+      "at": "2026-11-20T19:29:33.800Z",
+      "event": "finished",
+      "ticket": 144,
+      "grant": "977da09a-ba71-4a2b-b86a-21a89a64315a",
+      "status": "reviewed",
+      "head": "eb12258ca71600d4ea5a28fce347fdf0f49c84ab"
     }
   ]
 }
