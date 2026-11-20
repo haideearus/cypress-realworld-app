@@ -87,7 +87,8 @@
       129,
       130,
       132,
-      134
+      134,
+      138
     ]
   },
   "tickets": {
@@ -2426,6 +2427,19 @@
         "passed": true
       },
       "feedback": "{\"head\":\"52e67f8fd6d4fb5018b879aafae3c8466a33e967\",\"verdict\":\"pass\",\"summary\":\"Reviewed commit 52e67f8f against ticket #134, inspecting scripts/factory/dependency-alerts.cjs (new preview/grouping logic), scripts/factory/dependency-alert-repair.cjs (new publish/refresh/hold/closure state machine), scripts/factory/dependency-contract.cjs (prOK/filesOK/alertKey extensions), scripts/factory/dependencies.cjs, controller.cjs, worker.cjs, merge.cjs, dependency-policy.cjs, policy.cjs, metadata-store.cjs, stop.cjs, the new .github/workflows/factory-dependency-alerts.yml, docs/factory/DEPENDENCY-MAINTENANCE.md, and the two new test files (factory-dependency-alert-handoff.test.cjs, factory-dependency-alerts.test.cjs). Each acceptance criterion maps to concrete code: grouping/ranking by severity+runtime and registry/advisory cross-checking (dependency-alerts.cjs groupsFor/planGroup/packagePlan), aggregate-only public summary (publicSummary), repo-scoped alert pagination restricted to this repository's two known API paths, a disabled-by-default opt-in (FACTORY_DEPENDENCY_ALERT_REPAIR_ENABLED wired through policy.readConfig, checked in runRepair), one-proposal-at-a-time publish state machine gated by a 10/day-and-shared-ledger cap keyed to Europe/Bucharest days (policy.dayKey), priority preservation for native Dependabot PRs and in-flight app work (select()'s candidate/generated split plus AutomaticCoordinator check before claiming an alert PR), App-authored PR + github-actions-authored issue with recorded identities and the factory-dependency-ready label (publish()), reuse of the existing analysis/CI/review/merge gates via verifyAlertPR hooks added to controller.matchingPR, worker.prepare, dependencies.cjs pending()/pr(), and merge.cjs's waitForVerify condition, non-force ref updates in finishRefresh, label-removal and ambiguous-write handling via alertHold()/UncertainPublication -> held states, and ticket closure gated on a verified merge commit, confirmed patched lockfile entries (verifyResolvedLock), and an empty live Dependabot alert for the package. The new tests exercise lost-response reconciliation, label removal, stale-base refresh without force-push, and merge+lock+alert-agreement closure, which line up with the ticket's required fixture scenarios. I could not execute the test suite or lint/build myself in this read-only review; the context bundle only supplies a CI run URL without an explicit pass/fail payload, so that run is treated as supporting evidence rather than independently verified. No use of Claude sessions, paid APIs, or production access was found in the diff, and the new workflow's live \\\"repair\\\" job remains behind the opt-in var plus the global automation/enabled switches.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"In scripts/factory/dependency-contract.cjs prOK(), the native Dependabot path still pins the bot's numeric user.id (49699333) as a second identity factor, but the new 'generated' (alert-repair) path only checks that pr.user.login matches `${config.appSlug}[bot]` and that the id is a positive safe integer, without pinning a specific expected id. This relies entirely on GitHub's uniqueness guarantee for App bot logins rather than a double-checked numeric id, slightly weaker than the native check it sits beside, though not clearly exploitable given config.appSlug itself comes from a trusted repo variable.\"}]}"
+    },
+    "138": {
+      "coding": 0,
+      "origin": "owner-pr",
+      "reviews": 1,
+      "retries": 0,
+      "head": "73dcca870d0c4e93e4ce4e3a318fbe3c44ab48ba",
+      "status": "reviewing",
+      "pr": 139,
+      "approval": null,
+      "criteriaHash": "cd1dc11a176a7f58a2920c15741b40559a06d1d39617824b4d42f10dbb1faa69",
+      "branch": "agent/factory-ticket-visibility",
+      "ci": null
     }
   },
   "grants": {
@@ -3581,9 +3595,24 @@
       "status": "finished",
       "at": "2026-11-20T09:10:01.063Z",
       "outcome": "reviewed"
+    },
+    "6496d5d7-c7cb-4e0b-9079-ebc1478c6e1a": {
+      "id": "6496d5d7-c7cb-4e0b-9079-ebc1478c6e1a",
+      "ticket": 138,
+      "phase": "review",
+      "slot": "existing",
+      "runId": "44721895106",
+      "runAttempt": 1,
+      "head": "73dcca870d0c4e93e4ce4e3a318fbe3c44ab48ba",
+      "status": "reserved",
+      "at": "2026-11-20T10:45:44.962Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 138,
+    "runId": "44721895106",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -6329,6 +6358,16 @@
       "grant": "6d3632b6-744b-408c-aa0a-cfa229589780",
       "status": "reviewed",
       "head": "52e67f8fd6d4fb5018b879aafae3c8466a33e967"
+    },
+    {
+      "at": "2026-11-20T10:45:44.962Z",
+      "event": "reserved",
+      "ticket": 138,
+      "grant": "6496d5d7-c7cb-4e0b-9079-ebc1478c6e1a",
+      "phase": "review",
+      "runId": "44721895106",
+      "runAttempt": 1,
+      "actor": "haideearus"
     }
   ]
 }
