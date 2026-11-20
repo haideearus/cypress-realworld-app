@@ -8,9 +8,14 @@
       "day": "2026-11-20",
       "base": "0a4e8eb46bfa38007821e1194b9dc921c94e5eab",
       "head": "1c345e88547fa1145da20c50099d07aa52f7a053",
-      "phase": "ready",
+      "phase": "refresh",
       "issue": 136,
-      "pr": 137
+      "pr": 137,
+      "refresh": {
+        "base": "9bf2472b861928b97c77c7161f865757562b012d",
+        "head": "1589aea2bf6e9965a5c9d923c33988261b2fa7b2",
+        "resume": "ready"
+      }
     }
   }
 }
