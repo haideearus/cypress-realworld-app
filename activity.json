@@ -17297,6 +17297,29 @@
       },
       "status": "published",
       "commentId": 7037961042
+    },
+    "6db730b93522ea5448b5e3d66d40f8f58df51eb11f975c2af30236615971453b": {
+      "event": {
+        "id": "6db730b93522ea5448b5e3d66d40f8f58df51eb11f975c2af30236615971453b",
+        "producer": {
+          "runId": "44721895106",
+          "runAttempt": 1,
+          "workflow": "factory-agents.yml",
+          "workflowSha": "0a4e8eb46bfa38007821e1194b9dc921c94e5eab",
+          "phase": "grant-6496d5d7-c7cb-4e0b-9079-ebc1478c6e1a",
+          "actor": "haideearus"
+        },
+        "kind": "review",
+        "state": "passed",
+        "subject": 138,
+        "head": "73dcca870d0c4e93e4ce4e3a318fbe3c44ab48ba",
+        "summary": "Trusted assessment retained a genuine current-head Claude subscription approval.",
+        "links": [
+          "https://github.com/haideearus/cypress-realworld-app/actions/runs/44721895106"
+        ]
+      },
+      "status": "intent",
+      "commentId": null
     }
   },
   "lastMonitor": {
