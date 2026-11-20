@@ -838,6 +838,7 @@ test("workflow preserves preview, trusted source, readonly model and isolated cr
   assert.equal(w.jobs.review.with.slot, "dependency");
   assert.deepEqual(w.jobs.assess.permissions, {
     contents: "write",
+    issues: "read",
     "pull-requests": "read",
     actions: "read",
     checks: "write",

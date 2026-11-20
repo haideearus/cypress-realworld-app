@@ -540,7 +540,11 @@ class AutomaticMerger {
       throw new Error("Terminal merge record disagrees with current PR state");
     await this.issue(ticket, t);
     await this.ci(t);
-    let gate = await this.checks(ticket, t, { waitForVerify: !dryRun && t.origin === "factory" });
+    let gate = await this.checks(ticket, t, {
+      waitForVerify:
+        !dryRun &&
+        (t.origin === "factory" || !!require("./dependency-contract.cjs").alertKey(t.branch)),
+    });
     if (!gate.passed && !gate.failed)
       throw new Error("Native review gate is pending or unavailable");
     if (gate.passed) {

@@ -11,6 +11,7 @@ const AGENT_WORKFLOWS = Object.freeze(
     "factory-discovery.yml",
     "factory-automatic.yml",
     "factory-dependencies.yml",
+    "factory-dependency-alerts.yml",
     "factory-monitor-drill.yml",
     "factory-model.yml",
     "factory-cycle.yml",

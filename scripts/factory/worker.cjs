@@ -252,7 +252,8 @@ async function prepare(
     const d = require("./dependency-contract.cjs");
     const a = require("./dependency-analysis.cjs");
     const attempt = d.matches(ticket, context, config);
-    const pr = d.prOK(await api.request("GET", `${ROOT}/pulls/${ticket.pr}`));
+    const pr = d.prOK(await api.request("GET", `${ROOT}/pulls/${ticket.pr}`), false, config);
+    await require("./dependency-alert-repair.cjs").verifyAlertPR(api, pr, config);
     if (
       pr.head.sha !== grant.head ||
       pr.head.ref !== ticket.branch ||
@@ -260,7 +261,10 @@ async function prepare(
       ticket.criteriaHash !== d.criteria(pr.number)
     )
       throw new Error("Dependency review identity changed");
-    d.filesOK(await api.request("GET", `${ROOT}/pulls/${ticket.pr}/files?per_page=3`));
+    d.filesOK(
+      await api.request("GET", `${ROOT}/pulls/${ticket.pr}/files?per_page=3`),
+      !!d.alertKey(pr.head.ref)
+    );
     // Age was checked when accepted before CI. A separate fresh report is mandatory before merge.
     data.dependency = a.validateReport(
       ticket.analysis,

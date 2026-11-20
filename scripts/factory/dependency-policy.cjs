@@ -11,11 +11,19 @@ function pending(state, except) {
       !["closed", "merged"].includes(t.merge?.status)
   );
 }
-function claimDependency(original, pr, context, config, now = new Date()) {
+function claimDependency(original, pr, context, config, now = new Date(), alertReceipt) {
   policy.validateState(original);
   policy.assertNotStopped(original);
   policy.authorize(context);
-  d.prOK(pr);
+  d.prOK(pr, false, config);
+  if (
+    d.alertKey(pr.head.ref) &&
+    (alertReceipt?.pr !== pr.number ||
+      alertReceipt?.head !== pr.head.sha ||
+      alertReceipt?.base !== pr.base.sha ||
+      alertReceipt?.phase !== "ready")
+  )
+    throw new Error("Dependency alert claim requires a current receipt");
   if (!d.contextOK(context)) throw new Error("Unauthorized dependency workflow");
   if (!config.enabled || !config.automatic || !config.minutes || !config.turns || !config.reviews)
     throw new Error("Dependency factory disabled");
