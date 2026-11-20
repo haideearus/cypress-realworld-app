@@ -16,8 +16,8 @@
       "name": "fast-xml-parser",
       "day": "2026-11-20",
       "trackingReason": "major-held",
-      "phase": "tracking-intent",
-      "issue": null,
+      "phase": "tracking",
+      "issue": 144,
       "pr": null
     }
   }
