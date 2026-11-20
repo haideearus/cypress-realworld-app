@@ -2600,7 +2600,11 @@
       "approval": null,
       "criteriaHash": "767f9445067a03fafa01e69b65f0caf56d0c8b24dd3c60d943ec924795b1d56c",
       "branch": "agent/discovery-bot-handoff",
-      "ci": null
+      "ci": {
+        "requestId": "b0a6a9de-f2ab-4ec4-be8f-09b4ab2451fc",
+        "head": "951805cca9a4c11a51a97e23bc8caa05bb833f36",
+        "runId": null
+      }
     }
   },
   "grants": {
