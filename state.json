@@ -2462,9 +2462,17 @@
       "reviews": 1,
       "retries": 0,
       "head": "cc27de7538a80bd662b2120ce07d26db8b3adb4d",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 141,
-      "approval": null,
+      "approval": {
+        "head": "cc27de7538a80bd662b2120ce07d26db8b3adb4d",
+        "pr": 141,
+        "grant": "fb429c0c-8fcb-47c0-ac19-0ca1fdc7826e",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/44733383057"
+      },
       "criteriaHash": "d2091a2daf5891b03d40df551886da6688db5b6b2cdf106513079087d92fdb30",
       "branch": "agent/factory-handoff-and-recovery",
       "ci": {
@@ -2472,7 +2480,8 @@
         "head": "cc27de7538a80bd662b2120ce07d26db8b3adb4d",
         "runId": 44733459171,
         "passed": true
-      }
+      },
+      "feedback": "{\"head\":\"cc27de7538a80bd662b2120ce07d26db8b3adb4d\",\"verdict\":\"pass\",\"summary\":\"Reviewed the diff at cc27de75 against ticket #140's five bullets by reading the changed workflow YAML (factory-dependency-alerts.yml, factory-automatic.yml, factory-monitor-acknowledge.yml), new scripts (scripts/factory/blocked-retry.cjs, monitor-blocked-recovery.cjs, monitor-blocked-recovery-contract.cjs, activity-harness-faults.cjs) and the modified core modules (dependency-alert-repair.cjs, wake-controller.cjs, trusted-wake.cjs, dependencies.cjs, dependency-policy.cjs, automation.cjs, delayed-retry.cjs, monitor.cjs, monitor-ack.cjs, monitor-ack-contract.cjs), plus the accompanying test files and docs. Bullet 1 (push-CI-driven Dependabot alert refresh) is implemented via assertAlertTrigger/trustedPush in dependency-alert-repair.cjs and the new workflow_run trigger in factory-dependency-alerts.yml, with triple cross-checks of actor identity, run/workflow metadata and the verify job. Bullet 2 (generated-PR CI waking Dependency maintenance) is implemented via the new dependency-alert-ci signal in wake-controller.cjs/trusted-wake.cjs and the dependencyWakeTarget restriction added to dependencies.cjs/dependency-policy.cjs, which pins selection and claim to the exact wake number/head. Bullet 3 (bounded retry after a verified harness fix) is implemented in blocked-retry.cjs: queueBlockedRetry requires owner workflow_dispatch, verifies the original blocked grant/run, the merged fix PR's ancestry and file scope, and tested current main, then only sets ticket.delayedRetry (coding/retries counters are left untouched, confirmed against delayed-retry.cjs's eligibleBlocked/due and automation.cjs's reserveDelayed, which re-checks testedFixOnMain right before reservation). Bullet 4 (truthful recovery for a failed, unpublished repair) is implemented across monitor.cjs/monitor-ack.cjs/monitor-blocked-recovery*.cjs, requiring two independent scheduled observations 5m-24h apart on the same release, re-verifying absence of any branch/PR for the original issue, and invalidating the pair on any unhealthy reading. Bullet 5 (preserved checks/subscription gating/production approval, retained schedules, logged evidence) holds: assertSubscriptionEnv is still called in every entry point touched, factory-deploy.yml/production approval is untouched, the dependency-alert workflow keeps its existing schedule trigger alongside the new workflow_run trigger, and new paths write durable audit records (policy.audit, activity journal, monitor registry). I could not execute the test suite or any code in this read-only session, so this assessment rests on static reading of the diff, the current source, and the new tests included in the diff (factory-blocked-retry.test.cjs, factory-dependency-alert-wake.test.cjs, factory-dependency-alert-handoff.test.cjs additions, factory-monitor-blocked-recovery.test.cjs, factory-activity-harness-faults.test.cjs), not on any run CI results, since none were supplied in the provided context.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"scripts/factory/activity-harness-faults.cjs, the HARNESS_FAULTS additions in activity-contract.cjs, and the 'Route recurring harness faults' section added to docs/factory/OPERATIONS.md implement automatic creation of factory-priority issues for repeated CI infra failures. This capability is not traceable to any of the ticket's five bullets (dependency wake, blocked retry, blocked-repair recovery, preserved checks/schedules); it appears to be scope added beyond the stated acceptance criteria and increases the reviewed surface without an explicit requirement driving it.\"}]}"
     }
   },
   "grants": {
@@ -3649,15 +3658,12 @@
       "runId": "44733383057",
       "runAttempt": 1,
       "head": "cc27de7538a80bd662b2120ce07d26db8b3adb4d",
-      "status": "reserved",
-      "at": "2026-11-20T12:09:21.202Z"
+      "status": "finished",
+      "at": "2026-11-20T12:09:21.202Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 140,
-    "runId": "44733383057",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -6431,6 +6437,14 @@
       "runId": "44733383057",
       "runAttempt": 1,
       "actor": "haideearus"
+    },
+    {
+      "at": "2026-11-20T12:29:12.106Z",
+      "event": "finished",
+      "ticket": 140,
+      "grant": "fb429c0c-8fcb-47c0-ac19-0ca1fdc7826e",
+      "status": "reviewed",
+      "head": "cc27de7538a80bd662b2120ce07d26db8b3adb4d"
     }
   ]
 }
