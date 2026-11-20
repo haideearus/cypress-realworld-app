@@ -50,8 +50,8 @@
       "name": "@graphql-tools/utils",
       "day": "2026-11-20",
       "trackingReason": "no-common-candidate",
-      "phase": "tracking-intent",
-      "issue": null,
+      "phase": "tracking",
+      "issue": 158,
       "pr": null
     }
   }
