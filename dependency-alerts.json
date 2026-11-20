@@ -29,6 +29,14 @@
       "phase": "resolved",
       "issue": 147,
       "pr": 148
+    },
+    "978ee360dc04b00eedf26f3c32368a858bc571fbacddcdf17dd4bbedca172284": {
+      "name": "tinypool",
+      "day": "2026-11-20",
+      "trackingReason": "major-held",
+      "phase": "tracking-intent",
+      "issue": null,
+      "pr": null
     }
   }
 }
