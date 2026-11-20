@@ -75,7 +75,7 @@ function alertWake() {
     body: issueBody(key, s.record),
   };
   s.main = sha;
-  s.compare = { behind_by: 0, merge_base_commit: { sha } };
+  s.compare = { behind_by: 0, merge_base_commit: { sha }, files: s.files };
   s.native = {
     ...structuredClone(s.pr),
     number: 17,
@@ -91,7 +91,8 @@ function alertWake() {
       if (path.endsWith("/pulls/17")) return structuredClone(s.native);
       if (path.includes("/pulls?state=open&base=main")) return structuredClone([s.native, s.pr]);
       if (path.includes("/issues?state=open&labels=factory-ready")) return [];
-      if (/\/pulls\/(17|22)\/files\?per_page=3$/.test(path)) return structuredClone(s.files);
+      if (/\/pulls\/(17|22)\/files\?per_page=3$/.test(path))
+        return structuredClone(s.cachedPrFiles || s.files);
       if (path.endsWith("/git/ref/heads/factory/dependency-alerts"))
         return { object: { sha: key.slice(0, 40) } };
       if (path.includes("/contents/dependency-alerts.json?ref=")) {
@@ -309,4 +310,23 @@ test("a CI wake selects its own PR and allows only the bound dependency review b
       assert.equal(allowedModelBots(context, { ...ticket, head: sha }), "");
     });
   }
+});
+
+test("green alert CI with cached base uses the receipt and proves the current base at bind", async () => {
+  const s = alertWake();
+  s.pr.base.sha = "e".repeat(40);
+  s.cachedPrFiles = [{ filename: ".github/workflows/factory-ci.yml", status: "modified" }];
+  const result = await handleWake(s);
+  assert.equal(result.outcome, "dispatched");
+  assert.equal(s.intentAtDispatch.signal.revision, s.record.base);
+  await verifyWake(receiverInput(s, result.receiptId));
+  assert.equal(s.store.state.receipts[result.receiptId].receiver.runId, "900");
+});
+
+test("cached alert metadata cannot allow an out-of-scope Git diff", async () => {
+  const s = alertWake();
+  s.pr.base.sha = "e".repeat(40);
+  s.compare.files.push({ filename: "package.json", status: "modified" });
+  assert.equal((await handleWake(s)).outcome, "ignored");
+  assert.deepEqual(s.dispatches, []);
 });

@@ -263,26 +263,25 @@ class DependencyCoordinator {
       (expected && (pr.head.sha !== expected.head || pr.head.ref !== expected.branch))
     )
       throw new Error("Dependency head changed");
-    await verifyAlertPR(this.api, pr, config, undefined, reconciling);
+    const receipt = await verifyAlertPR(this.api, pr, config, undefined, reconciling);
+    const base = receipt?.base ?? pr.base.sha;
     if (pr.state === "open" && !confirmation) {
-      d.filesOK(
-        await this.api.request("GET", `${ROOT}/pulls/${number}/files?per_page=3`),
-        !!d.alertKey(pr.head.ref)
-      );
+      if (base === pr.base.sha)
+        d.filesOK(
+          await this.api.request("GET", `${ROOT}/pulls/${number}/files?per_page=3`),
+          Boolean(receipt)
+        );
       const main = await this.api.request("GET", `${ROOT}/git/ref/heads/main`);
-      const compare = await this.api.request(
-        "GET",
-        `${ROOT}/compare/${pr.base.sha}...${pr.head.sha}`
-      );
+      const compare = await this.api.request("GET", `${ROOT}/compare/${base}...${pr.head.sha}`);
       if (
-        main.object?.sha !== pr.base.sha ||
+        main.object?.sha !== base ||
         compare.behind_by !== 0 ||
-        compare.merge_base_commit?.sha !== pr.base.sha ||
-        (expected && pr.base.sha !== d.validateTicket(expected).base)
+        compare.merge_base_commit?.sha !== base ||
+        (expected && base !== d.validateTicket(expected).base)
       )
         throw new Error("Dependency PR requires a current-main rebase");
     }
-    return pr;
+    return base === pr.base.sha ? pr : { ...pr, base: { ...pr.base, sha: base } };
   }
   async select(preview = true) {
     this.authorize();
