@@ -23,17 +23,12 @@
     "6284a42f853d6218bc8c064e987b6f86f7d1fa1d1393e1c51ab4dc97b3e3f2f2": {
       "candidate": "1.11.0",
       "day": "2026-11-20",
-      "base": "4f9c7117dbe92cbf3e2a620d7af13de147a1d595",
-      "head": "07a87a25b5fdc1e3db1bea024a12358859d9e460",
+      "base": "2d8b8ab991bd265216f9a314022028edd658ff25",
+      "head": "f1fc2a56c08130ef3f2613620ba33bd40d1a7d96",
       "name": "shell-quote",
-      "phase": "refresh",
+      "phase": "ready",
       "issue": 147,
-      "pr": 148,
-      "refresh": {
-        "base": "2d8b8ab991bd265216f9a314022028edd658ff25",
-        "head": "f1fc2a56c08130ef3f2613620ba33bd40d1a7d96",
-        "resume": "ready"
-      }
+      "pr": 148
     }
   }
 }
