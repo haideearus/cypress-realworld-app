@@ -2467,7 +2467,11 @@
       "approval": null,
       "criteriaHash": "d2091a2daf5891b03d40df551886da6688db5b6b2cdf106513079087d92fdb30",
       "branch": "agent/factory-handoff-and-recovery",
-      "ci": null
+      "ci": {
+        "requestId": "cd19249e-1c97-4394-9029-bff4c744d3f4",
+        "head": "cc27de7538a80bd662b2120ce07d26db8b3adb4d",
+        "runId": null
+      }
     }
   },
   "grants": {
