@@ -173,6 +173,15 @@ class AutomaticCoordinator {
     // Read the ready queue again after the slower provenance and branch checks.
     if (await this.candidate(state))
       return { ready: false, reason: "New work is ready; delayed retry remains queued" };
+    const recovery = state.tickets[ticket].delayedRetry?.fix;
+    if (
+      recovery &&
+      !(await require("./blocked-retry.cjs").testedFixOnMain(this.api, this.context, recovery))
+    )
+      return {
+        ready: false,
+        reason: "Delayed retry awaits tested main with the recorded harness fix",
+      };
     const unchanged = await this.api.request("GET", `${ROOT}/issues/${ticket}`);
     if (!(await this.verifyDelayedIssue(unchanged, state.tickets[ticket])))
       return { ready: false, reason: "Delayed retry issue changed before reservation" };
@@ -369,8 +378,11 @@ async function main(env = process.env) {
     "recover-finding",
     "retry-finding-api",
   ].includes(mode);
+  const blockedHandoff = mode === "queue-blocked-retry";
+  if (blockedHandoff && inputs.wake_id) throw Error("Blocked retry cannot use an event wake");
   const readOnlyPreview =
-    dryRun && (config.priorityRetry || (operation === "auto_pick" && findingHandoff));
+    dryRun &&
+    (config.priorityRetry || (operation === "auto_pick" && (findingHandoff || blockedHandoff)));
   const api = new GitHub({
     token: env.GH_TOKEN,
     retryReads: operation === "auto_pick" && findingHandoff,
@@ -384,8 +396,12 @@ async function main(env = process.env) {
   assertAutomaticContext(context);
   let result;
   if (operation === "auto_pick") {
-    if (mode !== "run" && !findingHandoff) throw Error("Invalid automatic operation");
-    if (findingHandoff) {
+    if (blockedHandoff) {
+      result = await require("./blocked-retry.cjs").queueBlockedRetry(
+        new AutomaticCoordinator(api, config, context),
+        { ticket: Number(inputs.ticket), fixPr: Number(inputs.fix_pr), dryRun }
+      );
+    } else if (findingHandoff) {
       if (inputs.wake_id) throw Error("Finding retry cannot use an event wake");
       result = await require("./finding-retry.cjs").retryFinding(api, config, context, {
         ticket: Number(inputs.ticket),
@@ -395,6 +411,7 @@ async function main(env = process.env) {
         ...(mode === "retry-finding-api" ? { apiRecovery: true } : {}),
       });
     } else {
+      if (mode !== "run") throw Error("Invalid automatic operation");
       result = await new AutomaticCoordinator(api, config, context).pick({
         dryRun,
         summaryPath: env.GITHUB_STEP_SUMMARY,

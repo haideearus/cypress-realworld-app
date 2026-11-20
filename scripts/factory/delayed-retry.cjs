@@ -18,9 +18,12 @@ function validate(ticket, grants) {
   if (
     !retryableTicket(ticket) ||
     !r ||
-    !["grantId,jobId,notBefore", "grantId,jobId,notBefore,parent"].includes(
-      Object.keys(r).sort().join(",")
-    ) ||
+    ![
+      "grantId,jobId,notBefore",
+      "grantId,jobId,notBefore,parent",
+      "fix,grantId,jobId,notBefore",
+      "fix,grantId,jobId,notBefore,parent",
+    ].includes(Object.keys(r).sort().join(",")) ||
     !Number.isSafeInteger(r.jobId) ||
     r.jobId < 1 ||
     typeof r.notBefore !== "string" ||
@@ -34,6 +37,17 @@ function validate(ticket, grants) {
     failed.runAttempt !== ticket.automatic.runAttempt
   )
     throw Error("Invalid delayed retry failure evidence");
+  if (
+    r.fix !== undefined &&
+    (!r.fix ||
+      Object.keys(r.fix).sort().join(",") !== "ciRunId,mergeCommit,pr" ||
+      !Number.isSafeInteger(r.fix.pr) ||
+      r.fix.pr < 1 ||
+      !SHA.test(r.fix.mergeCommit || "") ||
+      typeof r.fix.ciRunId !== "string" ||
+      !/^[1-9]\d*$/.test(r.fix.ciRunId))
+  )
+    throw Error("Invalid verified fix evidence for delayed retry");
   if (r.parent === undefined) return;
   const parent = r.parent;
   if (
@@ -58,14 +72,11 @@ function validate(ticket, grants) {
     throw Error("Invalid delayed retry handoff");
 }
 
-function due(state, ticket, id, config, now = new Date()) {
-  const r = ticket?.delayedRetry;
+function eligibleBlocked(state, ticket, id, config) {
   return Boolean(
     config.priorityRetry &&
       retryableTicket(ticket) &&
       (!ticket.finding || config.discovery) &&
-      r &&
-      r.parent === undefined &&
       ticket.status === "blocked" &&
       ticket.coding === 1 &&
       ticket.reviews === 0 &&
@@ -76,7 +87,16 @@ function due(state, ticket, id, config, now = new Date()) {
       !ticket.approval &&
       !slots.activeFor(state, id) &&
       ticket.coding < config.coding &&
-      ticket.retries < config.retries &&
+      ticket.retries < config.retries
+  );
+}
+
+function due(state, ticket, id, config, now = new Date()) {
+  const r = ticket?.delayedRetry;
+  return Boolean(
+    eligibleBlocked(state, ticket, id, config) &&
+      r &&
+      r.parent === undefined &&
       Date.parse(r.notBefore) <= now.getTime()
   );
 }
@@ -139,6 +159,7 @@ module.exports = {
   receipt,
   validate,
   due,
+  eligibleBlocked,
   handoff,
   failedJob,
   retryableTicket,

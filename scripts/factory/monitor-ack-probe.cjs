@@ -18,9 +18,14 @@ async function probeAckJourney({
   password,
   fetch = globalThis.fetch,
   sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+  blockedRepair = false,
 } = {}) {
   credentials(username, password);
-  requireAck(typeof fetch === "function" && typeof sleep === "function");
+  requireAck(
+    typeof fetch === "function" && typeof sleep === "function" && typeof blockedRepair === "boolean"
+  );
+  if (blockedRepair)
+    return probeUserJourney({ username, password, fetch, sleep, feedContract: true });
   for (let attempts = 1; attempts <= 3; attempts++) {
     const before = await readPublicRelease(fetch, 6000);
     let checks = { login: "failed", session: "failed", feed: "failed", logout: "failed" };
@@ -54,6 +59,8 @@ async function main(
   const context = monitorContext(env);
   assertAckContext(context);
   assertSubscriptionEnv(env);
+  requireAck([undefined, "true", "false"].includes(env.ACK_BLOCKED_REPAIR));
+  const blockedRepair = env.ACK_BLOCKED_REPAIR === "true";
   requireAck(
     ![
       "GITHUB_TOKEN",
@@ -66,15 +73,22 @@ async function main(
   const result = await probe({
     username: env.FACTORY_MONITOR_USERNAME,
     password: env.FACTORY_MONITOR_PASSWORD,
+    blockedRepair,
   });
-  const report = makeAckReport(result, context, now());
-  writeAckReport(env, report, context);
-  console.log(JSON.stringify({ outcome: "checked", scope: "standard-only", result }));
+  const report = makeAckReport(result, context, now(), blockedRepair);
+  writeAckReport(env, report, context, blockedRepair);
+  console.log(
+    JSON.stringify({
+      outcome: "checked",
+      scope: blockedRepair ? "feed-contract" : "standard-only",
+      result,
+    })
+  );
   return report;
 }
 if (require.main === module)
   main().catch(() => {
-    console.error("Standard acknowledgment check failed; no response or credential data logged");
+    console.error("Acknowledgment check failed; no response or credential data logged");
     process.exitCode = 1;
   });
 module.exports = { probeAckJourney, main };

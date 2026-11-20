@@ -76,6 +76,26 @@ test("fresh standard-only journey brackets checks with cookie-free release obser
   assert.ok(!JSON.stringify(result).includes(username));
   assert.ok(!JSON.stringify(result).includes(password));
 });
+test("blocked-repair mode runs the incident's pagination contract on the same stable release", async () => {
+  const t = transport((route) =>
+    route.endsWith("limit=0")
+      ? new Response('{"error":"invalid limit"}', {
+          status: 400,
+          headers: { "content-type": "application/json" },
+        })
+      : undefined
+  );
+  const outcome = await probe(t, { blockedRepair: true });
+  assert.equal(outcome.healthy, true);
+  assert.equal(outcome.feedContract, "ok");
+  assert.equal(t.calls.filter(({ route }) => route.endsWith("limit=0")).length, 1);
+  assert.equal(t.calls.length, 8);
+  assert.deepEqual(outcome.releases, { before: sha, after: sha });
+  const f = fixture();
+  const r = contract.makeAckReport(outcome, f.context, at, true);
+  assert.throws(() => contract.validateAckReport(r, f.context, at));
+  assert.throws(() => contract.validateAckReport(f.report, f.context, at, true));
+});
 test("changing or unavailable releases and failed checks never produce healthy acknowledgment", async () => {
   for (const mutate of [
     (route, o, n) =>

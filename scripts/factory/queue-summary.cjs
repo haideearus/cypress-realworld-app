@@ -43,6 +43,7 @@ function queueSummary(state, config) {
         link("pull", ticket.pr, `PR #${ticket.pr}`),
         link("actions/runs", latest?.runId, "last attempt"),
         link("actions/runs", ticket.ci?.runId, "saved CI"),
+        link("pull", ticket.delayedRetry?.fix?.pr, "verified harness fix"),
       ].filter(Boolean);
       const attempts = `${ticket.coding || 0} coding / ${ticket.reviews || 0} review / ${ticket.retries || 0} retries`;
       return `| ${links.join(" · ") || `Ledger entry #${id}`} | ${attempts} | ${nextAction(ticket, config)} |`;

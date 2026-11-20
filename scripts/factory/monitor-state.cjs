@@ -3,6 +3,7 @@ const { REPOSITORY, SHA } = require("./policy.cjs");
 const { UUID, validateMonitorProof, proofFromIncident } = require("./monitor-proof.cjs");
 const { validateRetirement } = require("./monitor-recovery-contract.cjs");
 const { validateAcknowledgment } = require("./monitor-ack-contract.cjs");
+const { sameRepair, validateBlockedRecovery } = require("./monitor-blocked-recovery-contract.cjs");
 const { PROBE_MODE, validAssertion } = require("./functional-discovery-contract.cjs");
 const MAX_INCIDENTS = 180;
 const MAX_CREATIONS_PER_DAY = 2;
@@ -31,6 +32,7 @@ function validateMonitorState(state) {
       "functionalAssertion",
       "retirement",
       "acknowledgment",
+      "blockedRecovery",
     ].filter((key) => Object.hasOwn(incident || {}, key));
     if (
       !UUID.test(id) ||
@@ -77,12 +79,26 @@ function validateMonitorState(state) {
       const proof = proofFromIncident(incident);
       if (
         incident.phase !== "open" ||
-        incident.probeMode ||
+        (a.blockedRecovery ? incident.probeMode !== "feed-contract" : incident.probeMode) ||
         incident.retirement ||
         Object.keys(proof).some((k) => proof[k] !== a.proof[k]) ||
         (a.phase === "intent" ? state.active !== id : !incident.recovered || state.active === id)
       )
         throw Error("Invalid monitor acknowledgment state");
+    }
+    if (incident.blockedRecovery !== undefined) {
+      const { observations, repair } = validateBlockedRecovery(incident.blockedRecovery);
+      if (
+        incident.phase !== "open" ||
+        incident.probeMode !== "feed-contract" ||
+        !incident.recovered ||
+        state.active !== id ||
+        incident.retirement ||
+        observations.some((row) => row.runId === incident.source.runId || row.at <= incident.at) ||
+        (incident.acknowledgment &&
+          !sameRepair(incident.acknowledgment.blockedRecovery?.repair, repair))
+      )
+        throw Error("Invalid blocked monitor recovery state");
     }
     if (incident.issue !== null) issueIds.add(incident.issue);
   }

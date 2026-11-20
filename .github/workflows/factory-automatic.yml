@@ -6,12 +6,24 @@ on:
   workflow_dispatch:
     inputs:
       operation:
-        description: Normal pickup, or an explicitly approved retry/continuation/output recovery for finding 96
+        description: Automatic pickup, blocked retry setup, or an approved finding recovery
         type: choice
-        options: [run, retry-finding, continue-finding, recover-finding, retry-finding-api]
+        options:
+          [
+            run,
+            retry-finding,
+            continue-finding,
+            recover-finding,
+            retry-finding-api,
+            queue-blocked-retry,
+          ]
         default: run
       ticket:
-        description: Only used by explicit finding handoffs; must be 96 (no queue selection)
+        description: Issue number for explicit blocked retry or finding recovery
+        type: string
+        default: ""
+      fix_pr:
+        description: Merged harness fix PR for queue-blocked-retry only
         type: string
         default: ""
       wake_id:
@@ -163,7 +175,7 @@ jobs:
       FACTORY_GITHUB_APP_PRIVATE_KEY: ${{ secrets.FACTORY_GITHUB_APP_PRIVATE_KEY }}
   merge:
     needs: [pick, cycle1, cycle2, cycle3, cycle4, cycle5]
-    if: ${{ always() && !cancelled() && inputs.operation != 'retry-finding' && inputs.operation != 'continue-finding' && inputs.operation != 'recover-finding' && inputs.operation != 'retry-finding-api' && needs.pick.outputs.ticket != '' && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' && vars.FACTORY_AUTOMERGE_ENABLED == 'true' && !(github.event_name == 'workflow_dispatch' && inputs.dry_run) }}
+    if: ${{ always() && !cancelled() && inputs.operation != 'retry-finding' && inputs.operation != 'continue-finding' && inputs.operation != 'recover-finding' && inputs.operation != 'retry-finding-api' && inputs.operation != 'queue-blocked-retry' && needs.pick.outputs.ticket != '' && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' && vars.FACTORY_AUTOMERGE_ENABLED == 'true' && !(github.event_name == 'workflow_dispatch' && inputs.dry_run) }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:

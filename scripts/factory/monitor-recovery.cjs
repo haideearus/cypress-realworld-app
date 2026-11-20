@@ -313,6 +313,7 @@ async function retireIncident(options) {
       )
     );
   const intent = { ...verified, at: current.retirement?.at || verified.at };
+  delete current.blockedRecovery;
   current.retirement = intent;
   commit = await store.save(state, commit);
   const before = await api.request("GET", `${ROOT}/issues/${incident.issue}`);

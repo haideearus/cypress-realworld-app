@@ -27,7 +27,12 @@ function claimDependency(original, pr, context, config, now = new Date(), alertR
   if (!d.contextOK(context)) throw new Error("Unauthorized dependency workflow");
   if (!config.enabled || !config.automatic || !config.minutes || !config.turns || !config.reviews)
     throw new Error("Dependency factory disabled");
-  if (context.wake && !config.eventPickup) throw new Error("Event pickup disabled");
+  if (context.wake) {
+    if (!config.eventPickup) throw new Error("Event pickup disabled");
+    const target = require("./trusted-wake.cjs").dependencyWakeTarget(context);
+    if (target?.number !== pr.number || target.head !== pr.head.sha)
+      throw new Error("Dependency PR does not match the verified CI wake");
+  }
   if (
     !slots.capacity(original, config.concurrent) ||
     slots.activeFor(original, pr.number) ||

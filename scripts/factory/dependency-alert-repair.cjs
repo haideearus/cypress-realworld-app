@@ -47,6 +47,8 @@ const TRACKING_REASONS = {
   ],
 };
 const WORKFLOW_FILE = ".github/workflows/factory-dependency-alerts.yml";
+const CI_WORKFLOW = ".github/workflows/factory-ci.yml";
+const OWNER_ID = 101267861;
 const validId = (n) => Number.isSafeInteger(n) && n > 0;
 const empty = () => ({ version: 1, cursor: 0, records: {} });
 class UncertainPublication extends Error {}
@@ -238,6 +240,88 @@ async function current(api, base) {
   const ref = await api.request("GET", `${ROOT}/git/ref/heads/main`);
   if (ref.object?.sha !== base) throw Error("Dependency alert preparation is stale");
   return state;
+}
+
+function trustedPush(run, base) {
+  return (
+    validId(run?.id) &&
+    validId(run.workflow_id) &&
+    run.path === CI_WORKFLOW &&
+    run.event === "push" &&
+    run.head_branch === "main" &&
+    run.head_sha === base &&
+    run.repository?.full_name === policy.REPOSITORY &&
+    run.head_repository?.full_name === policy.REPOSITORY &&
+    run.run_attempt === 1 &&
+    run.status === "completed" &&
+    run.conclusion === "success"
+  );
+}
+
+async function assertAlertTrigger(api, config, base, { env, event }) {
+  if (
+    env.GITHUB_REPOSITORY !== policy.REPOSITORY ||
+    env.GITHUB_REF !== "refs/heads/main" ||
+    env.GITHUB_RUN_ATTEMPT !== "1" ||
+    !d.SHA.test(base || "") ||
+    base !== env.GITHUB_SHA ||
+    base !== env.GITHUB_WORKFLOW_SHA ||
+    env.GITHUB_WORKFLOW_REF !== `${policy.REPOSITORY}/${WORKFLOW_FILE}@refs/heads/main`
+  )
+    throw Error("Untrusted dependency alert workflow");
+  const actor = env.GITHUB_ACTOR;
+  if (env.GITHUB_EVENT_NAME !== "workflow_run") {
+    if (
+      !["workflow_dispatch", "schedule"].includes(env.GITHUB_EVENT_NAME) ||
+      actor !== policy.OWNER ||
+      env.GITHUB_TRIGGERING_ACTOR !== policy.OWNER
+    )
+      throw Error("Untrusted dependency alert workflow");
+    return;
+  }
+  const owner = actor === policy.OWNER;
+  const source = event?.workflow_run;
+  if (
+    !config.eventPickup ||
+    (!owner && !(config.appSlug && actor === `${config.appSlug}[bot]`)) ||
+    env.GITHUB_TRIGGERING_ACTOR !== actor ||
+    event?.action !== "completed" ||
+    event.repository?.full_name !== policy.REPOSITORY ||
+    !trustedPush(source, base) ||
+    event.workflow?.id !== source.workflow_id ||
+    event.workflow.path !== CI_WORKFLOW
+  )
+    throw Error("Untrusted dependency alert CI event");
+  const [workflow, run] = await Promise.all([
+    api.request("GET", `${ROOT}/actions/workflows/factory-ci.yml`),
+    api.request("GET", `${ROOT}/actions/runs/${source.id}`),
+  ]);
+  if (
+    !trustedPush(run, base) ||
+    run.id !== source.id ||
+    run.workflow_id !== source.workflow_id ||
+    workflow.id !== run.workflow_id ||
+    workflow.path !== CI_WORKFLOW ||
+    run.actor?.login !== actor ||
+    run.actor.type !== (owner ? "User" : "Bot") ||
+    !validId(run.actor.id) ||
+    (owner && run.actor.id !== OWNER_ID) ||
+    String(run.actor.id) !== env.GITHUB_ACTOR_ID ||
+    run.triggering_actor?.login !== actor ||
+    run.triggering_actor.id !== run.actor.id
+  )
+    throw Error("Untrusted dependency alert CI run");
+  const jobs = await api.pages(`${ROOT}/actions/runs/${run.id}/attempts/1/jobs`, "jobs");
+  const verify = jobs.filter((job) => job.name === "verify");
+  if (
+    verify.length !== 1 ||
+    verify[0].run_id !== run.id ||
+    verify[0].run_attempt !== 1 ||
+    verify[0].head_sha !== base ||
+    verify[0].status !== "completed" ||
+    verify[0].conclusion !== "success"
+  )
+    throw Error("Untrusted dependency alert CI verify job");
 }
 
 async function makeCommit(api, base, lock, previous) {
@@ -538,7 +622,9 @@ async function runRepair({
   tools,
   transport = fetch,
   now = new Date(),
+  trigger,
 }) {
+  if (trigger) await assertAlertTrigger(api, config, base, trigger);
   if (
     !config.enabled ||
     !config.automatic ||
@@ -750,18 +836,10 @@ async function runRepair({
 
 async function main(env = process.env) {
   policy.assertSubscriptionEnv(env);
-  if (
-    env.GITHUB_REPOSITORY !== policy.REPOSITORY ||
-    env.GITHUB_ACTOR !== policy.OWNER ||
-    env.GITHUB_TRIGGERING_ACTOR !== policy.OWNER ||
-    env.GITHUB_REF !== "refs/heads/main" ||
-    !["workflow_dispatch", "schedule"].includes(env.GITHUB_EVENT_NAME) ||
-    env.GITHUB_RUN_ATTEMPT !== "1" ||
-    !d.SHA.test(env.GITHUB_SHA || "") ||
-    env.GITHUB_SHA !== env.GITHUB_WORKFLOW_SHA ||
-    env.GITHUB_WORKFLOW_REF !== `${policy.REPOSITORY}/${WORKFLOW_FILE}@refs/heads/main`
-  )
-    throw Error("Unauthorized dependency alert workflow");
+  const event =
+    env.GITHUB_EVENT_NAME === "workflow_run"
+      ? JSON.parse(fs.readFileSync(env.GITHUB_EVENT_PATH, "utf8"))
+      : undefined;
   const result = await runRepair({
     api: new GitHub({ token: env.GH_TOKEN }),
     app: new GitHub({ token: env.DEPENDENCY_PUBLISH_TOKEN }),
@@ -771,6 +849,7 @@ async function main(env = process.env) {
     lock: fs.readFileSync("yarn.lock", "utf8"),
     manifest: fs.readFileSync("package.json", "utf8"),
     tools: toolsAt(path.join(__dirname, "dependency-tools")),
+    trigger: { env, event },
   });
   console.log(JSON.stringify({ ...result, modelCalls: 0 }));
   if (env.GITHUB_STEP_SUMMARY) {

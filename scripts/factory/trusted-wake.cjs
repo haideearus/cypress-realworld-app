@@ -17,7 +17,29 @@ function isTrustedWakeContext(context, lane) {
       binding.runAttempt === context.runAttempt
   );
 }
+function dependencyWakeTarget(context) {
+  if (!isTrustedWakeContext(context, "dependency")) return null;
+  return proofs.get(context.wake).dependencyTarget;
+}
 function allowedModelBots(context, ticket) {
+  if (ticket?.origin === "dependency-pr") {
+    const target = dependencyWakeTarget(context);
+    const attempt = ticket.dependency?.attempts?.at(-1);
+    return target &&
+      context.phase === "review" &&
+      context.slot === "dependency" &&
+      context.ticket === target.number &&
+      ticket.pr === target.number &&
+      ticket.dependency?.pr === target.number &&
+      context.head === target.head &&
+      ticket.head === target.head &&
+      attempt?.head === target.head &&
+      attempt.runId === context.runId &&
+      attempt.runAttempt === context.runAttempt &&
+      attempt.workflowSha === context.workflowSha
+      ? c.BOT
+      : "";
+  }
   if (
     ticket?.origin !== "factory" ||
     !ticket.automatic ||
@@ -28,7 +50,7 @@ function allowedModelBots(context, ticket) {
   const { signalKind } = proofs.get(context.wake);
   return ["issue", "monitor", "drain"].includes(signalKind) ? c.BOT : "";
 }
-async function verifySource(api, signal, bound) {
+async function verifySource(api, signal, bound, vars = {}) {
   const { criteriaHash } = require("./controller.cjs");
   const { eligibleIssue } = require("./automation.cjs");
   if (signal.kind === "issue" || signal.kind === "monitor" || signal.kind === "finding") {
@@ -79,7 +101,27 @@ async function verifySource(api, signal, bound) {
     }
     return;
   }
-  const { verifiedRun } = require("./wake-controller.cjs");
+  const { verifiedRun, alertWakeConfig, verifyAlertCI } = require("./wake-controller.cjs");
+  if (signal.kind === "dependency-alert-ci") {
+    const d = require("./dependency-contract.cjs");
+    const run = await verifiedRun(api, signal.sourceRun, signal.sourceAttempt, "factory-ci.yml");
+    if (run.actor?.login !== signal.actor.login || run.actor.id !== signal.actor.id)
+      throw Error("Wake dependency alert actor changed");
+    // A bound receipt preserves provenance even if repair is subsequently disabled.
+    const config = bound
+      ? { alertRepair: true, appSlug: signal.actor.login.slice(0, -"[bot]".length) }
+      : alertWakeConfig(vars);
+    const pr = d.prOK(await api.request("GET", `${ROOT}/pulls/${signal.number}`), bound, config);
+    if (
+      pr.number !== signal.number ||
+      pr.head.sha !== signal.head ||
+      d.criteria(pr.number) !== signal.criteriaHash
+    )
+      throw Error("Wake dependency alert head changed");
+    const receipt = await verifyAlertCI(api, pr, run, config, bound);
+    if (receipt.base !== signal.revision) throw Error("Wake dependency alert receipt changed");
+    return;
+  }
   if (signal.kind === "dependency-ci") {
     const d = require("./dependency-contract.cjs");
     const pr = d.prOK(await api.request("GET", `${ROOT}/pulls/${signal.number}`), bound);
@@ -144,6 +186,7 @@ async function verifyWake({
   lane,
   bind = false,
   store = new WakeStore(api),
+  vars = {},
 }) {
   if (!c.HASH.test(receiptId || "") || !c.receiverIdentity(context, lane))
     throw Error("Untrusted wake receiver context");
@@ -180,7 +223,7 @@ async function verifyWake({
       `${lane === "app" ? "Automatic factory" : "Dependency maintenance"} / wake ${receiptId}`
   )
     throw Error("Wake receiver identity changed");
-  await verifySource(api, receipt.signal, receipt.receiver !== null);
+  await verifySource(api, receipt.signal, receipt.receiver !== null, vars);
   const expected = { runId: context.runId, runAttempt: 1, workflowSha: context.workflowSha };
   if (receipt.receiver && JSON.stringify(receipt.receiver) !== JSON.stringify(expected))
     throw Error("Wake already bound to another receiver");
@@ -202,7 +245,11 @@ async function verifyWake({
     sourceActor: receipt.signal.actor.login,
     producerRun: receipt.producer.runId,
   });
-  proofs.set(proof, { ...expected, lane, signalKind: receipt.signal.kind });
+  const { kind: signalKind, number, head } = receipt.signal;
+  const dependencyTarget = ["dependency-ci", "dependency-alert-ci"].includes(signalKind)
+    ? Object.freeze({ number, head })
+    : null;
+  proofs.set(proof, { ...expected, lane, signalKind, dependencyTarget });
   return proof;
 }
 async function loadWakeContext(api, context, env = process.env, { bind = false } = {}) {
@@ -226,11 +273,13 @@ async function loadWakeContext(api, context, env = process.env, { bind = false }
   const lane = Object.keys(c.LANES).find(
     (k) => context.workflowRef === `${c.REPOSITORY}/.github/workflows/${c.LANES[k]}@refs/heads/main`
   );
-  return { ...context, wake: await verifyWake({ api, context, receiptId, lane, bind }) };
+  const vars = JSON.parse(env.FACTORY_VARIABLES || "{}");
+  return { ...context, wake: await verifyWake({ api, context, receiptId, lane, bind, vars }) };
 }
 module.exports = {
   PendingWakeBinding,
   isTrustedWakeContext,
+  dependencyWakeTarget,
   allowedModelBots,
   verifySource,
   verifyWake,

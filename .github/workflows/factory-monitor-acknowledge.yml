@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       issue:
-        description: Exact unadmitted standard monitor issue to acknowledge
+        description: Exact production monitor issue to acknowledge
         type: string
         required: true
       dry_run:
@@ -11,6 +11,11 @@ on:
         type: boolean
         required: true
         default: true
+      blocked_repair:
+        description: Blocked repair (a failed factory attempt with no PR, verified pagination recovery)
+        type: boolean
+        required: false
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -26,7 +31,7 @@ jobs:
           vars.FACTORY_ENABLED == 'false' &&
           vars.FACTORY_AUTOMATION_ENABLED == 'false' &&
           vars.FACTORY_AUTOMERGE_ENABLED == 'false' &&
-          vars.FACTORY_FEED_CONTRACT_CHECK_ENABLED != 'true' }}
+          (inputs.blocked_repair || vars.FACTORY_FEED_CONTRACT_CHECK_ENABLED != 'true') }}
     runs-on: ubuntu-latest
     timeout-minutes: 8
     concurrency:
@@ -36,6 +41,7 @@ jobs:
       contents: write
       issues: write
       actions: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -45,8 +51,9 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: "22.20.0"
-      - name: Check standard recovery with synthetic account
+      - name: Check recovery with synthetic account
         env:
+          ACK_BLOCKED_REPAIR: ${{ toJSON(inputs.blocked_repair) }}
           FACTORY_MONITOR_USERNAME: ${{ secrets.FACTORY_MONITOR_USERNAME }}
           FACTORY_MONITOR_PASSWORD: ${{ secrets.FACTORY_MONITOR_PASSWORD }}
         run: node scripts/factory/monitor-ack-probe.cjs
@@ -58,4 +65,5 @@ jobs:
           ACK_SETTINGS: ${{ toJSON(vars) }}
           ACK_ISSUE: ${{ inputs.issue }}
           ACK_DRY_RUN: ${{ toJSON(inputs.dry_run) }}
+          ACK_BLOCKED_REPAIR: ${{ toJSON(inputs.blocked_repair) }}
         run: node scripts/factory/monitor-ack.cjs

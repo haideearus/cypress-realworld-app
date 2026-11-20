@@ -92,6 +92,46 @@ async function monitor({
   if (dryRun) return { outcome: "preview", observation };
   return observeIncident({ api, context, store, observation, now, verifiedRetirement: true });
 }
+async function recordBlockedRecovery({
+  api,
+  context,
+  store,
+  state,
+  commit,
+  incident,
+  issue,
+  observation,
+  at,
+}) {
+  if (incident.probeMode !== "feed-contract" || context.eventName !== "schedule") return null;
+  const recovery = await require("./monitor-blocked-recovery.cjs")
+    .observeBlockedRepair({
+      api,
+      context,
+      incident,
+      issue,
+      observation,
+      at,
+    })
+    .catch(() => null);
+  if (!recovery) return null;
+  if (recovery !== incident.blockedRecovery || !incident.recovered) {
+    incident.recovered = true;
+    incident.blockedRecovery = recovery;
+    await store.save(state, commit);
+  }
+  const ready = recovery.observations.length === 2;
+  return {
+    outcome: ready ? "blocked_repair_recovery_ready" : "blocked_repair_recovery_observed",
+    issue: incident.issue,
+    incident: incident.id,
+    observation,
+    recovery,
+    nextAction: ready
+      ? "Owner: stop and idle the factory, then preview Acknowledge recovered monitor incident with Blocked repair selected for this issue."
+      : "Wait for another scheduled production monitor observation on the same release.",
+  };
+}
 async function observeIncident({
   api,
   context,
@@ -126,8 +166,35 @@ async function observeIncident({
   let active = state.active && state.incidents[state.active];
   if (active?.phase === "pending")
     return { outcome: "publication_needs_owner_recovery", incident: active.id, observation };
-  if (active?.acknowledgment?.phase === "intent")
+  if (active?.acknowledgment?.phase === "intent") {
+    if (active.acknowledgment.blockedRecovery) {
+      if (!observation.healthy && active.blockedRecovery) {
+        delete active.blockedRecovery;
+        active.recovered = false;
+        await store.save(state, commit);
+      } else if (
+        context.eventName === "schedule" &&
+        observation.healthy &&
+        (active.blockedRecovery?.observations.length !== 2 ||
+          active.blockedRecovery.observations.at(-1).release !== observation.release)
+      ) {
+        const issue = await api.request("GET", ROOT + "/issues/" + active.issue);
+        const result = await recordBlockedRecovery({
+          api,
+          context,
+          store,
+          state,
+          commit,
+          incident: active,
+          issue,
+          observation,
+          at,
+        });
+        if (result) return result;
+      }
+    }
     return { outcome: "acknowledgment_needs_owner_recovery", issue: active.issue, observation };
+  }
   let issue;
   if (active) {
     issue = await api.request("GET", `${ROOT}/issues/${active.issue}`);
@@ -140,8 +207,14 @@ async function observeIncident({
     if (
       (active.probeMode === f.PROBE_MODE) !== functional ||
       (active.probeMode === "feed-contract" && observation.appChecks?.feedContract === undefined)
-    )
+    ) {
+      if (!observation.healthy && !functional && active.blockedRecovery) {
+        delete active.blockedRecovery;
+        active.recovered = false;
+        await store.save(state, commit);
+      }
       return { outcome: "required_probe_missing", issue: active.issue, observation };
+    }
     const changedAssertion =
       functional &&
       !observation.healthy &&
@@ -182,9 +255,23 @@ async function observeIncident({
         // was reviewed, approved, deployed and observed on its required probes.
         const latest = await store.read();
         const held = latest.state.incidents[active.id];
-        if (latest.state.active === active.id && held && !held.retirement && !held.recovered) {
-          held.recovered = true;
-          await store.save(latest.state, latest.commit);
+        if (latest.state.active === active.id && held && !held.retirement && !held.acknowledgment) {
+          const recovery = await recordBlockedRecovery({
+            api,
+            context,
+            store,
+            ...latest,
+            incident: held,
+            issue,
+            observation,
+            at,
+          });
+          if (recovery) return recovery;
+          if (!held.recovered || (held.blockedRecovery && context.eventName === "schedule")) {
+            held.recovered = true;
+            if (context.eventName === "schedule") delete held.blockedRecovery;
+            await store.save(latest.state, latest.commit);
+          }
         }
         return {
           outcome: "recovery_held",
@@ -194,9 +281,15 @@ async function observeIncident({
         };
       }
     }
-    const changed = active.recovered !== observation.healthy;
+    const changed =
+      active.recovered !== observation.healthy ||
+      (active.blockedRecovery !== undefined && !observation.healthy);
+    if (!observation.healthy) delete active.blockedRecovery;
     active.recovered = observation.healthy;
-    if (observation.healthy && issue.state === "closed") state.active = null;
+    if (observation.healthy && issue.state === "closed") {
+      delete active.blockedRecovery;
+      state.active = null;
+    }
     if (changed || state.active === null) await store.save(state, commit);
     return {
       outcome: observation.healthy ? "recovered" : "incident_existing",
