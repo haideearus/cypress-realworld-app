@@ -2623,9 +2623,17 @@
       "reviews": 1,
       "retries": 0,
       "head": "019ec2937b8887d4c20f8cae16e6f3e53786eae1",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 149,
-      "approval": null,
+      "approval": {
+        "head": "019ec2937b8887d4c20f8cae16e6f3e53786eae1",
+        "pr": 149,
+        "grant": "8caa9e73-cb72-4400-ab1d-815314dd1a8c",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/44778477178"
+      },
       "criteriaHash": "551f47eb43867ee30ec1fe58fbf49dffa0e44dde77899b2aea0a52e9e73fc088",
       "branch": "agent/onboarding-discovery-check",
       "ci": {
@@ -2633,7 +2641,8 @@
         "head": "019ec2937b8887d4c20f8cae16e6f3e53786eae1",
         "runId": 44778574058,
         "passed": true
-      }
+      },
+      "feedback": "{\"head\":\"019ec2937b8887d4c20f8cae16e6f3e53786eae1\",\"verdict\":\"pass\",\"summary\":\"Reviewed the diff adding the bank-account-onboarding check across docs/factory/FUNCTIONAL-DISCOVERY.md, scripts/factory/functional-browser.cjs, scripts/factory/functional-discovery-contract.cjs, scripts/tests/factory-functional-browser.test.cjs, scripts/tests/factory-functional-discovery.cy.js and scripts/tests/factory-functional-discovery.test.cjs, cross-checked against src/components/BankAccountForm.tsx, src/containers/UserOnboardingContainer.tsx, src/machines/{bankAccountsMachine,dataMachine,userOnboardingMachine,authMachine}.ts, and scripts/test-production-browser.cjs. Data boundaries: the new spec only talks to the loopback origin (asserted to equal https://127.0.0.1:8443), creates a brand-new random-UUID username via /api/users for each attempt, and its intercept middleware still blocks any non-GET/HEAD write outside the narrowly pattern-matched ListBankAccount/CreateBankAccount GraphQL ops and /api/login//api/logout for this one test, matching the documented 'disposable data only' claim and the pre-existing production-safety harness (isDisposableDatabase, isolatedBrowserEnvironment), which this diff does not touch. Rejected-save handling: the mock replies to the first CreateBankAccount with an HTTP-200 GraphQL error and the test asserts the form/error stay visible and the title isn't 'Finished'; tracing the real app code shows UserOnboardingContainer's createBankAccountWithNextStep calls nextStep() synchronously right after dispatching CREATE, without waiting for or checking the mutation result, so onboarding currently advances regardless of save outcome - meaning this new assertion is expected to reliably catch that real, pre-existing defect (consistent with the HEAD commit's own title, 'Discover bank account onboarding failures in the browser'), not a flaw introduced by this diff. Two-strikes publishing: the added unit tests in factory-functional-browser.test.cjs and factory-functional-discovery.test.cjs correctly exercise the pre-existing verifyFunctionalChecks/publishFunctional gate (preview creates no ticket; only a second matching failed run yields a ready, de-duplicated incident whose body matches 'Failed assertion: onboarding-save-rejected'), and that ticket-body format is produced by unmodified functional-discovery.cjs code, confirming the assertion is valid. Persistence-after-sign-in logic (second save via cy.wait('@onboardingSaved'), sign-out, sign-in, /bankaccounts listing, dialog closed) is logically well-formed and wired to the same disposable-DB path, but given the onboarding-advance defect above, the live Cypress run will currently halt at the first onboarding-save-rejected assertion, so this later portion of the scenario will not be exercised by CI until that underlying app behavior is fixed - a known limitation rather than a bug in this diff, consistent with the linked CI evidence showing a non-healthy result for this new check. No credential, policy, or production-access issues were found, and the checked-in spec remains protected from worker patching per the existing validPath/artifacts.cjs allowlist.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"scripts/tests/factory-functional-discovery.cy.js's new 'bank-account-onboarding' test exercises the onboarding-sign-out/onboarding-account-after-sign-in assertions only after the earlier onboarding-save-rejected check passes; because src/containers/UserOnboardingContainer.tsx currently advances the wizard synchronously via nextStep() without waiting on the save result, that earlier assertion is expected to fail every run, so the sign-out/sign-in persistence path this PR is meant to add coverage for will not actually execute in CI until that separate, pre-existing onboarding-advance defect is fixed.\"}]}"
     }
   },
   "grants": {
@@ -3858,15 +3867,12 @@
       "runId": "44778477178",
       "runAttempt": 1,
       "head": "019ec2937b8887d4c20f8cae16e6f3e53786eae1",
-      "status": "reserved",
-      "at": "2026-11-20T16:57:27.437Z"
+      "status": "finished",
+      "at": "2026-11-20T16:57:27.437Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 150,
-    "runId": "44778477178",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -6735,6 +6741,14 @@
       "runId": "44778477178",
       "runAttempt": 1,
       "actor": "haideearus"
+    },
+    {
+      "at": "2026-11-20T17:17:56.801Z",
+      "event": "finished",
+      "ticket": 150,
+      "grant": "8caa9e73-cb72-4400-ab1d-815314dd1a8c",
+      "status": "reviewed",
+      "head": "019ec2937b8887d4c20f8cae16e6f3e53786eae1"
     }
   ]
 }
