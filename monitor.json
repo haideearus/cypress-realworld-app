@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "repository": "haideearus/cypress-realworld-app",
+  "active": "a407d5c8-024f-40aa-accb-130dabcbd204",
+  "incidents": {
+    "a407d5c8-024f-40aa-accb-130dabcbd204": {
+      "id": "a407d5c8-024f-40aa-accb-130dabcbd204",
+      "at": "2026-11-20T20:51:02.933Z",
+      "day": "2026-11-20",
+      "phase": "pending",
+      "recovered": false,
+      "source": {
+        "runId": "44814628510",
+        "runAttempt": 1,
+        "workflowSha": "1bcc7ff271394232074b053f5870c4451b061695"
+      },
+      "criteriaHash": "da67eb7c00982fc30f031c552c564f2ebafa4c05a6191bee4c90bc0e1abdf8df",
+      "issue": null,
+      "probeMode": "functional-browser",
+      "functionalCheck": "bank-account-onboarding",
+      "functionalAssertion": "onboarding-save-rejected"
+    }
+  }
+}
