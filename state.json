@@ -2595,9 +2595,17 @@
       "reviews": 1,
       "retries": 0,
       "head": "951805cca9a4c11a51a97e23bc8caa05bb833f36",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 145,
-      "approval": null,
+      "approval": {
+        "head": "951805cca9a4c11a51a97e23bc8caa05bb833f36",
+        "pr": 145,
+        "grant": "f4bf3a3f-8768-48a9-a17f-89c0911be2f4",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/44765913585"
+      },
       "criteriaHash": "767f9445067a03fafa01e69b65f0caf56d0c8b24dd3c60d943ec924795b1d56c",
       "branch": "agent/discovery-bot-handoff",
       "ci": {
@@ -2605,7 +2613,8 @@
         "head": "951805cca9a4c11a51a97e23bc8caa05bb833f36",
         "runId": 44766010261,
         "passed": true
-      }
+      },
+      "feedback": "{\"head\":\"951805cca9a4c11a51a97e23bc8caa05bb833f36\",\"verdict\":\"pass\",\"summary\":\"Reviewed PR #145 at 951805c against the three ticket criteria by reading the live source (not just the diff): scripts/factory/discovery-contract.cjs, discovery-origin.cjs, discovery-run.cjs, discovery-finding-contract.cjs, discovery-worker.cjs, discovery-replay.cjs, discovery-summary.cjs, wake-controller.cjs, trusted-wake.cjs, dependency-alert-repair.cjs and the associated tests. (1) Trusted-actor gating: the new actorAllowed/runActorOK/factoryAppCIOK helpers in discovery-contract.cjs restrict the Factory App bot to the workflow_run path only (actorAllowed requires event===\\\"workflow_run\\\" for the bot, any event for the owner), and discovery-run.cjs's testedMain/verifyParent now cross-check the push-CI run's and the parent run's actor/trigger IDs and head_repository against the real GitHub API response rather than trusting env vars alone; docs/factory/DISCOVERY.md's new text (\\\"pinned... App may start a sweep after successful same-repository main push CI... Manual dispatch and schedule continue to require the owner\\\") matches this code. A new workflow test (\\\"factory App can run discovery only as the verified main CI actor\\\") exercises both the happy path and several tamper cases (wrong trigger id, fork head_repository, stale run id). (2) Coverage inflation: discovery-summary.cjs's explorationSummary now only counts a batch toward the \\\"distinct cases\\\" total when it is a clean networkIsolated pass or a structurally valid isolated failure whose log matches the exact expected TAP line, deduping by oracle JSON; discovery-replay.cjs exports failedIsolated for this reuse. The new factory-discovery-summary.test.cjs case explicitly proves duplicates, timeouts (124), OOM/odd exit codes (125/137), and early-exit logs that don't match the expected assertion line are excluded from the count, matching the \\\"partial coverage\\\" language added to the docs. (3) Dependency finalization: wake-controller.cjs's verifyAlertCI only skips the \\\"run.pull_requests contains this PR\\\" check when bound=true AND the PR is independently confirmed closed+merged with a valid merge_commit_sha AND GitHub reports zero pull_requests on the run (not merely a mismatched one); the actor/head/branch/verify-job checks still run unconditionally. The new factory-dependency-alert-wake.test.cjs case walks through unbound->bound, not-yet-merged (still rejected), merged (accepted), and a mismatched-but-nonempty pull_requests array (rejected again), which is exactly the scenario the ticket asks to confirm. I did not execute any code myself (read-only review); the CI run link in context.json is treated as supplied evidence, not something I ran. I could not independently inspect the claude-code-action's handling of the new allowed_bots input since that's a pinned third-party action outside this diff's scope, but the authoritative trust decisions for all three criteria are enforced server-side in the reviewed scripts, not solely by that parameter.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"scripts/factory/discovery-run.cjs selectSweep's new same-day charter rotation picks usedToday[0] as 'the first grant of the day' based on plain Object.values(state.grants) insertion order, with no explicit timestamp sort. This happens to work because grants are UUID-keyed and the ledger presumably appends in creation order, and it is covered by a passing test, but the assumption isn't enforced by any schema check, so a future ledger-merge or reordering change could silently invert which charter is treated as 'previous'.\"}]}"
     }
   },
   "grants": {
@@ -3818,15 +3827,12 @@
       "runId": "44765913585",
       "runAttempt": 1,
       "head": "951805cca9a4c11a51a97e23bc8caa05bb833f36",
-      "status": "reserved",
-      "at": "2026-11-20T15:42:25.828Z"
+      "status": "finished",
+      "at": "2026-11-20T15:42:25.828Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 146,
-    "runId": "44765913585",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -6677,6 +6683,14 @@
       "runId": "44765913585",
       "runAttempt": 1,
       "actor": "haideearus"
+    },
+    {
+      "at": "2026-11-20T16:03:46.143Z",
+      "event": "finished",
+      "ticket": 146,
+      "grant": "f4bf3a3f-8768-48a9-a17f-89c0911be2f4",
+      "status": "reviewed",
+      "head": "951805cca9a4c11a51a97e23bc8caa05bb833f36"
     }
   ]
 }
