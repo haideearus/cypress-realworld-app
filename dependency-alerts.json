@@ -37,6 +37,14 @@
       "phase": "tracking",
       "issue": 153,
       "pr": null
+    },
+    "7296b1fc9baac95be109787c92fb99622c799c278a33135b7d6e4aec63493509": {
+      "name": "vitest",
+      "day": "2026-11-20",
+      "trackingReason": "major-held",
+      "phase": "tracking-intent",
+      "issue": null,
+      "pr": null
     }
   }
 }
