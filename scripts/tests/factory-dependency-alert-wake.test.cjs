@@ -330,3 +330,20 @@ test("cached alert metadata cannot allow an out-of-scope Git diff", async () => 
   assert.equal((await handleWake(s)).outcome, "ignored");
   assert.deepEqual(s.dispatches, []);
 });
+
+test("only a bound, merged alert PR tolerates GitHub dropping the CI PR association", async () => {
+  const s = alertWake();
+  const { receiptId } = await handleWake(s);
+  const input = receiverInput(s, receiptId);
+  await verifyWake(input);
+  s.ci.pull_requests = [];
+  await assert.rejects(verifyWake(input), /CI identity/);
+  Object.assign(s.pr, {
+    state: "closed",
+    merged: true,
+    merge_commit_sha: "e".repeat(40),
+  });
+  assert.equal((await verifyWake(input)).sourceActor, "factory-example[bot]");
+  s.ci.pull_requests = [{ number: 99 }];
+  await assert.rejects(verifyWake(input), /CI identity/);
+});

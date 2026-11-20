@@ -165,4 +165,4 @@ async function assessCandidates({
   };
 }
 
-module.exports = { assessCandidates };
+module.exports = { assessCandidates, failedIsolated };

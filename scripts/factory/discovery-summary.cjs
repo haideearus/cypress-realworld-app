@@ -1,6 +1,7 @@
 const { appendFileSync } = require("node:fs");
 const { REPOSITORY } = require("./policy.cjs");
 const functional = require("./discovery-functional.cjs");
+const { failedIsolated } = require("./discovery-replay.cjs");
 
 const repositoryUrl = `https://github.com/${REPOSITORY}`;
 const charterNames = {
@@ -58,14 +59,23 @@ function scenarioLabel({ kind, query }) {
 function explorationSummary({ charter, bundle, assessment }) {
   const selected = functional.assertCharter(charter);
   const alternate = functional.CHARTERS.find((value) => value !== selected);
+  const distinct = new Set();
   const checks = bundle.batches.map((batch, index) => {
     const oracle = functional.verifyProposal(selected, batch.test);
-    const status =
-      batch.result.code === 0
-        ? "passed"
-        : batch.result.code === 124
+    const result = batch.result;
+    const passed = result.code === 0 && result.networkIsolated === true;
+    const failed =
+      result.code === 1 &&
+      failedIsolated(result) &&
+      /^not ok 1 - approved functional scenario\r?$/m.test(result.log);
+    if (passed || failed) distinct.add(JSON.stringify(oracle));
+    const status = passed
+      ? "passed"
+      : failed
+        ? "exited unsuccessfully"
+        : result.code === 124
           ? "timed out"
-          : "exited unsuccessfully";
+          : "incomplete runner result";
     return `- Recorded batch ${index + 1} — ${scenarioLabel(oracle)} — ${status}`;
   });
   const findings = assessment.findings.map(({ finding, status, reason }) => {
@@ -84,6 +94,8 @@ function explorationSummary({ charter, bundle, assessment }) {
     "The fixed API scenarios use a disposable app and one synthetic account.",
     "",
     "### Tested scenarios",
+    "",
+    `${distinct.size} distinct case${distinct.size === 1 ? "" : "s"} completed. ${distinct.size >= 3 ? "Coverage target met." : "Partial coverage; target is three distinct cases."}`,
     "",
     ...(checks.length ? checks : ["No completed API batches were retained."]),
     "",

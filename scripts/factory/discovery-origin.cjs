@@ -19,10 +19,8 @@ async function producer(api, context, { complete = true } = {}) {
     run.head_sha !== context.workflowSha ||
     run.repository?.full_name !== c.REPOSITORY ||
     run.head_repository?.full_name !== c.REPOSITORY ||
-    run.actor?.login !== "haideearus" ||
-    run.actor.id !== 101267861 ||
-    run.triggering_actor?.login !== "haideearus" ||
-    run.triggering_actor.id !== 101267861 ||
+    run.actor?.login !== context.actor ||
+    !c.runActorOK(run) ||
     run.event !== context.event ||
     (complete ? run.status !== "completed" : run.status !== "in_progress")
   )
@@ -108,9 +106,7 @@ async function verifySource(
     run.head_branch !== "main" ||
     run.repository?.full_name !== c.REPOSITORY ||
     run.head_repository?.full_name !== c.REPOSITORY ||
-    run.actor?.login !== "haideearus" ||
-    run.actor.id !== 101267861 ||
-    run.triggering_actor?.login !== "haideearus" ||
+    !c.runActorOK(run) ||
     !["schedule", "workflow_run", "workflow_dispatch"].includes(run.event) ||
     run.status !== "completed" ||
     run.conclusion !== "success"
@@ -140,7 +136,9 @@ async function verifySource(
     ci.head_branch !== "main" ||
     ci.status !== "completed" ||
     ci.conclusion !== "success" ||
-    ci.repository?.full_name !== c.REPOSITORY
+    ci.repository?.full_name !== c.REPOSITORY ||
+    (run.actor.login === c.FACTORY_APP &&
+      (String(ci.id) !== proof.ciRunId || !c.factoryAppCIOK(ci)))
   )
     return false;
   const artifact = await api.request("GET", `${ROOT}/actions/artifacts/${candidate.artifact.id}`);

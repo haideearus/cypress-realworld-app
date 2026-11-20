@@ -31,7 +31,7 @@ test("owner preview can inspect eligibility with discovery disabled and performs
         head_branch: "main",
         repository: { full_name: p.REPOSITORY },
         actor: { login: p.OWNER, id: 101267861 },
-        triggering_actor: { login: p.OWNER },
+        triggering_actor: { login: p.OWNER, id: 101267861 },
         event: "workflow_dispatch",
         status: "in_progress",
       };
@@ -164,7 +164,7 @@ test("scheduled finalization after the admission hour releases the existing gran
         head_branch: "main",
         repository: { full_name: p.REPOSITORY },
         actor: { login: p.OWNER, id: 101267861 },
-        triggering_actor: { login: p.OWNER },
+        triggering_actor: { login: p.OWNER, id: 101267861 },
         event: "schedule",
         status: "in_progress",
       };
@@ -258,4 +258,100 @@ test("duplicate main-CI delivery cannot spend the second charter session", () =>
   });
   assert.equal(choice.ready, false);
   assert.match(choice.reason, /Duplicate main CI/);
+});
+
+test("factory App can run discovery only as the verified main CI actor", async () => {
+  const d = require("../factory/discovery-contract.cjs");
+  const { testedMain, verifyParent } = require("../factory/discovery-run.cjs");
+  const repo = { full_name: p.REPOSITORY };
+  const actor = { login: "haideearus-software-factory[bot]", id: 356310548, type: "Bot" };
+  const context = {
+    repository: p.REPOSITORY,
+    ref: "refs/heads/main",
+    workflowRef: d.WORKFLOW_REF,
+    workflowSha: head,
+    runId: "100",
+    runAttempt: 1,
+    actor: actor.login,
+    triggeringActor: actor.login,
+    event: "workflow_run",
+    phase: "discover",
+    slot: "discovery",
+  };
+  const parent = {
+    id: 100,
+    path: ".github/workflows/factory-discovery.yml",
+    head_branch: "main",
+    head_sha: head,
+    run_attempt: 1,
+    event: "workflow_run",
+    status: "in_progress",
+    repository: repo,
+    head_repository: repo,
+    actor: { ...actor },
+    triggering_actor: { ...actor },
+  };
+  const ci = {
+    ...parent,
+    id: 99,
+    path: ".github/workflows/factory-ci.yml",
+    event: "push",
+    status: "completed",
+    conclusion: "success",
+  };
+  const api = {
+    async request(method, url) {
+      assert.equal(method, "GET");
+      return url.endsWith("/branches/main") ? { commit: { sha: head } } : parent;
+    },
+    async pages(url) {
+      return url.includes("/jobs")
+        ? [{ name: "verify", head_sha: head, conclusion: "success" }]
+        : [ci];
+    },
+  };
+  assert.equal(d.contextOK(context), true);
+  await verifyParent(api, context);
+  assert.equal((await testedMain(api, context, { workflow_run: ci })).ciRunId, "99");
+  assert.equal(d.contextOK({ ...context, event: "workflow_dispatch" }), false);
+  parent.triggering_actor.id = 123;
+  await assert.rejects(verifyParent(api, context), /identity/i);
+  parent.triggering_actor.id = actor.id;
+  ci.head_repository = { full_name: "other/fork" };
+  await assert.rejects(testedMain(api, context, { workflow_run: ci }), /identity|CI/i);
+  ci.head_repository = repo;
+  ci.triggering_actor = { ...actor, id: 123 };
+  await assert.rejects(testedMain(api, context, { workflow_run: ci }), /identity|CI/i);
+  ci.triggering_actor = actor;
+  await assert.rejects(testedMain(api, context, { workflow_run: { id: 98 } }), /stale/i);
+
+  // Finding intake rechecks the newest successful main CI without rebinding the
+  // original discovery trigger. The current CI may now be owner-authored.
+  ci.actor = ci.triggering_actor = { login: p.OWNER, id: 101267861 };
+  const currentMain = await testedMain(api, { ...context, event: "workflow_dispatch" }, {});
+  assert.equal(currentMain.ciRunId, "99");
+});
+
+test("a second sweep on a newer main head rotates to the other functional charter", () => {
+  const d = require("../factory/discovery-contract.cjs");
+  const day = "2026-11-20";
+  const next = "f".repeat(40);
+  const state = p.emptyState(p.REPOSITORY);
+  const registry = emptyDiscovery();
+  const config = { ...p.readConfig(vars), discovery: true };
+  const first = selectSweep({ state, registry, head, day, config });
+  state.tickets["8"] = { discovery: { charter: first.charter } };
+  state.grants.used = {
+    ticket: 8,
+    phase: "discover",
+    at: "2026-11-20T07:30:00.000Z",
+    status: "finished",
+  };
+  registry.sources[d.sweepKey(head, first.charter, day)] = {
+    status: "created",
+    proof: { head, charter: first.charter, day },
+  };
+  const second = selectSweep({ state, registry, head: next, day, config });
+  assert.equal(second.ready, true);
+  assert.notEqual(second.charter, first.charter);
 });
