@@ -97,6 +97,14 @@
       "phase": "resolved",
       "issue": 165,
       "pr": 166
+    },
+    "254e7c10e28b3a7c9202fbdd2870c8f1cc32c140dc116bf36053e55d2c432aec": {
+      "name": "@babel/plugin-transform-modules-systemjs",
+      "day": "2026-11-21",
+      "trackingReason": "graph-held",
+      "phase": "tracking-intent",
+      "issue": null,
+      "pr": null
     }
   }
 }
