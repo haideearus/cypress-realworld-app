@@ -84,8 +84,8 @@
       "name": "nanoid",
       "day": "2026-11-21",
       "trackingReason": "major-held",
-      "phase": "tracking-intent",
-      "issue": null,
+      "phase": "tracking",
+      "issue": 164,
       "pr": null
     }
   }
