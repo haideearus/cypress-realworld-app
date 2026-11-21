@@ -71,6 +71,14 @@
       "phase": "resolved",
       "issue": 160,
       "pr": 161
+    },
+    "fe44116afb2b5b52975c2675653c4b1c211981c4bab0d0b6819b8eaad58b4cf6": {
+      "name": "lodash",
+      "day": "2026-11-21",
+      "trackingReason": "candidate-held",
+      "phase": "tracking-intent",
+      "issue": null,
+      "pr": null
     }
   }
 }
