@@ -94,7 +94,7 @@
       "base": "1aacb968b0dad988691a323b1c116d8bf72ba019",
       "head": "438d34e2a83ea605fcfe2ca1f2438f9b7fa51d32",
       "name": "picomatch",
-      "phase": "ready",
+      "phase": "resolved",
       "issue": 165,
       "pr": 166
     }
