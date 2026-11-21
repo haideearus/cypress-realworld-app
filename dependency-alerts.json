@@ -87,6 +87,16 @@
       "phase": "tracking",
       "issue": 164,
       "pr": null
+    },
+    "9b53f0a0dd39af50016265903ce3a581c2a9402647dae4b5840aa124b7664f92": {
+      "candidate": "2.3.2",
+      "day": "2026-11-21",
+      "base": "1aacb968b0dad988691a323b1c116d8bf72ba019",
+      "head": "438d34e2a83ea605fcfe2ca1f2438f9b7fa51d32",
+      "name": "picomatch",
+      "phase": "prepared",
+      "issue": null,
+      "pr": null
     }
   }
 }
