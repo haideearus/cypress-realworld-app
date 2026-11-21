@@ -2900,7 +2900,15 @@
           "remainingBaseline": []
         }
       },
-      "feedback": "{\"head\":\"bdb924266f0347a82494b044ae338cdd0b8e596f\",\"verdict\":\"pass\",\"summary\":\"Reviewed the yarn.lock-only diff at bdb92426 (vs base 4f05497b), which bumps the transitive js-cookie resolution for js-cookie@^3.0.1 from 3.0.5 to 3.0.7, fixing GHSA-qjx8-664m-686j; package.json, src/, and yarn.lock's js-cookie@^3.0.7 entry (3.0.8) are untouched. Confirmed via Grep across yarn.lock that 3.0.5 no longer appears and both ranges (^3.0.1, ^3.0.7 at src/@aws-amplify/core and @okta/okta-auth-js dependents, yarn.lock:105-111 and 2854-2869) now resolve to non-vulnerable 3.0.7/3.0.8, matching dependencyFacts registry integrity hashes exactly. package.json has no direct js-cookie dependency or resolutions pin, so this is a pure transitive patch-level bump within existing semver ranges. Checked ciEvidence.testFiles (cypress/tests/ui/auth.spec.ts, bankaccounts.spec.ts, user-settings.spec.ts, src/components/__tests__/UserSettingsForm.test.tsx) and found none actually exercise js-cookie: auth.spec.ts only checks the server-side \\\"connect.sid\\\" express-session cookie, and .github/workflows/factory-ci.yml's start:ci script runs the default local-auth build (no VITE_OKTA/VITE_AWS_COGNITO), so the okta-auth-js/aws-amplify code paths that use js-cookie (src/index.okta.tsx, src/containers/AppCognito.tsx) are never built or tested by this CI run. The change itself carries low risk since it's a same-major, semver-compatible leaf upgrade with verified registry integrity and a cleared advisory, but the cited CI passing steps are not actual regression coverage for this specific dependency's behavior.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"The CI evidence cited (auth.spec.ts, bankaccounts.spec.ts, user-settings.spec.ts, UserSettingsForm.test.tsx) does not exercise code paths that use js-cookie: start:ci builds the default local-auth app (no VITE_OKTA/VITE_AWS_COGNITO), so src/index.okta.tsx and src/containers/AppCognito.tsx, the only consumers of @okta/okta-auth-js and aws-amplify (which pull in js-cookie), are never built or run in this suite. The passing CI run therefore provides no behavioral regression coverage for this specific dependency bump, even though the version bump itself is low-risk.\"}]}"
+      "feedback": "{\"head\":\"bdb924266f0347a82494b044ae338cdd0b8e596f\",\"verdict\":\"pass\",\"summary\":\"Reviewed the yarn.lock-only diff at bdb92426 (vs base 4f05497b), which bumps the transitive js-cookie resolution for js-cookie@^3.0.1 from 3.0.5 to 3.0.7, fixing GHSA-qjx8-664m-686j; package.json, src/, and yarn.lock's js-cookie@^3.0.7 entry (3.0.8) are untouched. Confirmed via Grep across yarn.lock that 3.0.5 no longer appears and both ranges (^3.0.1, ^3.0.7 at src/@aws-amplify/core and @okta/okta-auth-js dependents, yarn.lock:105-111 and 2854-2869) now resolve to non-vulnerable 3.0.7/3.0.8, matching dependencyFacts registry integrity hashes exactly. package.json has no direct js-cookie dependency or resolutions pin, so this is a pure transitive patch-level bump within existing semver ranges. Checked ciEvidence.testFiles (cypress/tests/ui/auth.spec.ts, bankaccounts.spec.ts, user-settings.spec.ts, src/components/__tests__/UserSettingsForm.test.tsx) and found none actually exercise js-cookie: auth.spec.ts only checks the server-side \\\"connect.sid\\\" express-session cookie, and .github/workflows/factory-ci.yml's start:ci script runs the default local-auth build (no VITE_OKTA/VITE_AWS_COGNITO), so the okta-auth-js/aws-amplify code paths that use js-cookie (src/index.okta.tsx, src/containers/AppCognito.tsx) are never built or tested by this CI run. The change itself carries low risk since it's a same-major, semver-compatible leaf upgrade with verified registry integrity and a cleared advisory, but the cited CI passing steps are not actual regression coverage for this specific dependency's behavior.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"The CI evidence cited (auth.spec.ts, bankaccounts.spec.ts, user-settings.spec.ts, UserSettingsForm.test.tsx) does not exercise code paths that use js-cookie: start:ci builds the default local-auth app (no VITE_OKTA/VITE_AWS_COGNITO), so src/index.okta.tsx and src/containers/AppCognito.tsx, the only consumers of @okta/okta-auth-js and aws-amplify (which pull in js-cookie), are never built or run in this suite. The passing CI run therefore provides no behavioral regression coverage for this specific dependency bump, even though the version bump itself is low-risk.\"}]}",
+      "merge": {
+        "status": "intent",
+        "head": "bdb924266f0347a82494b044ae338cdd0b8e596f",
+        "pr": 161,
+        "at": "2026-11-21T07:29:29.270Z",
+        "runId": "44878992170",
+        "runAttempt": 1
+      }
     }
   },
   "grants": {
@@ -4214,7 +4222,11 @@
       "outcome": "reviewed"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 161,
+    "runId": "44878992170",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
