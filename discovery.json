@@ -79,8 +79,8 @@
         "workflowSha": "1aacb968b0dad988691a323b1c116d8bf72ba019",
         "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-discovery.yml@refs/heads/main"
       },
-      "status": "intent",
-      "issue": null
+      "status": "created",
+      "issue": 163
     }
   }
 }
