@@ -76,8 +76,8 @@
       "name": "lodash",
       "day": "2026-11-21",
       "trackingReason": "candidate-held",
-      "phase": "tracking-intent",
-      "issue": null,
+      "phase": "tracking",
+      "issue": 162,
       "pr": null
     }
   }
