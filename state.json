@@ -3001,7 +3001,15 @@
           "remainingBaseline": []
         }
       },
-      "feedback": "{\"verdict\":\"pass\",\"head\":\"438d34e2a83ea605fcfe2ca1f2438f9b7fa51d32\",\"summary\":\"Inspected yarn.lock (lines ~10169-10201) and confirmed package.json has no direct picomatch entry, matching the changedFiles scope of this PR. The diff bumps the transitive picomatch resolution used by ^2.0.4/^2.2.1/^2.2.2/^2.2.3/^2.3.1 ranges from 2.3.1 to 2.3.2, with tarball/integrity hash matching the registry facts for 2.3.2 exactly. Per dependencyFacts, both GHSA-3v7f-55p6-f55p and GHSA-c2c7-rcm5-vvqj affect picomatch <2.3.2 (plus separate 3.x/4.x ranges), so the removed 2.3.1 was vulnerable and the new 2.3.2 clears both; the untouched baseline picomatch@^4.0.2.../4.0.7 block is already >= the 4.0.4 fix and correctly carries no advisoryIds, so leaving it unchanged is consistent with remainingBaseline: []. No other stale picomatch version blocks remain in yarn.lock. The CI receipt (run 44950673205) shows unit/lint/type-check and UI regression suites passed, but the cited testFiles (UserSettingsForm, auth, bankaccounts, user-settings specs) exercise application behavior, not picomatch glob-matching directly; they only confirm the Jest/Cypress/babel build tooling still works with the bumped transitive dependency, not picomatch's own matching semantics for a patch release.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"yarn.lock (around lines 10174-10197) now carries five separate picomatch@2.3.2 entries (one per semver range) instead of yarn's usual single merged key, unlike the prior single combined entry. This is consistent with a hand-edited or script-edited lockfile rather than one regenerated via `yarn install`/`yarn upgrade`, which is a lockfile-hygiene/process concern even though the resolved version and integrity hash are correct and CI passed.\"}]}"
+      "feedback": "{\"verdict\":\"pass\",\"head\":\"438d34e2a83ea605fcfe2ca1f2438f9b7fa51d32\",\"summary\":\"Inspected yarn.lock (lines ~10169-10201) and confirmed package.json has no direct picomatch entry, matching the changedFiles scope of this PR. The diff bumps the transitive picomatch resolution used by ^2.0.4/^2.2.1/^2.2.2/^2.2.3/^2.3.1 ranges from 2.3.1 to 2.3.2, with tarball/integrity hash matching the registry facts for 2.3.2 exactly. Per dependencyFacts, both GHSA-3v7f-55p6-f55p and GHSA-c2c7-rcm5-vvqj affect picomatch <2.3.2 (plus separate 3.x/4.x ranges), so the removed 2.3.1 was vulnerable and the new 2.3.2 clears both; the untouched baseline picomatch@^4.0.2.../4.0.7 block is already >= the 4.0.4 fix and correctly carries no advisoryIds, so leaving it unchanged is consistent with remainingBaseline: []. No other stale picomatch version blocks remain in yarn.lock. The CI receipt (run 44950673205) shows unit/lint/type-check and UI regression suites passed, but the cited testFiles (UserSettingsForm, auth, bankaccounts, user-settings specs) exercise application behavior, not picomatch glob-matching directly; they only confirm the Jest/Cypress/babel build tooling still works with the bumped transitive dependency, not picomatch's own matching semantics for a patch release.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"yarn.lock (around lines 10174-10197) now carries five separate picomatch@2.3.2 entries (one per semver range) instead of yarn's usual single merged key, unlike the prior single combined entry. This is consistent with a hand-edited or script-edited lockfile rather than one regenerated via `yarn install`/`yarn upgrade`, which is a lockfile-hygiene/process concern even though the resolved version and integrity hash are correct and CI passed.\"}]}",
+      "merge": {
+        "status": "intent",
+        "head": "438d34e2a83ea605fcfe2ca1f2438f9b7fa51d32",
+        "pr": 166,
+        "at": "2026-11-21T21:33:49.048Z",
+        "runId": "44950534283",
+        "runAttempt": 1
+      }
     }
   },
   "grants": {
@@ -4339,7 +4347,11 @@
       "outcome": "reviewed"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 166,
+    "runId": "44950534283",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
