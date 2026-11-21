@@ -101,7 +101,8 @@
     ],
     "2026-11-21": [
       161,
-      163
+      163,
+      166
     ]
   },
   "tickets": {
@@ -2933,6 +2934,38 @@
         "workflowSha": "1aacb968b0dad988691a323b1c116d8bf72ba019",
         "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-discovery.yml@refs/heads/main"
       }
+    },
+    "166": {
+      "coding": 0,
+      "reviews": 0,
+      "retries": 0,
+      "origin": "dependency-pr",
+      "head": "438d34e2a83ea605fcfe2ca1f2438f9b7fa51d32",
+      "pr": 166,
+      "status": "new",
+      "approval": null,
+      "branch": "agent/dependency-alert-9b53f0a0dd39af50016265903ce3a581c2a9402647dae4b5840aa124b7664f92",
+      "criteriaHash": "ac054bad8526a03e9ad2ba0c44d0bff2dd843f133f7edd8c943796d562bfa0ec",
+      "dependency": {
+        "version": 1,
+        "pr": 166,
+        "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-dependencies.yml@refs/heads/main",
+        "workflowSha": "1aacb968b0dad988691a323b1c116d8bf72ba019",
+        "runId": "44950534283",
+        "runAttempt": 1,
+        "appSlug": "haideearus-software-factory",
+        "attempts": [
+          {
+            "head": "438d34e2a83ea605fcfe2ca1f2438f9b7fa51d32",
+            "base": "1aacb968b0dad988691a323b1c116d8bf72ba019",
+            "runId": "44950534283",
+            "runAttempt": 1,
+            "workflowSha": "1aacb968b0dad988691a323b1c116d8bf72ba019",
+            "at": "2026-11-21T21:15:24.826Z"
+          }
+        ]
+      },
+      "ci": null
     }
   },
   "grants": {
@@ -4258,7 +4291,11 @@
       "outcome": "discovery_complete"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 166,
+    "runId": "44950534283",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -7340,6 +7377,16 @@
       "grant": "fb8aa4c3-6ea8-4f89-a06a-9da07a713500",
       "phase": "discover",
       "status": "discovery_complete"
+    },
+    {
+      "at": "2026-11-21T21:15:24.826Z",
+      "event": "dependency_metadata_admitted",
+      "ticket": 166,
+      "head": "438d34e2a83ea605fcfe2ca1f2438f9b7fa51d32",
+      "runId": "44950534283",
+      "actor": "github-actions[bot]",
+      "wakeReceipt": "c5de1f2910d090dd6ccd6b03dd9e7ba50694cf4a07d2615ace85b6fe1a563f0f",
+      "sourceActor": "haideearus-software-factory[bot]"
     }
   ]
 }
