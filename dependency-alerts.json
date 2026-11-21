@@ -79,6 +79,14 @@
       "phase": "tracking",
       "issue": 162,
       "pr": null
+    },
+    "9a215060ce8ac8b42b957eebb2f4538550f0caf2c1072cdc16d0201655f615ab": {
+      "name": "nanoid",
+      "day": "2026-11-21",
+      "trackingReason": "major-held",
+      "phase": "tracking-intent",
+      "issue": null,
+      "pr": null
     }
   }
 }
