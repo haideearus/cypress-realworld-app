@@ -65,6 +65,22 @@
       },
       "status": "created",
       "issue": 132
+    },
+    "82ce96aec73bbf745ea272ac1f53d8fa87683f665cac33a18ebf9ae090cf3c33": {
+      "proof": {
+        "version": 1,
+        "head": "1aacb968b0dad988691a323b1c116d8bf72ba019",
+        "ciRunId": "44880496254",
+        "charter": "functional-directory",
+        "day": "2026-11-21",
+        "key": "82ce96aec73bbf745ea272ac1f53d8fa87683f665cac33a18ebf9ae090cf3c33",
+        "runId": "44881614786",
+        "runAttempt": 1,
+        "workflowSha": "1aacb968b0dad988691a323b1c116d8bf72ba019",
+        "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-discovery.yml@refs/heads/main"
+      },
+      "status": "intent",
+      "issue": null
     }
   }
 }
