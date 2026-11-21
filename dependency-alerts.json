@@ -102,8 +102,8 @@
       "name": "@babel/plugin-transform-modules-systemjs",
       "day": "2026-11-21",
       "trackingReason": "graph-held",
-      "phase": "tracking-intent",
-      "issue": null,
+      "phase": "tracking",
+      "issue": 167,
       "pr": null
     }
   }
