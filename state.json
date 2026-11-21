@@ -102,7 +102,8 @@
     "2026-11-21": [
       161,
       163,
-      166
+      166,
+      168
     ]
   },
   "tickets": {
@@ -3011,6 +3012,28 @@
         "runAttempt": 1,
         "mergeCommit": "49ba458d4b8180e03a9a0f2bc4aa5f04a35580aa"
       }
+    },
+    "168": {
+      "coding": 0,
+      "reviews": 0,
+      "retries": 0,
+      "origin": "discovery-sweep",
+      "head": "49ba458d4b8180e03a9a0f2bc4aa5f04a35580aa",
+      "status": "discovering",
+      "pr": null,
+      "approval": null,
+      "discovery": {
+        "version": 1,
+        "head": "49ba458d4b8180e03a9a0f2bc4aa5f04a35580aa",
+        "ciRunId": "44952197460",
+        "charter": "functional-notifications",
+        "day": "2026-11-21",
+        "key": "b999e8b264bf3883982a619fddaeb271e9b29df174f85331df2c05a4322789ff",
+        "runId": "44953471285",
+        "runAttempt": 1,
+        "workflowSha": "49ba458d4b8180e03a9a0f2bc4aa5f04a35580aa",
+        "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-discovery.yml@refs/heads/main"
+      }
     }
   },
   "grants": {
@@ -4346,9 +4369,24 @@
       "status": "finished",
       "at": "2026-11-21T21:30:28.648Z",
       "outcome": "reviewed"
+    },
+    "5fddeea1-8db4-4857-a23f-9ba435afd13d": {
+      "id": "5fddeea1-8db4-4857-a23f-9ba435afd13d",
+      "ticket": 168,
+      "phase": "discover",
+      "slot": "discovery",
+      "runId": "44953471285",
+      "runAttempt": 1,
+      "head": "49ba458d4b8180e03a9a0f2bc4aa5f04a35580aa",
+      "status": "reserved",
+      "at": "2026-11-21T21:49:38.398Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 168,
+    "runId": "44953471285",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -7471,6 +7509,16 @@
       "runAttempt": 1,
       "outcome": "accepted",
       "mergeCommit": "49ba458d4b8180e03a9a0f2bc4aa5f04a35580aa"
+    },
+    {
+      "at": "2026-11-21T21:49:38.398Z",
+      "event": "reserved",
+      "ticket": 168,
+      "grant": "5fddeea1-8db4-4857-a23f-9ba435afd13d",
+      "phase": "discover",
+      "runId": "44953471285",
+      "runAttempt": 1,
+      "actor": "haideearus-software-factory[bot]"
     }
   ]
 }
