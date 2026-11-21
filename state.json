@@ -2837,12 +2837,12 @@
     },
     "161": {
       "coding": 0,
-      "reviews": 0,
+      "reviews": 1,
       "retries": 0,
       "origin": "dependency-pr",
       "head": "bdb924266f0347a82494b044ae338cdd0b8e596f",
       "pr": 161,
-      "status": "new",
+      "status": "reviewing",
       "approval": null,
       "branch": "agent/dependency-alert-2ed5107b063a5011d6a2a3b41b0f2b03751006f88f422a5ff90b4d9f42c6e9c0",
       "criteriaHash": "0372835fa9341667a5f756f3732841a40d0c828c62342babafb0a44c055ba7b1",
@@ -4191,6 +4191,17 @@
       "status": "finished",
       "at": "2026-11-20T21:18:23.967Z",
       "outcome": "reviewed"
+    },
+    "1b2fc86c-52db-403f-a5d9-b1654a831d89": {
+      "id": "1b2fc86c-52db-403f-a5d9-b1654a831d89",
+      "ticket": 161,
+      "phase": "review",
+      "slot": "dependency",
+      "runId": "44878992170",
+      "runAttempt": 1,
+      "head": "bdb924266f0347a82494b044ae338cdd0b8e596f",
+      "status": "reserved",
+      "at": "2026-11-21T07:25:25.953Z"
     }
   },
   "active": {
@@ -7227,6 +7238,18 @@
       "ticket": 161,
       "head": "bdb924266f0347a82494b044ae338cdd0b8e596f",
       "runId": "44878992170",
+      "actor": "github-actions[bot]",
+      "wakeReceipt": "9d27b3261ded6e92630cd5d6df6e8acbb8cd1bed6e2388225ce2d6f409b95b64",
+      "sourceActor": "haideearus-software-factory[bot]"
+    },
+    {
+      "at": "2026-11-21T07:25:25.953Z",
+      "event": "reserved",
+      "ticket": 161,
+      "grant": "1b2fc86c-52db-403f-a5d9-b1654a831d89",
+      "phase": "review",
+      "runId": "44878992170",
+      "runAttempt": 1,
       "actor": "github-actions[bot]",
       "wakeReceipt": "9d27b3261ded6e92630cd5d6df6e8acbb8cd1bed6e2388225ce2d6f409b95b64",
       "sourceActor": "haideearus-software-factory[bot]"
