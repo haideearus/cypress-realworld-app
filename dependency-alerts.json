@@ -80,11 +80,14 @@
     },
     "fe44116afb2b5b52975c2675653c4b1c211981c4bab0d0b6819b8eaad58b4cf6": {
       "name": "lodash",
-      "day": "2026-11-21",
+      "day": "2026-11-23",
       "trackingReason": "candidate-held",
-      "phase": "tracking",
+      "phase": "issue",
       "issue": 162,
-      "pr": null
+      "pr": null,
+      "candidate": "4.18.1",
+      "base": "51cf2053c42a7300b346f5a2b246ce4a52591b8b",
+      "head": "af7abe05b2635e88be2b3a9aba0d92b744a26cb7"
     },
     "9a215060ce8ac8b42b957eebb2f4538550f0caf2c1072cdc16d0201655f615ab": {
       "name": "nanoid",
