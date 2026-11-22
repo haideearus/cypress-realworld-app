@@ -180,6 +180,14 @@
       "issue": 194,
       "pr": 195,
       "resolvedAt": "2026-11-22T23:34:51.418Z"
+    },
+    "57831d2f8c2421b61d229935c5a61dcbe33a6bdc9fa19162002871461bc0a2b6": {
+      "name": "glob",
+      "day": "2026-11-23",
+      "trackingReason": "major-held",
+      "phase": "tracking-intent",
+      "issue": null,
+      "pr": null
     }
   },
   "heldAfter": "@graphql-tools/utils"
