@@ -3290,9 +3290,17 @@
       "reviews": 1,
       "retries": 0,
       "head": "907ea4b6c3215f9d99539012fb294de30fa2e80c",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 191,
-      "approval": null,
+      "approval": {
+        "head": "907ea4b6c3215f9d99539012fb294de30fa2e80c",
+        "pr": 191,
+        "grant": "8f3207af-4ae0-4c43-abd6-d8febc848731",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/45057370116"
+      },
       "criteriaHash": "8c221013b81dd7ac52dd48b23e12dad0ce6b2c879f44a8c7e147f6d2175f8f59",
       "branch": "agent/held-dependency-queue",
       "ci": {
@@ -3300,7 +3308,8 @@
         "head": "907ea4b6c3215f9d99539012fb294de30fa2e80c",
         "runId": 45057440383,
         "passed": true
-      }
+      },
+      "feedback": "{\"head\":\"907ea4b6c3215f9d99539012fb294de30fa2e80c\",\"verdict\":\"pass\",\"summary\":\"Reviewed scripts/factory/dependency-alert-repair.cjs, scripts/factory/dependency-alerts.cjs, .github/workflows/factory-dependency-alerts.yml, docs/factory/DEPENDENCY-MAINTENANCE.md, the two docs/superpowers design/plan files, and scripts/tests/factory-dependency-alert-handoff.test.cjs at HEAD 907ea4b6, plus the base-to-head diff (extracted from .factory-input/context.json via targeted grep since it exceeded direct read limits). The ticket asked to separate held-ticket candidate selection from the new-alert rotation, reserve 3 held proposal turns/Bucharest-day, add an urgent-critical-runtime exception, and add a bounded model-free retry when a trusted run frees the shared factory slot, while preserving issue history/counters, both required checks, compatibility rules, independent review, protected merge and alert-confirmed closure. The new intakeGroups() function (dependency-alert-repair.cjs:594-641) is entirely new (confirmed via diff: only \\\"+\\\" lines matched), building a held queue (ordered by severity/runtime/wait-time, round-robined via registry.heldAfter) separate from the cursor-based new-alert scan, gated by RESERVED_HELD_PROPOSALS=3 counted against same-day trackingReason+candidate rows, with a once-per-day urgent critical-runtime bypass (registry.urgentDay) and a HELD_PROBES_PER_INTAKE=3 bounded scan that advances past stalled held tickets. deferHeld/eligibleDeferred/consumeHeldWake (also wholly new) implement the bounded, one-shot, model-free retry, re-verifying the waking run via the new trustedSlotSource() before re-checking slot capacity and consuming the receipt; the workflow YAML's new \\\"deferred\\\" pre-check step and SLOT_WORKFLOWS set mirror this in the Actions `if:` conditions. The existing publish/verifyAlertPR/verifyResolvedLock/closure logic, the 10/day and one-publication limits, and app-work/native-PR priority checks are untouched in the diff, matching the \\\"preserve\\\" requirements. The handoff test file adds strong coverage: held work outside the cursor, reserved-turn exhaustion falling back to new-alert priority (both cursor=0 and cursor=11), the urgent runtime exception and its scope-sensitivity (a critical dev-scope alert cannot borrow runtime priority), bounded scanning past paused held tickets, and the deferred-wake retry (including forged/role-mismatched event rejection and one-time consumption) for both factory-agents and factory-discovery slot sources. Docs (DEPENDENCY-MAINTENANCE.md \\\"Reserved turns for held dependencies\\\" section, and the superpowers spec/plan) describe the same behavior consistently. One real but minor gap: the new FACTORY_HELD_WAKE_CHECK_ONLY branch in main() (dependency-alert-repair.cjs:1277-1287), which the workflow uses to skip token creation for an ineligible wake, is not exercised by any test directly — only its underlying primitives (assertAlertTrigger, eligibleDeferred) are tested through the full runRepair() pipeline — though this matches the existing pattern of untested main() wrappers elsewhere in the codebase. I did not execute tests or workflows myself in this read-only session; I relied on static reading of the diff and current source plus the linked CI run as supplied evidence.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"The new FACTORY_HELD_WAKE_CHECK_ONLY dispatch branch in scripts/factory/dependency-alert-repair.cjs main() (around line 1277), which the updated .github/workflows/factory-dependency-alerts.yml now relies on to decide whether to skip privileged App token creation for an ineligible deferred wake, has no direct test exercising main() itself with that env var; only its underlying assertAlertTrigger/eligibleDeferred primitives are covered indirectly through the runRepair() pipeline tests, leaving the GITHUB_OUTPUT-writing glue code unverified by the test suite.\"},{\"severity\":\"minor\",\"message\":\"docs/superpowers/plans/2026-11-22-held-dependency-queue.md still has every checklist item unchecked ([ ]) even though the corresponding work (tests, implementation, docs update) appears to be completed in this same commit, which could mislead a later reader of the plan file about implementation status.\"}]}"
     }
   },
   "grants": {
@@ -4789,15 +4798,12 @@
       "runId": "45057370116",
       "runAttempt": 1,
       "head": "907ea4b6c3215f9d99539012fb294de30fa2e80c",
-      "status": "reserved",
-      "at": "2026-11-22T18:51:10.655Z"
+      "status": "finished",
+      "at": "2026-11-22T18:51:10.655Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 190,
-    "runId": "45057370116",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -8143,6 +8149,14 @@
       "runId": "45057370116",
       "runAttempt": 1,
       "actor": "haideearus"
+    },
+    {
+      "at": "2026-11-22T19:07:56.777Z",
+      "event": "finished",
+      "ticket": 190,
+      "grant": "8f3207af-4ae0-4c43-abd6-d8febc848731",
+      "status": "reviewed",
+      "head": "907ea4b6c3215f9d99539012fb294de30fa2e80c"
     }
   ]
 }
