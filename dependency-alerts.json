@@ -113,6 +113,14 @@
       "phase": "tracking",
       "issue": 169,
       "pr": null
+    },
+    "1d72f42b3eae6cbc3d4e2cfa99038823951c5052c09727cd3d0e526c233d78e5": {
+      "name": "axios",
+      "day": "2026-11-22",
+      "trackingReason": "no-common-candidate",
+      "phase": "tracking-intent",
+      "issue": null,
+      "pr": null
     }
   }
 }
