@@ -110,7 +110,8 @@
       173,
       176,
       178,
-      179
+      179,
+      180
     ]
   },
   "tickets": {
@@ -3166,6 +3167,19 @@
         "passed": true
       },
       "feedback": "{\"head\":\"53233c28c837f6c31cc07fabb3ab88f26940eb18\",\"verdict\":\"pass\",\"summary\":\"Reviewed PR #175 at 53233c28 by reading the current repository source (diff file list was embedded in .factory-input/context.json as a single JSON string; I inspected the merged files directly instead of parsing that escaped blob). Checked scripts/factory/discovery-browser.cjs + scripts/tests/factory-discovery-browser.test.cjs: Claude-selected journeys are constrained to an enum schema (fixed pages/checks/variants), the rendered Cypress spec is hashed/replayed (verifyJourney) to reject tampering, and the fixed synthetic account/transaction fixture is the only write path — satisfying \\\"approved actions and synthetic data only\\\". Checked scripts/factory/functional-browser.cjs, scripts/tests/factory-functional-weekly-transactions.cjs and factory-functional-weekly-avatar.cjs: each weekly attempt gets an isolated Postgres database via withFreshWeeklyDatabase (CREATE/DROP DATABASE per run, loopback-only guard in isDisposableDatabase) and a loopback S3-compatible avatar fixture (scripts/factory/test-avatar-storage.cjs, exercised against the real backend/avatar-storage.ts adapter in factory-test-avatar-storage.test.cjs) — no production storage or credentials touched. verifyFunctionalChecks in functional-browser.cjs requires two independent browser invocations to report the identical check+assertion before returning confirmed_failure, matching the \\\"same approved assertion fails twice\\\" criterion; functional-discovery.cjs's publishFunctional/observeIncident path (scripts/factory/monitor.cjs) reuses the existing factory-ready label, MAX_INCIDENTS/MAX_CREATIONS_PER_DAY limits, and keeps the functional branch separate from the verifiedRetirement/production-release path, so production closure's stricter verification is not weakened. For the decline-balance bug: backend/database.ts's updateTransactionById only tests isRequestTransaction(transaction) on the pre-edit transaction (true for any pending request), so both accept and reject currently trigger debit/credit — this is a genuine pre-existing app bug, and the request-decline weekly journey (factory-functional-weekly-transactions.cjs) explicitly asserts both balances stay unchanged, so the bug remains detectable by this suite rather than being silently patched or skipped. Supporting unit tests (factory-functional-browser.test.cjs, factory-discovery-browser.test.cjs, factory-functional-weekly-transactions.test.cjs, factory-test-avatar-storage.test.cjs) cover the classifier edge cases, database isolation, and journey-tampering rejection. Limits: I did not execute yarn test:factory or the CI workflow myself (read-only review); the ci field in context.json was only a run URL with no embedded results to treat as evidence, and discovery-sweep-closure.cjs (consumer of the new browserFollowUp flag) was confirmed to already exist on main from a prior PR rather than being part of this diff, so its correctness was checked but is formally out of this PR's change-set.\",\"findings\":[]}"
+    },
+    "180": {
+      "coding": 0,
+      "origin": "owner-pr",
+      "reviews": 1,
+      "retries": 0,
+      "head": "32c3bc20757f0df79ce970b6eac0a556c6aef1db",
+      "status": "reviewing",
+      "pr": 181,
+      "approval": null,
+      "criteriaHash": "28c063826407b1d96c592c66191269ceeb6bc60399f9ea8896b18d31a2a6e43b",
+      "branch": "agent/parallel-factory-ci",
+      "ci": null
     }
   },
   "grants": {
@@ -4573,9 +4587,24 @@
       "status": "finished",
       "at": "2026-11-22T13:01:54.620Z",
       "outcome": "reviewed"
+    },
+    "8670b63b-1795-4c9b-a433-69bac1540609": {
+      "id": "8670b63b-1795-4c9b-a433-69bac1540609",
+      "ticket": 180,
+      "phase": "review",
+      "slot": "existing",
+      "runId": "45032749001",
+      "runAttempt": 1,
+      "head": "32c3bc20757f0df79ce970b6eac0a556c6aef1db",
+      "status": "reserved",
+      "at": "2026-11-22T14:25:59.963Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 180,
+    "runId": "45032749001",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -7806,6 +7835,16 @@
       "grant": "aad651a5-3bc0-4916-b763-09961b5d3afe",
       "status": "reviewed",
       "head": "53233c28c837f6c31cc07fabb3ab88f26940eb18"
+    },
+    {
+      "at": "2026-11-22T14:25:59.963Z",
+      "event": "reserved",
+      "ticket": 180,
+      "grant": "8670b63b-1795-4c9b-a433-69bac1540609",
+      "phase": "review",
+      "runId": "45032749001",
+      "runAttempt": 1,
+      "actor": "haideearus"
     }
   ]
 }
