@@ -5,6 +5,7 @@ const c = require("./discovery-contract.cjs");
 const s = require("./discovery-sandbox.cjs");
 const e = require("./discovery-evidence.cjs");
 const functional = require("./discovery-functional.cjs");
+const browser = require("./discovery-browser.cjs");
 const { secretLike } = require("./artifacts.cjs");
 function plain(text, max = 50000) {
   if (
@@ -24,7 +25,7 @@ function createBroker({ root, source, output, manifest, identity, charter, execu
   fs.mkdirSync(path.join(output, "tests"), { recursive: true });
   const budget = new s.BatchBudget(async (request, number) => {
     const test = fs.readFileSync(s.regularProposal(output, "tests/" + request.file), "utf8");
-    functional.verifyProposal(charter, test);
+    functional.verifyBatchProposal(charter, request.mode, test);
     // Reserve durably before execution. Restarts and concurrent broker instances
     // cannot refund an interrupted batch or execute beyond the four retained slots.
     let slot = null;
@@ -75,10 +76,13 @@ function createBroker({ root, source, output, manifest, identity, charter, execu
         if (c.digest(text) !== manifest[input.path]) throw Error("Source changed");
         return { text: plain(text.slice(0, 50000)), truncated: text.length > 50000 };
       }
-      if (tool === "write_test") {
-        c.exact(input, ["file", "oracle"]);
-        s.validateRequest({ file: input.file, mode: "api" });
-        const content = functional.proposal(charter, input.oracle);
+      if (tool === "write_test" || tool === "write_browser_journey") {
+        const isBrowser = tool === "write_browser_journey";
+        c.exact(input, isBrowser ? ["file", "journey"] : ["file", "oracle"]);
+        s.validateRequest({ file: input.file, mode: isBrowser ? "cypress" : "api" });
+        const content = isBrowser
+          ? browser.renderJourney(input.journey)
+          : functional.proposal(charter, input.oracle);
         if (
           fs.readdirSync(path.join(output, "tests")).length >= 8 &&
           !fs.existsSync(path.join(output, "tests", input.file))
@@ -98,7 +102,8 @@ function createBroker({ root, source, output, manifest, identity, charter, execu
       }
       if (tool === "run_batch") {
         s.validateRequest(input);
-        if (input.mode !== "api") throw Error("Functional discovery uses fixed API proposals");
+        if (!["api", "cypress"].includes(input.mode))
+          throw Error("Unsupported discovery batch mode");
         s.regularProposal(output, "tests/" + input.file);
         return budget.run(input);
       }
@@ -144,12 +149,14 @@ const props = {
     additionalProperties: false,
   },
   number: { type: "integer" },
-  mode: { const: "api" },
+  mode: { enum: ["api", "cypress"] },
+  journey: browser.journeySchema,
 };
 const schemas = {
   list_source: ["prefix"],
   read_source: ["path"],
   write_test: ["file", "oracle"],
+  write_browser_journey: ["file", "journey"],
   run_batch: ["mode", "file"],
   read_result: ["number"],
 };

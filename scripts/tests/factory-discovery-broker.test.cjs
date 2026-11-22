@@ -93,3 +93,52 @@ test("model tools can read only the frozen source manifest and write only new te
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
+
+test("Claude can compose a browser journey within the same four-batch budget", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "discovery-browser-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const source = path.join(root, "source");
+  const output = path.join(root, "output");
+  fs.mkdirSync(source);
+  const journey = {
+    pages: ["feed", "notifications", "settings"],
+    check: "settings-validation",
+    variant: "invalid-email",
+  };
+  const executed = [];
+  const broker = createBroker({
+    root,
+    source,
+    output,
+    manifest: {},
+    identity: { head: "a".repeat(40), grantId: "offline" },
+    charter,
+    execute: async (request) => {
+      executed.push(request);
+      return { ...request, code: 0, networkIsolated: true };
+    },
+  });
+  await broker.call("write_browser_journey", { file: "settings.cy.ts", journey });
+  await assert.rejects(
+    broker.call("write_browser_journey", {
+      file: "foreign.cy.ts",
+      journey: { ...journey, pages: ["https://external.example", "settings"] },
+    })
+  );
+  await broker.call("write_test", { file: "feed.api.test.cjs", oracle });
+  await broker.call("run_batch", { mode: "api", file: "feed.api.test.cjs" });
+  for (let n = 0; n < 3; n++)
+    await broker.call("run_batch", { mode: "cypress", file: "settings.cy.ts" });
+  await assert.rejects(
+    broker.call("run_batch", { mode: "cypress", file: "settings.cy.ts" }),
+    /batch limit/
+  );
+  assert.deepEqual(
+    executed.map((r) => r.mode),
+    ["api", "cypress", "cypress", "cypress"]
+  );
+  const browserBatch = JSON.parse(fs.readFileSync(path.join(root, "batch-2.json"), "utf8"));
+  assert.doesNotThrow(() => functional.verifyFindings(charter, { findings: [] }, [browserBatch]));
+  browserBatch.test += "// replacement code";
+  assert.throws(() => functional.verifyFindings(charter, { findings: [] }, [browserBatch]));
+});

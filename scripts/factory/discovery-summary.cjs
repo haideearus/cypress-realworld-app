@@ -78,8 +78,15 @@ function explorationSummary({ charter, bundle, assessment }) {
   const distinct = new Set();
   const marker = functional.responseMarker(selected);
   const checks = bundle.batches.map((batch, index) => {
-    const oracle = functional.verifyProposal(selected, batch.test);
+    const proposal = functional.verifyBatchProposal(selected, batch.mode ?? "api", batch.test);
     const result = batch.result;
+    if (batch.mode === "cypress") {
+      const finished = result.networkIsolated === true && result.code === 0;
+      const status = finished ? "passed" : result.code === 124 ? "timed out" : "needs verification";
+      if (finished) distinct.add(JSON.stringify([proposal.check, proposal.variant]));
+      return `- Recorded browser batch ${index + 1} — ${proposal.pages.join(" → ")} — ${proposal.check} (${proposal.variant}) — ${status}`;
+    }
+    const oracle = proposal;
     const passed = result.code === 0 && result.networkIsolated === true;
     const failed =
       result.code === 1 &&
@@ -109,25 +116,29 @@ function explorationSummary({ charter, bundle, assessment }) {
     "## Proactive app discovery",
     "",
     `Charter — ${charterNames[selected]}`,
-    "The fixed API scenarios use a disposable app and one synthetic account.",
+    "API scenarios and browser journeys use fresh disposable app state and synthetic fixtures.",
     "",
     "### Tested scenarios",
     "",
     `${distinct.size} distinct case${distinct.size === 1 ? "" : "s"} completed. ${distinct.size >= 3 ? "Coverage target met." : "Partial coverage; target is three distinct cases."}`,
     "",
-    ...(checks.length ? checks : ["No completed API batches were retained."]),
+    ...(checks.length ? checks : ["No completed batches were retained."]),
+    ...(bundle.browserFollowUp === true
+      ? ["- A started browser batch has no retained result and needs verification."]
+      : []),
     "",
     "### Skipped coverage",
     "",
     ...alternates.map(
       (alternate) => `- ${charterNames[alternate]} was outside this run's charter.`
     ),
-    "- Further inputs, browser journeys, account-changing operations, external services and production were outside this sweep.",
-    `- ${unused} unused or unrecorded API batch slots out of 4.`,
+    "- Untested journeys and inputs, live accounts, external services and production were outside this sweep.",
+    `- ${unused} unused or unrecorded batch slots out of 4.`,
     "",
     "### Findings",
     "",
-    ...(findings.length ? findings : ["No findings were submitted for replay."]),
+    ...(findings.length ? findings : ["No findings were submitted for API replay."]),
+    "- Browser observations are retained with the sweep. Verified app checks have a separate ticket lane.",
     "",
     `Ticket publication and current-main replay run in [Verified discovery finding intake](${repositoryUrl}/actions/workflows/factory-discovery-intake.yml).`,
   ].join("\n");
