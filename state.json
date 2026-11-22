@@ -3267,7 +3267,11 @@
       "approval": null,
       "criteriaHash": "3561811312a1efac96d7bf2475351007fc4ac2860ad2b6d0722984202ee625f4",
       "branch": "agent/retry-held-dependency-fixes",
-      "ci": null
+      "ci": {
+        "requestId": "d182fd08-97d6-4138-b6dc-4240cd5f4a15",
+        "head": "ad0708173737438adc2a43428cd159b76f932c47",
+        "runId": null
+      }
     }
   },
   "grants": {
