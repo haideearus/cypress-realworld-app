@@ -6,7 +6,12 @@ const slots = require("./active-tickets.cjs");
 const { terminalParent } = require("./active-runs.cjs");
 const { GitHub, Ledger, ROOT } = require("./github.cjs");
 const { MetadataStore } = require("./metadata-store.cjs");
-const { inspectUpdate, queryOsv, toolsAt } = require("./dependency-analysis.cjs");
+const {
+  inspectUpdate,
+  queryOsv,
+  toolsAt,
+  VulnerableDependencyCandidate,
+} = require("./dependency-analysis.cjs");
 const { preview, listAlerts, readJSON } = require("./dependency-alerts.cjs");
 
 const READY_LABEL = "factory-dependency-ready";
@@ -41,11 +46,18 @@ const TRACKING_REASONS = {
     "The candidate would change the dependency graph or a pinned lockfile selection.",
     "Trace the dependency through the direct pin or parent package and prepare a tested update.",
   ],
+  "vulnerable-candidate": [
+    "Advisories still affect the tested release or another retained copy.",
+    "Verify the next compatible release against all affected lockfile selections.",
+  ],
   "candidate-held": [
     "The compatible release lacks complete lockfile or vulnerability clearance evidence.",
     "Verify the exact release, lockfile change and advisory clearance before proposing a repair.",
   ],
 };
+const CONFIRMED_RECHECK_HOLDS = ["graph-held", "vulnerable-candidate"];
+const RECHECK_BATCH_SIZE = 4;
+const RECHECK_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
 const WORKFLOW_FILE = ".github/workflows/factory-dependency-alerts.yml";
 const CI_WORKFLOW = ".github/workflows/factory-ci.yml";
 const OWNER_ID = 101267861;
@@ -80,6 +92,19 @@ function validate(state) {
       (row.trackingReason !== undefined && !hasTrackingReason)
     )
       throw Error("Invalid dependency alert receipt");
+    if (row.recheck !== undefined) {
+      const { fingerprint, reason, at, next } = row.recheck || {};
+      if (
+        row.phase !== "tracking" ||
+        !d.HASH.test(fingerprint || "") ||
+        !CONFIRMED_RECHECK_HOLDS.includes(reason) ||
+        !Number.isSafeInteger(next) ||
+        next < 0 ||
+        !Number.isFinite(Date.parse(at)) ||
+        new Date(at).toISOString() !== at
+      )
+        throw Error("Invalid held dependency recheck");
+    }
     if (TRACKING_PHASES.includes(row.phase)) {
       if (
         !hasTrackingReason ||
@@ -145,6 +170,9 @@ const linkedIssueBody = (key, row) =>
 const pullBody = (r) =>
   `Tracks #${r.issue}.\n\nApply the prepared Yarn lockfile update for \`${r.name}\` \`${r.candidate}\`.`;
 
+const recheckIssueBody = (key, row, reason) =>
+  `${issueBody(key, row)}\n\nLatest automatic recheck: ${TRACKING_REASONS[reason][0]}`;
+
 function issueOK(issue, key, row, ready = true) {
   const original = issueBody(key, row);
   const linked = row.trackingReason && row.pr ? linkedIssueBody(key, row) : original;
@@ -156,7 +184,14 @@ function issueOK(issue, key, row, ready = true) {
     issue.user?.login === "github-actions[bot]" &&
     issue.user.id === 41898282 &&
     issue.title === issueTitle(row) &&
-    (issue.body === linked || (!ready && issue.body === original)) &&
+    (issue.body === linked ||
+      (!ready &&
+        (issue.body === original ||
+          (row.trackingReason &&
+            row.issue &&
+            CONFIRMED_RECHECK_HOLDS.some(
+              (reason) => issue.body === recheckIssueBody(key, row, reason)
+            ))))) &&
     (!ready || (hasLabel(issue, READY_LABEL) && !hasLabel(issue, HELD_LABEL)))
   );
 }
@@ -542,20 +577,41 @@ async function publish(api, app, config, store, key, row) {
   return advance(store, key, row, { phase: "ready" });
 }
 
-async function buildCandidate(plan, lock, manifest, tools, transport) {
+async function buildCandidate(
+  plan,
+  lock,
+  manifest,
+  tools,
+  transport,
+  versions = [plan?.candidate]
+) {
   if (plan?.status !== "compatible-candidate") return { reason: plan?.holdReason || plan?.status };
-  try {
-    const { body } = await readJSON(
-      new URL(`https://registry.npmjs.org/${encodeURIComponent(plan.package)}/${plan.candidate}`),
-      transport
-    );
-    const candidate = patchLock(lock, plan, body, tools);
-    const details = inspectUpdate(manifest, manifest, lock, candidate, tools);
-    if ((await queryOsv(details.queries, transport)).cleared.length) return { candidate };
-  } catch (error) {
-    if (error instanceof CandidateGraphHold) return { reason: "graph-held" };
+  let lastHold;
+  let confirmed = 0;
+  for (const version of versions) {
+    try {
+      const { body } = await readJSON(
+        new URL(`https://registry.npmjs.org/${encodeURIComponent(plan.package)}/${version}`),
+        transport
+      );
+      const candidate = patchLock(lock, { ...plan, candidate: version }, body, tools);
+      const details = inspectUpdate(manifest, manifest, lock, candidate, tools);
+      const report = await queryOsv(details.queries, transport);
+      if (report.remainingBaseline.length) lastHold = "vulnerable-candidate";
+      else if (report.cleared.length) return { candidate, version };
+      else break;
+    } catch (error) {
+      if (error instanceof CandidateGraphHold) lastHold = "graph-held";
+      else if (error instanceof VulnerableDependencyCandidate) lastHold = "vulnerable-candidate";
+      else break;
+    }
+    confirmed++;
   }
-  return { reason: "candidate-held" };
+  return {
+    reason: confirmed === versions.length ? lastHold : "candidate-held",
+    confirmed,
+    lastHold,
+  };
 }
 
 async function finishRefresh(api, app, store, base, key, row) {
@@ -664,7 +720,10 @@ async function runRepair({
     return finishRefresh(api, app, store, base, ...refreshing);
   const active = slots.activeEntries(state);
   const refresh = async (key, row) => {
-    const { plans } = await preview(token, lock, tools, transport, { packageName: row.name });
+    const { plans } = await preview(token, lock, tools, transport, {
+      packageName: row.name,
+      candidateVersion: row.candidate,
+    });
     const plan = plans.find((p) => p.candidate === row.candidate);
     const { candidate } = await buildCandidate(plan, lock, manifest, tools, transport);
     if (!candidate) return null;
@@ -790,13 +849,66 @@ async function runRepair({
   const { plans, nextOffset } = await preview(token, lock, tools, transport, {
     offset: registry.cursor,
   });
+  const source = d.digest([manifest, lock]);
   for (const plan of plans) {
     const tracked = openRecord(registry, plan.package);
     if (tracked && (tracked[1].phase !== "tracking" || plan.status !== "compatible-candidate"))
       continue;
-    const { candidate, reason } = await buildCandidate(plan, lock, manifest, tools, transport);
+    const fingerprint = d.digest([source, plan.evidence]);
+    let offset = 0;
+    let versions;
+    if (tracked) {
+      const [key, row] = tracked;
+      if (
+        row.recheck?.fingerprint === fingerprint &&
+        now.getTime() - Date.parse(row.recheck.at) < RECHECK_INTERVAL_MS
+      ) {
+        offset = row.recheck.next;
+        if (offset === 0) continue;
+      }
+      const heldIssue = await api.request("GET", `${ROOT}/issues/${row.issue}`);
+      if (!trackingIssueOK(heldIssue, key, row)) continue;
+      versions = plan.candidates.slice(offset, offset + RECHECK_BATCH_SIZE);
+      if (!versions.length) throw Error("Dependency recheck has no remaining candidates");
+    }
+    const { candidate, version, reason, confirmed, lastHold } = await buildCandidate(
+      plan,
+      lock,
+      manifest,
+      tools,
+      transport,
+      versions
+    );
+    let issue;
+    if (tracked) {
+      if (!candidate && !confirmed) continue;
+      const [key, row] = tracked;
+      await current(api, base);
+      issue = await api.request("GET", `${ROOT}/issues/${row.issue}`);
+      if (!trackingIssueOK(issue, key, row)) continue;
+    }
     if (!candidate) {
-      if (tracked || !Object.hasOwn(TRACKING_REASONS, reason)) continue;
+      if (tracked) {
+        const [key, row] = tracked;
+        const body = recheckIssueBody(key, row, lastHold);
+        if (issue.body !== body) {
+          const saved = await api.request("PATCH", `${ROOT}/issues/${row.issue}`, { body });
+          if (saved.body !== body || !trackingIssueOK(saved, key, row))
+            throw Error("Dependency recheck note was not acknowledged");
+        }
+        const position = offset + confirmed;
+        const next = position < plan.candidates.length ? position : 0;
+        await advance(store, key, row, {
+          recheck: {
+            fingerprint,
+            reason: lastHold,
+            at: next && offset ? row.recheck.at : now.toISOString(),
+            next,
+          },
+        });
+        return { outcome: "held-rechecked", issue: row.issue };
+      }
+      if (!Object.hasOwn(TRACKING_REASONS, reason)) continue;
       const earlier = Object.values(registry.records).filter(
         (row) => row.name === plan.package && row.trackingReason
       ).length;
@@ -818,17 +930,19 @@ async function runRepair({
       });
       return postTrackingIssue(api, store, base, key, row);
     }
-    const key = tracked?.[0] || d.digest([plan.package, plan.candidate, plan.locked]);
-    if (tracked) {
-      const row = tracked[1];
-      const issue = await api.request("GET", `${ROOT}/issues/${row.issue}`);
-      if (!trackingIssueOK(issue, key, row)) continue;
-    } else if (registry.records[key]) continue;
-    await current(api, base);
+    const key = tracked?.[0] || d.digest([plan.package, version, plan.locked]);
+    if (!tracked) {
+      if (registry.records[key]) continue;
+      await current(api, base);
+    }
     const head = await makeCommit(api, base, candidate);
-    const preparation = { candidate: plan.candidate, day, base, head };
+    const preparation = { candidate: version, day, base, head };
     const saved = tracked
-      ? await advance(store, key, tracked[1], { ...preparation, phase: "issue" })
+      ? await advance(store, key, tracked[1], {
+          ...preparation,
+          phase: "issue",
+          recheck: undefined,
+        })
       : await addRecord(store, key, {
           ...preparation,
           name: plan.package,

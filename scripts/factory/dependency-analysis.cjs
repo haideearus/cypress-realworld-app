@@ -1,6 +1,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { digest, REPOSITORY, SHA, HASH } = require("./dependency-contract.cjs");
+class VulnerableDependencyCandidate extends Error {}
 const fail = (reason) => {
   throw new Error(reason);
 };
@@ -337,7 +338,10 @@ async function queryOsv(queries, transport = fetch, details = false) {
         });
     });
   }
-  if (added.size) fail("Known vulnerable candidate dependency version retained or introduced");
+  if (added.size)
+    throw new VulnerableDependencyCandidate(
+      "Known vulnerable candidate dependency version retained or introduced"
+    );
   return {
     cleared: [...old].filter((id) => !baseline.has(id)).sort(),
     remainingBaseline: [...baseline].sort(),
@@ -411,4 +415,12 @@ function toolDigest() {
     fs.readFileSync(path.join(__dirname, "dependency-tools/package-lock.json"), "utf8")
   );
 }
-module.exports = { inspectUpdate, queryOsv, reportFor, validateReport, toolDigest, toolsAt };
+module.exports = {
+  inspectUpdate,
+  queryOsv,
+  reportFor,
+  validateReport,
+  toolDigest,
+  toolsAt,
+  VulnerableDependencyCandidate,
+};

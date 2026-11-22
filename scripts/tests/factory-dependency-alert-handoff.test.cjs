@@ -118,7 +118,14 @@ async function pipeline() {
       return { state: JSON.parse(Buffer.from(blob.content, "base64").toString("utf8")) };
     },
   };
-  const fixture = { main: base, issuePosts: 0, prPosts: 0, labelPosts: 0, ref: null };
+  const fixture = {
+    main: base,
+    issuePosts: 0,
+    prPosts: 0,
+    labelPosts: 0,
+    ref: null,
+    releaseReads: [],
+  };
   const locked = () => {
     const commit = f.objects.get(fixture.ref);
     const tree = f.objects.get(commit.tree);
@@ -296,28 +303,35 @@ async function pipeline() {
         : Response.json([]);
     if (String(url).endsWith("registry.npmjs.org/example"))
       return Response.json({ versions: fixture.versions || { "1.1.0": {} } });
-    if (String(url).endsWith("registry.npmjs.org/example/1.1.0"))
+    if (url.hostname === "registry.npmjs.org" && url.pathname.startsWith("/example/")) {
+      const version = url.pathname.split("/").at(-1);
+      fixture.releaseReads.push(version);
+      if (fixture.pauseDuringRelease === version) fixture.issue.labels = [];
+      if (fixture.releaseUnavailable === version) return new Response(null, { status: 503 });
       return Response.json({
         name: "example",
-        version: "1.1.0",
+        version,
         ...(fixture.releaseDependencies && { dependencies: fixture.releaseDependencies }),
         dist: {
-          tarball: "https://registry.npmjs.org/example/-/example-1.1.0.tgz",
+          tarball: `https://registry.npmjs.org/example/-/example-${version}.tgz`,
           shasum: base,
           integrity,
         },
       });
+    }
     if (String(url).includes("api.osv.dev")) {
       const queries = JSON.parse(request.body).queries;
       return Response.json({
         results: queries.map((q) =>
-          q.version === "1.0.0" ? { vulns: [{ id: "GHSA-example" }] } : {}
+          q.version === "1.0.0" || fixture.vulnerableVersions?.includes(q.version)
+            ? { vulns: [{ id: "GHSA-example" }] }
+            : {}
         ),
       });
     }
     throw Error("unexpected metadata request");
   };
-  const run = (config = cfg, trigger) =>
+  const run = (config = cfg, trigger, now) =>
     a.runRepair({
       api,
       app: appApi,
@@ -329,6 +343,7 @@ async function pipeline() {
       tools,
       transport,
       trigger,
+      now,
     });
   async function reviewed() {
     assert.equal((await new DependencyCoordinator(api, cfg, ctx).select(false)).ready, true);
@@ -426,6 +441,113 @@ test("a held alert becomes a protected proposal on the same issue when evidence 
   assert.match(x.fixture.issue.body, new RegExp(`https://github.com/${d.REPOSITORY}/pull/9`));
   assert.deepEqual(x.fixture.issue.labels, [{ name: a.READY_LABEL }]);
   assert.equal((await x.coordinator.select(false)).ready, true);
+});
+
+test("a held ticket tries the next verified compatible release and refreshes the same PR", async () => {
+  const x = await pipeline();
+  x.fixture.versions = { "1.1.0": {}, "1.1.1": {} };
+  x.fixture.vulnerableVersions = ["1.1.0"];
+  const held = await x.run();
+  assert.equal(held.outcome, "tracked-held");
+  const published = await x.run();
+  assert.deepEqual(published, { outcome: "published", issue: held.issue, pr: 9 });
+  assert.deepEqual(x.fixture.releaseReads, ["1.1.0", "1.1.0", "1.1.1"]);
+  assert.equal(x.fixture.issuePosts, 1);
+  assert.equal(x.fixture.prPosts, 1);
+  assert.match(x.fixture.pr.title, /1\.1\.1$/);
+  x.fixture.main = "f".repeat(40);
+  x.fixture.pr.base.sha = x.fixture.main;
+  assert.equal((await x.run()).outcome, "refreshed");
+  assert.equal(x.fixture.releaseReads.at(-1), "1.1.1");
+  assert.equal(x.fixture.prPosts, 1);
+  assert.equal((await x.coordinator.select(false)).ready, true);
+});
+
+test("a confirmed hold updates the original issue and skips repeated checks until evidence changes", async () => {
+  const x = await pipeline();
+  x.fixture.versions = { "1.1.0": {}, "1.1.1": {} };
+  x.fixture.vulnerableVersions = ["1.1.0", "1.1.1"];
+  const held = await x.run();
+  assert.equal(held.outcome, "tracked-held");
+  const checked = await x.run();
+  assert.deepEqual(checked, { outcome: "held-rechecked", issue: held.issue });
+  assert.match(x.fixture.issue.body, /latest automatic recheck/i);
+  assert.match(x.fixture.issue.body, /still affect the tested release/i);
+  assert.deepEqual(x.fixture.issue.labels, [{ name: "factory-dependency-held" }]);
+  const reads = [...x.fixture.releaseReads];
+  await x.run();
+  assert.deepEqual(x.fixture.releaseReads, reads);
+  x.fixture.versions["1.1.2"] = {};
+  assert.deepEqual(await x.run(), { outcome: "published", issue: held.issue, pr: 9 });
+  assert.match(x.fixture.pr.title, /1\.1\.2$/);
+  assert.equal(x.fixture.issuePosts, 1);
+  assert.equal(x.fixture.prPosts, 1);
+  assert.deepEqual((await x.ledger.read()).state.grants, {});
+});
+
+test("held rechecks resume the next batch without retesting confirmed blocked releases", async () => {
+  const x = await pipeline();
+  x.fixture.versions = Object.fromEntries(Array.from({ length: 6 }, (_, i) => ["1.1." + i, {}]));
+  x.fixture.vulnerableVersions = ["1.1.0", "1.1.1", "1.1.2", "1.1.3"];
+  const held = await x.run();
+  assert.equal((await x.run()).outcome, "held-rechecked");
+  assert.deepEqual(x.fixture.releaseReads, ["1.1.0", "1.1.0", "1.1.1", "1.1.2", "1.1.3"]);
+  assert.deepEqual(await x.run(), { outcome: "published", issue: held.issue, pr: 9 });
+  assert.equal(x.fixture.releaseReads.at(-1), "1.1.4");
+  assert.equal(x.fixture.releaseReads.length, 6);
+  assert.match(x.fixture.pr.title, /1\.1\.4$/);
+});
+
+test("a held recheck preserves the confirmed prefix when later registry evidence is unavailable", async () => {
+  const x = await pipeline();
+  x.fixture.versions = { "1.1.0": {}, "1.1.1": {}, "1.1.2": {} };
+  x.fixture.vulnerableVersions = ["1.1.0"];
+  const held = await x.run();
+  x.fixture.releaseUnavailable = "1.1.1";
+  assert.deepEqual(await x.run(), { outcome: "held-rechecked", issue: held.issue });
+  assert.deepEqual(x.fixture.releaseReads, ["1.1.0", "1.1.0", "1.1.1"]);
+  assert.equal(x.fixture.prPosts, 0);
+  x.fixture.releaseUnavailable = undefined;
+  assert.deepEqual(await x.run(), { outcome: "published", issue: held.issue, pr: 9 });
+  assert.deepEqual(x.fixture.releaseReads, ["1.1.0", "1.1.0", "1.1.1", "1.1.1"]);
+});
+
+test("an old partial recheck revisits earlier releases when only independent advisory data changes", async () => {
+  const x = await pipeline();
+  const start = new Date("2026-11-20T10:00:00Z");
+  x.fixture.versions = { "1.1.0": {}, "1.1.1": {} };
+  x.fixture.vulnerableVersions = ["1.1.0"];
+  const held = await x.run(x.cfg, undefined, start);
+  x.fixture.releaseUnavailable = "1.1.1";
+  assert.equal((await x.run(x.cfg, undefined, start)).outcome, "held-rechecked");
+  x.fixture.vulnerableVersions = [];
+  const later = new Date("2026-11-27T10:00:01Z");
+  assert.deepEqual(await x.run(x.cfg, undefined, later), {
+    outcome: "published",
+    issue: held.issue,
+    pr: 9,
+  });
+  assert.match(x.fixture.pr.title, /1\.1\.0$/);
+});
+
+test("a ticket paused during verification keeps its tracking receipt and gets no proposal or note", async () => {
+  for (const vulnerable of [false, true]) {
+    const x = await pipeline();
+    x.fixture.advisoriesUnavailable = true;
+    await x.run();
+    const before = x.fixture.issue.body;
+    x.fixture.advisoriesUnavailable = false;
+    x.fixture.pauseDuringRelease = "1.1.0";
+    if (vulnerable) x.fixture.vulnerableVersions = ["1.1.0"];
+    assert.equal((await x.run()).outcome, "no-compatible-update");
+    assert.equal(x.fixture.issue.body, before);
+    assert.equal(x.fixture.prPosts, 0);
+    assert.equal(x.fixture.ref, null);
+    const { state } = await x.store.read();
+    const [row] = Object.values(state.records);
+    assert.equal(row.phase, "tracking");
+    assert.equal(row.recheck, undefined);
+  }
 });
 
 test("promotion recovers a lost response when linking the exact PR from the tracking issue", async () => {

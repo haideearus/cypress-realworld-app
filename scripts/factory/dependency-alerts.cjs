@@ -1,6 +1,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { ROOT } = require("./github.cjs");
+const { digest } = require("./dependency-contract.cjs");
 const { OWNER, REPOSITORY, SHA, assertSubscriptionEnv } = require("./policy.cjs");
 const { toolsAt } = require("./dependency-analysis.cjs");
 
@@ -132,6 +133,7 @@ function planGroup(group, releases, knownRanges, semver) {
     .sort(semver.compare);
   const majors = new Set(group.entries.map((e) => semver.major(e.version)));
   let holdReason = "no-common-candidate";
+  const candidates = [];
   for (const v of stable) {
     if (
       !group.entries.length ||
@@ -142,17 +144,19 @@ function planGroup(group, releases, knownRanges, semver) {
       continue;
     if (majors.size !== 1) break;
     if (majors.has(semver.major(v))) {
-      if (group.entries.every((e) => semver.satisfies(v, e.selector)))
-        return { ...result, status: "compatible-candidate", candidate: v };
-      holdReason = "selector-held";
+      if (group.entries.every((e) => semver.satisfies(v, e.selector))) {
+        candidates.push(v);
+      } else holdReason = "selector-held";
     } else if (holdReason !== "selector-held") {
       holdReason = "major-held";
     }
   }
+  if (candidates.length)
+    return { ...result, status: "compatible-candidate", candidate: candidates[0], candidates };
   return { ...result, status: "no-common-candidate", holdReason };
 }
 
-async function packagePlan(group, semver, transport) {
+async function packagePlan(group, semver, transport, candidateVersion) {
   const name = encodeURIComponent(group.name);
   const [advisories, registry] = await Promise.all([
     readJSON(
@@ -176,7 +180,11 @@ async function packagePlan(group, semver, transport) {
     .flatMap((a) => a.vulnerabilities)
     .filter((v) => v.package?.ecosystem === "npm" && v.package.name === group.name)
     .map((v) => v.vulnerable_version_range);
-  return planGroup(group, Object.keys(registry.body.versions), affected, semver);
+  const releases = Object.keys(registry.body.versions).filter(
+    (v) => !candidateVersion || v === candidateVersion
+  );
+  const plan = planGroup(group, releases, affected, semver);
+  return { ...plan, evidence: digest([group, affected.sort(), plan.candidates || []]) };
 }
 
 async function preview(
@@ -184,7 +192,7 @@ async function preview(
   lockText,
   tools,
   transport = fetch,
-  { offset = 0, packageName } = {}
+  { offset = 0, packageName, candidateVersion } = {}
 ) {
   if (
     typeof lockText !== "string" ||
@@ -203,7 +211,7 @@ async function preview(
   const plans = [];
   for (const group of groups.slice(start, start + PREVIEW_LIMIT)) {
     try {
-      plans.push(await packagePlan(group, tools.semver, transport));
+      plans.push(await packagePlan(group, tools.semver, transport, candidateVersion));
     } catch {
       plans.push({
         package: group.name,
