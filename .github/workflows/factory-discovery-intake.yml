@@ -36,6 +36,7 @@ jobs:
       issues: write
     outputs:
       ready: ${{ steps.select.outputs.ready }}
+      closeSweeps: ${{ steps.select.outputs.closeSweeps }}
       sourceGrant: ${{ steps.select.outputs.sourceGrant }}
       sourceRun: ${{ steps.select.outputs.sourceRun }}
       artifactId: ${{ steps.select.outputs.artifactId }}
@@ -173,3 +174,35 @@ jobs:
           FACTORY_INPUTS: ${{ toJSON(needs.publish.outputs) }}
           FACTORY_FINDING_OUTPUT: ${{ runner.temp }}/finding-output
           FACTORY_REPLAY_SUCCESS: ${{ needs.replay.result == 'success' }}
+  close_sweeps:
+    needs: [select, publish, finalize]
+    if: >-
+      ${{ !cancelled() && needs.select.result == 'success' &&
+          needs.select.outputs.closeSweeps == 'true' &&
+          (needs.publish.result == 'success' || needs.publish.result == 'skipped') &&
+          (needs.finalize.result == 'success' || needs.finalize.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    concurrency:
+      group: factory-ledger
+      cancel-in-progress: false
+      queue: max
+    permissions:
+      actions: read
+      contents: write
+      issues: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.20.0
+      - name: Close completed sweep records after intake
+        run: node scripts/factory/discovery-finding-run.cjs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FACTORY_VARIABLES: ${{ toJSON(vars) }}
+          FACTORY_OPERATION: close-sweeps
+          FACTORY_INPUTS: ${{ toJSON(inputs) }}

@@ -139,6 +139,24 @@ async function main(env = process.env, dependencies = {}) {
       return output({ outcome: "setup-required", ready: false, modelCalls: 0 }, env);
     throw error;
   }
+  if (op === "close-sweeps") {
+    if (
+      context.event === "workflow_dispatch" &&
+      (inputs.operation !== "run" || inputs.dry_run !== false)
+    )
+      return output({ outcome: "sweep-closure-preview", sweepsClosed: [], modelCalls: 0 }, env);
+    const sweepsClosed = await require("./discovery-sweep-closure.cjs").closeCompletedSweeps({
+      api,
+      ledger,
+      store,
+      discovery: dependencies.discovery,
+      controls,
+      registry,
+    });
+    return output({ outcome: "sweep-closure-checked", sweepsClosed, modelCalls: 0 }, env, {
+      sweepsClosed,
+    });
+  }
   if (op === "select") {
     if (inputs.operation === "reconcile") {
       if (!c.HASH.test(inputs.finding_key || "") || !registry.records[inputs.finding_key])
@@ -200,6 +218,7 @@ async function main(env = process.env, dependencies = {}) {
               ? "evidence-held"
               : "no-pending-findings",
           ready: false,
+          closeSweeps: !preview,
           modelCalls: 0,
           ...choice,
         },
@@ -209,6 +228,7 @@ async function main(env = process.env, dependencies = {}) {
       {
         outcome: preview ? "preview" : "selected",
         ready: !preview,
+        closeSweeps: !preview,
         modelCalls: 0,
         ...choice,
       },
@@ -267,7 +287,28 @@ async function main(env = process.env, dependencies = {}) {
         recurrenceOf: last?.candidate.key,
       };
     }
+    const canCloseSweep =
+      candidates.length === bundle.findings.length &&
+      bundle.report.findings.length === bundle.findings.length &&
+      bundle.findings.every(
+        (row, index) => c.digest(row.finding) === c.digest(bundle.report.findings[index])
+      ) &&
+      Number.isSafeInteger(artifact.id) &&
+      artifact.id > 0 &&
+      artifact.name === `discovery-evidence-${g.id}` &&
+      artifact.workflowRunId === g.runId &&
+      /^sha256:[a-f0-9]{64}$/.test(artifact.digest || "");
+    const evidenceHash = c.digest(bundle);
     const staged = await store.update((s) => {
+      const existing = s.imports[g.id];
+      if (
+        existing?.sweepClosure &&
+        (!canCloseSweep ||
+          existing.evidenceHash !== evidenceHash ||
+          existing.sweepClosure.artifactId !== artifact.id ||
+          existing.sweepClosure.artifactDigest !== artifact.digest)
+      )
+        throw Error("Sweep evidence changed after intake");
       const keys = candidates.map(
         (candidate) =>
           pub.stageFinding(s, candidate, {
@@ -278,9 +319,18 @@ async function main(env = process.env, dependencies = {}) {
       s.imports[g.id] = {
         ...s.imports[g.id],
         runId: g.runId,
-        evidenceHash: c.digest(bundle),
+        evidenceHash,
         findings: candidates.map((x) => x.key),
         status: "complete",
+        ...(canCloseSweep
+          ? {
+              sweepClosure: s.imports[g.id]?.sweepClosure || {
+                artifactId: artifact.id,
+                artifactDigest: artifact.digest,
+                status: "pending",
+              },
+            }
+          : {}),
       };
       return { state: s, keys };
     });

@@ -72,6 +72,21 @@ known not to have started may resume after the stop is cleared. Request and
 confirmation producer identities are retained separately. Labels or bot names
 alone never establish trusted origin.
 
+## Sweep audit closure
+
+After live intake, the model-free **Close completed sweep records after intake**
+step closes the original bot-authored audit issue as completed when the sweep
+has verified source evidence and either yielded zero findings or every finding
+has a confirmed ticket and a retained ready or observed-resolved replay.
+Duplicates also need a confirmed link to the existing ticket. Holds,
+incomplete work, missing evidence and older imports without a closure receipt
+stay open. An interrupted close can be verified by a later live intake.
+
+Closure changes only the issue state and its closure reason. The issue body,
+comments, labels, run links, finding and replay receipts, and usage history
+remain available. Evidence artifacts retain their existing expiration policy.
+The repair tickets have their own lifecycle and close separately.
+
 ## Current-main replay and repair
 
 Before coding admission, the original reproducer and trusted oracle run twice
