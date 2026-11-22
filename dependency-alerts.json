@@ -137,6 +137,14 @@
       "phase": "tracking",
       "issue": 183,
       "pr": null
+    },
+    "7275a52778f2ddbfc305d295a924d9448763d426c85d5ee847ce9e945a94c3ca": {
+      "name": "decode-uri-component",
+      "day": "2026-11-22",
+      "trackingReason": "metadata-held",
+      "phase": "tracking-intent",
+      "issue": null,
+      "pr": null
     }
   }
 }
