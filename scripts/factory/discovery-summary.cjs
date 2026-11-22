@@ -161,13 +161,16 @@ function sweepSummary(values) {
   ].join("\n");
 }
 
-function intakeSummary(outcome, { sourceRun, findings, replayed, heldSources } = {}) {
+function intakeSummary(outcome, { sourceRun, findings, replayed, heldSources, sweepsClosed } = {}) {
   const source = runLink(sourceRun);
   return [
     "## Verified discovery finding intake",
     "",
     `- Outcome — ${statusText(outcome)}`,
     ...(source ? [`- Coverage and skipped scenarios — ${source}`] : []),
+    ...(sweepsClosed?.length
+      ? [`- Sweep audit records completed — ${sweepsClosed.map(issueLink).join(", ")}`]
+      : []),
     ...(Number.isSafeInteger(heldSources) && heldSources > 0
       ? [`- Evidence was unavailable for ${heldSources} discovery source(s).`]
       : []),
