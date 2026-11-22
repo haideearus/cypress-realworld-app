@@ -3100,7 +3100,11 @@
       "approval": null,
       "criteriaHash": "47225500ca75a3c19dc8200f329bd0454530629183a08b5748d4e0259867123d",
       "branch": "agent/discovery-sweep-auto-closure",
-      "ci": null
+      "ci": {
+        "requestId": "3e94264a-7cbd-42cb-a9fd-3ddf6a55bcce",
+        "head": "ececfa5a4071b6a5b18fcb01672eb553cb2497b2",
+        "runId": null
+      }
     }
   },
   "grants": {
