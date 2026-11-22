@@ -106,7 +106,8 @@
       168
     ],
     "2026-11-22": [
-      172
+      172,
+      173
     ]
   },
   "tickets": {
@@ -3064,6 +3065,28 @@
         "passed": true
       },
       "feedback": "{\"head\":\"f7b8008d73f69328c3ba679ad711c4d59870f4ac\",\"verdict\":\"pass\",\"summary\":\"Reviewed the ticket-closure feature (scripts/factory/ticket-closure.cjs, .github/workflows/factory-ticket-closure.yml, docs/factory/TICKET-CLOSURE.md) plus its supporting changes in scripts/factory/{activity,activity-store,activity-contract,metadata-store,discovery-run,discovery-publication,deploy-render,monitor-recovery,trusted-wake,wake-contract,wake-controller}.cjs and docs/factory/{EVENTS-AND-ACTIVITY,DISCOVERY,DISCOVERY-INTAKE}.md against ticket #172's four criteria. (1) Closure requires an exact, unchanged repair present in a live release reached via a human-approved production deployment: ticketEvidence/inspectRepair/releaseContainsRepair in ticket-closure.cjs cross-check the retained CI/merge/approval record, recompute the PR's merged-file set against the compare diff to the live SHA (rejecting any later edit, truncated compare, or reverted file), and verifyApprovedDeploymentRun in deploy-render.cjs/monitor-recovery.cjs independently validates workflow identity, CI job success, and a single human 'production' environment approval by OWNER. (2) Preview read-only: dispatchContext restricts workflow_dispatch previews to the owner, and runClosure's preview branch (`if (preview) continue;`) never reaches the PATCH call; the workflow YAML grants the preview job no issues:write permission and the test suite (scripts/tests/factory-ticket-closure.test.cjs) explicitly asserts zero writes on preview and asserts the workflow permissions/job-split via js-yaml. (3) Journal archiving: activity-store.cjs's save() moves published receipts into per-id published/{id}.json blobs chained onto the prior git tree (base_tree) while keeping only unresolved (queued/intent) receipts in the hot activity.json, and readReceipt() falls back to the archive for lookups; scripts/tests/factory-activity.test.cjs's 'migrates a near-full journal and keeps archive lookups' test exercises this against a real git-backed store and confirms no duplicate comment is posted for an already-published event. (4) Discovery pickup/delayed schedules: the diff removes discovery-run.cjs's old Europe/Bucharest 03/15-hour gate that previously aborted delayed scheduled runs outright; selectSweep still enforces repair/active-work priority, the 2/day discovery session cap, and daily ticket limits regardless of when the (possibly delayed) run actually executes, matching the updated docs and a new dedicated test ('a delayed Bucharest schedule reaches the usual metered admission...') that drives a 06:39 UTC schedule event through to a normal single reservation. discovery-publication.cjs was correspondingly updated so repair-merged findings no longer close the issue themselves, deferring that write to the new ticket-closure workflow. I did not execute any tests or tooling myself (read-only review) and relied on the referenced CI run as evidence that the suite passed; I could not independently verify live GitHub state such as issue #156 remaining open, which is an operational/runtime condition outside the diff.\",\"findings\":[]}"
+    },
+    "173": {
+      "coding": 0,
+      "reviews": 0,
+      "retries": 0,
+      "origin": "discovery-sweep",
+      "head": "ca532dd17a9d70a5ef3b112a2f8d2dea2a970480",
+      "status": "discovering",
+      "pr": null,
+      "approval": null,
+      "discovery": {
+        "version": 1,
+        "head": "ca532dd17a9d70a5ef3b112a2f8d2dea2a970480",
+        "ciRunId": "45009260456",
+        "charter": "functional-settings",
+        "day": "2026-11-22",
+        "key": "58c306068d5595bce1a159c05027e617ab88dad90dd8fbad9a99738b5c81992e",
+        "runId": "45010095594",
+        "runAttempt": 1,
+        "workflowSha": "ca532dd17a9d70a5ef3b112a2f8d2dea2a970480",
+        "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-discovery.yml@refs/heads/main"
+      }
     }
   },
   "grants": {
@@ -4423,9 +4446,24 @@
       "status": "finished",
       "at": "2026-11-22T09:26:22.264Z",
       "outcome": "reviewed"
+    },
+    "8ecbc858-643e-459d-814d-2f817e5df7ed": {
+      "id": "8ecbc858-643e-459d-814d-2f817e5df7ed",
+      "ticket": 173,
+      "phase": "discover",
+      "slot": "discovery",
+      "runId": "45010095594",
+      "runAttempt": 1,
+      "head": "ca532dd17a9d70a5ef3b112a2f8d2dea2a970480",
+      "status": "reserved",
+      "at": "2026-11-22T09:58:34.846Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 173,
+    "runId": "45010095594",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -7584,6 +7622,16 @@
       "grant": "02116832-3717-48f0-96fb-933ced479e65",
       "status": "reviewed",
       "head": "f7b8008d73f69328c3ba679ad711c4d59870f4ac"
+    },
+    {
+      "at": "2026-11-22T09:58:34.846Z",
+      "event": "reserved",
+      "ticket": 173,
+      "grant": "8ecbc858-643e-459d-814d-2f817e5df7ed",
+      "phase": "discover",
+      "runId": "45010095594",
+      "runAttempt": 1,
+      "actor": "haideearus"
     }
   ]
 }
