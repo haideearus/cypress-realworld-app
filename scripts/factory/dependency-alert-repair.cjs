@@ -12,7 +12,13 @@ const {
   toolsAt,
   VulnerableDependencyCandidate,
 } = require("./dependency-analysis.cjs");
-const { preview, listAlerts, readJSON } = require("./dependency-alerts.cjs");
+const {
+  PREVIEW_LIMIT,
+  listAlerts,
+  readGroups,
+  readPlan,
+  readJSON,
+} = require("./dependency-alerts.cjs");
 
 const READY_LABEL = "factory-dependency-ready";
 const HELD_LABEL = "factory-dependency-held";
@@ -57,11 +63,24 @@ const TRACKING_REASONS = {
 };
 const CONFIRMED_RECHECK_HOLDS = ["graph-held", "vulnerable-candidate"];
 const RECHECK_BATCH_SIZE = 4;
+const RESERVED_HELD_PROPOSALS = 3;
+const HELD_PROBES_PER_INTAKE = 3;
 const RECHECK_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
 const WORKFLOW_FILE = ".github/workflows/factory-dependency-alerts.yml";
 const CI_WORKFLOW = ".github/workflows/factory-ci.yml";
+const DISCOVERY_WORKFLOW = ".github/workflows/factory-discovery.yml";
 const OWNER_ID = 101267861;
+const ACTIONS_BOT_ID = 41898282;
+const SLOT_WORKFLOWS = new Set([
+  ".github/workflows/factory-agents.yml",
+  ".github/workflows/factory-automatic.yml",
+  ".github/workflows/factory-dependencies.yml",
+  DISCOVERY_WORKFLOW,
+]);
+const DEFERRED_WAKE_MS = 3 * 60 * 60 * 1000;
 const validId = (n) => Number.isSafeInteger(n) && n > 0;
+const validTimestamp = (value) =>
+  Number.isFinite(Date.parse(value)) && new Date(value).toISOString() === value;
 const empty = () => ({ version: 1, cursor: 0, records: {} });
 class UncertainPublication extends Error {}
 class AlertAdmissionHold extends Error {}
@@ -73,12 +92,32 @@ function validate(state) {
     !Number.isSafeInteger(state.cursor) ||
     state.cursor < 0 ||
     state.cursor > 500 ||
+    (state.urgentDay !== undefined &&
+      (typeof state.urgentDay !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(state.urgentDay))) ||
+    (state.heldAfter !== undefined &&
+      (typeof state.heldAfter !== "string" ||
+        state.heldAfter.length > 214 ||
+        !PKG.test(state.heldAfter))) ||
     !state.records ||
     Array.isArray(state.records) ||
     typeof state.records !== "object" ||
     Object.keys(state.records).length > 500
   )
     throw Error("Invalid dependency alert registry");
+  if (state.deferred !== undefined) {
+    const { base, fingerprint, runs, at } = state.deferred || {};
+    if (
+      !d.SHA.test(base || "") ||
+      !d.HASH.test(fingerprint || "") ||
+      !validTimestamp(at) ||
+      !Array.isArray(runs) ||
+      runs.length < 1 ||
+      runs.length > 2 ||
+      new Set(runs).size !== runs.length ||
+      runs.some((id) => typeof id !== "string" || !/^[1-9]\d*$/.test(id))
+    )
+      throw Error("Invalid deferred held dependency intake");
+  }
   const issues = new Set(),
     prs = new Set();
   for (const [key, row] of Object.entries(state.records)) {
@@ -100,11 +139,15 @@ function validate(state) {
         !CONFIRMED_RECHECK_HOLDS.includes(reason) ||
         !Number.isSafeInteger(next) ||
         next < 0 ||
-        !Number.isFinite(Date.parse(at)) ||
-        new Date(at).toISOString() !== at
+        !validTimestamp(at)
       )
         throw Error("Invalid held dependency recheck");
     }
+    if (
+      row.resolvedAt !== undefined &&
+      (row.phase !== "resolved" || !validTimestamp(row.resolvedAt))
+    )
+      throw Error("Invalid dependency resolution time");
     if (TRACKING_PHASES.includes(row.phase)) {
       if (
         !hasTrackingReason ||
@@ -308,6 +351,39 @@ function trustedPush(run, base) {
   );
 }
 
+function trustedSlotSource(run, base, env, config) {
+  const actor = env.GITHUB_ACTOR;
+  const owner = actor === policy.OWNER;
+  const bot = actor === "github-actions[bot]";
+  const discoveryWake = run?.path === DISCOVERY_WORKFLOW && run.event === "workflow_run";
+  const app = discoveryWake && config.appSlug && actor === config.appSlug + "[bot]";
+  const id = owner ? OWNER_ID : bot ? ACTIONS_BOT_ID : Number(env.GITHUB_ACTOR_ID);
+  return (
+    (owner || bot || app) &&
+    validId(id) &&
+    env.GITHUB_TRIGGERING_ACTOR === actor &&
+    env.GITHUB_ACTOR_ID === String(id) &&
+    validId(run?.id) &&
+    validId(run.workflow_id) &&
+    SLOT_WORKFLOWS.has(run.path) &&
+    (discoveryWake ||
+      run.event === "workflow_dispatch" ||
+      (run.event === "schedule" && !run.path.endsWith("factory-agents.yml"))) &&
+    run.head_branch === "main" &&
+    run.head_sha === base &&
+    run.repository?.full_name === policy.REPOSITORY &&
+    run.head_repository?.full_name === policy.REPOSITORY &&
+    run.run_attempt === 1 &&
+    run.status === "completed" &&
+    Boolean(run.conclusion) &&
+    run.actor?.login === actor &&
+    run.actor.id === id &&
+    run.actor.type === (owner ? "User" : "Bot") &&
+    run.triggering_actor?.login === actor &&
+    run.triggering_actor.id === id
+  );
+}
+
 async function assertAlertTrigger(api, config, base, { env, event }) {
   if (
     env.GITHUB_REPOSITORY !== policy.REPOSITORY ||
@@ -331,6 +407,18 @@ async function assertAlertTrigger(api, config, base, { env, event }) {
   }
   const owner = actor === policy.OWNER;
   const source = event?.workflow_run;
+  if (SLOT_WORKFLOWS.has(source?.path)) {
+    if (
+      !config.eventPickup ||
+      event.action !== "completed" ||
+      event.repository?.full_name !== policy.REPOSITORY ||
+      event.workflow?.id !== source.workflow_id ||
+      event.workflow.path !== source.path ||
+      !trustedSlotSource(source, base, env, config)
+    )
+      throw Error("Untrusted held dependency completion");
+    return source;
+  }
   if (
     !config.eventPickup ||
     (!owner && !(config.appSlug && actor === `${config.appSlug}[bot]`)) ||
@@ -374,6 +462,91 @@ async function assertAlertTrigger(api, config, base, { env, event }) {
     throw Error("Untrusted dependency alert CI verify job");
 }
 
+const queueFingerprint = (registry) =>
+  d.digest([
+    registry.cursor,
+    registry.heldAfter ?? null,
+    registry.urgentDay ?? null,
+    registry.records,
+  ]);
+
+async function deferHeld(store, registry, active, base, now) {
+  if (
+    active.some((run) => run.runAttempt !== 1) ||
+    !Object.values(registry.records).some((row) => row.phase === "tracking")
+  )
+    return;
+  const deferred = {
+    base,
+    fingerprint: queueFingerprint(registry),
+    runs: active.map((run) => run.runId).sort(),
+    at: now.toISOString(),
+  };
+  const prior = registry.deferred;
+  if (
+    prior?.fingerprint === deferred.fingerprint &&
+    prior.base === base &&
+    prior.runs.join() === deferred.runs.join() &&
+    now.getTime() - Date.parse(prior.at) < DEFERRED_WAKE_MS
+  )
+    return;
+  await store.update((next) => {
+    if (queueFingerprint(next) !== deferred.fingerprint)
+      throw Error("Held dependency queue changed while deferring");
+    next.deferred = deferred;
+    return { state: next };
+  });
+}
+
+function eligibleDeferred(registry, source, base, now) {
+  const deferred = registry.deferred;
+  return (
+    deferred &&
+    deferred.base === base &&
+    deferred.runs.includes(String(source.id)) &&
+    Date.parse(deferred.at) <= now.getTime() &&
+    now.getTime() - Date.parse(deferred.at) < DEFERRED_WAKE_MS &&
+    deferred.fingerprint === queueFingerprint(registry)
+  );
+}
+
+async function consumeHeldWake(api, store, registry, source, state, base, now, env, config) {
+  const deferred = registry.deferred;
+  if (
+    !eligibleDeferred(registry, source, base, now) ||
+    slots.activeEntries(state).length ||
+    slots.pendingIntent(state)
+  )
+    return false;
+  const [workflow, run] = await Promise.all([
+    api.request("GET", ROOT + "/actions/workflows/" + path.posix.basename(source.path)),
+    api.request("GET", ROOT + "/actions/runs/" + source.id),
+  ]);
+  if (
+    !trustedSlotSource(run, base, env, config) ||
+    run.id !== source.id ||
+    run.event !== source.event ||
+    run.path !== source.path ||
+    run.workflow_id !== source.workflow_id ||
+    run.conclusion !== source.conclusion ||
+    workflow.id !== run.workflow_id ||
+    workflow.path !== run.path
+  )
+    throw Error("Untrusted held dependency completion run");
+  const fresh = await current(api, base);
+  if (slots.activeEntries(fresh).length || slots.pendingIntent(fresh)) return false;
+  await store.update((next) => {
+    if (
+      JSON.stringify(next.deferred) !== JSON.stringify(deferred) ||
+      queueFingerprint(next) !== deferred.fingerprint
+    )
+      throw Error("Deferred held dependency receipt changed");
+    delete next.deferred;
+    return { state: next };
+  });
+  return true;
+}
+
 async function makeCommit(api, base, lock, previous) {
   const parent = await api.request("GET", `${ROOT}/git/commits/${base}`);
   if (!d.SHA.test(parent.tree?.sha || "")) throw Error("Missing base tree");
@@ -407,14 +580,87 @@ async function advance(store, key, row, patch) {
 const openRecord = (registry, name) =>
   Object.entries(registry.records).find(([, row]) => row.name === name && row.phase !== "resolved");
 
-async function addRecord(store, key, row) {
+async function addRecord(store, key, row, urgentDay) {
   const { saved } = await store.update((state) => {
     if (state.records[key] || openRecord(state, row.name))
       throw Error("Dependency alert already tracked");
     state.records[key] = row;
+    if (urgentDay) state.urgentDay = urgentDay;
     return { state, saved: row };
   });
   return saved;
+}
+
+function intakeGroups(registry, groups, day) {
+  const tracked = new Map();
+  for (const [key, row] of Object.entries(registry.records))
+    if (row.phase !== "resolved") tracked.set(row.name, [key, row]);
+  const trackedDay = (group) => tracked.get(group.name)[1].day;
+  const held = groups
+    .filter((group) => tracked.get(group.name)?.[1].phase === "tracking")
+    .sort(
+      (a, b) =>
+        b.severity - a.severity ||
+        Number(b.runtime) - Number(a.runtime) ||
+        trackedDay(a).localeCompare(trackedDay(b)) ||
+        a.name.localeCompare(b.name)
+    );
+  const prepared = Object.values(registry.records).filter(
+    (row) => row.trackingReason && row.candidate && row.day === day
+  ).length;
+  const reserved = held.length > 0 && prepared < RESERVED_HELD_PROPOSALS;
+  const urgent =
+    reserved && registry.urgentDay !== day
+      ? groups.find(
+          (group) =>
+            !tracked.has(group.name) &&
+            group.alerts.some((alert) => alert.severity === 3 && alert.runtime)
+        )
+      : undefined;
+  const heldStart = held.findIndex((group) => group.name === registry.heldAfter) + 1;
+  const heldBatch = [...held.slice(heldStart), ...held.slice(0, heldStart)].slice(
+    0,
+    reserved ? HELD_PROBES_PER_INTAKE : 1
+  );
+  const limit = PREVIEW_LIMIT - heldBatch.length - Number(Boolean(urgent));
+  let nextOffset = registry.cursor < groups.length ? registry.cursor : 0;
+  const newBatch = [];
+  for (let visited = 0; visited < groups.length && newBatch.length < limit; visited++) {
+    const group = groups[nextOffset];
+    nextOffset = (nextOffset + 1) % groups.length;
+    if (!tracked.has(group.name) && group !== urgent) newBatch.push(group);
+  }
+  return {
+    tracked,
+    urgent,
+    nextOffset,
+    groups: reserved
+      ? [...(urgent ? [urgent] : []), ...heldBatch, ...newBatch]
+      : [...newBatch, ...heldBatch],
+  };
+}
+
+function heldProgress(registry, usage, day, timezone) {
+  const progress = { prepared: 0, merged: 0, cleared: 0 };
+  for (const row of Object.values(registry.records)) {
+    if (!row.trackingReason || !row.candidate) continue;
+    if (row.day === day) progress.prepared++;
+    const merge = usage.tickets[row.pr]?.merge;
+    if (merge?.status === "merged" && policy.dayKey(new Date(merge.at), timezone) === day)
+      progress.merged++;
+    if (row.resolvedAt && policy.dayKey(new Date(row.resolvedAt), timezone) === day)
+      progress.cleared++;
+  }
+  return progress;
+}
+
+async function readHeldIssue(api, issue) {
+  try {
+    return await api.request("GET", ROOT + "/issues/" + issue);
+  } catch (error) {
+    if ([404, 410].includes(error.status)) return null;
+    throw error;
+  }
 }
 
 async function issueMatching(api, key, row) {
@@ -694,8 +940,9 @@ async function runRepair({
   transport = fetch,
   now = new Date(),
   trigger,
+  reportHeldProgress = false,
 }) {
-  if (trigger) await assertAlertTrigger(api, config, base, trigger);
+  const slotSource = trigger && (await assertAlertTrigger(api, config, base, trigger));
   if (
     !config.enabled ||
     !config.automatic ||
@@ -711,20 +958,50 @@ async function runRepair({
     registry = (await store.read()).state;
   } catch (error) {
     if (error.status !== 404) throw error;
+    if (slotSource) return { outcome: "held-wake-not-due" };
     await store.initialize();
     registry = (await store.read()).state;
   }
-  if (slots.pendingIntent(state)) return { outcome: "factory-busy" };
+  const day = policy.dayKey(now, config.timezone);
+  const report = (outcome) =>
+    reportHeldProgress
+      ? { ...outcome, heldProgress: heldProgress(registry, state, day, config.timezone) }
+      : outcome;
+  if (
+    slotSource &&
+    !(await consumeHeldWake(
+      api,
+      store,
+      registry,
+      slotSource,
+      state,
+      base,
+      now,
+      trigger.env,
+      config
+    ))
+  )
+    return { outcome: "held-wake-not-due" };
+  const active = slots.activeEntries(state);
+  const waitForSlot = async () => {
+    if (active.length && !slotSource && config.eventPickup)
+      await deferHeld(store, registry, active, base, now);
+    return report({ outcome: "factory-busy" });
+  };
+  if (slots.pendingIntent(state)) return waitForSlot();
   const refreshing = Object.entries(registry.records).find(([, row]) => row.phase === "refresh");
   if (refreshing && (await canRefresh(api, state, refreshing[1])))
-    return finishRefresh(api, app, store, base, ...refreshing);
-  const active = slots.activeEntries(state);
+    return report(await finishRefresh(api, app, store, base, ...refreshing));
+  let openAlerts, snapshot;
+  const alertSnapshot = async () => {
+    snapshot ??= await readGroups(token, lock, tools, transport, openAlerts);
+    openAlerts ??= snapshot.alerts;
+    return snapshot;
+  };
   const refresh = async (key, row) => {
-    const { plans } = await preview(token, lock, tools, transport, {
-      packageName: row.name,
-      candidateVersion: row.candidate,
-    });
-    const plan = plans.find((p) => p.candidate === row.candidate);
+    const { groups } = await alertSnapshot();
+    const group = groups.find((g) => g.name === row.name);
+    const plan = group ? await readPlan(group, tools, transport, row.candidate) : undefined;
     const { candidate } = await buildCandidate(plan, lock, manifest, tools, transport);
     if (!candidate) return null;
     await current(api, base);
@@ -742,27 +1019,28 @@ async function runRepair({
       );
   if (pending) {
     const [key, row] = pending;
-    if (row.phase === "tracking-intent") return recoverTrackingIssue(api, store, base, key, row);
+    if (row.phase === "tracking-intent")
+      return report(await recoverTrackingIssue(api, store, base, key, row));
     if (row.base !== base) {
       if (["prepared", "issue", "linked"].includes(row.phase)) {
         const recovered = await refresh(key, row);
-        if (recovered) return recovered;
+        if (recovered) return report(recovered);
       }
       await advance(store, key, row, { phase: "held", hold: "stale-base" });
-      return { outcome: "held-stale-preparation" };
+      return report({ outcome: "held-stale-preparation" });
     }
     try {
       const published = await publish(api, app, config, store, key, row);
-      return { outcome: "published", issue: published.issue, pr: published.pr };
+      registry.records[key] = published;
+      return report({ outcome: "published", issue: published.issue, pr: published.pr });
     } catch (error) {
       if (!(error instanceof UncertainPublication)) throw error;
       const latest = (await store.read()).state.records[key];
       await advance(store, key, latest, { phase: "held", hold: "publication-uncertain" });
-      return { outcome: "held-publication-uncertain" };
+      return report({ outcome: "held-publication-uncertain" });
     }
   }
   const linked = Object.entries(registry.records).filter(([, row]) => row.phase === "ready");
-  let openAlerts;
   for (const [key, row] of linked) {
     const result = state.tickets[row.pr];
     if (result?.merge?.status === "merged") {
@@ -802,7 +1080,10 @@ async function runRepair({
         !issueOK({ ...issue, state: "open" }, key, row)
       )
         throw Error("Dependency alert closure requires reconciliation");
-      await advance(store, key, row, { phase: "resolved" });
+      registry.records[key] = await advance(store, key, row, {
+        phase: "resolved",
+        resolvedAt: now.toISOString(),
+      });
     } else if (!result?.merge && (await canRefresh(api, state, row))) {
       const pr = d.prOK(await api.request("GET", `${ROOT}/pulls/${row.pr}`), true, config);
       const issue = await api.request("GET", `${ROOT}/issues/${row.issue}`);
@@ -810,28 +1091,27 @@ async function runRepair({
       if (pr.head.sha !== row.head || pr.head.ref !== d.alertBranch(key))
         throw Error("Dependency alert proposal changed externally");
       if (row.base === base && !result)
-        return { outcome: "awaiting-dependency-pickup", issue: row.issue, pr: row.pr };
+        return report({ outcome: "awaiting-dependency-pickup", issue: row.issue, pr: row.pr });
       if (
         row.base !== base &&
         (!result || result.dependency?.attempts.length < Math.min(10, config.reviews))
       ) {
         const recovered = await refresh(key, row);
-        if (recovered) return recovered;
+        if (recovered) return report(recovered);
       }
     }
   }
-  if (active.length || refreshing) return { outcome: "factory-busy" };
+  if (active.length || refreshing) return waitForSlot();
   if (require("./dependency-policy.cjs").pending(state))
-    return { outcome: "pending-protected-merge" };
-  const day = policy.dayKey(now, config.timezone);
+    return report({ outcome: "pending-protected-merge" });
   if (
     (state.days[day] || []).length >= config.daily ||
     Object.values(registry.records).filter((row) => row.day === day).length >= 10
   )
-    return { outcome: "daily-limit" };
+    return report({ outcome: "daily-limit" });
   const { AutomaticCoordinator } = require("./automation.cjs");
   if (await new AutomaticCoordinator(api, config, {}).candidate(state))
-    return { outcome: "app-work-first" };
+    return report({ outcome: "app-work-first" });
   const open = await api.pages(`${ROOT}/pulls?state=open&base=main`);
   for (const pr of open) {
     try {
@@ -844,16 +1124,37 @@ async function runRepair({
       continue;
     const compare = await api.request("GET", `${ROOT}/compare/${base}...${pr.head.sha}`);
     if (compare.behind_by === 0 && compare.merge_base_commit?.sha === base)
-      return { outcome: "existing-dependency-pr" };
+      return report({ outcome: "existing-dependency-pr" });
   }
-  const { plans, nextOffset } = await preview(token, lock, tools, transport, {
-    offset: registry.cursor,
-  });
+  const { groups } = await alertSnapshot();
+  const queue = intakeGroups(registry, groups, day);
+  let heldAfter = registry.heldAfter;
+  const saveTurn = async (outcome, cursor = registry.cursor) => {
+    if (heldAfter !== registry.heldAfter || cursor !== registry.cursor) {
+      await current(api, base);
+      await store.update((next) => {
+        if (next.cursor !== registry.cursor || next.heldAfter !== registry.heldAfter)
+          throw Error("Dependency scan position changed concurrently");
+        if (heldAfter !== undefined) next.heldAfter = heldAfter;
+        next.cursor = cursor;
+        return { state: next };
+      });
+    }
+    return report(outcome);
+  };
   const source = d.digest([manifest, lock]);
-  for (const plan of plans) {
-    const tracked = openRecord(registry, plan.package);
-    if (tracked && (tracked[1].phase !== "tracking" || plan.status !== "compatible-candidate"))
-      continue;
+  let heldOutcome;
+  for (const group of queue.groups) {
+    const tracked = queue.tracked.get(group.name);
+    let issue;
+    if (tracked) {
+      heldAfter = group.name;
+      const [key, row] = tracked;
+      issue = await readHeldIssue(api, row.issue);
+      if (!trackingIssueOK(issue, key, row)) continue;
+    }
+    const plan = await readPlan(group, tools, transport);
+    if (tracked && plan.status !== "compatible-candidate") continue;
     const fingerprint = d.digest([source, plan.evidence]);
     let offset = 0;
     let versions;
@@ -866,8 +1167,6 @@ async function runRepair({
         offset = row.recheck.next;
         if (offset === 0) continue;
       }
-      const heldIssue = await api.request("GET", `${ROOT}/issues/${row.issue}`);
-      if (!trackingIssueOK(heldIssue, key, row)) continue;
       versions = plan.candidates.slice(offset, offset + RECHECK_BATCH_SIZE);
       if (!versions.length) throw Error("Dependency recheck has no remaining candidates");
     }
@@ -879,12 +1178,11 @@ async function runRepair({
       transport,
       versions
     );
-    let issue;
     if (tracked) {
       if (!candidate && !confirmed) continue;
       const [key, row] = tracked;
       await current(api, base);
-      issue = await api.request("GET", `${ROOT}/issues/${row.issue}`);
+      issue = await readHeldIssue(api, row.issue);
       if (!trackingIssueOK(issue, key, row)) continue;
     }
     if (!candidate) {
@@ -898,7 +1196,7 @@ async function runRepair({
         }
         const position = offset + confirmed;
         const next = position < plan.candidates.length ? position : 0;
-        await advance(store, key, row, {
+        registry.records[key] = await advance(store, key, row, {
           recheck: {
             fingerprint,
             reason: lastHold,
@@ -906,7 +1204,8 @@ async function runRepair({
             next,
           },
         });
-        return { outcome: "held-rechecked", issue: row.issue };
+        heldOutcome ??= { outcome: "held-rechecked", issue: row.issue };
+        continue;
       }
       if (!Object.hasOwn(TRACKING_REASONS, reason)) continue;
       const earlier = Object.values(registry.records).filter(
@@ -920,15 +1219,20 @@ async function runRepair({
         "fbca04",
         "Tracked dependency vulnerability awaiting evidence or a wider update"
       );
-      const row = await addRecord(store, key, {
-        name: plan.package,
-        day,
-        trackingReason: reason,
-        phase: "tracking-intent",
-        issue: null,
-        pr: null,
-      });
-      return postTrackingIssue(api, store, base, key, row);
+      const row = await addRecord(
+        store,
+        key,
+        {
+          name: plan.package,
+          day,
+          trackingReason: reason,
+          phase: "tracking-intent",
+          issue: null,
+          pr: null,
+        },
+        queue.urgent === group ? day : undefined
+      );
+      return saveTurn(await postTrackingIssue(api, store, base, key, row));
     }
     const key = tracked?.[0] || d.digest([plan.package, version, plan.locked]);
     if (!tracked) {
@@ -943,24 +1247,23 @@ async function runRepair({
           phase: "issue",
           recheck: undefined,
         })
-      : await addRecord(store, key, {
-          ...preparation,
-          name: plan.package,
-          phase: "prepared",
-          issue: null,
-          pr: null,
-        });
+      : await addRecord(
+          store,
+          key,
+          {
+            ...preparation,
+            name: plan.package,
+            phase: "prepared",
+            issue: null,
+            pr: null,
+          },
+          queue.urgent === group ? day : undefined
+        );
     const published = await publish(api, app, config, store, key, saved);
-    return { outcome: "published", issue: published.issue, pr: published.pr };
+    registry.records[key] = published;
+    return saveTurn({ outcome: "published", issue: published.issue, pr: published.pr });
   }
-  if (registry.cursor !== nextOffset) {
-    await current(api, base);
-    await store.update((next) => {
-      next.cursor = nextOffset;
-      return { state: next };
-    });
-  }
-  return { outcome: "no-compatible-update" };
+  return saveTurn(heldOutcome ?? { outcome: "no-compatible-update" }, queue.nextOffset);
 }
 
 async function main(env = process.env) {
@@ -969,16 +1272,30 @@ async function main(env = process.env) {
     env.GITHUB_EVENT_NAME === "workflow_run"
       ? JSON.parse(fs.readFileSync(env.GITHUB_EVENT_PATH, "utf8"))
       : undefined;
+  const api = new GitHub({ token: env.GH_TOKEN });
+  const config = policy.readConfig(JSON.parse(env.FACTORY_VARIABLES || "{}"));
+  if (env.FACTORY_HELD_WAKE_CHECK_ONLY === "true") {
+    if (!SLOT_WORKFLOWS.has(event?.workflow_run?.path)) throw Error("Expected a slot completion");
+    const source = await assertAlertTrigger(api, config, env.GITHUB_SHA, { env, event });
+    const { state } = await storeFor(api).read({ allowMissing: true });
+    const ready = Boolean(eligibleDeferred(state, source, env.GITHUB_SHA, new Date()));
+    fs.appendFileSync(env.GITHUB_OUTPUT, "ready=" + ready + "\n");
+    console.log(
+      JSON.stringify({ outcome: ready ? "held-wake-due" : "held-wake-not-due", modelCalls: 0 })
+    );
+    return;
+  }
   const result = await runRepair({
-    api: new GitHub({ token: env.GH_TOKEN }),
+    api,
     app: new GitHub({ token: env.DEPENDENCY_PUBLISH_TOKEN }),
     token: env.DEPENDABOT_READ_TOKEN,
-    config: policy.readConfig(JSON.parse(env.FACTORY_VARIABLES || "{}")),
+    config,
     base: env.GITHUB_SHA,
     lock: fs.readFileSync("yarn.lock", "utf8"),
     manifest: fs.readFileSync("package.json", "utf8"),
     tools: toolsAt(path.join(__dirname, "dependency-tools")),
     trigger: { env, event },
+    reportHeldProgress: true,
   });
   console.log(JSON.stringify({ ...result, modelCalls: 0 }));
   if (env.GITHUB_STEP_SUMMARY) {
@@ -993,6 +1310,16 @@ async function main(env = process.env) {
         "## Dependabot alert intake",
         "",
         `Outcome ` + result.outcome.replaceAll("-", " "),
+        ...(result.heldProgress
+          ? [
+              "",
+              "Held repairs today",
+              "",
+              "- Prepared " + result.heldProgress.prepared,
+              "- Merged " + result.heldProgress.merged,
+              "- Cleared by GitHub " + result.heldProgress.cleared,
+            ]
+          : []),
         ...(links.length ? ["", links.join(" · ")] : []),
         "",
       ].join("\n")
