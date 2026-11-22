@@ -142,6 +142,8 @@ async function observeIncident({
   labels = ["factory-ready"],
   verifiedRetirement = false,
   probeMode,
+  functionalChecks,
+  functionalPassed = [],
 }) {
   const f = require("./functional-discovery-contract.cjs");
   const functional = probeMode === f.PROBE_MODE;
@@ -164,6 +166,14 @@ async function observeIncident({
     throw new Error("Invalid monitor time");
   const { state, commit } = await store.read();
   let active = state.active && state.incidents[state.active];
+  if (
+    active &&
+    functional &&
+    active.probeMode === f.PROBE_MODE &&
+    functionalChecks &&
+    !functionalChecks.includes(active.functionalCheck)
+  )
+    return { outcome: "required_probe_missing", issue: active.issue, observation };
   if (active?.phase === "pending")
     return { outcome: "publication_needs_owner_recovery", incident: active.id, observation };
   if (active?.acknowledgment?.phase === "intent") {
@@ -215,6 +225,9 @@ async function observeIncident({
       }
       return { outcome: "required_probe_missing", issue: active.issue, observation };
     }
+    // A different confirmed failure can coexist with two passing rechecks
+    // of the active incident. Recover only the incident actually rechecked.
+    if (functional && functionalPassed.includes(active.functionalCheck)) observation.healthy = true;
     const changedAssertion =
       functional &&
       !observation.healthy &&

@@ -3,6 +3,8 @@ name: Safe functional discovery
 on:
   schedule:
     - cron: "12 2,14 * * *"
+    - cron: "20 7 * * 0"
+      timezone: Europe/Bucharest
   workflow_run:
     workflows: [Factory CI]
     branches: [main]
@@ -14,6 +16,10 @@ on:
         type: boolean
         required: true
         default: true
+      extended:
+        description: Include the weekly transaction, comment and profile picture checks
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -49,6 +55,8 @@ jobs:
       status: ${{ steps.browser.outputs.status }}
       check: ${{ steps.browser.outputs.check }}
       assertion: ${{ steps.browser.outputs.assertion }}
+      passedChecks: ${{ steps.browser.outputs.passedChecks }}
+      extended: ${{ steps.coverage.outputs.extended }}
     services:
       postgres:
         image: postgres:17.6
@@ -73,10 +81,13 @@ jobs:
         with:
           node-version: 22.20.0
       - name: Verify functional discovery CI trigger
-        if: ${{ github.event_name == 'workflow_run' }}
+        id: coverage
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          FACTORY_FUNCTIONAL_OPERATION: verify-trigger
+          FACTORY_FUNCTIONAL_OPERATION: plan
+          FACTORY_FUNCTIONAL_EXTENDED: >-
+            ${{ toJSON((github.event_name == 'schedule' && github.event.schedule == '20 7 * * 0') ||
+                       (github.event_name == 'workflow_dispatch' && inputs.extended == true)) }}
         run: node scripts/factory/functional-discovery.cjs
       - name: Prepare the disposable application
         run: |
@@ -86,6 +97,8 @@ jobs:
           yarn build:production
       - name: Run approved browser checks
         id: browser
+        env:
+          FACTORY_FUNCTIONAL_EXTENDED: ${{ steps.coverage.outputs.extended }}
         run: node scripts/factory/functional-browser.cjs
       - name: Report incomplete browser coverage
         if: ${{ failure() }}
@@ -120,7 +133,9 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           FACTORY_FUNCTIONAL_DISCOVERY_ENABLED: ${{ vars.FACTORY_FUNCTIONAL_DISCOVERY_ENABLED }}
           FACTORY_FUNCTIONAL_DRY_RUN: ${{ toJSON(inputs.dry_run) }}
+          FACTORY_FUNCTIONAL_EXTENDED: ${{ needs.browser.outputs.extended }}
           FACTORY_FUNCTIONAL_STATUS: ${{ needs.browser.outputs.status }}
           FACTORY_FUNCTIONAL_CHECK: ${{ needs.browser.outputs.check }}
           FACTORY_FUNCTIONAL_ASSERTION: ${{ needs.browser.outputs.assertion }}
+          FACTORY_FUNCTIONAL_PASSED_CHECKS: ${{ needs.browser.outputs.passedChecks }}
         run: node scripts/factory/functional-discovery.cjs
