@@ -1906,12 +1906,12 @@
       }
     },
     "97": {
-      "coding": 1,
+      "coding": 2,
       "origin": "factory",
       "reviews": 0,
-      "retries": 0,
+      "retries": 1,
       "head": "a8774f4a6867b4b85749d3d7872243718e6b70f3",
-      "status": "retry",
+      "status": "coding",
       "pr": 186,
       "approval": null,
       "criteriaHash": "1555ed01347617394c287d5e4be22faae43b69a7919c70e66282e8c4ff400c3d",
@@ -4709,6 +4709,17 @@
       "status": "finished",
       "at": "2026-11-22T16:18:36.073Z",
       "outcome": "awaiting_review"
+    },
+    "62c2bd9a-e977-4c03-b3d3-9a38fe18c39e": {
+      "id": "62c2bd9a-e977-4c03-b3d3-9a38fe18c39e",
+      "ticket": 97,
+      "phase": "code",
+      "slot": "cycle2",
+      "runId": "45043079290",
+      "runAttempt": 1,
+      "head": "a8774f4a6867b4b85749d3d7872243718e6b70f3",
+      "status": "reserved",
+      "at": "2026-11-22T16:56:50.759Z"
     }
   },
   "active": {
@@ -8017,6 +8028,16 @@
       "grant": "c7475db9-4f86-49e0-9f5e-49de1dd88610",
       "status": "awaiting_review",
       "head": "a8774f4a6867b4b85749d3d7872243718e6b70f3"
+    },
+    {
+      "at": "2026-11-22T16:56:50.759Z",
+      "event": "reserved",
+      "ticket": 97,
+      "grant": "62c2bd9a-e977-4c03-b3d3-9a38fe18c39e",
+      "phase": "code",
+      "runId": "45043079290",
+      "runAttempt": 1,
+      "actor": "haideearus"
     }
   ]
 }
