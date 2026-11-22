@@ -60,8 +60,10 @@ symptom, independent of commit or model title. Duplicate evidence is appended
 in comments; frozen ticket criteria are never rewritten. An observed-resolved
 finding retains its history and a later recurrence gets a new generation.
 Protected factory merges are recorded separately as **repair merged**, preserving
-the admitted origin receipt. New recurrence evidence must descend from the
-recorded resolution or merge commit; older source evidence stays a duplicate.
+the admitted origin receipt. The production closure workflow completes the issue
+after verifying the deployed repair, then intake records the confirmed closure.
+New recurrence evidence must descend from the recorded resolution or merge
+commit. Older source evidence stays a duplicate.
 
 Issue/comment intent is retained before a non-idempotent request. An unknown
 response is reconciled against exact bot-authored content within five pages;

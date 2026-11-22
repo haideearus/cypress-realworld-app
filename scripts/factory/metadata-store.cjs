@@ -45,18 +45,29 @@ class MetadataStore {
       commit,
     };
   }
-  async save(state, parent) {
+  async save(state, parent, retainedFiles = null) {
     this.validate(state);
     if (parent !== null && !SHA.test(parent || "")) throw Error("Invalid metadata parent");
     const content = JSON.stringify(state, null, 2) + "\n";
     if (Buffer.byteLength(content) > 1000000)
       throw Error("Metadata registry full; owner maintenance required");
+    const baseTree =
+      retainedFiles && parent
+        ? (await this.api.request("GET", `${ROOT}/git/commits/${parent}`)).tree?.sha
+        : undefined;
+    if (retainedFiles && parent && !SHA.test(baseTree || ""))
+      throw Error("Invalid retained metadata tree");
+
     const blob = await this.api.request("POST", `${ROOT}/git/blobs`, {
       content: Buffer.from(content).toString("base64"),
       encoding: "base64",
     });
     const tree = await this.api.request("POST", `${ROOT}/git/trees`, {
-      tree: [{ path: this.file, mode: "100644", type: "blob", sha: blob.sha }],
+      ...(baseTree ? { base_tree: baseTree } : {}),
+      tree: [
+        { path: this.file, mode: "100644", type: "blob", sha: blob.sha },
+        ...(retainedFiles || []),
+      ],
     });
     const c = await this.api.request("POST", `${ROOT}/git/commits`, {
       message: `Record factory ${this.file} metadata`,
@@ -88,8 +99,9 @@ class MetadataStore {
   async update(fn, options) {
     for (let attempt = 0; attempt < 3; attempt++) {
       const { state, commit } = await this.read(options);
-      const result = await fn(state);
+      const result = await fn(state, commit);
       if (!result?.state) throw Error("Metadata mutation must return state");
+      if (result.unchanged === true) return { ...result, commit };
       try {
         return { ...result, commit: await this.save(result.state, commit) };
       } catch (e) {

@@ -73,9 +73,15 @@ async function verifyAlertCI(api, pr, run, config, bound = false) {
   return receipt;
 }
 
-async function verifiedRun(api, id, attempt, file, { terminal = true, success = true } = {}) {
+async function verifiedRun(
+  api,
+  id,
+  attempt,
+  file,
+  { terminal = true, success = true, fetchedRun = null } = {}
+) {
   const [run, workflow] = await Promise.all([
-    api.request("GET", `${ROOT}/actions/runs/${id}/attempts/${attempt}`),
+    fetchedRun || api.request("GET", `${ROOT}/actions/runs/${id}/attempts/${attempt}`),
     api.request("GET", `${ROOT}/actions/workflows/${file}`),
   ]);
   if (
@@ -281,15 +287,7 @@ async function classifySignal({ api, event, context, vars = {}, ledger = new Led
     }
     return null;
   }
-  if (
-    ![
-      "factory-automatic.yml",
-      "factory-dependencies.yml",
-      "factory-agents.yml",
-      "factory-discovery.yml",
-    ].some((f) => source.path === `.github/workflows/${f}`)
-  )
-    return null;
+  if (!Object.hasOwn(c.DRAIN_LANES, source.path)) return null;
   const r = await verifiedRun(
     api,
     String(source.id),
@@ -311,7 +309,7 @@ async function classifySignal({ api, event, context, vars = {}, ledger = new Led
     return null;
   return {
     kind: "drain",
-    lane: source.path.endsWith("factory-dependencies.yml") ? "dependency" : "app",
+    lane: c.DRAIN_LANES[r.path],
     number: grants[0].ticket,
     head: r.head_sha,
     criteriaHash: c.digest(grants.map((g) => g.id).sort()),

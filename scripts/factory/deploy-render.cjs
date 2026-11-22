@@ -216,4 +216,12 @@ async function waitForRelease({
   );
 }
 
-module.exports = { APP_URL, triggerDeploy, waitForRelease };
+async function readLiveRelease(fetch = globalThis.fetch) {
+  const response = await request(fetch, `${APP_URL}/healthz`, "GET", 10000);
+  const data = parseJson(response.text);
+  return response.status === 200 && data?.status === "ok" && SHA.test(data.release || "")
+    ? data.release
+    : null;
+}
+
+module.exports = { APP_URL, triggerDeploy, waitForRelease, readLiveRelease };

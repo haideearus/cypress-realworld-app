@@ -1,0 +1,80 @@
+name: Close verified app repairs
+on:
+  workflow_run:
+    workflows: [Approved production deployment]
+    branches: [main]
+    types: [completed]
+  schedule:
+    - cron: "25 4,16 * * *"
+  workflow_dispatch:
+    inputs:
+      deployment_run_id:
+        description: Successful production deployment run to inspect
+        required: true
+        type: string
+      ticket:
+        description: Application maintenance issue number to preview
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+  issues: read
+  pull-requests: read
+jobs:
+  preview:
+    if: ${{ github.repository == 'haideearus/cypress-realworld-app' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && github.run_attempt == 1 && github.actor == 'haideearus' && github.actor == github.triggering_actor }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+          sparse-checkout: scripts/factory
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.20.0
+      - name: Preview eligibility without closing any issue
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/factory/ticket-closure.cjs
+  close:
+    if: >-
+      ${{ github.repository == 'haideearus/cypress-realworld-app' &&
+          github.ref == 'refs/heads/main' && github.run_attempt == 1 &&
+          github.actor == github.triggering_actor &&
+          vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' &&
+          ((github.event_name == 'schedule' && github.actor == 'haideearus') ||
+           (github.event_name == 'workflow_run' &&
+            (github.actor == 'haideearus' || github.actor == 'haideearus-software-factory[bot]') &&
+            github.event.workflow_run.conclusion == 'success' &&
+            github.event.workflow_run.head_branch == 'main' &&
+            github.event.workflow_run.repository.full_name == github.repository &&
+            github.event.workflow_run.head_repository.full_name == github.repository)) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    concurrency:
+      group: factory-ticket-closure
+      cancel-in-progress: false
+      queue: max
+    permissions:
+      contents: read
+      actions: read
+      issues: write
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+          sparse-checkout: scripts/factory
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.20.0
+      - name: Verify the live release and close the reviewed repairs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          FACTORY_ENABLED: ${{ vars.FACTORY_ENABLED }}
+          FACTORY_AUTOMATION_ENABLED: ${{ vars.FACTORY_AUTOMATION_ENABLED }}
+        run: node scripts/factory/ticket-closure.cjs

@@ -108,17 +108,23 @@ can bind/reconcile it; never blindly resend the POST. A failed/cancelled produce
 cannot grant a later new reservation. Existing cron can still inspect the queue
 under ordinary limits; no counter or receipt is erased to manufacture a retry.
 
-Activity publication uses a CAS intent, a deterministic comment marker, a bounded
-comment lookup and an acknowledged comment ID. If a POST may have succeeded, a
-later observation reconciles the matching bot comment. If proof is unavailable,
-the intent stays held; no duplicate comment is sent speculatively.
+Activity publication uses a compare-and-swap intent, a deterministic comment
+marker and an acknowledged comment ID. After an ambiguous POST, the publisher
+looks for the same marker and verified bot author. It narrows the search to the
+source run's lifetime and reads up to 20 pages. An incomplete search leaves the
+receipt open for reconciliation and other events can still be published.
 
-Registries retain replay identities and unresolved intents. The initial bounds
-are 1,200 wake receipts, 1,400 activity records and one megabyte per registry;
-lookup examines at most 1,000 journal comments. On saturation, hold the affected
-metadata work and report owner maintenance. There is no automatic deletion,
-counter reset, unsafely compacted replay index or hidden model attempt. Bound
-maintenance is a later explicit operation; do not manually erase branches.
+The next activity write upgrades a legacy registry in place. It keeps queued and
+unresolved receipts in `activity.json` and moves each acknowledged event ID and
+comment ID to its own file in the same `factory/activity` commit. Later writes
+preserve those files. Older Git commits and journal comments retain full event
+history. A replay checks one event's archive path at the same commit used to
+claim publication.
+
+The activity hot file retains its one-megabyte bound and its 1,400 unresolved
+receipt limit. The wake registry retains its separate 1,200-receipt bound.
+If unresolved activity fills the hot file, inspect the retained receipts and
+journal before recovering publication. Keep the registry branch and its history.
 
 The activity observer polls actual job/step metadata every 20 seconds during a
 bounded 80-minute window on an in-progress source event. A separate completion

@@ -355,3 +355,97 @@ test("a second sweep on a newer main head rotates to the other functional charte
   assert.equal(second.ready, true);
   assert.notEqual(second.charter, first.charter);
 });
+
+test("a delayed Bucharest schedule reaches the usual metered admission and releases no extra budget", async (t) => {
+  const d = require("../factory/discovery-contract.cjs");
+  const now = new Date("2026-11-22T06:39:00Z");
+  t.mock.timers.enable({ apis: ["Date"], now });
+  const env = {
+    GITHUB_REPOSITORY: p.REPOSITORY,
+    GITHUB_ACTOR: p.OWNER,
+    GITHUB_TRIGGERING_ACTOR: p.OWNER,
+    GITHUB_REF: "refs/heads/main",
+    GITHUB_WORKFLOW_REF: d.WORKFLOW_REF,
+    GITHUB_WORKFLOW_SHA: head,
+    GITHUB_RUN_ID: "100",
+    GITHUB_RUN_ATTEMPT: "1",
+    GITHUB_EVENT_NAME: "schedule",
+    FACTORY_VARIABLES: JSON.stringify({
+      ...vars,
+      FACTORY_DISCOVERY_ENABLED: "true",
+      FACTORY_AUTOMATION_ENABLED: "true",
+      FACTORY_GITHUB_APP_CLIENT_ID: "Iv1.fixture123456",
+      FACTORY_GITHUB_APP_SLUG: "fixture-factory",
+    }),
+  };
+  const api = {
+    async request(method, path, body) {
+      if (method === "POST") {
+        assert.ok(path.endsWith("/issues"));
+        return {
+          ...body,
+          number: 151,
+          state: "open",
+          user: { login: "github-actions[bot]", id: 41898282 },
+        };
+      }
+      assert.equal(method, "GET");
+      if (path.endsWith("/branches/main")) return { commit: { sha: head } };
+      assert.ok(path.endsWith("/actions/runs/100"));
+      return {
+        id: 100,
+        run_attempt: 1,
+        path: ".github/workflows/factory-discovery.yml",
+        head_sha: head,
+        head_branch: "main",
+        repository: { full_name: p.REPOSITORY },
+        actor: { login: p.OWNER, id: 101267861 },
+        triggering_actor: { login: p.OWNER, id: 101267861 },
+        event: "schedule",
+        status: "in_progress",
+      };
+    },
+    async pages(path) {
+      if (path.includes("/workflows/factory-ci.yml/"))
+        return [
+          {
+            id: 99,
+            head_sha: head,
+            head_branch: "main",
+            event: "push",
+            path: ".github/workflows/factory-ci.yml",
+            status: "completed",
+            conclusion: "success",
+            repository: { full_name: p.REPOSITORY },
+            run_attempt: 1,
+          },
+        ];
+      if (path.includes("/actions/runs/99/"))
+        return [{ name: "verify", head_sha: head, conclusion: "success" }];
+      assert.ok(path.includes("/issues?state=open&labels=factory-ready"));
+      return [];
+    },
+  };
+  let state = p.emptyState(p.REPOSITORY);
+  const ledger = {
+    async read() {
+      return { state };
+    },
+    async update(fn) {
+      const r = fn(state);
+      state = r.state;
+      return r;
+    },
+  };
+  const result = await require("../factory/discovery-run.cjs").main(env, {
+    api,
+    ledger,
+    store: registry(),
+    now,
+  });
+  assert.equal(result?.grant?.phase, "discover");
+  assert.equal(result.grant.ticket, 151);
+  assert.equal(result.grant.at, "2026-11-22T06:39:00.000Z");
+  assert.deepEqual(state.days["2026-11-22"], [151]);
+  assert.equal(Object.keys(state.grants).length, 1);
+});

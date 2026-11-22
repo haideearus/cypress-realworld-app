@@ -294,21 +294,27 @@ async function noteResolution(options) {
     select: (r) => r,
     body:
       row.status === "repair-merged"
-        ? `Protected repair PR #${row.resolution.pr} merged as ${row.resolution.mergeCommit}. This records a reviewed code repair, not production deployment or live-monitor verification.\n<!-- discovery-repair-merged:${row.candidate.key} -->`
+        ? `Protected repair PR #${row.resolution.pr} merged as ${row.resolution.mergeCommit}. The production closure workflow verifies the deployed repair before completing the issue.\n<!-- discovery-repair-merged:${row.candidate.key} -->`
         : `Observed resolved on tested main ${row.intake.head}: the original reproducer passed and two isolated oracle checks no longer found the violation. No factory-authored repair or production verification is claimed.\nReceipt ${row.intake.id}; evidence https://github.com/${c.REPOSITORY}/actions/runs/${row.intake.context.runId}.\n<!-- discovery-observed-resolved:${row.candidate.key} -->`,
   });
   const saved = (await options.store.read()).state.records[options.key];
   if (!saved.comment?.id || (await options.ledger.read()).state.stop) return;
   const issue = await options.api.request("GET", `${ROOT}/issues/${saved.publication.issue}`);
-  if (!issueMatches(issue, saved)) throw Error("Resolved finding issue criteria changed");
-  if (issue.state === "open")
-    await options.api.request("PATCH", `${ROOT}/issues/${issue.number}`, {
-      state: "closed",
-      state_reason: "completed",
-    });
-  const confirmed = await options.api.request("GET", `${ROOT}/issues/${issue.number}`);
-  if (confirmed.state !== "closed" || !issueMatches(confirmed, saved))
-    throw Error("Finding closure response uncertain");
+  if (issue.number !== saved.publication.issue || !issueMatches(issue, saved))
+    throw Error("Resolved finding issue criteria changed");
+  if (saved.status === "repair-merged") {
+    // The production closure workflow owns the write. Reconcile the receipt only.
+    if (issue.state !== "closed" || issue.state_reason !== "completed") return;
+  } else {
+    if (issue.state === "open")
+      await options.api.request("PATCH", `${ROOT}/issues/${issue.number}`, {
+        state: "closed",
+        state_reason: "completed",
+      });
+    const confirmed = await options.api.request("GET", `${ROOT}/issues/${issue.number}`);
+    if (confirmed.state !== "closed" || !issueMatches(confirmed, saved))
+      throw Error("Finding closure response uncertain");
+  }
   await options.store.update((s) => {
     s.records[options.key].resolutionClosed = true;
     s.records[options.key].resolutionHeld = false;
@@ -374,16 +380,39 @@ async function recurrenceAllowed(api, previous, candidate) {
   );
 }
 async function reconcileResolutions(options, { key, eligible = () => true } = {}) {
-  const rows = Object.values((await options.store.read()).state.records)
-    .filter(
-      (r) =>
-        ["observed-resolved", "repair-merged"].includes(r.status) &&
-        eligible(r.candidate) &&
-        !r.resolutionClosed &&
-        (key ? r.candidate.key === key : !r.resolutionHeld)
-    )
-    .slice(0, 4);
-  for (const row of rows) {
+  const rows = Object.values((await options.store.read()).state.records).filter(
+    (r) =>
+      ["observed-resolved", "repair-merged"].includes(r.status) &&
+      eligible(r.candidate) &&
+      !r.resolutionClosed &&
+      (key ? r.candidate.key === key : !r.resolutionHeld)
+  );
+  const awaitingDeployment = (row) => row.status === "repair-merged" && Boolean(row.comment?.id);
+  const selected = key ? rows : rows.filter((row) => !awaitingDeployment(row));
+  if (!key && selected.length < 4 && rows.some(awaitingDeployment)) {
+    // Prefer unsent notes and no-code resolutions. Open deployment holds cannot
+    // fill the batch, and recent completed issues can be reconciled in one read.
+    let recent;
+    try {
+      recent = await options.api.request(
+        "GET",
+        `${ROOT}/issues?state=closed&labels=factory-ready&sort=updated&direction=desc&per_page=100`
+      );
+    } catch {
+      // A temporary lookup failure leaves these receipts for a later run.
+    }
+    if (Array.isArray(recent) && recent.length <= 100) {
+      const completed = new Set(
+        recent
+          .filter((issue) => issue?.state === "closed" && issue.state_reason === "completed")
+          .map((issue) => issue.number)
+      );
+      selected.push(
+        ...rows.filter((row) => awaitingDeployment(row) && completed.has(row.publication.issue))
+      );
+    }
+  }
+  for (const row of selected.slice(0, 4)) {
     try {
       if (row.status === "observed-resolved") {
         const origin = require("./discovery-origin.cjs");

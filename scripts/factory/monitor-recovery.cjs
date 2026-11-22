@@ -94,6 +94,9 @@ async function approvedDeployment(api, merge, context) {
   const listed = candidates[0];
   const run = await api.request("GET", `${ROOT}/actions/runs/${listed.id}`);
   requireProof(run.id === listed.id);
+  return verifyApprovedDeploymentRun(api, run, merge, context);
+}
+async function verifyApprovedDeploymentRun(api, run, merge, context) {
   await workflowRun(api, run, "factory-deploy.yml", merge, {
     firstAttempt: true,
     event: ["workflow_run", "workflow_dispatch"],
@@ -351,4 +354,4 @@ async function retireIncident(options) {
   await store.save(state, commit);
   return { outcome: "incident_retired", issue: incident.issue, observation };
 }
-module.exports = { verifyRepair, retireIncident };
+module.exports = { verifyRepair, retireIncident, verifyApprovedDeploymentRun };
