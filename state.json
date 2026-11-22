@@ -3179,7 +3179,11 @@
       "approval": null,
       "criteriaHash": "28c063826407b1d96c592c66191269ceeb6bc60399f9ea8896b18d31a2a6e43b",
       "branch": "agent/parallel-factory-ci",
-      "ci": null
+      "ci": {
+        "requestId": "03680270-da3d-427f-af9c-e6b9f53fd497",
+        "head": "32c3bc20757f0df79ce970b6eac0a556c6aef1db",
+        "runId": null
+      }
     }
   },
   "grants": {
