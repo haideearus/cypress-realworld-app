@@ -113,7 +113,8 @@
       179,
       180,
       182,
-      185
+      185,
+      97
     ]
   },
   "tickets": {
@@ -1903,6 +1904,17 @@
         "actor": "haideearus",
         "decision": "https://github.com/haideearus/cypress-realworld-app/issues/103"
       }
+    },
+    "97": {
+      "coding": 1,
+      "origin": "factory",
+      "reviews": 0,
+      "retries": 0,
+      "head": "6529cbb8b2d3cad7689170057fdadde344a38415",
+      "status": "coding",
+      "pr": null,
+      "approval": null,
+      "criteriaHash": "1555ed01347617394c287d5e4be22faae43b69a7919c70e66282e8c4ff400c3d"
     },
     "98": {
       "coding": 0,
@@ -4677,9 +4689,24 @@
       "status": "finished",
       "at": "2026-11-22T16:02:44.167Z",
       "outcome": "reviewed"
+    },
+    "c7475db9-4f86-49e0-9f5e-49de1dd88610": {
+      "id": "c7475db9-4f86-49e0-9f5e-49de1dd88610",
+      "ticket": 97,
+      "phase": "code",
+      "slot": "cycle1",
+      "runId": "45043079290",
+      "runAttempt": 1,
+      "head": "6529cbb8b2d3cad7689170057fdadde344a38415",
+      "status": "reserved",
+      "at": "2026-11-22T16:18:36.073Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 97,
+    "runId": "45043079290",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -7963,6 +7990,16 @@
       "grant": "2144808c-1f35-429a-b624-d4d051980212",
       "status": "reviewed",
       "head": "581bf82bc9245f11245d8f62787ef6248f780bfe"
+    },
+    {
+      "at": "2026-11-22T16:18:36.073Z",
+      "event": "reserved",
+      "ticket": 97,
+      "grant": "c7475db9-4f86-49e0-9f5e-49de1dd88610",
+      "phase": "code",
+      "runId": "45043079290",
+      "runAttempt": 1,
+      "actor": "haideearus"
     }
   ]
 }
