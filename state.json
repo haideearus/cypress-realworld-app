@@ -3295,7 +3295,11 @@
       "approval": null,
       "criteriaHash": "8c221013b81dd7ac52dd48b23e12dad0ce6b2c879f44a8c7e147f6d2175f8f59",
       "branch": "agent/held-dependency-queue",
-      "ci": null
+      "ci": {
+        "requestId": "6afff653-ab9e-4832-a84a-3003d69066e6",
+        "head": "907ea4b6c3215f9d99539012fb294de30fa2e80c",
+        "runId": null
+      }
     }
   },
   "grants": {
