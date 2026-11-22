@@ -104,6 +104,9 @@
       163,
       166,
       168
+    ],
+    "2026-11-22": [
+      172
     ]
   },
   "tickets": {
@@ -3034,6 +3037,19 @@
         "workflowSha": "49ba458d4b8180e03a9a0f2bc4aa5f04a35580aa",
         "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-discovery.yml@refs/heads/main"
       }
+    },
+    "172": {
+      "coding": 0,
+      "origin": "owner-pr",
+      "reviews": 1,
+      "retries": 0,
+      "head": "f7b8008d73f69328c3ba679ad711c4d59870f4ac",
+      "status": "reviewing",
+      "pr": 171,
+      "approval": null,
+      "criteriaHash": "d7d3e2aafd51a9cae1cab3d41156e6f1d91f1ee49bb8f450527be896ac199ead",
+      "branch": "agent/verified-ticket-closure-and-recovery",
+      "ci": null
     }
   },
   "grants": {
@@ -4381,9 +4397,24 @@
       "status": "finished",
       "at": "2026-11-21T21:49:38.398Z",
       "outcome": "discovery_complete"
+    },
+    "02116832-3717-48f0-96fb-933ced479e65": {
+      "id": "02116832-3717-48f0-96fb-933ced479e65",
+      "ticket": 172,
+      "phase": "review",
+      "slot": "existing",
+      "runId": "45007512684",
+      "runAttempt": 1,
+      "head": "f7b8008d73f69328c3ba679ad711c4d59870f4ac",
+      "status": "reserved",
+      "at": "2026-11-22T09:26:22.264Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 172,
+    "runId": "45007512684",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -7524,6 +7555,16 @@
       "grant": "5fddeea1-8db4-4857-a23f-9ba435afd13d",
       "phase": "discover",
       "status": "discovery_complete"
+    },
+    {
+      "at": "2026-11-22T09:26:22.264Z",
+      "event": "reserved",
+      "ticket": 172,
+      "grant": "02116832-3717-48f0-96fb-933ced479e65",
+      "phase": "review",
+      "runId": "45007512684",
+      "runAttempt": 1,
+      "actor": "haideearus"
     }
   ]
 }
