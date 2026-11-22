@@ -145,6 +145,14 @@
       "phase": "tracking",
       "issue": 189,
       "pr": null
+    },
+    "1113b8b4ae7410c26c2dfd78c5fdda4c34261b65618f5e3317501b297978dd86": {
+      "name": "extract-zip",
+      "day": "2026-11-22",
+      "trackingReason": "advisory-held",
+      "phase": "tracking-intent",
+      "issue": null,
+      "pr": null
     }
   }
 }
