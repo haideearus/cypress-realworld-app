@@ -254,6 +254,29 @@
       },
       "status": "intent",
       "commentId": null
+    },
+    "1d4622562ab3094effa5e071bfb5fc7a27ce282e8cd0835a15d78550c15d5f00": {
+      "event": {
+        "id": "1d4622562ab3094effa5e071bfb5fc7a27ce282e8cd0835a15d78550c15d5f00",
+        "producer": {
+          "runId": "45011581336",
+          "runAttempt": 1,
+          "workflow": "factory-activity.yml",
+          "workflowSha": "ca532dd17a9d70a5ef3b112a2f8d2dea2a970480",
+          "phase": "issue-closed",
+          "actor": "haideearus"
+        },
+        "kind": "issue",
+        "state": "completed",
+        "subject": 154,
+        "head": "ca532dd17a9d70a5ef3b112a2f8d2dea2a970480",
+        "summary": "Issue 154 lifecycle action closed; not marked ready.",
+        "links": [
+          "https://github.com/haideearus/cypress-realworld-app/issues/154"
+        ]
+      },
+      "status": "intent",
+      "commentId": null
     }
   },
   "lastMonitor": {
