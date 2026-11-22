@@ -3049,7 +3049,11 @@
       "approval": null,
       "criteriaHash": "d7d3e2aafd51a9cae1cab3d41156e6f1d91f1ee49bb8f450527be896ac199ead",
       "branch": "agent/verified-ticket-closure-and-recovery",
-      "ci": null
+      "ci": {
+        "requestId": "52e3b9f6-cfe1-41fa-a60d-c05a742d90d6",
+        "head": "f7b8008d73f69328c3ba679ad711c4d59870f4ac",
+        "runId": null
+      }
     }
   },
   "grants": {
