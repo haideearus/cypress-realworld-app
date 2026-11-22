@@ -112,7 +112,8 @@
       178,
       179,
       180,
-      182
+      182,
+      185
     ]
   },
   "tickets": {
@@ -3206,6 +3207,19 @@
       "pr": null,
       "approval": null,
       "criteriaHash": "64d480c48d4f17261d5f33961beba14fcd5adf3fa90952b722ee37acb193f222"
+    },
+    "185": {
+      "coding": 0,
+      "origin": "owner-pr",
+      "reviews": 1,
+      "retries": 0,
+      "head": "581bf82bc9245f11245d8f62787ef6248f780bfe",
+      "status": "reviewing",
+      "pr": 184,
+      "approval": null,
+      "criteriaHash": "08c4f61dac6206845c182cf57ac67b7e9c557171dd85d70a53baa1b98e5d5ed8",
+      "branch": "agent/reduce-factory-github-api-usage",
+      "ci": null
     }
   },
   "grants": {
@@ -4637,9 +4651,24 @@
       "status": "finished",
       "at": "2026-11-22T15:56:34.252Z",
       "outcome": "blocked"
+    },
+    "2144808c-1f35-429a-b624-d4d051980212": {
+      "id": "2144808c-1f35-429a-b624-d4d051980212",
+      "ticket": 185,
+      "phase": "review",
+      "slot": "existing",
+      "runId": "45041564826",
+      "runAttempt": 1,
+      "head": "581bf82bc9245f11245d8f62787ef6248f780bfe",
+      "status": "reserved",
+      "at": "2026-11-22T16:02:44.167Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 185,
+    "runId": "45041564826",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -7905,6 +7934,16 @@
       "ticket": 182,
       "actor": "haideearus",
       "runId": "45041027827"
+    },
+    {
+      "at": "2026-11-22T16:02:44.167Z",
+      "event": "reserved",
+      "ticket": 185,
+      "grant": "2144808c-1f35-429a-b624-d4d051980212",
+      "phase": "review",
+      "runId": "45041564826",
+      "runAttempt": 1,
+      "actor": "haideearus"
     }
   ]
 }
