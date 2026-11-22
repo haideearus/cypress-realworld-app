@@ -105,6 +105,14 @@
       "phase": "tracking",
       "issue": 167,
       "pr": null
+    },
+    "6c70011231315799791bee63b9af3c8907fab5dfa1c47548cd9bfa57eb825e4a": {
+      "name": "@faker-js/faker",
+      "day": "2026-11-22",
+      "trackingReason": "major-held",
+      "phase": "tracking-intent",
+      "issue": null,
+      "pr": null
     }
   }
 }
