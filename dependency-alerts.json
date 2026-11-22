@@ -185,8 +185,8 @@
       "name": "glob",
       "day": "2026-11-23",
       "trackingReason": "major-held",
-      "phase": "tracking-intent",
-      "issue": null,
+      "phase": "tracking",
+      "issue": 197,
       "pr": null
     }
   },
