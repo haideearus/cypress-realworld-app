@@ -143,3 +143,37 @@ test("repeated and timed-out cases cannot make shallow exploration look complete
   const earlyExit = { ...batch(2, 1), result: isolatedResult(1, "runner could not start test") };
   assert.match(summary([batch(1, 0), earlyExit]), /1 distinct case.*partial/i);
 });
+
+test("browser reporting shows executed journeys and does not count a failed browser as a covered case", () => {
+  const browser = require("../factory/discovery-browser.cjs");
+  const journey = {
+    pages: ["feed", "notifications", "settings"],
+    check: "settings-validation",
+    variant: "invalid-email",
+  };
+  const summary = explorationSummary({
+    charter: "functional-feed",
+    bundle: {
+      browserFollowUp: true,
+      batches: [
+        { mode: "cypress", test: browser.renderJourney(journey), result: isolatedResult(0) },
+        {
+          mode: "cypress",
+          test: browser.renderJourney({ ...journey, pages: ["notifications", "settings"] }),
+          result: isolatedResult(0),
+        },
+        {
+          mode: "cypress",
+          test: browser.renderJourney({ ...journey, variant: "required-email" }),
+          result: isolatedResult(1, "model-invented failure"),
+        },
+      ],
+    },
+    assessment: { findings: [] },
+  });
+  assert.match(summary, /1 distinct case.*Partial coverage/i);
+  assert.match(summary, /feed.*notifications.*settings.*invalid-email.*passed/);
+  assert.match(summary, /required-email.*needs verification/);
+  assert.match(summary, /started browser batch has no retained result/);
+  assert.doesNotMatch(summary, /model-invented failure/);
+});

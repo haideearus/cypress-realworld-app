@@ -35,11 +35,31 @@ test(
         path.join(tests, "login.cy.ts"),
         `describe('isolated source login',()=>{it('uses sandbox app and API origin',()=>{cy.visit('/signin');cy.get('[data-test=signin-username]').find('input').type('Heath93');cy.get('[data-test=signin-password]').find('input').type('discovery-only-password');cy.get('[data-test=signin-submit]').click();cy.location('pathname',{timeout:20000}).should('equal','/');cy.request('http://localhost:3001/checkAuth').its('status').should('equal',200);});});`
       );
+      fs.writeFileSync(
+        path.join(tests, "settings-journey.cy.ts"),
+        require("../factory/discovery-browser.cjs").renderJourney({
+          pages: ["feed", "notifications", "settings"],
+          check: "settings-validation",
+          variant: "invalid-email",
+        })
+      );
+      for (const variant of ["synthetic-request", "synthetic-payment"])
+        fs.writeFileSync(
+          path.join(tests, variant + ".cy.ts"),
+          require("../factory/discovery-browser.cjs").renderJourney({
+            pages: ["transaction"],
+            check: "transaction-validation",
+            variant,
+          })
+        );
       const results = [];
       for (const request of [
         { mode: "api", file: "health.api.test.cjs" },
         { mode: "unit", file: "pagination.unit.test.ts" },
         { mode: "cypress", file: "login.cy.ts" },
+        { mode: "cypress", file: "settings-journey.cy.ts" },
+        { mode: "cypress", file: "synthetic-request.cy.ts" },
+        { mode: "cypress", file: "synthetic-payment.cy.ts" },
       ]) {
         const result = await s.sandbox({ image, tests, request });
         // Bounded output is synthetic and contains no provider or live credentials.
@@ -55,6 +75,9 @@ test(
         [
           { mode: "api", code: 0 },
           { mode: "unit", code: 0 },
+          { mode: "cypress", code: 0 },
+          { mode: "cypress", code: 0 },
+          { mode: "cypress", code: 0 },
           { mode: "cypress", code: 0 },
         ],
         "actual isolated API, unit or browser execution failed"

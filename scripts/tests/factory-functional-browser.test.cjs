@@ -1,10 +1,11 @@
 const assert = require("node:assert/strict");
 const { test } = require("node:test");
-const { ASSERTIONS } = require("../factory/functional-discovery-contract.cjs");
+const { functionalChecks } = require("../factory/functional-discovery-contract.cjs");
 
-const checks = Object.keys(ASSERTIONS);
+const checks = functionalChecks();
 
-function report(failures = {}) {
+function report(failures = {}, extended = false) {
+  const checks = functionalChecks(extended);
   const tests = checks.map((check) => {
     const error = failures[check];
     const state = error ? "failed" : "passed";
@@ -96,6 +97,27 @@ test("new browser journeys confirm only exact approved repeat failures", async (
       passedChecks: checks.filter((known) => known !== check),
     });
   }
+});
+
+test("weekly runs require the full suite and match repeat failures by check and assertion", async () => {
+  const { inspectAttempt, verifyFunctionalChecks } = require("../factory/functional-browser.cjs");
+  const weekly = report(
+    {
+      "request-acceptance": assertion("request-acceptance-balances"),
+    },
+    true
+  );
+  assert.equal(inspectAttempt(report(), true), undefined);
+  assert.equal(inspectAttempt(weekly), undefined);
+  const evidence = inspectAttempt(weekly, true);
+  const verdict = await verifyFunctionalChecks(async () => evidence, true);
+  assert.equal(verdict.status, "confirmed_failure");
+  assert.equal(verdict.check, "request-acceptance");
+  assert.equal(verdict.assertion, "request-acceptance-balances");
+  assert.match(
+    require("../factory/functional-browser.cjs").browserSummary(verdict, true),
+    /Weekly full browser regression/
+  );
 });
 
 test("all passing checks produce a healthy verdict without a retry", async () => {
@@ -285,5 +307,39 @@ test("the app and browser child environment excludes Actions file commands and c
       HOME: "fixture-home",
       DISPLAY: ":1",
     }
+  );
+});
+
+test("each weekly replay gets its own loopback database and cleans only that fixture", async () => {
+  const { withFreshWeeklyDatabase } = require("../factory/functional-browser.cjs");
+  const existing = "postgresql://fixture:fixture@127.0.0.1:5432/rwa_test";
+  const observed = [];
+  const statements = [];
+  class Client {
+    constructor({ connectionString }) {
+      assert.equal(connectionString, existing);
+    }
+    async connect() {}
+    async query(sql) {
+      statements.push(sql);
+    }
+    async end() {}
+  }
+  for (let i = 0; i < 2; i++)
+    await withFreshWeeklyDatabase(
+      existing,
+      async (uri) => observed.push(new URL(uri).pathname),
+      Client
+    );
+  assert.notEqual(observed[0], observed[1]);
+  for (const [i, path] of observed.entries()) {
+    assert.match(path, /^\/factory_weekly_[a-f0-9]{32}_test$/);
+    const name = path.slice(1);
+    assert.equal(statements[i * 2], `CREATE DATABASE "${name}"`);
+    assert.equal(statements[i * 2 + 1], `DROP DATABASE "${name}" WITH (FORCE)`);
+  }
+  await assert.rejects(
+    withFreshWeeklyDatabase("postgresql://fixture@production.example/rwa_test", () => {}, Client),
+    /Disposable loopback/
   );
 });

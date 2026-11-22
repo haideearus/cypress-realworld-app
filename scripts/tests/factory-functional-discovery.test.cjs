@@ -73,7 +73,13 @@ test("browser discovery defaults to preview and separates tests from the publish
   const preflight = browserSteps.find(
     (step) => step.name === "Verify functional discovery CI trigger"
   );
-  assert.match(preflight.if, /github.event_name == 'workflow_run'/);
+  assert.equal(preflight.env.FACTORY_FUNCTIONAL_OPERATION, "plan");
+  assert.equal(workflow.on.workflow_dispatch.inputs.extended.default, false);
+  assert.ok(
+    workflow.on.schedule.some(
+      (entry) => entry.cron === "20 7 * * 0" && entry.timezone === "Europe/Bucharest"
+    )
+  );
   assert.ok(
     browserSteps.indexOf(preflight) <
       browserSteps.findIndex((step) => step.name === "Prepare the disposable application")
@@ -432,4 +438,64 @@ test("only a repeated named onboarding failure produces one ready repair ticket"
   );
   assert.equal(s.posts(), 1);
   assert.match(s.ticket().body, /Failed assertion: onboarding-save-rejected/);
+});
+
+test("a weekly-only failure publishes a ready ticket and a short run cannot claim recovery", async () => {
+  const { publishFunctional, selectCoverage } = require("../factory/functional-discovery.cjs");
+  const s = publisherFixture();
+  const args = {
+    ...s,
+    context,
+    status: "confirmed_failure",
+    check: "request-decline",
+    assertion: "request-decline-balances",
+    enabled: true,
+    dryRun: false,
+  };
+  assert.equal(await selectCoverage(s.store, false), false);
+  await assert.rejects(publishFunctional(args), /coverage/);
+  assert.equal(s.posts(), 0);
+  const created = await publishFunctional({ ...args, extended: true });
+  assert.equal(created.outcome, "incident_created");
+  assert.equal(created.issue, 200);
+  assert.match(s.ticket().body, /request-decline-balances/);
+  assert.equal(await selectCoverage(s.store, false), true);
+  const healthy = { ...args, status: "healthy", check: "", assertion: "" };
+  assert.equal((await publishFunctional(healthy)).outcome, "required_probe_missing");
+  assert.equal(s.state.incidents[s.state.active].recovered, false);
+  assert.equal((await publishFunctional({ ...healthy, extended: true })).outcome, "recovered");
+  assert.equal(s.state.incidents[s.state.active].recovered, true);
+  assert.equal(s.posts(), 1);
+});
+
+test("passing the active weekly assertion twice records recovery even when another check fails", async () => {
+  const { publishFunctional } = require("../factory/functional-discovery.cjs");
+  const s = publisherFixture();
+  const args = {
+    ...s,
+    context,
+    status: "confirmed_failure",
+    check: "request-decline",
+    assertion: "request-decline-balances",
+    enabled: true,
+    dryRun: false,
+    extended: true,
+  };
+  await publishFunctional(args);
+  const differentFailure = {
+    ...args,
+    check: "request-acceptance",
+    assertion: "request-acceptance-notification",
+  };
+  await assert.rejects(
+    publishFunctional({ ...differentFailure, passedChecks: ["request-acceptance"] }),
+    /passed browser checks/
+  );
+  const result = await publishFunctional({
+    ...differentFailure,
+    passedChecks: ["request-decline"],
+  });
+  assert.equal(result.outcome, "recovered");
+  assert.equal(s.state.incidents[s.state.active].recovered, true);
+  assert.equal(s.posts(), 1);
 });

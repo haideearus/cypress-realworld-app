@@ -1,3 +1,4 @@
+const { appendFileSync } = require("node:fs");
 const { readFileSync } = require("node:fs");
 const { GitHub, ROOT } = require("./github.cjs");
 const { REPOSITORY, SHA, assertSubscriptionEnv } = require("./policy.cjs");
@@ -6,6 +7,8 @@ const {
   CHECKS,
   WORKFLOW_PATH,
   PROBE_MODE,
+  WEEKLY_CHECKS,
+  functionalChecks,
   validAssertion,
   validateFunctionalResult,
 } = require("./functional-discovery-contract.cjs");
@@ -119,6 +122,12 @@ Evidence: https://github.com/${REPOSITORY}/actions/runs/${incident.source.runId}
   };
 }
 
+async function selectCoverage(store, requested) {
+  if (requested) return true;
+  const { state } = await store.read();
+  return WEEKLY_CHECKS.includes(state.incidents[state.active]?.functionalCheck);
+}
+
 async function publishFunctional({
   api,
   context,
@@ -128,16 +137,29 @@ async function publishFunctional({
   assertion,
   enabled,
   dryRun,
+  extended = false,
+  passedChecks = [],
   store = new MonitorStore(api, "functional"),
 }) {
   assertContext(context);
   if (
     typeof enabled !== "boolean" ||
     typeof dryRun !== "boolean" ||
+    typeof extended !== "boolean" ||
     (context.eventName !== "workflow_dispatch" && dryRun)
   )
     throw Error("Untrusted functional discovery context");
   const observation = validateFunctionalResult(status, check, assertion);
+  const coverage = functionalChecks(extended);
+  if (observation.check && !coverage.includes(observation.check))
+    throw Error("Finding outside this run's approved browser coverage");
+  if (
+    !Array.isArray(passedChecks) ||
+    (passedChecks.length > 0 && status !== "confirmed_failure") ||
+    passedChecks.some((id) => id === observation.check || !coverage.includes(id)) ||
+    new Set(passedChecks).size !== passedChecks.length
+  )
+    throw Error("Invalid passed browser checks");
   if (dryRun) return { outcome: "preview", observation, modelCalls: 0 };
   if (!enabled) return { outcome: "disabled", modelCalls: 0 };
   if (observation.status === "inconclusive") return { outcome: "inconclusive", modelCalls: 0 };
@@ -149,6 +171,8 @@ async function publishFunctional({
     store,
     observation,
     probeMode: PROBE_MODE,
+    functionalChecks: coverage,
+    functionalPassed: passedChecks,
     issueText: renderIssueText,
   });
   return { ...result, modelCalls: 0 };
@@ -178,9 +202,15 @@ async function main(env = process.env) {
     context.eventName === "workflow_run"
       ? JSON.parse(readFileSync(env.GITHUB_EVENT_PATH, "utf8"))
       : undefined;
-  if (env.FACTORY_FUNCTIONAL_OPERATION === "verify-trigger") {
-    await verifyCITrigger(api, context, event);
+  if (env.FACTORY_FUNCTIONAL_OPERATION === "plan") {
+    assertContext(context);
+    if (context.eventName === "workflow_run") await verifyCITrigger(api, context, event);
     await assertCurrentMain(api, context);
+    const extended = await selectCoverage(
+      new MonitorStore(api, "functional"),
+      env.FACTORY_FUNCTIONAL_EXTENDED === "true"
+    );
+    if (env.GITHUB_OUTPUT) appendFileSync(env.GITHUB_OUTPUT, `extended=${extended}\n`);
     return;
   }
   const result = await publishFunctional({
@@ -190,6 +220,8 @@ async function main(env = process.env) {
     status: env.FACTORY_FUNCTIONAL_STATUS,
     check: env.FACTORY_FUNCTIONAL_CHECK || "",
     assertion: env.FACTORY_FUNCTIONAL_ASSERTION || "",
+    extended: env.FACTORY_FUNCTIONAL_EXTENDED === "true",
+    passedChecks: JSON.parse(env.FACTORY_FUNCTIONAL_PASSED_CHECKS || "[]"),
     enabled: env.FACTORY_FUNCTIONAL_DISCOVERY_ENABLED === "true",
     dryRun:
       !["schedule", "workflow_run"].includes(context.eventName) &&
@@ -207,4 +239,4 @@ if (require.main === module)
     process.exitCode = 1;
   });
 
-module.exports = { publishFunctional, publicationSummary };
+module.exports = { publishFunctional, publicationSummary, selectCoverage };

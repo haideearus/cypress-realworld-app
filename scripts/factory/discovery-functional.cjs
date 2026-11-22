@@ -162,10 +162,16 @@ function verifyProposal(charter, source) {
   return oracle;
 }
 
+function verifyBatchProposal(charter, mode, source) {
+  if (mode === "cypress") return require("./discovery-browser.cjs").verifyJourney(source);
+  if (mode !== "api") throw Error("Unsupported discovery batch mode");
+  return verifyProposal(charter, source);
+}
+
 function describeFinding(charter, finding) {
-  const oracle = scenario(charter, finding.oracle);
   if (finding.mode !== "api" || !finding.test.endsWith(".api.test.cjs"))
-    throw Error("Functional discovery accepts fixed API proposals only");
+    throw Error("Only verified API contracts qualify for Claude finding intake");
+  const oracle = scenario(charter, finding.oracle);
   if (charter === "functional-settings")
     return {
       ...finding,
@@ -192,10 +198,7 @@ function describeFinding(charter, finding) {
 
 function verifyFindings(charter, report, batches) {
   assertCharter(charter);
-  for (const batch of batches) {
-    if (batch.mode !== "api") throw Error("Functional discovery accepts fixed API proposals only");
-    verifyProposal(charter, batch.test);
-  }
+  for (const batch of batches) verifyBatchProposal(charter, batch.mode, batch.test);
   for (const finding of report.findings) {
     const expected = describeFinding(charter, finding);
     const latest = batches
@@ -239,6 +242,7 @@ module.exports = {
   sourceAllowed,
   proposal,
   verifyProposal,
+  verifyBatchProposal,
   describeFinding,
   verifyFindings,
   eligibleCandidate,

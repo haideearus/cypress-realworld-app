@@ -1,6 +1,12 @@
 const WORKFLOW_FILE = "factory-functional-discovery.yml";
 const WORKFLOW_PATH = `.github/workflows/${WORKFLOW_FILE}`;
 const PROBE_MODE = "functional-browser";
+const WEEKLY_CHECKS = Object.freeze([
+  "request-acceptance",
+  "request-decline",
+  "transaction-comment",
+  "profile-picture-persistence",
+]);
 const CHECKS = Object.freeze({
   "sign-in": "Browser sign-in",
   navigation: "Home and Settings navigation",
@@ -13,6 +19,10 @@ const CHECKS = Object.freeze({
   "transaction-form-validation": "New transaction form validation",
   "notifications-populated": "Populated Notifications view",
   "notifications-empty": "Empty Notifications view",
+  "request-acceptance": "Receiving and accepting a money request",
+  "request-decline": "Declining a money request without changing balances",
+  "transaction-comment": "Saving a transaction comment through reload",
+  "profile-picture-persistence": "Uploading and reloading a profile picture",
 });
 const ASSERTIONS = Object.freeze({
   "sign-in": ["sign-in-form", "sign-in-route", "sign-in-identity", "sign-in-session"],
@@ -67,6 +77,34 @@ const ASSERTIONS = Object.freeze({
     "notifications-empty-route",
     "notifications-empty-view",
   ],
+  "request-acceptance": [
+    "request-acceptance-created",
+    "request-acceptance-notification",
+    "request-acceptance-action",
+    "request-acceptance-status",
+    "request-acceptance-balances",
+  ],
+  "request-decline": [
+    "request-decline-created",
+    "request-decline-notification",
+    "request-decline-action",
+    "request-decline-status",
+    "request-decline-balances",
+  ],
+  "transaction-comment": [
+    "transaction-comment-saved",
+    "transaction-comment-visible",
+    "transaction-comment-reloaded",
+  ],
+  "profile-picture-persistence": [
+    "avatar-file-control",
+    "avatar-uploaded",
+    "avatar-reference",
+    "avatar-profile-saved",
+    "avatar-success",
+    "avatar-profile-reloaded",
+    "avatar-image-after-reload",
+  ],
   "bank-account-onboarding": [
     "onboarding-wizard",
     "onboarding-save-rejected",
@@ -76,6 +114,10 @@ const ASSERTIONS = Object.freeze({
     "onboarding-account-after-sign-in",
   ],
 });
+
+function functionalChecks(extended = false) {
+  return Object.keys(ASSERTIONS).filter((check) => extended || !WEEKLY_CHECKS.includes(check));
+}
 
 function validAssertion(check, assertion) {
   return (
@@ -108,6 +150,8 @@ module.exports = {
   PROBE_MODE,
   CHECKS,
   ASSERTIONS,
+  WEEKLY_CHECKS,
+  functionalChecks,
   validAssertion,
   validateFunctionalResult,
   functionalIssueCheck,

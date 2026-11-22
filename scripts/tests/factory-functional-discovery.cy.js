@@ -1,3 +1,8 @@
+const { WEEKLY_CHECKS } = require("../factory/functional-discovery-contract.cjs");
+const { registerWeeklyTransactions } = require("./factory-functional-weekly-transactions.cjs");
+const { registerWeeklyAvatar } = require("./factory-functional-weekly-avatar.cjs");
+const extended = Cypress.expose("factoryFunctionalExtended") === true;
+
 const user = { username: "Heath93", password: "s3cret" };
 const firstName = "Ted";
 const settingsPath = "/user/settings";
@@ -150,6 +155,7 @@ describe("functional discovery", () => {
   let rejectFirstSave;
   let sentDemoBank;
   beforeEach(() => {
+    if (extended && WEEKLY_CHECKS.includes(Cypress.currentTest.title)) return;
     const origin = new URL(Cypress.config("baseUrl")).origin;
     const checksOnboarding = Cypress.currentTest.title === onboarding;
     const checksSettingsPersistence = Cypress.currentTest.title === settingsPersistence;
@@ -503,4 +509,8 @@ describe("functional discovery", () => {
     expectInputLabel("username", "Username", "sign-in-username-label");
     expectInputLabel("password", "Password", "sign-in-password-label");
   });
+  if (extended) {
+    registerWeeklyTransactions();
+    registerWeeklyAvatar();
+  }
 });

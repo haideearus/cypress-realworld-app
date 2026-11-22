@@ -10,14 +10,20 @@ const http = require("node:http");
 const origin = "https://127.0.0.1:8443";
 const backend = "http://127.0.0.1:8081";
 
-async function withProductionBrowser({ uri, quiet = false, env = process.env }, check) {
+async function withProductionBrowser(
+  { uri, quiet = false, env = process.env, avatarFixture = false },
+  check
+) {
   const temporary = mkdtempSync(join(tmpdir(), "rwa-browser-test-"));
   const key = join(temporary, "key.pem");
   const cert = join(temporary, "cert.pem");
   let proxy;
   let server;
   let closed;
+  let storage;
   try {
+    if (avatarFixture)
+      storage = await require("./factory/test-avatar-storage.cjs").startAvatarFixture();
     execFileSync(
       process.env.OPENSSL_BINARY || "openssl",
       [
@@ -70,6 +76,7 @@ async function withProductionBrowser({ uri, quiet = false, env = process.env }, 
     server = spawn(process.execPath, ["dist/server/backend/main.js"], {
       env: {
         ...env,
+        ...storage?.env,
         NODE_ENV: "production",
         PORT: "8081",
         HOST: "127.0.0.1",
@@ -105,7 +112,7 @@ async function withProductionBrowser({ uri, quiet = false, env = process.env }, 
       await new Promise((resolve) => setTimeout(resolve, 200));
     }
     if (!ready || stopped) throw new Error("Production server readiness failed");
-    return await check();
+    return await check({ avatarFixtureOrigin: storage?.origin });
   } finally {
     if (proxy?.listening) {
       proxy.closeAllConnections();
@@ -113,6 +120,7 @@ async function withProductionBrowser({ uri, quiet = false, env = process.env }, 
     }
     server?.kill();
     await closed;
+    await storage?.close();
     rmSync(temporary, { recursive: true, force: true });
   }
 }

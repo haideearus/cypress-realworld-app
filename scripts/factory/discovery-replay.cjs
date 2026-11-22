@@ -157,8 +157,12 @@ async function assessCandidates({
       file: batch.file,
       testHash: batch.testHash,
       code: batch.result.code,
+      ...(batch.mode === "cypress"
+        ? { networkIsolated: batch.result.networkIsolated === true }
+        : {}),
     })),
     findings,
+    ...(b.browserFollowUp === true ? { browserFollowUp: true } : {}),
     sourceHash: b.sourceHash,
     coverageComplete: false,
     publication: "not-installed",

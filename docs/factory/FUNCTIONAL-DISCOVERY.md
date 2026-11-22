@@ -36,12 +36,36 @@ identifies the fixed check and assertion IDs, the trusted run, and its commit.
 The publisher verifies the current main revision and uses a separate functional
 incident registry with one open incident and the existing daily publication
 bound. A repeat failure reuses the open incident. A different failed assertion
-leaves the previous incident's recovery state unchanged. If a closed issue's
+keeps the previous incident active unless its own check passed in both browser
+runs. That recovery can proceed while the new finding waits for the slot. If a closed issue's
 incident still has no healthy observation, it can continue to hold the slot.
 Inspect the earlier issue and browser outcomes before relying on publication of
 another finding. The production monitor keeps its own incident slot. Event
 pickup verifies the finished source workflow, successful browser and publisher
 steps, issue text, and retained incident before repair admission.
+
+## Weekly full browser regression
+
+The Sunday 07:20 Europe/Bucharest run adds these cases to the regular suite.
+Each attempt gets a fresh disposable database and avatar fixture:
+
+- Send a synthetic request, match the recipient notification to that request,
+  accept it, and verify both balance changes.
+- Repeat with a fresh request and decline it. Both balances should stay at
+  their starting values.
+- Comment on a synthetic transaction, reload, and verify the comment persists.
+- Upload a small PNG, reload the profile, and verify the saved image loads.
+  The production storage adapter talks to a temporary loopback S3 fixture.
+
+To preview the full suite, tick **Include the weekly transaction, comment and
+profile picture checks** and keep the preview box checked. Normal checks still
+run on their usual events. While a weekly issue is active, those events also
+run the full suite to verify recovery promptly. A short run cannot mark a
+weekly issue as recovered.
+
+A matching named failure can enter the existing `factory-ready` lane. The
+publisher keeps the existing one active incident and daily limit. The weekly
+runner needs no model session, live account, or cloud storage.
 
 ## Preview and activation
 
@@ -59,8 +83,7 @@ steps, issue text, and retained incident before repair admission.
 
 The CI trigger verifies a first, successful **Factory CI / verify** job from a
 same-repository push to the current `main` commit. It accepts CI initiated by the
-owner or the verified factory GitHub App. Look for **Verify functional discovery
-CI trigger** in the browser job. Publication checks that the tested commit is
+owner or the verified factory GitHub App. Look for **Verify functional discovery CI trigger** in the browser job. Publication checks that the tested commit is
 still current, and pickup requires the retained passing trigger proof.
 Periodic checks can still find regressions with no recent merge. GitHub can
 delay or drop a scheduled start. [GitHub schedule behavior](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule)

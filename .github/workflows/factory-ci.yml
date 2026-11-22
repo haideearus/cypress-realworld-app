@@ -91,6 +91,11 @@ jobs:
       - run: yarn types && yarn lint && yarn test:unit:ci
       - run: yarn build:production && yarn test:production
       - run: yarn test:production:browser
+      - name: Exercise the weekly functional discovery suite without ticket publication
+        env:
+          FACTORY_FUNCTIONAL_EXTENDED: "true"
+          FACTORY_FUNCTIONAL_REQUIRE_COMPLETE: "true"
+        run: node scripts/factory/functional-browser.cjs
       - run: yarn build:ci
       - name: Start the disposable local app
         run: yarn start:ci > /tmp/factory-app.log 2>&1 &

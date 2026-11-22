@@ -13,15 +13,15 @@ The second reservation of a day excludes the charter already reserved that day,
 including when `main` has moved.
 The model can read a small set of relevant frontend files at the frozen revision,
 choose input combinations for its assigned charter and inspect the test results.
-The broker turns approved inputs into fixed API tests that run against one
-synthetic session in a disposable app. The model cannot supply executable test
+The broker turns approved inputs into API tests or browser journeys against
+synthetic sessions in a disposable app. The model cannot supply executable test
 text or change the app, existing tests, configuration or dependencies. The
 scheduled Safe functional discovery browser workflow continues to cover sign-in,
 navigation and Settings separately.
 
-The only model tools are a checksum-checked local stdio broker's six operations:
-list/read charter source, submit a scenario, run a fixed batch, read a batch
-result and write a structured report. There are no built-in file, shell,
+The model uses seven operations from a checksum-checked local broker. It can
+list and read charter source, submit an API scenario or browser journey, run a
+batch, read a result, and write a structured report. There are no built-in file, shell,
 network, general MCP, child-agent or publication tools. Only the single model
 step receives the existing Claude Pro OAuth secret. There is no API-key input,
 alternative provider, Cypress recording or paid service integration.
@@ -54,6 +54,22 @@ The first runtime uses the app's existing JSON database in a disposable containe
 and synthetic session login. External identity providers, production PostgreSQL
 and object storage are explicitly skipped coverage. This is neither a production
 browser probe nor a claim that every page or backend path was tested.
+
+## Model-selected browser journeys
+
+Claude can choose which supported screens to visit, their order, and a typed
+scenario for the final screen. The journey can traverse the feed, Settings,
+Notifications, new transaction, and bank-account screens in one disposable copy.
+The trusted broker turns the structured journey into a Cypress spec, using the
+existing isolated browser and synthetic seed data. The transaction variants
+can submit one fixed demo payment or request between seeded users in that copy
+and verify the stored result and visible receipt.
+
+Browser runs and API runs share four batch slots per sweep. The run summary
+shows the actual pages, variant, and pass or follow-up outcome. Browser evidence
+is retained with the sweep. The existing verified API finding intake and
+separate Safe functional discovery browser ticket lane continue to file
+independently confirmed bugs.
 
 ## Budgets and retained state
 
@@ -96,8 +112,8 @@ the owner. Stop and quarantine controls apply to every trigger.
 Open **Proactive app discovery → Summary** for executed scenario coverage, what
 was skipped, and what the replay verified. A report with zero findings describes
 the scenarios executed in that run. The summary flags coverage as partial below
-three distinct completed input cases. Claude is prompted to cover three cases
-within the current charter and can execute up to four. Repeats, timeouts and
+three distinct completed cases. Claude is prompted to cover three cases
+across the API charter and browser journeys and can execute up to four. Repeats, timeouts and
 incomplete sandbox runs do not count toward the coverage target. Look in **Verified discovery finding intake →
 Summary** for links to published issues and their current-main verification
 results. **Safe functional discovery → Summary** reports the browser suite

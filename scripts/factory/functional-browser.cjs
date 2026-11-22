@@ -1,15 +1,16 @@
+const { randomUUID } = require("node:crypto");
 const { fork } = require("node:child_process");
 const { appendFileSync } = require("node:fs");
 const { origin, withProductionBrowser } = require("../test-production-browser.cjs");
 const {
   ASSERTIONS,
   CHECKS,
+  functionalChecks,
   validateFunctionalResult,
 } = require("./functional-discovery-contract.cjs");
 
 const spec = "scripts/tests/factory-functional-discovery.cy.js";
 const suite = "functional discovery";
-const checks = Object.keys(ASSERTIONS);
 const inconclusive = { status: "inconclusive", check: "", assertion: "" };
 const browserEnvironment = new Set([
   "APPDATA",
@@ -57,7 +58,33 @@ function isDisposableDatabase(uri) {
   }
 }
 
-function inspectAttempt(report) {
+async function withFreshWeeklyDatabase(uri, run, Client = require("pg").Client) {
+  if (!isDisposableDatabase(uri)) throw Error("Disposable loopback database required");
+  const name = `factory_weekly_${randomUUID().replaceAll("-", "")}_test`;
+  const database = new URL(uri);
+  database.pathname = "/" + name;
+  const client = new Client({
+    connectionString: uri,
+    connectionTimeoutMillis: 5000,
+    query_timeout: 15000,
+  });
+  let created = false;
+  try {
+    await client.connect();
+    await client.query(`CREATE DATABASE "${name}"`);
+    created = true;
+    return await run(database.href);
+  } finally {
+    try {
+      if (created) await client.query(`DROP DATABASE "${name}" WITH (FORCE)`);
+    } finally {
+      await client.end();
+    }
+  }
+}
+
+function inspectAttempt(report, extended = false) {
+  const checks = functionalChecks(extended);
   if (
     !report ||
     report.status === "failed" ||
@@ -121,7 +148,8 @@ function inspectAttempt(report) {
   return failed ? { status: "failed", failures } : { status: "healthy", check: "", assertion: "" };
 }
 
-async function verifyFunctionalChecks(run) {
+async function verifyFunctionalChecks(run, extended = false) {
+  const checks = functionalChecks(extended);
   const first = await run();
   if (first?.status === "healthy") return first;
   if (first?.status !== "failed" || !first.failures) return inconclusive;
@@ -142,7 +170,8 @@ async function verifyFunctionalChecks(run) {
   };
 }
 
-function browserSummary({ status, check, assertion, passedChecks = [] }) {
+function browserSummary({ status, check, assertion, passedChecks = [] }, extended = false) {
+  const checks = functionalChecks(extended);
   validateFunctionalResult(status, check, assertion);
   const message = {
     healthy: "All approved browser checks passed.",
@@ -150,7 +179,7 @@ function browserSummary({ status, check, assertion, passedChecks = [] }) {
     inconclusive: "Coverage is inconclusive. None confirmed.",
   };
   return [
-    "## Safe functional discovery",
+    extended ? "## Weekly full browser regression" : "## Safe functional discovery",
     "",
     message[status],
     "",
@@ -168,17 +197,22 @@ function browserSummary({ status, check, assertion, passedChecks = [] }) {
     "",
     "### Skipped coverage",
     "",
-    "- Writes outside the synthetic Settings and onboarding fixtures, other browser journeys, external services and production.",
+    extended
+      ? "- Writes outside the listed synthetic journeys, external services and production."
+      : "- Writes outside the synthetic Settings and onboarding fixtures, the weekly journeys, external services and production.",
   ].join("\n");
 }
 
 async function runCypress() {
+  const extended = process.argv[3] === "extended";
   const report = await require("cypress").run({
     browser: "electron",
     configFile: "scripts/cypress.production.config.cjs",
     spec,
     record: false,
     quiet: true,
+    expose: { factoryFunctionalExtended: extended },
+    env: { factoryAvatarFixtureOrigin: process.argv[4] || "" },
     config: {
       baseUrl: origin,
       specPattern: spec,
@@ -190,17 +224,21 @@ async function runCypress() {
       testIsolation: true,
     },
   });
-  process.send(inspectAttempt(report) || inconclusive);
+  process.send(inspectAttempt(report, extended) || inconclusive);
 }
 
-function freshCypressRun(env) {
+function freshCypressRun(env, extended, avatarFixtureOrigin) {
   return new Promise((resolve) => {
     // The child sends only the classified result. All browser and backend logs stay out of CI output.
-    const child = fork(__filename, ["--run-cypress"], {
-      env,
-      stdio: ["ignore", "ignore", "ignore", "ipc"],
-      timeout: 120000,
-    });
+    const child = fork(
+      __filename,
+      ["--run-cypress", extended ? "extended" : "standard", avatarFixtureOrigin || ""],
+      {
+        env,
+        stdio: ["ignore", "ignore", "ignore", "ipc"],
+        timeout: extended ? 240000 : 120000,
+      }
+    );
     let result;
     child.once("message", (message) => {
       result = message;
@@ -212,13 +250,25 @@ function freshCypressRun(env) {
 
 async function main() {
   const uri = process.env.TEST_DATABASE_URL;
+  const extended = process.env.FACTORY_FUNCTIONAL_EXTENDED === "true";
   let verdict = inconclusive;
   if (isDisposableDatabase(uri)) {
-    const env = isolatedBrowserEnvironment(process.env);
+    const env = { ...isolatedBrowserEnvironment(process.env), CYPRESS_CRASH_REPORTS: "0" };
     try {
-      verdict = await withProductionBrowser({ uri, quiet: true, env }, () =>
-        verifyFunctionalChecks(() => freshCypressRun(env))
-      );
+      verdict = extended
+        ? await verifyFunctionalChecks(
+            () =>
+              withFreshWeeklyDatabase(uri, (testUri) =>
+                withProductionBrowser(
+                  { uri: testUri, quiet: true, env, avatarFixture: true },
+                  ({ avatarFixtureOrigin }) => freshCypressRun(env, true, avatarFixtureOrigin)
+                )
+              ),
+            true
+          )
+        : await withProductionBrowser({ uri, quiet: true, env }, () =>
+            verifyFunctionalChecks(() => freshCypressRun(env, false))
+          );
     } catch {
       // Setup, crashes, and infrastructure failures are inconclusive.
     }
@@ -228,11 +278,16 @@ async function main() {
   if (process.env.GITHUB_OUTPUT)
     appendFileSync(
       process.env.GITHUB_OUTPUT,
-      `status=${status}\ncheck=${check}\nassertion=${assertion}\n`
+      `status=${status}\ncheck=${check}\nassertion=${assertion}\npassedChecks=${JSON.stringify(verdict.passedChecks || [])}\n`
     );
   if (process.env.GITHUB_STEP_SUMMARY)
-    appendFileSync(process.env.GITHUB_STEP_SUMMARY, browserSummary(verdict) + "\n");
+    appendFileSync(process.env.GITHUB_STEP_SUMMARY, browserSummary(verdict, extended) + "\n");
   process.stdout.write(line);
+  if (
+    verdict.status === "inconclusive" &&
+    process.env.FACTORY_FUNCTIONAL_REQUIRE_COMPLETE === "true"
+  )
+    process.exitCode = 1;
 }
 
 if (require.main === module) {
@@ -245,6 +300,7 @@ if (require.main === module) {
 module.exports = {
   inspectAttempt,
   isDisposableDatabase,
+  withFreshWeeklyDatabase,
   isolatedBrowserEnvironment,
   verifyFunctionalChecks,
   browserSummary,
