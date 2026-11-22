@@ -9,6 +9,7 @@ const origin = require("./discovery-origin.cjs");
 const pub = require("./discovery-publication.cjs");
 const intake = require("./discovery-intake.cjs");
 const functional = require("./discovery-functional.cjs");
+const sweepClosure = require("./discovery-sweep-closure.cjs");
 const { runtimeContext, output: writeOutputs } = require("./controller.cjs");
 const { intakeSummary, writeSummary } = require("./discovery-summary.cjs");
 function output(values, env, summary = {}) {
@@ -145,7 +146,7 @@ async function main(env = process.env, dependencies = {}) {
       (inputs.operation !== "run" || inputs.dry_run !== false)
     )
       return output({ outcome: "sweep-closure-preview", sweepsClosed: [], modelCalls: 0 }, env);
-    const sweepsClosed = await require("./discovery-sweep-closure.cjs").closeCompletedSweeps({
+    const sweepsClosed = await sweepClosure.closeCompletedSweeps({
       api,
       ledger,
       store,
@@ -288,6 +289,7 @@ async function main(env = process.env, dependencies = {}) {
       };
     }
     const canCloseSweep =
+      sweepClosure.browserEvidenceSettled(bundle) &&
       candidates.length === bundle.findings.length &&
       bundle.report.findings.length === bundle.findings.length &&
       bundle.findings.every(

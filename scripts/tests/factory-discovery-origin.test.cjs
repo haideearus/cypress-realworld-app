@@ -427,3 +427,22 @@ test("a lost successful closure response reconciles without repeating the write"
   assert.deepEqual((await x.execute()).sweepsClosed, []);
   assert.equal(x.updates.length, 1);
 });
+
+test("a browser observation can prevent sweep closure even when API intake has no findings", () => {
+  const { browserEvidenceSettled } = require("../factory/discovery-sweep-closure.cjs");
+  assert.equal(browserEvidenceSettled({ findings: [] }), true);
+  assert.equal(
+    browserEvidenceSettled({
+      findings: [],
+      actualBatches: [{ mode: "cypress", code: 0, networkIsolated: true }],
+    }),
+    true
+  );
+  for (const evidence of [
+    { browserFollowUp: true },
+    { actualBatches: [{ mode: "cypress", code: 1, networkIsolated: true }] },
+    { actualBatches: [{ mode: "cypress", code: 0, networkIsolated: false }] },
+    { actualBatches: [{ mode: "cypress", code: 0 }] },
+  ])
+    assert.equal(browserEvidenceSettled({ findings: [], ...evidence }), false);
+});

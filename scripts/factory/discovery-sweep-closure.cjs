@@ -4,6 +4,17 @@ const { ROOT } = require("./github.cjs");
 const { verifySweepSource } = require("./discovery-origin.cjs");
 const { sourceBody } = require("./discovery-run.cjs");
 
+function browserEvidenceSettled({ browserFollowUp, actualBatches = [] }) {
+  return (
+    (browserFollowUp === undefined || browserFollowUp === false) &&
+    Array.isArray(actualBatches) &&
+    actualBatches.every(
+      (batch) =>
+        batch && (batch.mode !== "cypress" || (batch.code === 0 && batch.networkIsolated === true))
+    )
+  );
+}
+
 function allFindingsAccountedFor(registry, grant, keys) {
   return keys.every((key) =>
     Object.values(registry.records).some((row) => {
@@ -113,4 +124,4 @@ async function closeCompletedSweeps({ api, ledger, store, discovery, controls, r
   return closed;
 }
 
-module.exports = { closeCompletedSweeps };
+module.exports = { browserEvidenceSettled, closeCompletedSweeps };

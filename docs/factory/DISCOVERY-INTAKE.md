@@ -78,9 +78,10 @@ After live intake, the model-free **Close completed sweep records after intake**
 step closes the original bot-authored audit issue as completed when the sweep
 has verified source evidence and either yielded zero findings or every finding
 has a confirmed ticket and a retained ready or observed-resolved replay.
-Duplicates also need a confirmed link to the existing ticket. Holds,
-incomplete work, missing evidence and older imports without a closure receipt
-stay open. An interrupted close can be verified by a later live intake.
+Duplicates also need a confirmed link to the existing ticket. Failed or
+unfinished browser journeys keep the audit record open for follow-up even
+when API intake finds nothing. Holds, missing evidence and older imports
+without a closure receipt also stay open. An interrupted close can be verified by a later live intake.
 
 Closure changes only the issue state and its closure reason. The issue body,
 comments, labels, run links, finding and replay receipts, and usage history
