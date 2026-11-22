@@ -111,7 +111,8 @@
       176,
       178,
       179,
-      180
+      180,
+      182
     ]
   },
   "tickets": {
@@ -3194,6 +3195,17 @@
         "passed": true
       },
       "feedback": "{\"head\":\"32c3bc20757f0df79ce970b6eac0a556c6aef1db\",\"verdict\":\"pass\",\"summary\":\"Reviewed .github/workflows/factory-ci.yml at HEAD plus the diff splitting the former single `verify` job into parallel `app` and `discovery_image` jobs gated by a new `verify` job (needs: [app, discovery_image], if: always(), bash [[ ... ]] check). This satisfies the ticket: app regression tests and the credential-free discovery image smoke test now run concurrently, `Factory CI / verify` remains the required check and only succeeds if both jobs succeed, the secret scanner (scanner-install.cjs + secret-scan.cjs source) is preserved and duplicated in both jobs before any dependency install/build, and docs/factory/SAFETY-CONTROLS.md was updated to match. I traced every downstream consumer of the `verify` job name (scripts/factory/controller.cjs validateCI, merge.cjs nativeCheck, review-recovery.cjs, discovery-run.cjs, dependency-alert-repair.cjs, deploy.cjs, functional-discovery.cjs weekly-browser trigger check) and confirmed they only inspect the verify job's own status/conclusion, so none break under the split. scripts/factory/dependency-review-context.cjs was correctly reworked to pull FORM_STEPS evidence from the `app` job instead of `verify`, including a fallback that re-fetches historical jobs when a selective rerun leaves `app` absent from the latest attempt's job list, scoped to the same run_id/head_sha with fail-closed checks; its new test exercises both the first-attempt and retried-rerun paths plus three negative cases (mismatched head, failed app, failed gate). scripts/factory/activity-harness-faults.cjs now scans failures across verify/app/discovery_image (deduplicated by job name) while still requiring verify itself to have failed, with a backward-compatible issue-body matcher for pre-split tickets; its new test confirms a scanner failure appearing in both split jobs is counted once and can pair with legacy-format evidence. scripts/tests/factory-workflows.test.cjs, factory-functional-discovery.test.cjs and other suites were updated consistently to reference ci.jobs.app/discovery_image/verify. I could not execute the test suite or fetch the linked CI run (https://github.com/haideearus/cypress-realworld-app/actions/runs/45032807960) in this read-only session, so I'm relying on the supplied CI evidence rather than independently re-verifying pass/fail status or measuring the claimed duration improvement against the serial baseline.\",\"findings\":[]}"
+    },
+    "182": {
+      "coding": 1,
+      "origin": "factory",
+      "reviews": 0,
+      "retries": 0,
+      "head": "0e69804a32e5f5e3101d3d9904e07a273c415843",
+      "status": "coding",
+      "pr": null,
+      "approval": null,
+      "criteriaHash": "64d480c48d4f17261d5f33961beba14fcd5adf3fa90952b722ee37acb193f222"
     }
   },
   "grants": {
@@ -4613,9 +4625,24 @@
       "status": "finished",
       "at": "2026-11-22T14:25:59.963Z",
       "outcome": "reviewed"
+    },
+    "67673b23-0294-47ae-8c7b-761dcd5159cf": {
+      "id": "67673b23-0294-47ae-8c7b-761dcd5159cf",
+      "ticket": 182,
+      "phase": "code",
+      "slot": "cycle1",
+      "runId": "45041027827",
+      "runAttempt": 1,
+      "head": "0e69804a32e5f5e3101d3d9904e07a273c415843",
+      "status": "reserved",
+      "at": "2026-11-22T15:56:34.252Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 182,
+    "runId": "45041027827",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -7864,6 +7891,16 @@
       "grant": "8670b63b-1795-4c9b-a433-69bac1540609",
       "status": "reviewed",
       "head": "32c3bc20757f0df79ce970b6eac0a556c6aef1db"
+    },
+    {
+      "at": "2026-11-22T15:56:34.252Z",
+      "event": "reserved",
+      "ticket": 182,
+      "grant": "67673b23-0294-47ae-8c7b-761dcd5159cf",
+      "phase": "code",
+      "runId": "45041027827",
+      "runAttempt": 1,
+      "actor": "haideearus"
     }
   ]
 }
