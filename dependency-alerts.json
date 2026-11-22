@@ -170,9 +170,9 @@
       "base": "65d28a82b2263571ff9541fb93abf51089ed6ca4",
       "head": "c9e37b981ca10d304b24ff660a389fa87a0a12a0",
       "name": "flatted",
-      "phase": "pr-intent",
+      "phase": "linked",
       "issue": 194,
-      "pr": null
+      "pr": 195
     }
   },
   "heldAfter": "lodash"
