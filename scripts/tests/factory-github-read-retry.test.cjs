@@ -66,3 +66,29 @@ test("invalid successful JSON and transport failures still fail after one reques
     assert.equal(calls, 1);
   }
 });
+
+test("conditional polling requires a cached representation for the same run", async () => {
+  const requests = [];
+  const replies = [
+    Response.json({ id: 501, status: "queued" }, { headers: { etag: '"run-501"' } }),
+    new Response(null, { status: 304 }),
+    new Response(null, { status: 304 }),
+  ];
+  const api = new GitHub({
+    token: "fixture-only",
+    fetch: async (_url, options) => {
+      requests.push(new Headers(options.headers).get("If-None-Match"));
+      return replies.shift();
+    },
+  });
+  const pollCache = {};
+  const read = (id) => api.request("GET", ROOT + "/actions/runs/" + id, undefined, { pollCache });
+  assert.deepEqual(await read(501), { id: 501, status: "queued" });
+  await assert.rejects(read(502), { status: 304 });
+  assert.deepEqual(await read(501), { id: 501, status: "queued" });
+  assert.deepEqual(requests, [null, null, '"run-501"']);
+  await assert.rejects(
+    api.request("GET", ROOT + "/issues/501", undefined, { pollCache }),
+    /only supported/
+  );
+});

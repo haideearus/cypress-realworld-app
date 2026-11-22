@@ -126,16 +126,25 @@ receipt limit. The wake registry retains its separate 1,200-receipt bound.
 If unresolved activity fills the hot file, inspect the retained receipts and
 journal before recovering publication. Keep the registry branch and its history.
 
-The activity observer polls actual job/step metadata every 20 seconds during a
-bounded 80-minute window on an in-progress source event. A separate completion
-observer captures later final results. Entries may therefore lag by a poll or by
-GitHub delivery. Only allowlisted source workflows are observed: neither the wake
-nor activity workflow is a `workflow_run` source, and issue comments are never a
-wake source. Explicit dispatch separates repeated handoffs from observer chaining.
+Routine workflows get one lifecycle observation on completion. Their in-progress
+events can still appear as skipped runs in Actions. GitHub skips the observer job
+before allocating a runner or making API requests. Completion still publishes
+typed results such as failed checks, review verdicts, and protected merges.
 
-An early observer waits for receiver binding without binding or authorizing it.
-A receiver that finishes before binding is reported as held, never as a model or
-review result. Stale dependency candidates produce typed refresh holds with PR
+Production deployments also get an early observer so the journal can report
+waiting for human approval. That observer polls job status every 20 seconds in
+a bounded 80-minute window. Completion still records the deployment outcome.
+Only allowlisted source workflows are observed. The wake and activity
+workflows are excluded, and issue comments never wake the factory.
+
+The factory checks for a dispatched CI run every 30 seconds until it knows the
+run ID. It then checks status at 60-second intervals and sends GitHub's ETag
+when available. An authenticated `304 Not Modified` response reuses the last
+status without consuming primary rate limit. The polling deadline is preserved.
+The controller reads fresh run and job evidence before recording a CI result.
+
+The completion observer verifies the receiver binding before reporting model or
+review outcomes. An unbound receiver is reported as held. Stale dependency candidates produce typed refresh holds with PR
 links rather than an idle-queue claim.
 
 Stop request, result and resume notifications come from the retained owner-command

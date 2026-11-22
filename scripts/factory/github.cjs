@@ -68,12 +68,23 @@ class GitHub {
     await this.sleep(wait);
     return true;
   }
-  async request(method, path, body) {
+  async request(method, path, body, { pollCache } = {}) {
     if (!path.startsWith(`${ROOT}/`) || /[\\\s]/.test(path) || path.split(/[/?]/).includes(".."))
       throw new Error("GitHub path must remain inside the factory repository");
     const url = new URL(path, "https://api.github.com");
     if (url.origin !== "https://api.github.com" || !url.pathname.startsWith(`${ROOT}/`))
       throw new Error("Invalid GitHub repository path");
+    if (
+      pollCache &&
+      (method !== "GET" ||
+        body !== undefined ||
+        !/^\/actions\/runs\/[1-9]\d*$/.test(path.slice(ROOT.length)))
+    )
+      throw Error("Conditional reads are only supported for polling an Actions run");
+    const cached =
+      pollCache?.path === path && pollCache.etag
+        ? { etag: pollCache.etag, value: pollCache.value }
+        : null;
     const options = {
       method,
       redirect: "error",
@@ -83,6 +94,7 @@ class GitHub {
         "X-GitHub-Api-Version": "2022-11-28",
         "Content-Type": "application/json",
         "User-Agent": "haide-software-factory",
+        ...(cached ? { "If-None-Match": cached.etag } : {}),
       },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     };
@@ -99,6 +111,7 @@ class GitHub {
         await this.sleep(READ_BACKOFF_MS[gatewayAttempts++]);
         continue;
       }
+      if (response.status === 304 && cached) return cached.value;
       if (!response.ok) {
         const error = new Error(`GitHub request failed (${response.status})`);
         error.status = response.status;
@@ -108,7 +121,9 @@ class GitHub {
         }
         throw error;
       }
-      return response.status === 204 ? null : response.json();
+      const value = response.status === 204 ? null : await response.json();
+      if (pollCache) Object.assign(pollCache, { path, etag: response.headers.get("etag"), value });
+      return value;
     }
   }
   async pages(path, key) {

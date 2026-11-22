@@ -17,7 +17,7 @@ on:
         Monitor repair rehearsal,
         Acknowledge recovered monitor incident,
       ]
-    types: [requested, in_progress, completed]
+    types: [in_progress, completed]
   workflow_dispatch:
     inputs:
       operation:
@@ -35,7 +35,12 @@ permissions:
   contents: read
 jobs:
   observe:
-    if: ${{ github.repository == 'haideearus/cypress-realworld-app' && github.ref == 'refs/heads/main' && github.run_attempt == 1 && (github.event_name == 'workflow_dispatch' || vars.FACTORY_ACTIVITY_LOG_ENABLED == 'true') }}
+    if: >-
+      ${{ github.repository == 'haideearus/cypress-realworld-app' &&
+      github.ref == 'refs/heads/main' && github.run_attempt == 1 &&
+      (github.event_name == 'workflow_dispatch' || vars.FACTORY_ACTIVITY_LOG_ENABLED == 'true') &&
+      (github.event_name != 'workflow_run' || github.event.action == 'completed' ||
+      (github.event.action == 'in_progress' && github.event.workflow_run.path == '.github/workflows/factory-deploy.yml')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 90
     permissions:
