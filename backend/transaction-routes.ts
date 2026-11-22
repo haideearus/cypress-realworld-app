@@ -157,6 +157,11 @@ router.get(
 
     const transaction = getTransactionByIdForApi(transactionId);
 
+    if (transaction.senderId !== req.user!.id && transaction.receiverId !== req.user!.id) {
+      res.status(403).json({ error: "You may only view your own transactions" });
+      return;
+    }
+
     res.status(200);
     res.json({ transaction });
   }
