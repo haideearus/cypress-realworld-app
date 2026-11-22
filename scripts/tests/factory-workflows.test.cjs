@@ -166,6 +166,40 @@ test("CI dispatch correlation is exposed without holding the cancellation queue 
     assert.equal(job.concurrency, undefined);
   }
 });
+test("required CI waits for both isolated test jobs and fails closed", () => {
+  const { jobs } = load("factory-ci.yml");
+  assert.deepEqual(jobs.verify.needs, ["app", "discovery_image"]);
+  assert.equal(jobs.app.needs, undefined);
+  assert.equal(jobs.discovery_image.needs, undefined);
+  assert.equal(jobs.verify.if, "${{ always() }}");
+  assert.deepEqual(jobs.verify.permissions, {});
+  assert.equal(jobs.verify["continue-on-error"], undefined);
+  assert.equal(jobs.verify.steps.length, 1);
+  const [gate] = jobs.verify.steps;
+  assert.equal(gate.if, undefined);
+  assert.equal(gate["continue-on-error"], undefined);
+  assert.deepEqual(gate.env, {
+    APP_RESULT: "${{ needs.app.result }}",
+    DISCOVERY_IMAGE_RESULT: "${{ needs.discovery_image.result }}",
+  });
+  assert.match(
+    gate.run,
+    /\[\[ "\$APP_RESULT" == success && "\$DISCOVERY_IMAGE_RESULT" == success \]\]\s*$/
+  );
+
+  const smoke = jobs.discovery_image.steps;
+  const scanner = smoke.findIndex(
+    (step) => step.run === "node scripts/factory/secret-scan.cjs source"
+  );
+  const test = smoke.findIndex((step) => step.env?.FACTORY_DISCOVERY_IMAGE_TEST === "true");
+  assert.ok(scanner >= 0 && scanner < test, "scan source before building and running the image");
+  assert.equal(smoke[test].run, "node --test scripts/tests/factory-discovery-image.test.cjs");
+  assert.equal(smoke[test]["continue-on-error"], undefined);
+  assert.equal(
+    smoke.find((step) => step.uses?.startsWith("actions/checkout@")).with["persist-credentials"],
+    false
+  );
+});
 test("gate runs from trusted default-branch source without a model credential or PR checkout", () => {
   const flow = load("factory-review-gate.yml");
   assert.ok(flow.on.pull_request_target);
@@ -212,7 +246,7 @@ test("composite controller gets repository configuration through its declared in
 });
 test("required CI actually executes the composite action with disabled synthetic configuration", () => {
   const flow = load("factory-ci.yml");
-  const smoke = flow.jobs.verify.steps.find(
+  const smoke = flow.jobs.app.steps.find(
     (step) => step.uses === "./.github/actions/factory-control"
   );
   assert.ok(smoke, "local YAML assertions alone did not catch the runner manifest error");
@@ -247,7 +281,7 @@ test("failed model sessions retain only a separate sanitized diagnostic without 
 });
 
 test("secret scanning gates source, model context and every uploaded model bundle", () => {
-  const ci = load("factory-ci.yml").jobs.verify.steps;
+  const ci = load("factory-ci.yml").jobs.app.steps;
   const source = ci.findIndex((step) => step.run === "node scripts/factory/secret-scan.cjs source");
   assert.ok(
     source >= 0 && source < ci.findIndex((step) => step.run === "yarn install --frozen-lockfile")

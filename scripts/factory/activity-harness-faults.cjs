@@ -8,26 +8,28 @@ const PRIORITY = "factory-priority";
 
 function failureKeys(run, jobs) {
   if (run.conclusion !== "failure") return [];
-  const verify = jobs.filter((job) => job.name === "verify");
-  if (verify.length !== 1) return [];
-  const [job] = verify;
-  if (
-    job.run_id !== run.id ||
-    job.run_attempt !== run.run_attempt ||
-    job.head_sha !== run.head_sha ||
-    job.status !== "completed" ||
-    job.conclusion !== "failure" ||
-    !Array.isArray(job.steps)
-  )
-    return [];
-  return Object.keys(HARNESS_FAULTS).filter((key) => {
-    const matched = job.steps.filter((step) => step.name === HARNESS_FAULTS[key].step);
-    return (
-      matched.length === 1 &&
-      matched[0].status === "completed" &&
-      matched[0].conclusion === "failure"
-    );
-  });
+  const ciJobs = jobs.filter((job) => ["verify", "app", "discovery_image"].includes(job.name));
+  if (new Set(ciJobs.map((job) => job.name)).size !== ciJobs.length) return [];
+  const failed = ciJobs.filter(
+    (job) =>
+      job.run_id === run.id &&
+      job.run_attempt === run.run_attempt &&
+      job.head_sha === run.head_sha &&
+      job.status === "completed" &&
+      job.conclusion === "failure" &&
+      Array.isArray(job.steps)
+  );
+  if (!failed.some((job) => job.name === "verify")) return [];
+  return Object.keys(HARNESS_FAULTS).filter((key) =>
+    failed.some((job) => {
+      const matched = job.steps.filter((step) => step.name === HARNESS_FAULTS[key].step);
+      return (
+        matched.length === 1 &&
+        matched[0].status === "completed" &&
+        matched[0].conclusion === "failure"
+      );
+    })
+  );
 }
 
 function issuePayload(key, evidence) {
@@ -40,7 +42,7 @@ function issuePayload(key, evidence) {
   return {
     title,
     body: [
-      `The \`verify\` job on main failed at **${step}** in two distinct first-attempt Factory CI runs within 24 hours.`,
+      `A Factory CI job on main failed at **${step}** in two distinct first-attempt Factory CI runs within 24 hours.`,
       "",
       ...links,
       "",
@@ -62,7 +64,8 @@ function matchesIssue(issue, payload) {
     issue.user.id === BOT_ID &&
     issue.user.type === "Bot" &&
     issue.title === payload.title &&
-    issue.body === payload.body &&
+    (issue.body === payload.body ||
+      issue.body === payload.body.replace("A Factory CI job", "The `verify` job")) &&
     Array.isArray(issue.labels) &&
     issue.labels.some((label) => label?.name === PRIORITY) &&
     !issue.labels.some((label) => label?.name === "factory-ready")

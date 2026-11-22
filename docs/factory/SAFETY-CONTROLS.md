@@ -8,10 +8,11 @@ cancellation test.
 
 ## Build-blocking scanner
 
-Required `Factory CI / verify` installs Gitleaks **8.30.1**, verifies both the
-downloaded archive and executable against committed SHA-256 pins, and scans the
-complete tracked working-tree snapshot before dependency installation. Supported
-hosts are Linux x64 (GitHub runner) and Windows x64 (owner checkout).
+The `app` and `discovery_image` jobs each install Gitleaks **8.30.1** and verify
+the downloaded archive and executable against committed SHA-256 pins. Each job
+scans the tracked source before installing or building dependencies. Required
+`Factory CI / verify` passes only if both jobs pass. Supported scanner hosts are
+Linux x64 (GitHub runner) and Windows x64 (owner checkout).
 
 ```powershell
 node scripts/factory/scanner-install.cjs

@@ -92,6 +92,7 @@ function setup(t) {
       run: runOverrides = {},
       job: jobOverrides = {},
       steps = [controller],
+      split = false,
       triage = true,
       preview = false,
     } = {}
@@ -132,6 +133,14 @@ function setup(t) {
         ...jobOverrides,
       },
     ];
+    if (split) {
+      const [verify] = jobs;
+      jobs.push({ ...verify, id: id + 2000, name: "app" });
+      jobs.push({ ...verify, id: id + 3000, name: "discovery_image" });
+      verify.steps = [
+        { name: "Require both test jobs to pass", status: "completed", conclusion: "failure" },
+      ];
+    }
     runs.set(id, { run, jobs });
     return observeRun({
       api,
@@ -162,6 +171,15 @@ test("two distinct trusted main runs create one priority-only ticket linked to b
   assert.equal(s.publish.mock.callCount(), 4);
 });
 
+test("a split CI run counts a scanner failure only once and can pair with legacy evidence", async (t) => {
+  const s = setup(t);
+  await s.observe(810, { split: true, steps: [scanner] });
+  assert.equal(s.issues.length, 0);
+  await s.observe(811, { steps: [scanner] });
+  assert.equal(s.issues.length, 1);
+  assert.match(s.issues[0].body, /actions\/runs\/810\b/);
+  assert.match(s.issues[0].body, /actions\/runs\/811\b/);
+});
 test("different infrastructure signals do not count as recurrence", async (t) => {
   const s = setup(t);
   await s.observe(800, { steps: [scanner] });
@@ -202,7 +220,7 @@ test("stale, foreign, nonterminal, rerun, app, model and expected stop outcomes 
   assert.match(s.issues[0].body, /actions\/runs\/814\b/);
 });
 
-test("a committed issue whose response is lost reconciles without a second create", async (t) => {
+test("a committed legacy issue whose response is lost reconciles without a second create", async (t) => {
   const s = setup(t);
   await s.observe(800);
   s.loseResponse = true;
@@ -210,6 +228,7 @@ test("a committed issue whose response is lost reconciles without a second creat
   await s.observe(801);
   assert.equal(s.issues.length, 1);
   assert.equal(s.warn.mock.callCount(), 1);
+  s.issues[0].body = s.issues[0].body.replace("A Factory CI job", "The `verify` job");
   s.loseResponse = false;
   s.hideLookup = false;
   await s.observe(802, { run: { conclusion: "success" } });
