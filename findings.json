@@ -434,6 +434,17 @@
       "evidenceHash": "a0f5c244f72d2a31cba9e4e98fc12a663fe9f00bf805ac892124b0e7baf66220",
       "findings": [],
       "status": "complete"
+    },
+    "30af3a45-1839-483a-9c1e-014173b74f90": {
+      "runId": "45023515672",
+      "evidenceHash": "82cdc491e2187a0de5570e7eb7d4e3111494b99e8df5144727c043266584ef10",
+      "findings": [],
+      "status": "complete",
+      "sweepClosure": {
+        "artifactId": 14755321912,
+        "artifactDigest": "sha256:7e7007ac33ef125e62be91387cb128a59060ce78a2e390982f68f17dda9e1522",
+        "status": "pending"
+      }
     }
   }
 }
