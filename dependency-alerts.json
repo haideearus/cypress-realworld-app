@@ -163,6 +163,16 @@
       "phase": "tracking",
       "issue": 192,
       "pr": null
+    },
+    "c8365c859381c6bc323c52f56453bdafb1f0472e1625e706ee6f585b96df0633": {
+      "candidate": "3.4.2",
+      "day": "2026-11-23",
+      "base": "65d28a82b2263571ff9541fb93abf51089ed6ca4",
+      "head": "c9e37b981ca10d304b24ff660a389fa87a0a12a0",
+      "name": "flatted",
+      "phase": "prepared",
+      "issue": null,
+      "pr": null
     }
   },
   "heldAfter": "lodash"
