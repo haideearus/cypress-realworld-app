@@ -3151,7 +3151,11 @@
       "approval": null,
       "criteriaHash": "0b6f05721c64d7223e2d72847797414e583dc5541e1029c53665e26b0a98cabc",
       "branch": "agent/claude-browser-discovery",
-      "ci": null
+      "ci": {
+        "requestId": "ec0ff163-d371-4e01-bd10-8cc40354e7bc",
+        "head": "53233c28c837f6c31cc07fabb3ab88f26940eb18",
+        "runId": null
+      }
     }
   },
   "grants": {
