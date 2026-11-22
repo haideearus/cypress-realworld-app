@@ -83,13 +83,13 @@ intents. Each successful source issue is an unlabelled audit record, never a
 against the exact bot-authored body, not resent speculatively.
 
 Ready repairs and active work take priority over new sweeps. Successful main CI
-and fallback UTC cron windows request discovery; the selector filters fallback
-hours to 03:12/15:12 Bucharest, subject to GitHub delay. These are opportunities,
-not promises of two runs or reliable timer delivery. The manual path uses the
-same counters. Automatic paths additionally require automatic pickup enabled. The repository's pinned
-Software Factory GitHub App may start a sweep after successful same-repository
-main push CI. Manual dispatch and schedule continue to require the owner.
-No cron receipt alone is an admission. Ordinary stop/quarantine controls apply.
+and the 03:12 and 15:12 Europe/Bucharest schedules request discovery. GitHub can
+start a scheduled run late or skip it. A delayed start still checks the current
+release, repair queue, and durable budget for the day it actually runs. Manual
+runs use the same counters. Automatic paths also require automatic pickup.
+The repository's pinned Software Factory GitHub App may start a sweep after
+successful same-repository main push CI. Manual dispatch and schedule require
+the owner. Stop and quarantine controls apply to every trigger.
 
 ## Reading the run summaries
 

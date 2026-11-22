@@ -11,6 +11,12 @@ const LANES = Object.freeze({
   app: "factory-automatic.yml",
   dependency: "factory-dependencies.yml",
 });
+const DRAIN_LANES = Object.freeze({
+  ".github/workflows/factory-automatic.yml": "app",
+  ".github/workflows/factory-dependencies.yml": "dependency",
+  ".github/workflows/factory-agents.yml": "app",
+  ".github/workflows/factory-discovery.yml": "app",
+});
 const MAX_RECEIPTS = 1200;
 const exact = (o, keys) =>
   o &&
@@ -150,6 +156,7 @@ module.exports = {
   ID,
   WORKFLOW,
   LANES,
+  DRAIN_LANES,
   MAX_RECEIPTS,
   exact,
   digest,

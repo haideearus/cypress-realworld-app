@@ -181,17 +181,6 @@ async function main(env = process.env, dependencies = {}) {
   const context = { ...runtimeContext(env), phase: "discover", slot: "discovery" };
   const preview =
     context.event === "workflow_dispatch" && (op !== "run" || inputs.dry_run !== false);
-  if (context.event === "schedule" && op !== "finish") {
-    const hour = new Intl.DateTimeFormat("en-GB", {
-      timeZone: "Europe/Bucharest",
-      hour: "2-digit",
-      hourCycle: "h23",
-    }).format(now);
-    if (!["03", "15"].includes(hour)) {
-      output({ outcome: "outside-local-window", ready: false, modelCalls: 0 }, env);
-      return;
-    }
-  }
   const api =
     dependencies.api ||
     new GitHub({

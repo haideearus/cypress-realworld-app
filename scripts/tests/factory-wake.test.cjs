@@ -197,3 +197,143 @@ test("an activity observer sees an early receipt as pending without binding or a
     "preview"
   );
 });
+
+async function discoveryDrainFixture() {
+  const p = require("../factory/policy.cjs");
+  const d = require("../factory/discovery-contract.cjs");
+  const c = require("../factory/wake-contract.cjs");
+  const { vars } = require("./helpers/factory-fixtures.cjs");
+  const s = fixture();
+  const sourceRun = "850";
+  const sourceAt = new Date("2026-11-21T21:48:50Z");
+  const day = "2026-11-21";
+  const charter = "functional-notifications";
+  const discovery = {
+    version: 1,
+    day,
+    charter,
+    head: s.context.workflowSha,
+    ciRunId: "849",
+    runId: sourceRun,
+    runAttempt: 1,
+    workflowSha: s.context.workflowSha,
+    workflowRef: d.WORKFLOW_REF,
+    key: d.sweepKey(s.context.workflowSha, charter, day),
+  };
+  const grant = p.reserve(
+    p.emptyState(c.REPOSITORY),
+    {
+      ...s.context,
+      event: "workflow_run",
+      actor: d.FACTORY_APP,
+      triggeringActor: d.FACTORY_APP,
+      workflowRef: d.WORKFLOW_REF,
+      runId: sourceRun,
+      ticket: 168,
+      head: s.context.workflowSha,
+      phase: "discover",
+      slot: "discovery",
+      origin: "discovery-sweep",
+      discovery,
+    },
+    { ...p.readConfig(vars), discovery: true, automatic: true },
+    sourceAt
+  );
+  s.ledger.state = p.finish(grant.state, grant.grant.id, { status: "discovery_complete" });
+  const run = {
+    ...s.run,
+    id: Number(sourceRun),
+    workflow_id: 85,
+    path: ".github/workflows/factory-discovery.yml",
+    event: "workflow_run",
+    actor: { login: d.FACTORY_APP, id: 356310548, type: "Bot" },
+    triggering_actor: { login: d.FACTORY_APP, id: 356310548, type: "Bot" },
+    status: "completed",
+    conclusion: "success",
+  };
+  s.context.event = "workflow_run";
+  s.run.event = "workflow_run";
+  s.event = { repository: { full_name: c.REPOSITORY }, action: "completed", workflow_run: run };
+  const base = s.api.request;
+  s.api.request = async (method, path, body) => {
+    if (method === "GET" && path.endsWith("/actions/runs/850/attempts/1"))
+      return structuredClone(run);
+    if (
+      method === "GET" &&
+      /\/actions\/workflows\/factory-(?:discovery|automatic)\.yml$/.test(path)
+    )
+      return { id: 85, path: ".github/workflows/" + path.split("/").at(-1) };
+    if (method === "GET" && path.endsWith("/git/ref/heads/factory/state"))
+      return { object: { sha: "b".repeat(40) } };
+    if (method === "GET" && path.includes("/contents/state.json?"))
+      return {
+        type: "file",
+        encoding: "base64",
+        content: Buffer.from(JSON.stringify(s.ledger.state)).toString("base64"),
+      };
+    return base(method, path, body);
+  };
+  return { ...s, drainRun: run };
+}
+
+test("a completed Proactive discovery grant can wake and bind the ordinary app receiver", async () => {
+  const s = await discoveryDrainFixture();
+  const before = structuredClone(s.ledger.state);
+  const result = await wake.handleWake(s);
+  assert.equal(result.outcome, "dispatched");
+  assert.equal(result.lane, "app");
+  assert.equal(s.dispatches.length, 1);
+  assert.equal(s.store.state.receipts[result.receiptId].signal.sourceRun, "850");
+  const context = {
+    ...s.context,
+    actor: "github-actions[bot]",
+    triggeringActor: "github-actions[bot]",
+    event: "workflow_dispatch",
+    workflowRef: s.context.workflowRef.replace("factory-wake", "factory-automatic"),
+    runId: "900",
+  };
+  const receiver = {
+    ...s.run,
+    id: 900,
+    workflow_id: 85,
+    path: ".github/workflows/factory-automatic.yml",
+    actor: { login: context.actor, id: 41898282 },
+    triggering_actor: { login: context.actor, id: 41898282 },
+    event: "workflow_dispatch",
+    display_title: `Automatic factory / wake ${result.receiptId}`,
+  };
+  const base = s.api.request;
+  s.api.request = (method, path, body) =>
+    path.endsWith("/actions/runs/900/attempts/1")
+      ? Promise.resolve(receiver)
+      : base(method, path, body);
+  const { verifyWake, isTrustedWakeContext } = require("../factory/trusted-wake.cjs");
+  const proof = await verifyWake({
+    ...s,
+    context,
+    receiptId: result.receiptId,
+    lane: "app",
+    bind: true,
+  });
+  assert.equal(isTrustedWakeContext({ ...context, wake: proof }, "app"), true);
+  assert.equal(s.store.state.receipts[result.receiptId].receiver.runId, "900");
+  assert.deepEqual(s.ledger.state, before);
+});
+
+test("a discovery drain cannot impersonate another workflow, actor, branch or repository", async () => {
+  const p = require("../factory/policy.cjs");
+  const { verifySource } = require("../factory/trusted-wake.cjs");
+  for (const change of [
+    (r) => Object.assign(r, { path: ".github/workflows/factory-automatic.yml" }),
+    (r) => Object.assign(r, { head_repository: { full_name: "someone/other-app" } }),
+    (r) => Object.assign(r, { triggering_actor: { login: p.OWNER, id: 101267861 } }),
+    (r) => Object.assign(r, { head_branch: "off-main" }),
+    (r) => Object.assign(r, { head_sha: "f".repeat(40) }),
+    (r) => Object.assign(r, { status: "in_progress" }),
+  ]) {
+    const s = await discoveryDrainFixture();
+    const signal = await wake.classifySignal(s);
+    change(s.drainRun);
+    await assert.rejects(verifySource(s.api, signal, false), /source workflow|drain source/i);
+  }
+});

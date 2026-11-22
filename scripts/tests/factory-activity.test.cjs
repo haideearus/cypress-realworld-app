@@ -353,3 +353,148 @@ test("a stop journal entry must match an ancestral command snapshot and cannot f
         : saved(m, p, b);
   await assert.rejects(a.verifyActivityProducer(s.api, event), /ancestry/);
 });
+
+async function useGitActivityStore(s, seed = s.store.state) {
+  const { ActivityStore } = require("../factory/activity-store.cjs");
+  const { MetadataStore } = require("../factory/metadata-store.cjs");
+  const { MetadataFixture } = require("./helpers/metadata-fixture.cjs");
+  const git = new MetadataFixture();
+  const legacy = new MetadataStore(git, "activity", a.emptyActivity, a.validateActivity);
+  const initial = await legacy.save(seed, null);
+  const request = s.api.request;
+  let conflicts = 0;
+  s.api.request = async (method, resource, body) => {
+    if (
+      /\/git\/(?:commits|blobs|trees|refs)(?:\/|$)|\/git\/ref\/heads\/factory\/activity$/.test(
+        resource
+      ) ||
+      /\/contents\/(?:activity\.json|published\/)/.test(resource)
+    ) {
+      try {
+        return await git.request(method, resource, body);
+      } catch (error) {
+        if (error.status === 422) conflicts++;
+        throw error;
+      }
+    }
+    return request(method, resource, body);
+  };
+  s.store = new ActivityStore(s.api);
+  const at = async (path, commit) => {
+    const file = await git.request("GET", `/repos/${repository}/contents/${path}?ref=${commit}`);
+    return JSON.parse(Buffer.from(file.content, "base64").toString("utf8"));
+  };
+  return {
+    original: (path) => at(path, initial),
+    current: (path) => at(path, git.refs.get("factory/activity")),
+    conflicts: () => conflicts,
+  };
+}
+
+function journalEvent(subject, changes = {}) {
+  return a.buildActivityEvent({
+    producer,
+    kind: "queue",
+    state: "completed",
+    subject,
+    head: sha,
+    summary: "Trusted queue event completed",
+    ...changes,
+  });
+}
+
+test("the real activity store migrates a near-full journal and keeps archive lookups after later saves", async () => {
+  const s = setup();
+  const seed = s.store.state;
+  const unresolved = journalEvent(10);
+  seed.events[unresolved.id] = { event: unresolved, status: "intent", commentId: null };
+  const replay = journalEvent(11);
+  seed.events[replay.id] = { event: replay, status: "published", commentId: 42 };
+  let subject = 100;
+  while (Buffer.byteLength(JSON.stringify(seed, null, 2)) < 999000) {
+    const event = journalEvent(subject++, { summary: "e".repeat(430) });
+    seed.events[event.id] = { event, status: "published", commentId: subject };
+  }
+  assert.ok(Buffer.byteLength(JSON.stringify(seed, null, 2)) < 1000000);
+  const git = await useGitActivityStore(s);
+  const next = journalEvent(12, { summary: "n".repeat(1800) });
+
+  assert.equal((await a.publishActivity({ ...s, event: next })).outcome, "published");
+  assert.equal((await a.publishActivity({ ...s, event: journalEvent(13) })).outcome, "published");
+  assert.deepEqual(await a.publishActivity({ ...s, event: replay }), {
+    outcome: "duplicate",
+    commentId: 42,
+  });
+  const { state } = await s.store.read();
+  assert.equal(state.version, 2);
+  assert.deepEqual(Object.keys(state.events), [unresolved.id]);
+  assert.equal(state.events[unresolved.id].status, "intent");
+  assert.equal(s.comments.length, 2);
+  assert.equal((await git.original("activity.json")).events[replay.id].commentId, 42);
+  assert.deepEqual(
+    await git.current("published/" + replay.id.slice(0, 2) + "/" + replay.id + ".json"),
+    { id: replay.id, commentId: 42 }
+  );
+});
+
+test("overlapping real activity claims make one comment and preserve distinct receipts through CAS", async () => {
+  const s = setup();
+  const git = await useGitActivityStore(s);
+  const first = journalEvent(11);
+  const second = journalEvent(12);
+  await Promise.all([
+    a.publishActivity({ ...s, event: first }),
+    a.publishActivity({ ...s, event: first }),
+    a.publishActivity({ ...s, event: second }),
+  ]);
+  assert.ok(git.conflicts() > 0, "fixture must exercise the real CAS retry");
+  assert.equal(s.comments.length, 2);
+  assert.equal((await a.publishActivity({ ...s, event: first })).outcome, "duplicate");
+  assert.equal((await a.publishActivity({ ...s, event: second })).outcome, "duplicate");
+  assert.equal(s.comments.length, 2);
+});
+
+test("a lost comment response can be reconciled beyond the old thousand-comment limit", async () => {
+  const s = setup();
+  const event = journalEvent(10);
+  s.store.state.events[event.id] = { event, status: "intent", commentId: null };
+  const request = s.api.request;
+  s.api.request = async (method, path, body) => {
+    const page = Number(/[?&]page=(\d+)/.exec(path)?.[1]);
+    if (method === "GET" && path.includes("/comments?")) {
+      if (page <= 10) return Array.from({ length: 100 }, () => ({ body: "Older unrelated event" }));
+      return [
+        {
+          id: 1200,
+          body: a.renderEvent(event),
+          user: { login: "github-actions[bot]", id: 41898282 },
+        },
+      ];
+    }
+    return request(method, path, body);
+  };
+  assert.deepEqual(await a.publishActivity({ ...s, event }), {
+    outcome: "reconciled",
+    commentId: 1200,
+  });
+  assert.equal(s.comments.length, 0);
+});
+
+test("an incomplete journal search preserves the intent without a second comment or reporter failure", async () => {
+  const s = setup();
+  const event = journalEvent(10);
+  s.store.state.events[event.id] = { event, status: "intent", commentId: null };
+  const request = s.api.request;
+  let reads = 0;
+  s.api.request = async (method, path, body) => {
+    if (method === "GET" && path.includes("/comments?")) {
+      reads++;
+      return Array.from({ length: 100 }, () => ({ body: "Unrelated receipt" }));
+    }
+    return request(method, path, body);
+  };
+  assert.deepEqual(await a.publishActivity({ ...s, event }), { outcome: "uncertain" });
+  assert.equal(reads, 20);
+  assert.equal(s.store.state.events[event.id].status, "intent");
+  assert.equal(s.comments.length, 0);
+});

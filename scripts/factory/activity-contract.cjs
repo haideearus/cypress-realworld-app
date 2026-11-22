@@ -172,7 +172,7 @@ function validateActivity(s) {
   const keys = "version,repository,events,lastMonitor,staleFor,controlAfter";
   if (
     !(exact(s, keys) || exact(s, `${keys},harnessFaults`)) ||
-    s.version !== 1 ||
+    ![1, 2].includes(s.version) ||
     s.repository !== REPOSITORY ||
     typeof s.controlAfter !== "string" ||
     !Number.isFinite(Date.parse(s.controlAfter)) ||

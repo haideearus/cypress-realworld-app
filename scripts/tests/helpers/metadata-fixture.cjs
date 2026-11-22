@@ -35,7 +35,29 @@ class MetadataFixture {
         blob = entry && this.objects.get(entry.sha);
       return blob ? { type: "file", encoding: "base64", content: blob.content } : notFound();
     }
-    if (method === "POST" && ["/git/blobs", "/git/trees", "/git/commits"].includes(p))
+    if (method === "GET" && /^\/git\/commits\/[a-f0-9]{40}$/.test(p)) {
+      const sha = p.slice(13);
+      const commit = this.objects.get(sha);
+      return commit?.tree ? { sha, tree: { sha: commit.tree } } : notFound();
+    }
+    if (method === "POST" && p === "/git/trees") {
+      const base = body.base_tree ? this.objects.get(body.base_tree) : { tree: [] };
+      if (!base) return notFound();
+      const entries = new Map(base.tree.map((x) => [x.path, x]));
+      for (const entry of body.tree) {
+        const { content, ...fields } = entry;
+        const updated =
+          content === undefined
+            ? fields
+            : {
+                ...fields,
+                sha: this.object({ content: Buffer.from(content).toString("base64") }),
+              };
+        entries.set(entry.path, updated);
+      }
+      return { sha: this.object({ tree: [...entries.values()] }) };
+    }
+    if (method === "POST" && ["/git/blobs", "/git/commits"].includes(p))
       return { sha: this.object(body) };
     if (method === "POST" && p === "/git/refs") {
       const name = body.ref.slice(11);

@@ -160,6 +160,7 @@ async function verifySource(api, signal, bound, vars = {}) {
   );
   if (
     !grants.length ||
+    grants[0].ticket !== signal.number ||
     grants.some((g) => g.status !== "finished") ||
     c.digest(grants.map((g) => g.id).sort()) !== signal.criteriaHash ||
     require("./active-tickets.cjs")
@@ -172,10 +173,27 @@ async function verifySource(api, signal, bound, vars = {}) {
     `${ROOT}/actions/runs/${signal.sourceRun}/attempts/${signal.sourceAttempt}`
   );
   if (
-    run.status !== "completed" ||
-    !["factory-automatic.yml", "factory-dependencies.yml", "factory-agents.yml"].some(
-      (f) => run.path === `.github/workflows/${f}`
-    )
+    !Object.hasOwn(c.DRAIN_LANES, run.path) ||
+    c.DRAIN_LANES[run.path] !== signal.lane ||
+    run.head_branch !== "main" ||
+    run.head_sha !== signal.head ||
+    run.actor?.login !== signal.actor.login ||
+    run.actor?.id !== signal.actor.id
+  )
+    throw Error("Wake drain source changed");
+  const file = run.path.split("/").at(-1);
+  await verifiedRun(api, signal.sourceRun, signal.sourceAttempt, file, {
+    success: false,
+    fetchedRun: run,
+  });
+  const discovery = file === "factory-discovery.yml";
+  if (
+    discovery !== grants.some((g) => g.phase === "discover") ||
+    (discovery &&
+      (run.run_attempt !== 1 ||
+        grants.length !== 1 ||
+        grants[0].head !== signal.head ||
+        !require("./discovery-contract.cjs").runActorOK(run)))
   )
     throw Error("Wake drain source changed");
 }

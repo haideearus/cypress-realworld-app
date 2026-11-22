@@ -89,35 +89,66 @@ async function journal(api, number) {
     throw Error("Activity journal cannot be an admitted maintenance ticket");
   return issue;
 }
+async function readReceipt(store, state, commit, id) {
+  const active = state.events[id];
+  if (active || state.version === 1) return active;
+  return store.published(commit, id);
+}
+function assertActivityRoom(state) {
+  if (Object.values(state.events).filter((r) => r.status !== "published").length >= c.MAX_EVENTS)
+    throw Error("Too many unresolved activity receipts; owner maintenance required");
+}
 async function enqueueActivity({ api, event, store = new ActivityStore(api) }) {
   c.validateEvent(event);
   await verifyActivityProducer(api, event);
-  return store.update((state) => {
-    c.validateActivity(state);
-    if (!state.events[event.id]) {
-      if (Object.keys(state.events).length >= c.MAX_EVENTS)
-        throw Error("Activity registry full; owner archival required");
-      state.events[event.id] = { event, status: "queued", commentId: null };
-    }
+  return store.update(async (state, commit) => {
+    const old = await readReceipt(store, state, commit, event.id);
+    if (old) return { state, unchanged: true };
+    assertActivityRoom(state);
+    state.events[event.id] = { event, status: "queued", commentId: null };
     return { state };
   });
 }
-async function findComment(api, number, event) {
+async function findComment(api, number, event, sourceCreatedAt) {
   const marker = `<!-- factory-activity:${event.id} -->`;
-  for (let page = 1; page <= 10; page++) {
+  const started = Date.parse(sourceCreatedAt);
+  // The comment cannot predate its immutable workflow run. Back off one second
+  // to include writes within the same second as the source's creation.
+  const since = Number.isFinite(started)
+    ? `&since=${encodeURIComponent(new Date(started - 1000).toISOString().replace(/\.\d{3}Z$/, "Z"))}`
+    : "";
+  let match;
+  for (let page = 1; page <= 20; page++) {
     const rows = await api.request(
       "GET",
-      `${ROOT}/issues/${number}/comments?per_page=100&page=${page}`
+      `${ROOT}/issues/${number}/comments?per_page=100&page=${page}${since}`
     );
     if (!Array.isArray(rows) || rows.length > 100) throw Error("Invalid journal lookup");
     const found = rows.filter(
       (r) => r.body?.startsWith(marker) && r.user?.login === BOT && r.user.id === BOT_ID
     );
-    if (found.length > 1) throw Error("Duplicate journal receipt requires owner inspection");
-    if (found.length === 1) return found[0];
-    if (rows.length < 100) return null;
+    if (found.length) {
+      if (match || found.length !== 1)
+        throw Error("Duplicate journal receipt requires owner inspection");
+      match = found[0];
+      if (!Number.isSafeInteger(match.id) || match.id < 1)
+        throw Error("Invalid journal comment identity");
+    }
+    if (rows.length < 100) return match || null;
   }
-  throw Error("Journal lookup bound reached; publication held");
+  // An incomplete search cannot justify a second POST or confirm a unique match.
+  return null;
+}
+
+async function settleComment(store, event, commentId) {
+  return store.update(async (state, commit) => {
+    const old = await readReceipt(store, state, commit, event.id);
+    if (old?.status === "published" && old.commentId === commentId)
+      return { state, unchanged: true };
+    if (old?.status !== "intent") throw Error("Activity publication receipt changed");
+    state.events[event.id] = { ...old, status: "published", commentId };
+    return { state };
+  });
 }
 async function publishActivity({
   api,
@@ -129,32 +160,23 @@ async function publishActivity({
   const body = c.renderEvent(event);
   const scanned = await scan(body);
   if (scanned?.clean !== true) throw Error("Activity body scan failed closed");
-  await verifyActivityProducer(api, event);
+  const source = await verifyActivityProducer(api, event);
   await journal(api, journalIssue);
-  let { state } = await store.read();
-  c.validateActivity(state);
-  const old = state.events[event.id];
-  if (old?.status === "published") return { outcome: "duplicate", commentId: old.commentId };
-  if (old?.status === "intent") {
-    const found = await findComment(api, journalIssue, event);
+  const claim = await store.update(async (state, commit) => {
+    const old = await readReceipt(store, state, commit, event.id);
+    if (old && old.status !== "queued") return { state, unchanged: true, old };
+    if (!old) assertActivityRoom(state);
+    state.events[event.id] = { event, status: "intent", commentId: null };
+    return { state };
+  });
+  if (claim.old?.status === "published")
+    return { outcome: "duplicate", commentId: claim.old.commentId };
+  if (claim.old?.status === "intent") {
+    const found = await findComment(api, journalIssue, event, source.created_at);
     if (!found) return { outcome: "uncertain" };
-    await store.update((s) => {
-      s.events[event.id].status = "published";
-      s.events[event.id].commentId = found.id;
-      return { state: s };
-    });
+    await settleComment(store, event, found.id);
     return { outcome: "reconciled", commentId: found.id };
   }
-  const claim = await store.update((s) => {
-    c.validateActivity(s);
-    const old = s.events[event.id];
-    if (old && old.status !== "queued") return { state: s, mine: false };
-    if (!old && Object.keys(s.events).length >= c.MAX_EVENTS)
-      throw Error("Activity registry full; owner maintenance required");
-    s.events[event.id] = { event, status: "intent", commentId: null };
-    return { state: s, mine: true };
-  });
-  if (!claim.mine) return { outcome: "duplicate" };
   let comment;
   try {
     comment = await api.request("POST", `${ROOT}/issues/${journalIssue}/comments`, { body });
@@ -162,11 +184,7 @@ async function publishActivity({
     return { outcome: "uncertain" };
   }
   if (!Number.isSafeInteger(comment?.id) || comment.id < 1) return { outcome: "uncertain" };
-  await store.update((s) => {
-    s.events[event.id].status = "published";
-    s.events[event.id].commentId = comment.id;
-    return { state: s };
-  });
+  await settleComment(store, event, comment.id);
   return { outcome: "published", commentId: comment.id };
 }
 function monitorFreshness(state, now, completion) {

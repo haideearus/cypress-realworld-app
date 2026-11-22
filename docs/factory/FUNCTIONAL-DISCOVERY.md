@@ -68,5 +68,6 @@ delay or drop a scheduled start. [GitHub schedule behavior](https://docs.github.
 **Proactive app discovery** and **Verified discovery finding intake** have
 separate activation controls. Event pickup and the factory switches control the
 repair of a published browser ticket. CI, independent review, protected merge,
-and named production approval apply. Once the issue is closed and the suite
-records a healthy observation, its incident slot can be released.
+and named production approval apply. [Verified app repair closure](TICKET-CLOSURE.md)
+closes an eligible repair after the approved release is verified in production.
+A subsequent healthy observation can then release the incident slot.
