@@ -110,8 +110,8 @@
       "name": "@faker-js/faker",
       "day": "2026-11-22",
       "trackingReason": "major-held",
-      "phase": "tracking-intent",
-      "issue": null,
+      "phase": "tracking",
+      "issue": 169,
       "pr": null
     }
   }
