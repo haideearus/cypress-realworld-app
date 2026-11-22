@@ -71,10 +71,51 @@ function transport(change = () => {}) {
           },
         ],
       };
+    else if (url.endsWith("/attempts/2/jobs?per_page=100") || url.includes("/runs/501/jobs?"))
+      data = { total_count: 0, jobs: [] };
     else throw Error("Unexpected URL " + url);
     change(data, url);
     return new Response(JSON.stringify(data));
   };
+}
+function splitReceipt({
+  retry = false,
+  appHead = head,
+  appConclusion = "success",
+  gate = "success",
+} = {}) {
+  return transport((data, url) => {
+    const attempt = retry ? 2 : 1;
+    if (url.endsWith("/runs/501")) data.run_attempt = attempt;
+    const app = {
+      name: "app",
+      id: 13,
+      run_id: 501,
+      run_attempt: 1,
+      head_sha: appHead,
+      status: "completed",
+      conclusion: appConclusion,
+      steps: steps.map((name) => ({ name, status: "completed", conclusion: "success" })),
+    };
+    if (url.endsWith(`/attempts/${attempt}/jobs?per_page=100`)) {
+      const verify = {
+        name: "verify",
+        id: 14,
+        run_id: 501,
+        run_attempt: attempt,
+        head_sha: head,
+        status: "completed",
+        conclusion: gate,
+        steps: [{ name: "Require both test jobs to pass", status: "completed", conclusion: gate }],
+      };
+      data.jobs = retry ? [verify] : [verify, app];
+      data.total_count = data.jobs.length;
+    }
+    if (url.includes("/runs/501/jobs?filter=all")) {
+      data.jobs = [app];
+      data.total_count = 1;
+    }
+  });
 }
 const read = (fetcher = transport(), input = source, inv = inventory) =>
   collectReviewContext(input, inv, {
@@ -103,6 +144,16 @@ test("reviewer receives official release plus exact-head successful form-suite r
   );
   assert.match(r.ciEvidence.scope, /not.*per-test/i);
   assert.match(r.upstreamReleases[0].scope, /not.*npm.*provenance/i);
+});
+test("split CI gives dependency reviewers app evidence only after the required gate passes", async () => {
+  for (const retry of [false, true]) {
+    const r = await read(splitReceipt({ retry }));
+    assert.equal(r.ciEvidence.jobId, 13);
+    assert.deepEqual(r.ciEvidence.passedSteps, steps);
+    assert.equal(r.ciEvidence.runAttempt, retry ? 2 : 1);
+  }
+  for (const bad of [{ appHead: tagSha }, { appConclusion: "failure" }, { gate: "failure" }])
+    await assert.rejects(read(splitReceipt(bad)), /evidence|CI/i);
 });
 test("wrong release, unsigned tag and mismatched CI facts fail closed", async () => {
   for (const mutate of [

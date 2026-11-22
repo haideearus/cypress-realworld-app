@@ -21,7 +21,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  verify:
+  app:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     services:
@@ -83,11 +83,6 @@ jobs:
         run: node --test scripts/tests/factory-discovery-docker.test.cjs
         env:
           FACTORY_DISCOVERY_DOCKER_TEST: "true"
-      - name: Smoke-test actual discovery image and browser login without AI
-        timeout-minutes: 20
-        run: node --test scripts/tests/factory-discovery-image.test.cjs
-        env:
-          FACTORY_DISCOVERY_IMAGE_TEST: "true"
       - run: yarn types && yarn lint && yarn test:unit:ci
       - run: yarn build:production && yarn test:production
       - run: yarn test:production:browser
@@ -116,3 +111,38 @@ jobs:
           path: |
             cypress/screenshots
             /tmp/factory-app.log
+
+  discovery_image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+      - name: Install the checksum-pinned secret scanner
+        run: node scripts/factory/scanner-install.cjs
+      - name: Reject secrets in the complete tracked source snapshot
+        run: node scripts/factory/secret-scan.cjs source
+      - name: Smoke-test actual discovery image and browser login without AI
+        timeout-minutes: 20
+        run: node --test scripts/tests/factory-discovery-image.test.cjs
+        env:
+          FACTORY_DISCOVERY_IMAGE_TEST: "true"
+
+  verify:
+    needs: [app, discovery_image]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions: {}
+    steps:
+      - name: Require both test jobs to pass
+        env:
+          APP_RESULT: ${{ needs.app.result }}
+          DISCOVERY_IMAGE_RESULT: ${{ needs.discovery_image.result }}
+        run: |
+          printf 'App checks: %s\nDiscovery image: %s\n' "$APP_RESULT" "$DISCOVERY_IMAGE_RESULT"
+          [[ "$APP_RESULT" == success && "$DISCOVERY_IMAGE_RESULT" == success ]]

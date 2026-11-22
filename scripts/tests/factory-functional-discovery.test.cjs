@@ -95,7 +95,7 @@ test("browser discovery defaults to preview and separates tests from the publish
   const ci = yaml.load(
     fs.readFileSync(path.join(__dirname, "../../.github/workflows/factory-ci.yml"), "utf8")
   );
-  const approvedCheckout = ci.jobs.verify.steps.find((step) =>
+  const approvedCheckout = ci.jobs.app.steps.find((step) =>
     step.uses?.startsWith("actions/checkout@")
   ).uses;
   assert.match(approvedCheckout, /^actions\/checkout@[0-9a-f]{40}$/);
