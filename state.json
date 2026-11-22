@@ -108,7 +108,8 @@
     "2026-11-22": [
       172,
       173,
-      176
+      176,
+      178
     ]
   },
   "tickets": {
@@ -3115,6 +3116,28 @@
         "passed": true
       },
       "feedback": "{\"head\":\"ececfa5a4071b6a5b18fcb01672eb553cb2497b2\",\"verdict\":\"pass\",\"summary\":\"Reviewed PR #174 at ececfa5a against the ticket's criteria for closing discovery-sweep audit issues only after verified, complete intake. Inspected scripts/factory/discovery-sweep-closure.cjs (new), scripts/factory/discovery-origin.cjs (verifySweepSource extraction), scripts/factory/discovery-finding-run.cjs (sweepClosure receipt creation in the publish op and the new close-sweeps op), scripts/factory/discovery-finding-contract.cjs (schema validation for sweepClosure), .github/workflows/factory-discovery-intake.yml (new close_sweeps job and its gating conditions), docs/factory/DISCOVERY-INTAKE.md, and scripts/tests/factory-discovery-origin.test.cjs. The sweepClosure receipt is only attached during publish when every submitted finding in the artifact was verified (canCloseSweep requires candidates.length === bundle.findings.length and digest-matched report entries) and browserEvidenceSettled(bundle) confirms no pending/failed Cypress browser follow-up — so failed or unfinished browser checks correctly prevent eligibility. closeCompletedSweeps only closes sweeps whose every finding is accounted for (published/observed-resolved/repair-merged with a confirmed publication issue, a ready/observed-resolved intake, and duplicates requiring a confirmed comment link), re-verifies source/artifact/CI provenance via verifySweepSource, and only PATCHes `state`/`state_reason`, leaving body, labels, comments, finding records and repair tickets untouched (asserted directly by the \\\"leaving the separate repair ticket and evidence intact\\\" test, which diffs `records` before/after). Idempotency is handled via a digest-guarded recordDisposition and a lost-PATCH-response reconciliation path, and a bounded slice(4) per run with \\\"held\\\" marking prevents malformed/legacy entries from exhausting the pass indefinitely. The workflow's new close_sweeps job gates on select/publish/finalize outcomes and reuses the existing factory-ledger concurrency group and permission pattern already used by sibling jobs. I did not execute the test suite myself (read-only review); CI evidence from the linked run was not separately re-verified beyond reading the referenced diff, and this review is limited to static reading of the current checkout.\",\"findings\":[]}"
+    },
+    "178": {
+      "coding": 0,
+      "reviews": 0,
+      "retries": 0,
+      "origin": "discovery-sweep",
+      "head": "49eacb34b86ef33edba1994bc4feefdc34a15c31",
+      "status": "discovering",
+      "pr": null,
+      "approval": null,
+      "discovery": {
+        "version": 1,
+        "head": "49eacb34b86ef33edba1994bc4feefdc34a15c31",
+        "ciRunId": "45022255058",
+        "charter": "functional-feed",
+        "day": "2026-11-22",
+        "key": "0fc7ab2c0c8b6176bc58c290d53b09cc92e84f9cdfadb9a6964f796b436be706",
+        "runId": "45023515672",
+        "runAttempt": 1,
+        "workflowSha": "49eacb34b86ef33edba1994bc4feefdc34a15c31",
+        "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-discovery.yml@refs/heads/main"
+      }
     }
   },
   "grants": {
@@ -4498,9 +4521,24 @@
       "status": "finished",
       "at": "2026-11-22T10:59:15.318Z",
       "outcome": "reviewed"
+    },
+    "30af3a45-1839-483a-9c1e-014173b74f90": {
+      "id": "30af3a45-1839-483a-9c1e-014173b74f90",
+      "ticket": 178,
+      "phase": "discover",
+      "slot": "discovery",
+      "runId": "45023515672",
+      "runAttempt": 1,
+      "head": "49eacb34b86ef33edba1994bc4feefdc34a15c31",
+      "status": "reserved",
+      "at": "2026-11-22T12:41:22.410Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 178,
+    "runId": "45023515672",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -7695,6 +7733,16 @@
       "grant": "b3981702-6a51-4379-90fa-ab45192f7241",
       "status": "reviewed",
       "head": "ececfa5a4071b6a5b18fcb01672eb553cb2497b2"
+    },
+    {
+      "at": "2026-11-22T12:41:22.410Z",
+      "event": "reserved",
+      "ticket": 178,
+      "grant": "30af3a45-1839-483a-9c1e-014173b74f90",
+      "phase": "discover",
+      "runId": "45023515672",
+      "runAttempt": 1,
+      "actor": "haideearus"
     }
   ]
 }
