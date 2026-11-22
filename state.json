@@ -115,7 +115,8 @@
       182,
       185,
       97,
-      187
+      187,
+      190
     ]
   },
   "tickets": {
@@ -3282,6 +3283,19 @@
         "passed": true
       },
       "feedback": "{\"verdict\":\"pass\",\"head\":\"ad0708173737438adc2a43428cd159b76f932c47\",\"summary\":\"Reviewed scripts/factory/dependency-alert-repair.cjs, dependency-alerts.cjs, dependency-analysis.cjs and docs/factory/DEPENDENCY-MAINTENANCE.md plus the new/updated tests in scripts/tests/factory-dependency-alert-handoff.test.cjs against ticket #187's criteria (bounded retry of held dependency candidates, preserved issue/PR identity, verified hold notes with resumable recheck position, reuse of existing analysis/CI/review/merge pipeline, unchanged policy for parent/major upgrades). planGroup now collects all semver/selector-compatible releases into plan.candidates (unchanged compatibility rules, same selector/major checks as before, just no longer short-circuiting on the first match) while buildCandidate iterates a bounded batch (RECHECK_BATCH_SIZE=4) of versions, distinguishing a definitively confirmed hold (graph-held/vulnerable-candidate, now via the new VulnerableDependencyCandidate subclass) from an inconclusive one (registry/advisory outage), which only the former advances the saved recheck offset for. The recheck fingerprint (digest of manifest+lock+advisory evidence+candidate list) combined with a 7-day RECHECK_INTERVAL_MS correctly implements \\\"skip duplicate checks until evidence changes, but still recheck weekly for independent advisory drift.\\\" validate() was extended to constrain row.recheck to the tracking phase and enumerated confirmed-hold reasons, and issueOK/trackingIssueOK accept the new recheck-note issue body variant without weakening the ready-state checks. I traced the five new tests (next-candidate promotion, confirmed-hold note update with skip-until-change, multi-batch resume, outage preserving the confirmed prefix, and weekly re-verification) by hand against the implementation and the logic is internally consistent with the expected outcomes/release-read sequences; the pre-existing VulnerableDependencyCandidate-related OSV test (/vulnerab/i) still matches the new error message, and other callers of queryOsv are unaffected since the new error class still subclasses Error. I could not execute the test suite or any script myself (read-only review, no shell/execution tools) and did not fetch the linked CI run; I'm treating the referenced CI link as asserted evidence of a green run rather than verified output. The actual end-to-end resolution of the real lodash alert (#162) depends on live npm/OSV data at run time and can't be confirmed from static review alone.\",\"findings\":[]}"
+    },
+    "190": {
+      "coding": 0,
+      "origin": "owner-pr",
+      "reviews": 1,
+      "retries": 0,
+      "head": "907ea4b6c3215f9d99539012fb294de30fa2e80c",
+      "status": "reviewing",
+      "pr": 191,
+      "approval": null,
+      "criteriaHash": "8c221013b81dd7ac52dd48b23e12dad0ce6b2c879f44a8c7e147f6d2175f8f59",
+      "branch": "agent/held-dependency-queue",
+      "ci": null
     }
   },
   "grants": {
@@ -4761,9 +4775,24 @@
       "status": "finished",
       "at": "2026-11-22T17:08:57.509Z",
       "outcome": "reviewed"
+    },
+    "8f3207af-4ae0-4c43-abd6-d8febc848731": {
+      "id": "8f3207af-4ae0-4c43-abd6-d8febc848731",
+      "ticket": 190,
+      "phase": "review",
+      "slot": "existing",
+      "runId": "45057370116",
+      "runAttempt": 1,
+      "head": "907ea4b6c3215f9d99539012fb294de30fa2e80c",
+      "status": "reserved",
+      "at": "2026-11-22T18:51:10.655Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 190,
+    "runId": "45057370116",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -8099,6 +8128,16 @@
       "grant": "4e17b204-2343-4780-b53b-a6e30b57c74d",
       "status": "reviewed",
       "head": "ad0708173737438adc2a43428cd159b76f932c47"
+    },
+    {
+      "at": "2026-11-22T18:51:10.655Z",
+      "event": "reserved",
+      "ticket": 190,
+      "grant": "8f3207af-4ae0-4c43-abd6-d8febc848731",
+      "phase": "review",
+      "runId": "45057370116",
+      "runAttempt": 1,
+      "actor": "haideearus"
     }
   ]
 }
