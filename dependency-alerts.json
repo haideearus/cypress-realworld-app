@@ -114,7 +114,13 @@
       "trackingReason": "graph-held",
       "phase": "tracking",
       "issue": 167,
-      "pr": null
+      "pr": null,
+      "recheck": {
+        "fingerprint": "b061713cfcbe54995f5125ec588a887f04d2cc3eb4f172ef0130fc0ed9b08aba",
+        "reason": "graph-held",
+        "at": "2026-11-22T23:34:51.418Z",
+        "next": 0
+      }
     },
     "6c70011231315799791bee63b9af3c8907fab5dfa1c47548cd9bfa57eb825e4a": {
       "name": "@faker-js/faker",
