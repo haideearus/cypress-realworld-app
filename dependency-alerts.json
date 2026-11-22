@@ -150,8 +150,8 @@
       "name": "extract-zip",
       "day": "2026-11-22",
       "trackingReason": "advisory-held",
-      "phase": "tracking-intent",
-      "issue": null,
+      "phase": "tracking",
+      "issue": 192,
       "pr": null
     }
   }
