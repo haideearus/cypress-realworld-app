@@ -121,6 +121,14 @@
       "phase": "tracking",
       "issue": 170,
       "pr": null
+    },
+    "2702bb8457f35edb6bfb39ec1714432aabaf1eb75c182d62ebb73d894d9e64da": {
+      "name": "brace-expansion",
+      "day": "2026-11-22",
+      "trackingReason": "no-common-candidate",
+      "phase": "tracking-intent",
+      "issue": null,
+      "pr": null
     }
   }
 }
