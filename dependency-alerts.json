@@ -164,5 +164,5 @@
       "pr": null
     }
   },
-  "heldAfter": "@graphql-tools/utils"
+  "heldAfter": "lodash"
 }
