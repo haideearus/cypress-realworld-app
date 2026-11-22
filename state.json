@@ -1910,11 +1910,12 @@
       "origin": "factory",
       "reviews": 0,
       "retries": 0,
-      "head": "6529cbb8b2d3cad7689170057fdadde344a38415",
-      "status": "coding",
-      "pr": null,
+      "head": "a8774f4a6867b4b85749d3d7872243718e6b70f3",
+      "status": "awaiting_review",
+      "pr": 186,
       "approval": null,
-      "criteriaHash": "1555ed01347617394c287d5e4be22faae43b69a7919c70e66282e8c4ff400c3d"
+      "criteriaHash": "1555ed01347617394c287d5e4be22faae43b69a7919c70e66282e8c4ff400c3d",
+      "branch": "agent/factory-97"
     },
     "98": {
       "coding": 0,
@@ -4698,8 +4699,9 @@
       "runId": "45043079290",
       "runAttempt": 1,
       "head": "6529cbb8b2d3cad7689170057fdadde344a38415",
-      "status": "reserved",
-      "at": "2026-11-22T16:18:36.073Z"
+      "status": "finished",
+      "at": "2026-11-22T16:18:36.073Z",
+      "outcome": "awaiting_review"
     }
   },
   "active": {
@@ -8000,6 +8002,14 @@
       "runId": "45043079290",
       "runAttempt": 1,
       "actor": "haideearus"
+    },
+    {
+      "at": "2026-11-22T16:23:31.160Z",
+      "event": "finished",
+      "ticket": 97,
+      "grant": "c7475db9-4f86-49e0-9f5e-49de1dd88610",
+      "status": "awaiting_review",
+      "head": "a8774f4a6867b4b85749d3d7872243718e6b70f3"
     }
   ]
 }
