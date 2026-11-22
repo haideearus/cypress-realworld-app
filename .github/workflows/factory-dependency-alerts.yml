@@ -11,13 +11,21 @@ on:
   schedule:
     - cron: "7,37 * * * *"
   workflow_run:
-    workflows: [Factory CI]
+    workflows:
+      [
+        Factory CI,
+        Factory agents,
+        Automatic factory,
+        Dependency maintenance,
+        Proactive app discovery,
+      ]
     branches: [main]
     types: [completed]
 
 concurrency:
   group: factory-dependency-alerts
   cancel-in-progress: false
+  queue: max
 
 permissions:
   contents: read
@@ -69,15 +77,24 @@ jobs:
              (github.event_name == 'workflow_dispatch' && inputs.operation == 'run'))) ||
            (github.event_name == 'workflow_run' && vars.FACTORY_EVENT_PICKUP_ENABLED == 'true' &&
             github.triggering_actor == github.actor &&
-            (github.actor == 'haideearus' ||
-             (vars.FACTORY_GITHUB_APP_SLUG != '' && github.actor == format('{0}[bot]', vars.FACTORY_GITHUB_APP_SLUG))) &&
-            github.event.workflow_run.event == 'push' &&
-            github.event.workflow_run.path == '.github/workflows/factory-ci.yml' &&
             github.event.workflow_run.run_attempt == 1 &&
-            github.event.workflow_run.conclusion == 'success' &&
             github.event.workflow_run.repository.full_name == github.repository &&
             github.event.workflow_run.head_repository.full_name == github.repository &&
-            github.event.workflow_run.head_sha == github.sha)) }}
+            github.event.workflow_run.head_sha == github.sha &&
+            (((github.actor == 'haideearus' ||
+               (vars.FACTORY_GITHUB_APP_SLUG != '' && github.actor == format('{0}[bot]', vars.FACTORY_GITHUB_APP_SLUG))) &&
+              github.event.workflow_run.event == 'push' &&
+              github.event.workflow_run.path == '.github/workflows/factory-ci.yml' &&
+              github.event.workflow_run.conclusion == 'success') ||
+             ((github.actor == 'haideearus' || github.actor == 'github-actions[bot]') &&
+              (github.event.workflow_run.path == '.github/workflows/factory-agents.yml' ||
+               github.event.workflow_run.path == '.github/workflows/factory-automatic.yml' ||
+               github.event.workflow_run.path == '.github/workflows/factory-dependencies.yml' ||
+               github.event.workflow_run.path == '.github/workflows/factory-discovery.yml')) ||
+             (vars.FACTORY_GITHUB_APP_SLUG != '' &&
+              github.actor == format('{0}[bot]', vars.FACTORY_GITHUB_APP_SLUG) &&
+              github.event.workflow_run.path == '.github/workflows/factory-discovery.yml' &&
+              github.event.workflow_run.event == 'workflow_run')))) }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     concurrency:
@@ -97,10 +114,22 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 22.20.0
+      - name: Check for a matching deferred intake
+        id: deferred
+        if: >-
+          ${{ github.event_name == 'workflow_run' &&
+              github.event.workflow_run.path != '.github/workflows/factory-ci.yml' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FACTORY_VARIABLES: ${{ toJSON(vars) }}
+          FACTORY_HELD_WAKE_CHECK_ONLY: "true"
+        run: node scripts/factory/dependency-alert-repair.cjs
       - name: Install pinned lockfile analysis tools
+        if: ${{ steps.deferred.outputs.ready != 'false' }}
         working-directory: scripts/factory/dependency-tools
         run: npm ci --ignore-scripts --no-audit --fund=false
       - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
+        if: ${{ steps.deferred.outputs.ready != 'false' }}
         id: alerts
         with:
           client-id: ${{ vars.FACTORY_GITHUB_APP_CLIENT_ID }}
@@ -109,6 +138,7 @@ jobs:
           repositories: cypress-realworld-app
           permission-vulnerability-alerts: read
       - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
+        if: ${{ steps.deferred.outputs.ready != 'false' }}
         id: publisher
         with:
           client-id: ${{ vars.FACTORY_GITHUB_APP_CLIENT_ID }}
@@ -118,6 +148,7 @@ jobs:
           permission-contents: write
           permission-pull-requests: write
       - name: Track one dependency vulnerability or publish a verified repair
+        if: ${{ steps.deferred.outputs.ready != 'false' }}
         env:
           GH_TOKEN: ${{ github.token }}
           DEPENDABOT_READ_TOKEN: ${{ steps.alerts.outputs.token }}

@@ -85,12 +85,33 @@ The successful version goes through the existing dependency analysis, CI,
 independent subscription review and protected merge. Parent changes and major
 upgrades still need a compatible update path beyond lockfile-only rechecks.
 
+### Reserved turns for held dependencies
+
+Intake reads one alert snapshot and has separate scan positions for new alerts
+and held tickets. When both queues have work, intake gives held tickets priority
+until it has prepared three held proposals that day. One new critical runtime
+alert can take an earlier turn. The existing app work priority, daily limits
+and one-publication limit still apply.
+
+Held tickets are ordered by severity, runtime exposure and time waiting.
+A bounded scan moves past paused tickets and incomplete evidence so those
+records cannot block later held tickets. Intake keeps the original ticket and
+records prepared, merged and GitHub-cleared repairs separately. Availability of
+compatible releases, review capacity and GitHub scheduling determine how many
+repairs can finish in a day.
+
 ### Event-driven dependency handoff
 
 Successful push CI for the exact current main commit can wake **Dependabot
 alert intake** when event pickup is enabled. Alert intake checks the CI producer
 and its verification job before refreshing the existing proposal. It can
 continue on its existing schedule if GitHub misses the event.
+
+When intake defers held work because the factory slot is occupied, it can
+resume once after the matching trusted workflow finishes and releases the slot.
+Intake checks the current main commit, the saved queue, and the usage ledger
+before consuming that receipt. Unrelated completions skip dependency analysis
+and App token creation.
 
 When PR CI succeeds for the refreshed head, **Factory event wake** revalidates
 the configured GitHub App and the exact ready alert ticket, PR and head in

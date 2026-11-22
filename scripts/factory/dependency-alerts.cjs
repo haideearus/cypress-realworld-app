@@ -187,13 +187,7 @@ async function packagePlan(group, semver, transport, candidateVersion) {
   return { ...plan, evidence: digest([group, affected.sort(), plan.candidates || []]) };
 }
 
-async function preview(
-  token,
-  lockText,
-  tools,
-  transport = fetch,
-  { offset = 0, packageName, candidateVersion } = {}
-) {
+async function readGroups(token, lockText, tools, transport, openAlerts) {
   if (
     typeof lockText !== "string" ||
     Buffer.byteLength(lockText) > 2097152 ||
@@ -203,27 +197,39 @@ async function preview(
   const parsed = tools.lockfile.parse(lockText);
   if (parsed.type !== "success" || !parsed.object || Object.keys(parsed.object).length > 10000)
     throw Error("Invalid alert preview lockfile");
-  const alerts = await listAlerts(token, transport);
-  const groups = groupsFor(alerts, parsed.object, tools.semver).filter(
-    (g) => !packageName || g.name === packageName
-  );
+  const alerts = openAlerts ?? (await listAlerts(token, transport));
+  return { alerts, groups: groupsFor(alerts, parsed.object, tools.semver) };
+}
+
+async function readPlan(group, tools, transport, candidateVersion) {
+  try {
+    return await packagePlan(group, tools.semver, transport, candidateVersion);
+  } catch {
+    return {
+      package: group.name,
+      alerts: group.alerts.map((a) => a.number),
+      status: "metadata-held",
+    };
+  }
+}
+
+async function preview(
+  token,
+  lockText,
+  tools,
+  transport = fetch,
+  { offset = 0, packageName, candidateVersion } = {}
+) {
+  const snapshot = await readGroups(token, lockText, tools, transport);
+  const groups = snapshot.groups.filter((g) => !packageName || g.name === packageName);
   const start = offset < groups.length ? offset : 0;
   const plans = [];
-  for (const group of groups.slice(start, start + PREVIEW_LIMIT)) {
-    try {
-      plans.push(await packagePlan(group, tools.semver, transport, candidateVersion));
-    } catch {
-      plans.push({
-        package: group.name,
-        alerts: group.alerts.map((a) => a.number),
-        status: "metadata-held",
-      });
-    }
-  }
+  for (const group of groups.slice(start, start + PREVIEW_LIMIT))
+    plans.push(await readPlan(group, tools, transport, candidateVersion));
   return {
     outcome: "preview",
     modelCalls: 0,
-    openAlerts: alerts.length,
+    openAlerts: snapshot.alerts.length,
     groups: groups.length,
     nextOffset: start + PREVIEW_LIMIT < groups.length ? start + PREVIEW_LIMIT : 0,
     plans,
@@ -278,4 +284,15 @@ if (require.main === module)
     process.exitCode = 1;
   });
 
-module.exports = { groupsFor, planGroup, listAlerts, readJSON, preview, publicSummary, main };
+module.exports = {
+  PREVIEW_LIMIT,
+  groupsFor,
+  planGroup,
+  listAlerts,
+  readGroups,
+  readPlan,
+  readJSON,
+  preview,
+  publicSummary,
+  main,
+};

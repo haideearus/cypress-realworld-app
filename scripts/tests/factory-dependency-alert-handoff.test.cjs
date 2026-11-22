@@ -5,6 +5,7 @@ const d = require("../factory/dependency-contract.cjs");
 const a = require("../factory/dependency-alert-repair.cjs");
 const { toolsAt } = require("../factory/dependency-analysis.cjs");
 const { GitHub, Ledger, ROOT } = require("../factory/github.cjs");
+const { MetadataStore } = require("../factory/metadata-store.cjs");
 const policy = require("../factory/policy.cjs");
 const { DependencyCoordinator } = require("../factory/dependencies.cjs");
 const { GitHubFixture, vars, context } = require("./helpers/factory-fixtures.cjs");
@@ -110,6 +111,7 @@ async function pipeline() {
     },
   });
   let registryHead;
+  const issues = new Map();
   const store = {
     read: async () => {
       const commit = f.objects.get(registryHead);
@@ -136,7 +138,12 @@ async function pipeline() {
     const data = request.body && JSON.parse(request.body);
     const response = (body) => Response.json(body);
     if (request.method === "GET") {
-      if (endpoint === "/actions/workflows/factory-ci.yml") return response(fixture.ciWorkflow);
+      if (
+        endpoint === "/actions/workflows/factory-ci.yml" ||
+        endpoint === "/actions/workflows/factory-agents.yml" ||
+        endpoint === "/actions/workflows/factory-discovery.yml"
+      )
+        return response(fixture.ciWorkflow);
       if (endpoint === "/actions/runs/19") return response(fixture.ciRun);
       if (endpoint === "/actions/runs/19/attempts/1/jobs") {
         fixture.checkedCI = true;
@@ -173,8 +180,15 @@ async function pipeline() {
           : new Response(null, { status: 404 });
       if (endpoint === `/git/commits/${fixture.main}`) return response({ tree: { sha: head } });
       if (endpoint === "/issues")
-        return response(fixture.issue && !url.searchParams.has("labels") ? [fixture.issue] : []);
-      if (endpoint === "/issues/8") return response(fixture.issue);
+        return response(
+          !url.searchParams.has("labels")
+            ? [...issues.values()].filter((issue) => issue.number !== 8 || fixture.issue)
+            : []
+        );
+      if (/^\/issues\/\d+$/.test(endpoint))
+        return issues.has(Number(endpoint.split("/").at(-1)))
+          ? response(issues.get(Number(endpoint.split("/").at(-1))))
+          : new Response(null, { status: 404 });
       if (endpoint === "/pulls") return response(fixture.pr ? [fixture.pr] : []);
       if (endpoint === "/pulls/9") return response(fixture.pr);
       if (endpoint === "/pulls/9/files")
@@ -224,15 +238,17 @@ async function pipeline() {
     }
     if (request.method === "POST" && endpoint === "/issues") {
       fixture.issuePosts++;
-      fixture.issue = {
+      const issue = {
         ...data,
-        number: 8,
+        number: 7 + fixture.issuePosts,
         state: "open",
         user: { login: "github-actions[bot]", id: 41898282 },
         labels: data.labels.map((name) => ({ name })),
       };
+      issues.set(issue.number, issue);
+      fixture.issue ??= issue;
       if (fixture.lostIssueResponse) throw Error("lost response");
-      return response(fixture.issue);
+      return response(issue);
     }
     if (request.method === "POST" && endpoint === "/pulls") {
       fixture.prPosts++;
@@ -258,13 +274,20 @@ async function pipeline() {
       return response(fixture.issue.labels);
     }
     if (request.method === "PATCH" && endpoint === "/issues/8") {
-      fixture.issue = { ...fixture.issue, ...data };
+      Object.assign(fixture.issue, data);
       if (data.body && fixture.lostIssueUpdateResponse) throw Error("lost issue update response");
       return response(fixture.issue);
     }
     return oldFetch(url, request);
   };
   const api = new GitHub({ token: "job-fixture", fetch: f.fetch });
+  store.update = (mutator) =>
+    new MetadataStore(
+      api,
+      "dependency-alerts",
+      () => ({}),
+      (state) => state
+    ).update(mutator);
   const appApi = new GitHub({ token: "publisher-fixture", fetch: f.fetch });
   const ledger = new Ledger(api);
   await ledger.initialize();
@@ -296,6 +319,7 @@ async function pipeline() {
             first_patched_version: { identifier: "1.1.0" },
           },
         },
+        ...(fixture.extraAlerts || []),
       ]);
     if (String(url).includes("/advisories"))
       return fixture.advisoriesUnavailable
@@ -331,7 +355,7 @@ async function pipeline() {
     }
     throw Error("unexpected metadata request");
   };
-  const run = (config = cfg, trigger, now) =>
+  const run = (config = cfg, trigger, now, reportHeldProgress = false) =>
     a.runRepair({
       api,
       app: appApi,
@@ -344,6 +368,7 @@ async function pipeline() {
       transport,
       trigger,
       now,
+      reportHeldProgress,
     });
   async function reviewed() {
     assert.equal((await new DependencyCoordinator(api, cfg, ctx).select(false)).ready, true);
@@ -442,6 +467,154 @@ test("a held alert becomes a protected proposal on the same issue when evidence 
   assert.deepEqual(x.fixture.issue.labels, [{ name: a.READY_LABEL }]);
   assert.equal((await x.coordinator.select(false)).ready, true);
 });
+
+test("the held queue finds a compatible repair outside the new-alert cursor", async () => {
+  const x = await pipeline();
+  x.fixture.versions = { "2.0.0": {} };
+  assert.equal((await x.run()).outcome, "tracked-held");
+  x.fixture.versions = { "1.1.0": {} };
+  x.fixture.extraAlerts = [
+    {
+      number: 2,
+      state: "open",
+      dependency: {
+        package: { ecosystem: "npm", name: "out-of-range" },
+        manifest_path: "yarn.lock",
+        scope: "development",
+      },
+      security_vulnerability: { severity: "medium", vulnerable_version_range: null },
+    },
+  ];
+  await x.store.update((state) => {
+    state.cursor = 1;
+    state.records["c".repeat(64)] = {
+      name: "out-of-range",
+      phase: "tracking",
+      trackingReason: "metadata-held",
+      issue: 17,
+      pr: null,
+      day: "2026-11-21",
+    };
+    return { state };
+  });
+  assert.deepEqual(await x.run(), { outcome: "published", issue: 8, pr: 9 });
+  assert.equal(x.fixture.issuePosts, 1);
+  assert.equal(x.fixture.prPosts, 1);
+  assert.equal((await x.store.read()).state.cursor, 1);
+});
+
+function additionalAlert(number, name, severity, scope = "runtime") {
+  return {
+    number,
+    state: "open",
+    dependency: { package: { ecosystem: "npm", name }, manifest_path: "yarn.lock", scope },
+    security_vulnerability: { severity, vulnerable_version_range: null },
+  };
+}
+
+test("held scanning moves past paused higher-priority tickets on the next run", async () => {
+  const x = await pipeline();
+  x.fixture.versions = { "2.0.0": {} };
+  assert.equal((await x.run()).outcome, "tracked-held");
+  x.fixture.versions = { "1.1.0": {} };
+  x.fixture.extraAlerts = [];
+  await x.store.update((state) => {
+    for (let i = 1; i <= 3; i++) {
+      const name = "paused-" + i;
+      x.fixture.extraAlerts.push(additionalAlert(10 + i, name, "critical"));
+      state.records[String(i).repeat(64)] = {
+        name,
+        phase: "tracking",
+        trackingReason: "metadata-held",
+        issue: 20 + i,
+        pr: null,
+        day: "2026-11-21",
+      };
+    }
+    return { state };
+  });
+  assert.equal((await x.run()).outcome, "no-compatible-update");
+  assert.deepEqual(await x.run(), { outcome: "published", issue: 8, pr: 9 });
+});
+
+test("a new critical runtime alert gets one turn before the reserved held queue", async () => {
+  const x = await pipeline();
+  const now = new Date("2026-11-22T12:00:00Z");
+  x.fixture.versions = { "2.0.0": {} };
+  assert.equal((await x.run(x.cfg, undefined, now)).outcome, "tracked-held");
+  x.fixture.versions = { "1.1.0": {} };
+  x.fixture.extraAlerts = [additionalAlert(2, "urgent", "critical")];
+  assert.deepEqual(await x.run(x.cfg, undefined, now), { outcome: "tracked-held", issue: 9 });
+  assert.equal((await x.store.read()).state.urgentDay, "2026-11-22");
+  x.fixture.extraAlerts.push(additionalAlert(3, "another-urgent", "critical"));
+  assert.deepEqual(await x.run(x.cfg, undefined, now), { outcome: "published", issue: 8, pr: 9 });
+  assert.equal(x.fixture.issuePosts, 2);
+});
+
+test("a critical development alert cannot borrow runtime priority from another alert", async () => {
+  const x = await pipeline();
+  x.fixture.versions = { "2.0.0": {} };
+  assert.equal((await x.run()).outcome, "tracked-held");
+  x.fixture.versions = { "1.1.0": {} };
+  x.fixture.extraAlerts = [
+    additionalAlert(2, "mixed-scope", "critical", "development"),
+    additionalAlert(3, "mixed-scope", "low", "runtime"),
+  ];
+  assert.deepEqual(await x.run(), { outcome: "published", issue: 8, pr: 9 });
+  assert.equal(x.fixture.issuePosts, 1);
+});
+
+test("saving a confirmed held blocker does not end the scan of other candidates", async () => {
+  const x = await pipeline();
+  x.fixture.versions = { "2.0.0": {} };
+  assert.equal((await x.run()).outcome, "tracked-held");
+  x.fixture.versions = { "1.1.0": {} };
+  x.fixture.vulnerableVersions = ["1.1.0"];
+  x.fixture.extraAlerts = [additionalAlert(2, "new-alert", "medium", "development")];
+  assert.deepEqual(await x.run(), { outcome: "tracked-held", issue: 9 });
+  assert.match(x.fixture.issue.body, /Latest automatic recheck:/);
+  assert.equal(x.fixture.prPosts, 0);
+});
+
+for (const cursor of [0, 11])
+  test(`new-alert priority skips tracked packages after three held proposals at cursor ${cursor}`, async () => {
+    const x = await pipeline();
+    const now = new Date("2026-11-22T12:00:00Z");
+    x.fixture.versions = { "2.0.0": {} };
+    assert.equal((await x.run(x.cfg, undefined, now)).outcome, "tracked-held");
+    x.fixture.versions = { "1.1.0": {} };
+    x.fixture.extraAlerts = [additionalAlert(2, "new-alert", "medium", "development")];
+    await x.store.update((state) => {
+      state.cursor = cursor;
+      for (let i = 1; i <= 3; i++)
+        state.records[String(i).repeat(64)] = {
+          name: "finished-" + i,
+          phase: "resolved",
+          trackingReason: "candidate-held",
+          candidate: "1.1.0",
+          base,
+          head,
+          issue: 20 + i,
+          pr: 30 + i,
+          day: "2026-11-22",
+        };
+      for (let i = 1; i <= 10; i++) {
+        const name = "already-tracked-" + i;
+        x.fixture.extraAlerts.push(additionalAlert(10 + i, name, i === 10 ? "low" : "critical"));
+        state.records[i.toString(16).padStart(64, "0")] = {
+          name,
+          phase: "tracking",
+          trackingReason: "metadata-held",
+          issue: 40 + i,
+          pr: null,
+          day: "2026-11-21",
+        };
+      }
+      return { state };
+    });
+    assert.deepEqual(await x.run(x.cfg, undefined, now), { outcome: "tracked-held", issue: 9 });
+    assert.equal(x.fixture.prPosts, 0);
+  });
 
 test("a held ticket tries the next verified compatible release and refreshes the same PR", async () => {
   const x = await pipeline();
@@ -745,6 +918,96 @@ test("verified push CI cannot refresh after main advances again", async () => {
   assert.equal(x.fixture.ref, old);
 });
 
+for (const { name, event, actor } of [
+  {
+    name: "factory-agents",
+    event: "workflow_dispatch",
+    actor: { login: "haideearus", id: 101267861, type: "User" },
+  },
+  {
+    name: "factory-discovery",
+    event: "workflow_run",
+    actor: { login: "factory-example[bot]", id: 800, type: "Bot" },
+  },
+])
+  test(`a matching trusted ${name} slot release resumes a deferred held repair once`, async () => {
+    const x = await pipeline();
+    x.fixture.versions = { "2.0.0": {} };
+    assert.equal((await x.run()).outcome, "tracked-held");
+    x.fixture.versions = { "1.1.0": {} };
+    const workflow = { path: ".github/workflows/" + name + ".yml", id: 21 };
+    const completed = {
+      id: 19,
+      workflow_id: workflow.id,
+      path: workflow.path,
+      event,
+      head_branch: "main",
+      head_sha: base,
+      repository: repo,
+      head_repository: repo,
+      run_attempt: 1,
+      status: "completed",
+      conclusion: "failure",
+      actor,
+      triggering_actor: actor,
+    };
+    x.fixture.ciWorkflow = workflow;
+    x.fixture.ciRun = completed;
+    const env = {
+      GITHUB_REPOSITORY: d.REPOSITORY,
+      GITHUB_ACTOR: actor.login,
+      GITHUB_ACTOR_ID: String(actor.id),
+      GITHUB_TRIGGERING_ACTOR: actor.login,
+      GITHUB_REF: "refs/heads/main",
+      GITHUB_EVENT_NAME: "workflow_run",
+      GITHUB_RUN_ATTEMPT: "1",
+      GITHUB_SHA: base,
+      GITHUB_WORKFLOW_SHA: base,
+      GITHUB_WORKFLOW_REF: `${d.REPOSITORY}/.github/workflows/factory-dependency-alerts.yml@refs/heads/main`,
+    };
+    const trigger = {
+      env,
+      event: { action: "completed", repository: repo, workflow, workflow_run: { ...completed } },
+    };
+    const now = new Date("2026-11-22T12:00:00Z");
+    const { grant } = await x.ledger.update((state) =>
+      policy.reserve(state, { ...context, ticket: 25, runId: "19" }, x.cfg, now)
+    );
+    assert.equal((await x.run(x.cfg, undefined, now)).outcome, "factory-busy");
+    assert.deepEqual((await x.store.read()).state.deferred?.runs, ["19"]);
+    assert.equal((await x.run(x.cfg, trigger, now)).outcome, "held-wake-not-due");
+    await x.ledger.update((state) => ({
+      state: policy.finish(state, grant.id, { status: "blocked" }, now),
+    }));
+    const before = (await x.ledger.read()).state;
+    await assert.rejects(
+      x.run(
+        x.cfg,
+        {
+          ...trigger,
+          event: {
+            ...trigger.event,
+            workflow_run: { ...completed, head_repository: { full_name: "foreign/repo" } },
+          },
+        },
+        now
+      ),
+      /Untrusted held dependency completion/
+    );
+    x.fixture.ciRun = { ...completed, workflow_id: 20 };
+    await assert.rejects(x.run(x.cfg, trigger, now), /Untrusted held dependency completion run/);
+    x.fixture.ciRun = completed;
+    assert.equal(
+      (await x.run(x.cfg, trigger, new Date("2026-11-22T15:00:00Z"))).outcome,
+      "held-wake-not-due"
+    );
+    assert.equal((await x.run(x.cfg, trigger, now)).outcome, "published");
+    assert.equal((await x.run(x.cfg, trigger, now)).outcome, "held-wake-not-due");
+    assert.equal(x.fixture.prPosts, 1);
+    assert.equal(x.fixture.issuePosts, 1);
+    assert.deepEqual((await x.ledger.read()).state, before);
+  });
+
 test("a reviewed ticket that is held or stale releases the shared queue and preserves its spent review", async () => {
   for (const reason of ["ticket-held", "stale-base", "alert-repair-disabled"]) {
     const x = await pipeline();
@@ -768,7 +1031,11 @@ test("a reviewed ticket that is held or stale releases the shared queue and pres
 
 test("ticket closure waits for a proven merge, the fixed lock entries, and GitHub's alert refresh", async () => {
   const x = await pipeline();
-  await x.run();
+  const now = new Date("2026-11-22T12:00:00Z");
+  x.fixture.versions = { "2.0.0": {} };
+  assert.equal((await x.run(x.cfg, undefined, now)).outcome, "tracked-held");
+  x.fixture.versions = { "1.1.0": {} };
+  assert.equal((await x.run(x.cfg, undefined, now)).outcome, "published");
   await x.reviewed();
   const mergeCommit = "f".repeat(40);
   await x.ledger.update((state) => {
@@ -777,7 +1044,7 @@ test("ticket closure waits for a proven merge, the fixed lock entries, and GitHu
       status: "merged",
       head: ticket.head,
       pr: 9,
-      at: new Date().toISOString(),
+      at: now.toISOString(),
       runId: context.runId,
       runAttempt: 1,
       mergeCommit,
@@ -786,13 +1053,16 @@ test("ticket closure waits for a proven merge, the fixed lock entries, and GitHu
   });
   x.fixture.main = mergeCommit;
   x.fixture.pr = { ...x.fixture.pr, state: "closed", merged: true, merge_commit_sha: mergeCommit };
-  await x.run();
+  const pending = await x.run(x.cfg, undefined, now, true);
+  assert.deepEqual(pending.heldProgress, { prepared: 1, merged: 1, cleared: 0 });
   assert.equal(x.fixture.issue.state, "open");
   x.fixture.alertCleared = true;
   await assert.rejects(x.run(), /lacks verified merge/);
   assert.equal(x.fixture.issue.state, "open");
   x.fixture.lockUpdated = true;
-  await x.run();
+  const closed = await x.run({ ...x.cfg, daily: 0 }, undefined, now, true);
+  assert.equal(closed.outcome, "daily-limit");
+  assert.deepEqual(closed.heldProgress, { prepared: 1, merged: 1, cleared: 1 });
   assert.equal(x.fixture.issue.state_reason, "completed");
   assert.equal(Object.values((await x.store.read()).state.records)[0].phase, "resolved");
 });
@@ -809,7 +1079,13 @@ test("hosted preview stays read-only and alert publication is explicitly opt-in"
   assert.equal(workflow.on.workflow_dispatch.inputs.operation.default, "preview");
   assert.ok(workflow.on.schedule.length);
   assert.deepEqual(workflow.on.workflow_run, {
-    workflows: ["Factory CI"],
+    workflows: [
+      "Factory CI",
+      "Factory agents",
+      "Automatic factory",
+      "Dependency maintenance",
+      "Proactive app discovery",
+    ],
     branches: ["main"],
     types: ["completed"],
   });
