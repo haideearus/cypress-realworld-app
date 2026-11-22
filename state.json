@@ -3347,7 +3347,8 @@
       "ci": {
         "requestId": "2f0dc8b7-6914-43be-8797-c6443f342b7c",
         "head": "af7abe05b2635e88be2b3a9aba0d92b744a26cb7",
-        "runId": null
+        "runId": 45078555993,
+        "passed": true
       },
       "analysis": {
         "version": 2,
