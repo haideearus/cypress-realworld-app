@@ -1911,7 +1911,7 @@
       "reviews": 0,
       "retries": 0,
       "head": "a8774f4a6867b4b85749d3d7872243718e6b70f3",
-      "status": "awaiting_review",
+      "status": "retry",
       "pr": 186,
       "approval": null,
       "criteriaHash": "1555ed01347617394c287d5e4be22faae43b69a7919c70e66282e8c4ff400c3d",
@@ -1921,7 +1921,8 @@
         "head": "a8774f4a6867b4b85749d3d7872243718e6b70f3",
         "runId": 45043601551,
         "passed": false
-      }
+      },
+      "feedback": "Required verify failed: https://github.com/haideearus/cypress-realworld-app/actions/runs/45043601551"
     },
     "98": {
       "coding": 0,
