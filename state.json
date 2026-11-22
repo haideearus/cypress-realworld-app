@@ -3146,9 +3146,17 @@
       "reviews": 1,
       "retries": 0,
       "head": "53233c28c837f6c31cc07fabb3ab88f26940eb18",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 175,
-      "approval": null,
+      "approval": {
+        "head": "53233c28c837f6c31cc07fabb3ab88f26940eb18",
+        "pr": 175,
+        "grant": "aad651a5-3bc0-4916-b763-09961b5d3afe",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/45025279598"
+      },
       "criteriaHash": "0b6f05721c64d7223e2d72847797414e583dc5541e1029c53665e26b0a98cabc",
       "branch": "agent/claude-browser-discovery",
       "ci": {
@@ -3156,7 +3164,8 @@
         "head": "53233c28c837f6c31cc07fabb3ab88f26940eb18",
         "runId": 45025349890,
         "passed": true
-      }
+      },
+      "feedback": "{\"head\":\"53233c28c837f6c31cc07fabb3ab88f26940eb18\",\"verdict\":\"pass\",\"summary\":\"Reviewed PR #175 at 53233c28 by reading the current repository source (diff file list was embedded in .factory-input/context.json as a single JSON string; I inspected the merged files directly instead of parsing that escaped blob). Checked scripts/factory/discovery-browser.cjs + scripts/tests/factory-discovery-browser.test.cjs: Claude-selected journeys are constrained to an enum schema (fixed pages/checks/variants), the rendered Cypress spec is hashed/replayed (verifyJourney) to reject tampering, and the fixed synthetic account/transaction fixture is the only write path — satisfying \\\"approved actions and synthetic data only\\\". Checked scripts/factory/functional-browser.cjs, scripts/tests/factory-functional-weekly-transactions.cjs and factory-functional-weekly-avatar.cjs: each weekly attempt gets an isolated Postgres database via withFreshWeeklyDatabase (CREATE/DROP DATABASE per run, loopback-only guard in isDisposableDatabase) and a loopback S3-compatible avatar fixture (scripts/factory/test-avatar-storage.cjs, exercised against the real backend/avatar-storage.ts adapter in factory-test-avatar-storage.test.cjs) — no production storage or credentials touched. verifyFunctionalChecks in functional-browser.cjs requires two independent browser invocations to report the identical check+assertion before returning confirmed_failure, matching the \\\"same approved assertion fails twice\\\" criterion; functional-discovery.cjs's publishFunctional/observeIncident path (scripts/factory/monitor.cjs) reuses the existing factory-ready label, MAX_INCIDENTS/MAX_CREATIONS_PER_DAY limits, and keeps the functional branch separate from the verifiedRetirement/production-release path, so production closure's stricter verification is not weakened. For the decline-balance bug: backend/database.ts's updateTransactionById only tests isRequestTransaction(transaction) on the pre-edit transaction (true for any pending request), so both accept and reject currently trigger debit/credit — this is a genuine pre-existing app bug, and the request-decline weekly journey (factory-functional-weekly-transactions.cjs) explicitly asserts both balances stay unchanged, so the bug remains detectable by this suite rather than being silently patched or skipped. Supporting unit tests (factory-functional-browser.test.cjs, factory-discovery-browser.test.cjs, factory-functional-weekly-transactions.test.cjs, factory-test-avatar-storage.test.cjs) cover the classifier edge cases, database isolation, and journey-tampering rejection. Limits: I did not execute yarn test:factory or the CI workflow myself (read-only review); the ci field in context.json was only a run URL with no embedded results to treat as evidence, and discovery-sweep-closure.cjs (consumer of the new browserFollowUp flag) was confirmed to already exist on main from a prior PR rather than being part of this diff, so its correctness was checked but is formally out of this PR's change-set.\",\"findings\":[]}"
     }
   },
   "grants": {
@@ -4561,15 +4570,12 @@
       "runId": "45025279598",
       "runAttempt": 1,
       "head": "53233c28c837f6c31cc07fabb3ab88f26940eb18",
-      "status": "reserved",
-      "at": "2026-11-22T13:01:54.620Z"
+      "status": "finished",
+      "at": "2026-11-22T13:01:54.620Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 179,
-    "runId": "45025279598",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -7792,6 +7798,14 @@
       "runId": "45025279598",
       "runAttempt": 1,
       "actor": "haideearus"
+    },
+    {
+      "at": "2026-11-22T13:51:43.884Z",
+      "event": "finished",
+      "ticket": 179,
+      "grant": "aad651a5-3bc0-4916-b763-09961b5d3afe",
+      "status": "reviewed",
+      "head": "53233c28c837f6c31cc07fabb3ab88f26940eb18"
     }
   ]
 }
