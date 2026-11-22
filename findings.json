@@ -443,7 +443,7 @@
       "sweepClosure": {
         "artifactId": 14755321912,
         "artifactDigest": "sha256:7e7007ac33ef125e62be91387cb128a59060ce78a2e390982f68f17dda9e1522",
-        "status": "pending"
+        "status": "completed"
       }
     }
   }
