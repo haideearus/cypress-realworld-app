@@ -142,8 +142,8 @@
       "name": "decode-uri-component",
       "day": "2026-11-22",
       "trackingReason": "metadata-held",
-      "phase": "tracking-intent",
-      "issue": null,
+      "phase": "tracking",
+      "issue": 189,
       "pr": null
     }
   }
