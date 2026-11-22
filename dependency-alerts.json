@@ -170,7 +170,7 @@
       "base": "65d28a82b2263571ff9541fb93abf51089ed6ca4",
       "head": "c9e37b981ca10d304b24ff660a389fa87a0a12a0",
       "name": "flatted",
-      "phase": "issue",
+      "phase": "pr-intent",
       "issue": 194,
       "pr": null
     }
