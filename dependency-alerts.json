@@ -190,5 +190,5 @@
       "pr": null
     }
   },
-  "heldAfter": "@graphql-tools/utils"
+  "heldAfter": "@babel/plugin-transform-modules-systemjs"
 }
