@@ -134,8 +134,8 @@
       "name": "braces",
       "day": "2026-11-22",
       "trackingReason": "major-held",
-      "phase": "tracking-intent",
-      "issue": null,
+      "phase": "tracking",
+      "issue": 183,
       "pr": null
     }
   }
