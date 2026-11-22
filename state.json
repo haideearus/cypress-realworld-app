@@ -3382,12 +3382,13 @@
       },
       "feedback": "{\"head\":\"af7abe05b2635e88be2b3a9aba0d92b744a26cb7\",\"verdict\":\"pass\",\"summary\":\"Reviewed the yarn.lock-only diff at af7abe05 against base 51cf2053: it consolidates every lodash range (lodash@4, ^4.17.11, ^4.17.15, ^4.17.20, ^4.17.21) from 4.17.21 to 4.18.1, matching the already-pinned lodash@^4.17.23/^4.18.1 entry so no 4.17.21 resolution remains anywhere in yarn.lock. package.json has no direct lodash dependency (only the devDependency @types/lodash, unchanged), so no package.json edit was needed. dependencyFacts confirms the npm registry tarball integrity (sha512-dMInic...) matches yarn.lock exactly and a GitHub-verified signed tag exists for 4.18.1, clearing GHSA-r5fr-rjxr-66jc (fixed 4.18.0) and GHSA-xxjr-mmjv-4gpg (fixed 4.17.23) with no remaining baseline advisories. I checked actual lodash usage in src/ (AlertBar.cy.tsx uses startCase; nine xstate machines under src/machines/ plus transactionUtils.ts use lodash/fp's omit, isEmpty, concat, flow, first) and confirmed the CI receipt's listed suites (UserSettingsForm.test.tsx, auth.spec.ts, bankaccounts.spec.ts, user-settings.spec.ts) exercise authMachine and bankAccountsMachine at runtime, which is reasonable evidence the lodash/fp import path resolves, but these specs do not exercise transactionDetailMachine, contactsTransactionsMachine, dataMachine, notificationsMachine, personalTransactionsMachine, publicTransactionsMachine, createTransactionMachine, or usersMachine directly. No node_modules is present in this checkout, so I could not inspect the installed lodash/fp tarball contents myself; I relied on the dependencyFacts registry/OSV evidence and the CI receipt rather than running anything.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"The CI receipt's listed test files (auth.spec.ts, bankaccounts.spec.ts, user-settings.spec.ts, UserSettingsForm.test.tsx) only exercise authMachine and bankAccountsMachine's use of lodash/fp (omit). The other machines in src/machines/ that import omit/isEmpty/concat/flow/first from lodash/fp (transactionDetailMachine, contactsTransactionsMachine, dataMachine, notificationsMachine, personalTransactionsMachine, publicTransactionsMachine, createTransactionMachine, usersMachine) have no dedicated test referenced in ciEvidence, so behavioral regressions there from the 4.17.21->4.18.1 bump would not be caught by the cited suite alone.\"}]}",
       "merge": {
-        "status": "intent",
+        "status": "merged",
         "head": "af7abe05b2635e88be2b3a9aba0d92b744a26cb7",
         "pr": 193,
-        "at": "2026-11-22T22:48:43.770Z",
+        "at": "2026-11-22T22:48:59.223Z",
         "runId": "45078422558",
-        "runAttempt": 1
+        "runAttempt": 1,
+        "mergeCommit": "65d28a82b2263571ff9541fb93abf51089ed6ca4"
       }
     }
   },
@@ -4894,11 +4895,7 @@
       "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 193,
-    "runId": "45078422558",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
