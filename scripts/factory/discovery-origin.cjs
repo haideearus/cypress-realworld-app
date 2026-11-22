@@ -59,9 +59,19 @@ async function verifySource(
         store,
       })
     );
-  const proof = f.sourceProof(candidate.source);
+  return Boolean(
+    await verifySweepSource(api, candidate.source, candidate.artifact, { ledger, discovery })
+  );
+}
+async function verifySweepSource(
+  api,
+  sourceProof,
+  artifactProof,
+  { ledger = new Ledger(api), discovery = new DiscoveryStore(api) } = {}
+) {
+  const proof = f.sourceProof(sourceProof);
   const { state } = await ledger.read();
-  const grant = state.grants[candidate.source.grantId];
+  const grant = state.grants[sourceProof.grantId];
   const ticket = grant && state.tickets[String(grant.ticket)];
   if (
     !grant ||
@@ -141,18 +151,18 @@ async function verifySource(
       (String(ci.id) !== proof.ciRunId || !c.factoryAppCIOK(ci)))
   )
     return false;
-  const artifact = await api.request("GET", `${ROOT}/actions/artifacts/${candidate.artifact.id}`);
-  return (
-    artifact.id === candidate.artifact.id &&
-    artifact.name === candidate.artifact.name &&
+  const artifact = await api.request("GET", `${ROOT}/actions/artifacts/${artifactProof.id}`);
+  return artifact.id === artifactProof.id &&
+    artifact.name === artifactProof.name &&
     artifact.expired === false &&
-    artifact.digest === candidate.artifact.digest &&
+    artifact.digest === artifactProof.digest &&
     artifact.workflow_run?.id === Number(proof.runId) &&
     artifact.workflow_run?.head_sha === proof.head &&
     Number.isSafeInteger(artifact.size_in_bytes) &&
     artifact.size_in_bytes > 0 &&
     artifact.size_in_bytes <= 4000000
-  );
+    ? audit
+    : false;
 }
 async function verifyDiscoveryIssue(
   api,
@@ -253,6 +263,7 @@ async function verifyRepairOrigin(api, issue, finding, { requireCurrent = false 
   return c.digest(record.intake) === c.digest(finding.intake);
 }
 module.exports = {
+  verifySweepSource,
   producer,
   successfulJob,
   verifySource,

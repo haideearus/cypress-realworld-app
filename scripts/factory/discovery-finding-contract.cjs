@@ -329,18 +329,32 @@ function validateFindings(s) {
   }
   for (const [grant, entry] of Object.entries(s.imports)) {
     const recovered = Object.prototype.hasOwnProperty.call(entry, "recoveries");
+    const sweep = Object.prototype.hasOwnProperty.call(entry, "sweepClosure");
     c.exact(entry, [
       "runId",
       "evidenceHash",
       "findings",
       "status",
       ...(recovered ? ["recoveries"] : []),
+      ...(sweep ? ["sweepClosure"] : []),
     ]);
     if (recovered) {
       const recovery = require("./discovery-recovery-contract.cjs");
       if (grant !== recovery.SOURCE.grantId || entry.runId !== recovery.SOURCE.runId)
         throw Error("Recovery receipts require the pinned source import");
       recovery.validateRecoveries(entry.recoveries);
+    }
+    if (sweep) {
+      const closure = entry.sweepClosure;
+      c.exact(closure, ["artifactId", "artifactDigest", "status"]);
+      if (
+        recovered ||
+        !Number.isSafeInteger(closure.artifactId) ||
+        closure.artifactId < 1 ||
+        !/^sha256:[a-f0-9]{64}$/.test(closure.artifactDigest || "") ||
+        !["pending", "completed", "held"].includes(closure.status)
+      )
+        throw Error("Invalid sweep closure receipt");
     }
     if (
       !UUID.test(grant) ||

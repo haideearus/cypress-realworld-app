@@ -235,3 +235,214 @@ test("a bot discovery artifact requires its exact successful main CI from the pi
   ci.triggering_actor = { ...actor, id: 123 };
   assert.equal(await origin.verifySource(x.api, x.candidate, x.dependencies), false);
 });
+
+function sweepClosureFixture({ finding = false, closed = false, eligible = true } = {}) {
+  const source = sourceFixture(true);
+  const { ROOT } = require("../factory/github.cjs");
+  const { main } = require("../factory/discovery-finding-run.cjs");
+  const issuePath = ROOT + "/issues/90";
+  const proof = fx.proof(fx.grant, "functional-feed");
+  const original = {
+    number: 90,
+    state: closed ? "closed" : "open",
+    state_reason: closed ? "completed" : null,
+    title: "Discovery sweep: functional-feed (2026-11-17)",
+    body: require("../factory/discovery-run.cjs").sourceBody(proof),
+    labels: [],
+    user: { id: 41898282, login: "github-actions[bot]" },
+  };
+  const issue = structuredClone(original);
+  const registry = f.emptyFindings();
+  if (finding) {
+    const publication = require("../factory/discovery-publication.cjs");
+    publication.stageFinding(registry, source.candidate);
+    const record = registry.records[source.candidate.key];
+    if (finding === "ready") {
+      publication.claimPublication(
+        registry,
+        source.candidate.key,
+        proof.day,
+        fx.context,
+        { enabled: true, automatic: true, discovery: true },
+        false
+      );
+      Object.assign(record.publication, {
+        issue: 91,
+        confirmation: fx.context,
+        writeStarted: true,
+      });
+      record.status = "published";
+      const receipt = require("../factory/discovery-intake.cjs").reserveReplay(
+        registry,
+        source.candidate.key,
+        proof.day,
+        fx.context,
+        fx.head,
+        proof.ciRunId
+      );
+      Object.assign(receipt, { outcome: "ready", evidenceHash: "a".repeat(64) });
+      record.intake = structuredClone(receipt);
+    } else record.status = "held-quota";
+  }
+  registry.imports[fx.grant] = {
+    runId: "100",
+    status: "complete",
+    evidenceHash: "e".repeat(64),
+    findings: finding ? [source.candidate.key] : [],
+    ...(eligible
+      ? {
+          sweepClosure: { artifactId: 123, artifactDigest: fx.artifact.digest, status: "pending" },
+        }
+      : {}),
+  };
+  const updates = [];
+  const api = {
+    pages: source.api.pages,
+    async request(method, url, body) {
+      if (method === "PATCH") {
+        assert.equal(url, issuePath);
+        assert.deepEqual(body, { state: "closed", state_reason: "completed" });
+        updates.push(body);
+        Object.assign(issue, body);
+        if (api.uncertain) throw Error("Lost PATCH response");
+        return structuredClone(issue);
+      }
+      if (url === issuePath) return structuredClone(issue);
+      if (url.endsWith("/actions/workflows/factory-discovery-intake.yml"))
+        return { id: 11, path: f.WORKFLOW };
+      if (url.endsWith("/actions/runs/300/attempts/1"))
+        return {
+          ...source.run,
+          id: 300,
+          workflow_id: 11,
+          path: f.WORKFLOW,
+          status: "in_progress",
+          conclusion: null,
+        };
+      return source.api.request(method, url);
+    },
+  };
+  const env = {
+    GITHUB_REPOSITORY: c.REPOSITORY,
+    GITHUB_ACTOR: "haideearus",
+    GITHUB_TRIGGERING_ACTOR: "haideearus",
+    GITHUB_REF: "refs/heads/main",
+    GITHUB_WORKFLOW_REF: f.WORKFLOW_REF,
+    GITHUB_WORKFLOW_SHA: fx.head,
+    GITHUB_RUN_ID: "300",
+    GITHUB_RUN_ATTEMPT: "1",
+    GITHUB_EVENT_NAME: "workflow_dispatch",
+    FACTORY_OPERATION: "close-sweeps",
+    FACTORY_INPUTS: JSON.stringify({ operation: "run", dry_run: false }),
+    FACTORY_VARIABLES: JSON.stringify({
+      ...require("./helpers/factory-fixtures.cjs").vars,
+      FACTORY_DISCOVERY_ENABLED: "true",
+      FACTORY_AUTOMATION_ENABLED: "true",
+      FACTORY_GITHUB_APP_CLIENT_ID: "Iv1.fixture123456",
+      FACTORY_GITHUB_APP_SLUG: "fixture-factory",
+    }),
+  };
+  const store = fx.memoryStore(registry);
+  const dependencies = { ...source.dependencies, api, store };
+  return {
+    ...source,
+    issue,
+    original,
+    updates,
+    api,
+    env,
+    store,
+    execute: () => main(env, dependencies),
+  };
+}
+
+test("live finding intake closes a completed empty sweep once and preserves its evidence", async () => {
+  const x = sweepClosureFixture();
+  const result = await x.execute();
+  assert.deepEqual(result.sweepsClosed, [90]);
+  assert.deepEqual(x.issue, { ...x.original, state: "closed", state_reason: "completed" });
+  assert.equal(x.store.state.imports[fx.grant].evidenceHash, "e".repeat(64));
+  assert.equal(x.store.state.imports[fx.grant].sweepClosure.artifactDigest, fx.artifact.digest);
+  assert.deepEqual((await x.execute()).sweepsClosed, []);
+  assert.equal(x.updates.length, 1);
+});
+
+test("a settled replay closes its source sweep while leaving the separate repair ticket and evidence intact", async () => {
+  const x = sweepClosureFixture({ finding: "ready" });
+  const records = x.store.state.records;
+  assert.deepEqual((await x.execute()).sweepsClosed, [90]);
+  assert.deepEqual(x.store.state.records, records);
+  assert.equal(x.updates.length, 1);
+});
+
+test("a pending handoff, held or legacy import, preview, altered issue or expired evidence leaves the sweep open", async () => {
+  for (const prepare of [
+    () => sweepClosureFixture({ finding: true }),
+    () => sweepClosureFixture({ eligible: false }),
+    () => {
+      const x = sweepClosureFixture();
+      x.env.FACTORY_INPUTS = JSON.stringify({ operation: "run", dry_run: true });
+      return x;
+    },
+    () => {
+      const x = sweepClosureFixture();
+      x.issue.labels = [{ name: "factory-ready" }];
+      return x;
+    },
+    () => {
+      const x = sweepClosureFixture();
+      x.artifact.expired = true;
+      return x;
+    },
+  ]) {
+    const x = prepare();
+    assert.deepEqual((await x.execute()).sweepsClosed, []);
+    assert.equal(x.issue.state, "open");
+    assert.equal(x.updates.length, 0);
+  }
+});
+
+test("malformed sweep sources cannot permanently exhaust the bounded closure pass", async () => {
+  const x = sweepClosureFixture();
+  const heldGrants = [];
+  await x.store.update((state) => {
+    for (const id of [201, 202, 203, 204]) {
+      const grant = `10000000-0000-4000-8000-000000000${id}`;
+      heldGrants.push(grant);
+      state.imports[grant] = structuredClone(state.imports[fx.grant]);
+    }
+    return { state };
+  });
+  assert.deepEqual((await x.execute()).sweepsClosed, []);
+  assert.ok(
+    heldGrants.every((grant) => x.store.state.imports[grant].sweepClosure.status === "held")
+  );
+  assert.deepEqual((await x.execute()).sweepsClosed, [90]);
+});
+
+test("a lost successful closure response reconciles without repeating the write", async () => {
+  const x = sweepClosureFixture();
+  x.api.uncertain = true;
+  assert.deepEqual((await x.execute()).sweepsClosed, [90]);
+  assert.deepEqual((await x.execute()).sweepsClosed, []);
+  assert.equal(x.updates.length, 1);
+});
+
+test("a browser observation can prevent sweep closure even when API intake has no findings", () => {
+  const { browserEvidenceSettled } = require("../factory/discovery-sweep-closure.cjs");
+  assert.equal(browserEvidenceSettled({ findings: [] }), true);
+  assert.equal(
+    browserEvidenceSettled({
+      findings: [],
+      actualBatches: [{ mode: "cypress", code: 0, networkIsolated: true }],
+    }),
+    true
+  );
+  for (const evidence of [
+    { browserFollowUp: true },
+    { actualBatches: [{ mode: "cypress", code: 1, networkIsolated: true }] },
+    { actualBatches: [{ mode: "cypress", code: 0, networkIsolated: false }] },
+    { actualBatches: [{ mode: "cypress", code: 0 }] },
+  ])
+    assert.equal(browserEvidenceSettled({ findings: [], ...evidence }), false);
+});
