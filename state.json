@@ -3400,8 +3400,16 @@
       "origin": "dependency-pr",
       "head": "c9e37b981ca10d304b24ff660a389fa87a0a12a0",
       "pr": 195,
-      "status": "reviewing",
-      "approval": null,
+      "status": "reviewed",
+      "approval": {
+        "head": "c9e37b981ca10d304b24ff660a389fa87a0a12a0",
+        "pr": 195,
+        "grant": "d48a2d01-9ebb-4604-8640-a2232a9cd7c7",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/45082147783"
+      },
       "branch": "agent/dependency-alert-c8365c859381c6bc323c52f56453bdafb1f0472e1625e706ee6f585b96df0633",
       "criteriaHash": "5dd9c01b786aa625434697c4d8e0a866b9a329310f11445dd992ec972595f653",
       "dependency": {
@@ -3450,7 +3458,8 @@
           ],
           "remainingBaseline": []
         }
-      }
+      },
+      "feedback": "{\"head\":\"c9e37b981ca10d304b24ff660a389fa87a0a12a0\",\"verdict\":\"pass\",\"summary\":\"Reviewed the yarn.lock-only diff at head c9e37b98 (base 65d28a82): it bumps the transitive `flatted` resolution under `flat-cache@^4.0.0` (yarn.lock:6874-6885) from 3.3.3 to 3.4.2, with no package.json range change (flatted isn't a direct dependency; `flat-cache \\\"^3.2.9\\\"` already permitted 3.4.2). dependencyFacts confirms the npm registry tarball/integrity for flatted 3.4.2 matches exactly (integrityMatched: true) and OSV shows both GHSA-25h7-pfq9-p65f (fixed 3.4.0) and GHSA-rf6f-7fwh-wjgh (fixed 3.4.2) are cleared by this version, with no remainingBaseline advisories introduced. flat-cache is only pulled in via eslint (package.json:111, devDependencies block alongside cypress/babel-loader), so this is a build/lint-time cache dependency never bundled into the payment app's runtime, making compatibility blast radius low. The cited CI run (45082293189) passed types/lint/unit and a UI regression subset, but none of the listed testFiles (UserSettingsForm.test.tsx, auth/bankaccounts/user-settings specs) exercise flat-cache/flatted directly — that's an inherent, acceptable gap since the dependency has no app-facing code path. No upstreamReleases data was available to assess publisher history, but registry integrity matching plus OSV clearance is sufficient evidence for a bounded transitive patch bump of a dev-only caching library.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"No test in the cited CI evidence exercises flat-cache/flatted directly (the four testFiles are unrelated app-level specs), so the bump relies on registry/OSV data and general CI passing rather than a targeted regression check; acceptable given flatted is a dev-only lint caching dependency with no app runtime path.\"}]}"
     },
     "196": {
       "coding": 0,
@@ -4997,15 +5006,12 @@
       "runId": "45082147783",
       "runAttempt": 1,
       "head": "c9e37b981ca10d304b24ff660a389fa87a0a12a0",
-      "status": "reserved",
-      "at": "2026-11-22T23:24:47.526Z"
+      "status": "finished",
+      "at": "2026-11-22T23:24:47.526Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 195,
-    "runId": "45082147783",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -8440,6 +8446,14 @@
       "actor": "github-actions[bot]",
       "wakeReceipt": "2153e5ad57ca59e5c56416fc3a016ea14a91b80f77c3ff8729ccbf4cee7cf14b",
       "sourceActor": "haideearus-software-factory[bot]"
+    },
+    {
+      "at": "2026-11-22T23:26:41.128Z",
+      "event": "finished",
+      "ticket": 195,
+      "grant": "d48a2d01-9ebb-4604-8640-a2232a9cd7c7",
+      "status": "reviewed",
+      "head": "c9e37b981ca10d304b24ff660a389fa87a0a12a0"
     }
   ]
 }
