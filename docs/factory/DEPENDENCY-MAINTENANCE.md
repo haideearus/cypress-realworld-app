@@ -65,8 +65,25 @@ reconsider the package on later scans and route the same issue through the
 existing protected dependency workflow once a compatible candidate is verified.
 The promoted issue links to its repair PR. An upgrade merged outside this path
 has no matching publication receipt. Verify the fix and close the held issue
-with evidence if that separate upgrade clears it. The held label cannot authorize
-a repair, review or merge.
+with evidence if that separate upgrade clears it. The held label alone cannot
+authorize a repair, review or merge.
+
+For a tracked hold with compatible registry candidates, intake tries up to four
+versions in ascending order. It moves past a confirmed graph restriction or
+advisory rejection only after a fresh check. A registry or advisory outage holds
+the proposal. The chosen release must satisfy the existing selectors, preserve
+the dependency graph and clear the advisory checks across affected lockfile copies.
+
+The existing issue records the latest confirmed blocker. When more versions are
+available, the next intake continues from the saved candidate position. After
+exhausting the list, intake skips duplicate preparation until the dependency files,
+candidate releases, or advisory evidence change. A weekly recheck covers updates
+reported only by the independent advisory service. Removing the held label pauses
+promotion. The issue keeps its identity and history when a candidate passes.
+
+The successful version goes through the existing dependency analysis, CI,
+independent subscription review and protected merge. Parent changes and major
+upgrades still need a compatible update path beyond lockfile-only rechecks.
 
 ### Event-driven dependency handoff
 
