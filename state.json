@@ -3214,9 +3214,17 @@
       "reviews": 1,
       "retries": 0,
       "head": "581bf82bc9245f11245d8f62787ef6248f780bfe",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 184,
-      "approval": null,
+      "approval": {
+        "head": "581bf82bc9245f11245d8f62787ef6248f780bfe",
+        "pr": 184,
+        "grant": "2144808c-1f35-429a-b624-d4d051980212",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/45041564826"
+      },
       "criteriaHash": "08c4f61dac6206845c182cf57ac67b7e9c557171dd85d70a53baa1b98e5d5ed8",
       "branch": "agent/reduce-factory-github-api-usage",
       "ci": {
@@ -3224,7 +3232,8 @@
         "head": "581bf82bc9245f11245d8f62787ef6248f780bfe",
         "runId": 45041637172,
         "passed": true
-      }
+      },
+      "feedback": "{\"verdict\":\"pass\",\"head\":\"581bf82bc9245f11245d8f62787ef6248f780bfe\",\"summary\":\"Reviewed the base-to-head diff against the checked-out state (already applied at HEAD 581bf82b) across .github/workflows/factory-activity.yml, docs/factory/EVENTS-AND-ACTIVITY.md, scripts/factory/activity-observer.cjs, scripts/factory/controller.cjs, scripts/factory/github.cjs, and the three affected test files. Criterion 1 (routine starts skip the observer before API reads): activity-observer.cjs:404-410 computes `deploymentProgress` and returns `{outcome:\\\"ignored\\\"}` before the only API call (`a.journal`), and the workflow-level `if` at factory-activity.yml:38-43 additionally skips the job (no runner/API calls at all) for non-deploy in_progress and for the now-removed \\\"requested\\\" type; traced the new test \\\"routine start events never call GitHub...\\\" which mocks fetch and asserts zero calls for requested/in_progress on factory-ci.yml while completed and deploy in_progress each make exactly one call (callCount===2), matching the code path. The `deploymentProgress ? 240 : 1` poll-count logic (controller for the completion/failure/typed-outcome paths and terminalCI path) is unchanged except for scoping the 240-iteration early observer to factory-deploy.yml, verified against the allowlist in activity-contract.cjs (factory-deploy.yml present) and the deploy workflow's actual name. Criterion 2 (60s status polling + conditional reads): controller.cjs:500-549 sets CI_DISCOVERY_POLL_MS=30000 while runId is unknown and CI_STATUS_POLL_MS=60000 once known, while CI_POLL_BUDGET_MS=(60-1)*30000 preserves the prior total wait budget (manually traced iteration-by-iteration against the new \\\"keeps the existing polling deadline\\\" test, reproducing sleeps summing to 59*30000). github.cjs:71-127 scopes conditional (If-None-Match/304) handling strictly to GET requests with no body on `/actions/runs/<id>` (regex-enforced, throws otherwise), keys the cache by exact path so a different run never reuses another run's ETag, and only updates the cache after a successful 200 (not on 304 or error), which I traced through the new github-read-retry test case for a mismatched run returning a bare 304. The unconditional, non-cached validateCI() call (controller.cjs:415-444) that re-checks head_sha, display_title/requestId correlation, and the `verify` job's status/conclusion before a result is recorded is untouched by the diff, so the \\\"fresh evidence before recording\\\" guarantee still holds. No code execution was performed in this read-only session; I relied on the supplied passing Factory CI run as evidence that the added/modified tests actually execute successfully, and corroborated behavior only via manual code tracing.\",\"findings\":[]}"
     }
   },
   "grants": {
@@ -4665,15 +4674,12 @@
       "runId": "45041564826",
       "runAttempt": 1,
       "head": "581bf82bc9245f11245d8f62787ef6248f780bfe",
-      "status": "reserved",
-      "at": "2026-11-22T16:02:44.167Z"
+      "status": "finished",
+      "at": "2026-11-22T16:02:44.167Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 185,
-    "runId": "45041564826",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -7949,6 +7955,14 @@
       "runId": "45041564826",
       "runAttempt": 1,
       "actor": "haideearus"
+    },
+    {
+      "at": "2026-11-22T16:16:04.359Z",
+      "event": "finished",
+      "ticket": 185,
+      "grant": "2144808c-1f35-429a-b624-d4d051980212",
+      "status": "reviewed",
+      "head": "581bf82bc9245f11245d8f62787ef6248f780bfe"
     }
   ]
 }
