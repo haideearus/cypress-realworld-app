@@ -392,7 +392,6 @@ async function main(
     });
   }
   const journalIssue = Number(vars.FACTORY_ACTIVITY_ISSUE_NUMBER);
-  await a.journal(api, journalIssue);
   const source = event.workflow_run;
   if (
     context.event === "workflow_run" &&
@@ -402,6 +401,13 @@ async function main(
       ))
   )
     throw Error("Unallowlisted activity source");
+  const deploymentProgress =
+    context.event === "workflow_run" &&
+    event.action === "in_progress" &&
+    source.path === ".github/workflows/factory-deploy.yml";
+  if (context.event === "workflow_run" && event.action !== "completed" && !deploymentProgress)
+    return { outcome: "ignored", modelCalls: 0 };
+  await a.journal(api, journalIssue);
   const observe = (triage) =>
     observeRun({
       api,
@@ -459,9 +465,9 @@ async function main(
     });
     await a.publishActivity({ api, event: current, journalIssue, store });
   } else if (context.event === "workflow_run" && !terminalCI) {
-    // A bounded in-progress observer catches actual job/step transitions. A separate
-    // completion delivery catches the final result even if this polling window ends.
-    const max = event.action === "in_progress" ? 240 : 1;
+    // Only deployments need an early observer for the human approval gate.
+    // A separate completion delivery records the final result.
+    const max = deploymentProgress ? 240 : 1;
     for (let n = 0; n < max; n++) {
       const result = await observe(false);
       if (result.status === "completed" || max === 1) break;

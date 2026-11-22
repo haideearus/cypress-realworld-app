@@ -300,6 +300,55 @@ test("polls a known CI run directly, then checks its correlation is unique befor
   assert.equal((await f.ledger.read()).state.tickets[10].ci.runId, null);
 });
 
+test("CI checks known runs less often, accepts unchanged status and revalidates completion", async () => {
+  const sleeps = [];
+  const validators = [];
+  let lists = 0;
+  const f = await ownerReview(({ path, options, fixture }) => {
+    if (path === list && ++lists === 1) return Response.json({ workflow_runs: [] });
+    if (path === list && lists === 2)
+      return Response.json({ workflow_runs: [{ ...fixture.runs[0], status: "queued" }] });
+    if (path !== "/actions/runs/501") return;
+    validators.push(new Headers(options.headers).get("If-None-Match"));
+    if (validators.length === 1)
+      return Response.json(
+        { ...fixture.runs[0], status: "in_progress" },
+        { headers: { etag: '"running"' } }
+      );
+    if (validators.length === 2) return new Response(null, { status: 304 });
+    return Response.json(fixture.runs[0], { headers: { etag: '"completed"' } });
+  });
+  f.controller.maxPolls = 6;
+  f.controller.sleep = async (ms) => {
+    sleeps.push(ms);
+  };
+  assert.equal((await f.controller.ci(10)).passed, true);
+  assert.deepEqual(sleeps, [30000, 60000, 60000, 60000]);
+  assert.deepEqual(validators, [null, '"running"', '"running"', null]);
+  assert.equal(lists, 3, "confirm the original CI correlation before saving");
+  assert.equal(f.fixture.runs.length, 1, "never dispatch CI again for an unchanged status");
+});
+
+test("slower CI status polling keeps the existing polling deadline", async () => {
+  const sleeps = [];
+  const f = await ownerReview(({ path, fixture }) => {
+    const run = { ...fixture.runs[0], status: "in_progress" };
+    if (path === list) return Response.json({ workflow_runs: [run] });
+    if (path === "/actions/runs/501") return Response.json(run);
+  });
+  f.controller.maxPolls = 60;
+  f.controller.sleep = async (ms) => {
+    sleeps.push(ms);
+  };
+  await assert.rejects(f.controller.ci(10), /Timed out waiting/);
+  assert.equal(sleeps.length, 30);
+  assert.equal(
+    sleeps.reduce((total, ms) => total + ms, 0),
+    59 * 30000
+  );
+  assert.equal((await f.ledger.read()).state.tickets[10].ci.runId, null);
+});
+
 test("owner review preflight waits for quota with read-only access and pins the head", async () => {
   const fixture = new FactoryFixture();
   fixture.branchHeads.set("agent/owner-harness", head);

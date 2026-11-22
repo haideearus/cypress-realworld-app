@@ -19,11 +19,14 @@ function nextCycleSlot(slot) {
   return cycle === policy.MAX_CODING_ATTEMPTS ? null : `cycle${cycle + 1}`;
 }
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-const CI_POLL_MS = 30000;
+const CI_DISCOVERY_POLL_MS = 30000;
+const CI_STATUS_POLL_MS = 60000;
+const CI_MAX_POLLS = 60;
+const CI_POLL_BUDGET_MS = (CI_MAX_POLLS - 1) * CI_DISCOVERY_POLL_MS;
 const QUOTA_WAIT_OPERATIONS = new Set(["ci", "review", "assess", "assess_pr", "preflight_pr"]);
 const identity = (ctx, extra = {}) => ({ ...ctx, ...extra });
 class Controller {
-  constructor(api, config, context, { sleep = delay, maxPolls = 60 } = {}) {
+  constructor(api, config, context, { sleep = delay, maxPolls = CI_MAX_POLLS } = {}) {
     this.api = api;
     this.ledger = new Ledger(api);
     this.config = config;
@@ -495,11 +498,15 @@ class Controller {
       return matching[0];
     };
     let knownRunId = null;
+    let remainingPollTime = CI_POLL_BUDGET_MS;
+    const pollCache = {};
     for (let count = 0; count < this.maxPolls; count++) {
       const run =
         knownRunId === null
           ? await findRun()
-          : await this.api.request("GET", `${ROOT}/actions/runs/${knownRunId}`);
+          : await this.api.request("GET", `${ROOT}/actions/runs/${knownRunId}`, undefined, {
+              pollCache,
+            });
       if (knownRunId !== null && (run.id !== knownRunId || !matches(run)))
         throw new Error("CI dispatch identity changed");
       if (run?.status === "completed") {
@@ -534,7 +541,11 @@ class Controller {
         if (!Number.isSafeInteger(run.id) || run.id < 1) throw new Error("Invalid CI run ID");
         knownRunId = run.id;
       }
-      if (count + 1 < this.maxPolls) await this.sleep(CI_POLL_MS);
+      if (count + 1 >= this.maxPolls || remainingPollTime === 0) break;
+      const interval = knownRunId === null ? CI_DISCOVERY_POLL_MS : CI_STATUS_POLL_MS;
+      const pause = Math.min(remainingPollTime, interval);
+      await this.sleep(pause);
+      remainingPollTime -= pause;
     }
     throw new Error("Timed out waiting for the exact-head CI run");
   }
