@@ -251,6 +251,7 @@ function inspectUpdate(baseManifest, headManifest, baseLock, headLock, tools, de
   return result;
 }
 async function boundedJSON(response) {
+  require("./dependency-evidence-http.cjs").checkAvailability(response, "OSV");
   if (!response.ok) fail("OSV unavailable");
   const reader = response.body?.getReader();
   if (!reader) fail("OSV response unavailable");

@@ -2,6 +2,7 @@
 const { inspectUpdate, queryOsv, toolsAt } = require("./dependency-analysis.cjs");
 const { SHA } = require("./dependency-contract.cjs");
 const path = require("node:path");
+const { checkAvailability, PublicEvidenceError } = require("./dependency-evidence-http.cjs");
 const fail = (message) => {
   throw new Error(message);
 };
@@ -15,6 +16,7 @@ async function publicJSON(url, transport) {
       headers: { Accept: "application/json" },
       signal: AbortSignal.timeout(15000),
     });
+    checkAvailability(response);
     if (response.status !== 200 || !response.body) fail("Public evidence unavailable");
     const reader = response.body.getReader(),
       chunks = [];
@@ -36,14 +38,25 @@ async function publicJSON(url, transport) {
     const result = JSON.parse(Buffer.concat(chunks).toString("utf8"));
     if (!plain(result)) fail("Invalid public evidence");
     return result;
-  } catch {
+  } catch (error) {
+    if (error instanceof PublicEvidenceError) throw error;
     fail("Public evidence unavailable or invalid");
   }
 }
 async function mapBounded(items, fn) {
   const results = [];
-  for (let i = 0; i < items.length; i += 4)
-    results.push(...(await Promise.all(items.slice(i, i + 4).map(fn))));
+  for (let i = 0; i < items.length; i += 4) {
+    const batch = await Promise.allSettled(items.slice(i, i + 4).map(fn));
+    const failures = batch.filter((entry) => entry.status === "rejected");
+    if (failures.length) {
+      const permanent = failures.find(
+        ({ reason }) =>
+          !(reason instanceof PublicEvidenceError) || reason.code !== "public_service_unavailable"
+      );
+      throw (permanent || failures[0]).reason;
+    }
+    results.push(...batch.map((entry) => entry.value));
+  }
   return results;
 }
 function registryRecord(record, expected, source) {

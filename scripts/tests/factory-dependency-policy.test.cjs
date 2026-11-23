@@ -76,6 +76,12 @@ test("review cannot reserve before successful analysis and CI", () => {
     },
     { changed: 2, candidateVersions: 1, cleared: [], remainingBaseline: [] }
   );
+  assert.throws(() => dep.reserveDependencyReview(s, ctx, cfg), /public evidence/i);
+  assert.equal(s.tickets["52"].reviews, 0);
+  const at = new Date().toISOString();
+  s.tickets["52"].dependency.attempts[0].evidence = [
+    { at, finishedAt: at, status: "ready", digest: "a".repeat(64) },
+  ];
   const r = dep.reserveDependencyReview(s, ctx, cfg);
   assert.equal(r.state.tickets["52"].reviews, 1);
   assert.equal(r.grant.phase, "review");

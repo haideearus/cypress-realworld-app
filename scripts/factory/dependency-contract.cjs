@@ -72,6 +72,55 @@ function filesOK(files, lockOnly = false) {
   )
     throw new Error("Dependency PR changes forbidden files");
 }
+const EVIDENCE_DELAY_MS = 60000;
+const EVIDENCE_REASONS = {
+  invalid_public_evidence: "Public package, advisory, release or CI evidence could not be verified",
+  public_service_unavailable: "A public evidence service returned HTTP 502, 503 or 504",
+  public_rate_limit: "A public evidence service rate limit blocked verification",
+  candidate_changed: "The dependency PR or its base changed while checking evidence",
+};
+const timestamp = (value) =>
+  typeof value === "string" &&
+  Number.isFinite(Date.parse(value)) &&
+  new Date(value).toISOString() === value;
+function validateEvidenceHistory(attempt) {
+  const records = attempt.evidence;
+  if (records === undefined) return;
+  if (!Array.isArray(records) || records.length < 1 || records.length > 2)
+    throw new Error("Invalid dependency evidence history");
+  for (const [index, record] of records.entries()) {
+    const previous = records[index - 1];
+    const keys = Object.keys(record || {})
+      .sort()
+      .join(",");
+    if (
+      !timestamp(record?.at) ||
+      Date.parse(record.at) < Date.parse(attempt.at) ||
+      (previous &&
+        (previous.status !== "temporary" ||
+          Date.parse(record.at) - Date.parse(previous.finishedAt) < EVIDENCE_DELAY_MS)) ||
+      (record.status !== "started" &&
+        (!timestamp(record.finishedAt) || Date.parse(record.finishedAt) < Date.parse(record.at)))
+    )
+      throw new Error("Invalid dependency evidence timing");
+    if (
+      !(
+        (record.status === "started" && keys === "at,status") ||
+        (record.status === "ready" &&
+          keys === "at,digest,finishedAt,status" &&
+          HASH.test(record.digest)) ||
+        (record.status === "temporary" &&
+          index === 0 &&
+          keys === "at,finishedAt,reason,status" &&
+          record.reason === "public_service_unavailable") ||
+        (record.status === "held" &&
+          keys === "at,finishedAt,reason,status" &&
+          Object.hasOwn(EVIDENCE_REASONS, record.reason))
+      )
+    )
+      throw new Error("Invalid dependency evidence result");
+  }
+}
 function validateTicket(t, grants = []) {
   const d = t?.dependency;
   if (
@@ -101,7 +150,10 @@ function validateTicket(t, grants = []) {
   for (const a of d.attempts) {
     if (
       !a ||
-      Object.keys(a).sort().join(",") !== "at,base,head,runAttempt,runId,workflowSha" ||
+      Object.keys(a)
+        .filter((key) => key !== "evidence")
+        .sort()
+        .join(",") !== "at,base,head,runAttempt,runId,workflowSha" ||
       !SHA.test(a.head || "") ||
       !SHA.test(a.base || "") ||
       !SHA.test(a.workflowSha || "") ||
@@ -113,6 +165,7 @@ function validateTicket(t, grants = []) {
       seen.has(a.head)
     )
       throw new Error("Invalid dependency head history");
+    validateEvidenceHistory(a);
     seen.add(a.head);
   }
   const first = d.attempts[0],
@@ -152,6 +205,8 @@ module.exports = {
   WORKFLOW,
   SHA,
   HASH,
+  EVIDENCE_DELAY_MS,
+  EVIDENCE_REASONS,
   digest,
   criteria,
   branch,

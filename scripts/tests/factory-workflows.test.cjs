@@ -317,15 +317,14 @@ test("secret scanning gates source, model context and every uploaded model bundl
   );
 });
 
-test("dependency facts use trusted parsers and a fail-closed scanned exact-file audit upload before the model", () => {
+test("dependency review downloads prepared facts and scans the audit upload before the model", () => {
   const job = load("factory-model.yml").jobs.agent;
   const steps = job.steps;
   const trusted = steps.findIndex(
     (s) => s.uses?.startsWith("actions/checkout@") && s.with?.ref === "${{ github.workflow_sha }}"
   );
-  const install = steps.findIndex(
-    (s) => s["working-directory"] === "scripts/factory/dependency-tools"
-  );
+  assert.ok(!steps.some((s) => s["working-directory"] === "scripts/factory/dependency-tools"));
+  const download = steps.findIndex((s) => s.with?.name?.startsWith("dependency-evidence-"));
   const preserve = steps.findIndex((s) => s.run?.includes("cpSync('scripts/factory'"));
   const candidate = steps.findIndex(
     (s) => s.uses?.startsWith("actions/checkout@") && s.with?.ref === "${{ inputs.head }}"
@@ -345,9 +344,9 @@ test("dependency facts use trusted parsers and a fail-closed scanned exact-file 
   const model = steps.findIndex((s) => s.id === "model");
   const order = [
     trusted,
-    install,
     preserve,
     candidate,
+    download,
     prepare,
     contextScan,
     factsScan,
@@ -356,15 +355,15 @@ test("dependency facts use trusted parsers and a fail-closed scanned exact-file 
   ];
   assert.ok(
     order.every((n, i) => n >= 0 && (i === 0 || n > order[i - 1])),
-    "trusted parser install and scanned audit upload must precede candidate execution/model access"
+    "evidence download and scanned audit upload must precede model access"
   );
   const dependencyOnly = "${{ inputs.phase == 'review' && inputs.slot == 'dependency' }}";
-  for (const position of [install, factsScan, upload]) {
+  for (const position of [download, factsScan, upload]) {
     assert.equal(steps[position].if, dependencyOnly);
     assert.notEqual(steps[position]["continue-on-error"], true);
     assert.doesNotMatch(JSON.stringify(steps[position]), /secrets\.|GH_TOKEN|github\.token/);
   }
-  assert.equal(steps[install].run, "npm ci --ignore-scripts --no-audit --fund=false");
+  assert.equal(steps[download].with.path, "${{ runner.temp }}/dependency-evidence");
   assert.equal(
     steps[upload].uses,
     "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02"
@@ -377,4 +376,24 @@ test("dependency facts use trusted parsers and a fail-closed scanned exact-file 
   assert.equal(steps[upload].with["include-hidden-files"], true);
   assert.equal(steps[upload].with["if-no-files-found"], "error");
   assert.equal(steps[upload].with["retention-days"], 7);
+});
+
+test("dependency review needs a successfully scanned and uploaded public evidence packet", () => {
+  const jobs = load("factory-dependencies.yml").jobs;
+  const evidence = jobs.evidence;
+  assert.deepEqual(evidence.needs, ["select", "ci"]);
+  assert.doesNotMatch(JSON.stringify(evidence), /secrets\.|CLAUDE|ANTHROPIC|factory-ledger/);
+  const operation = evidence.steps.findIndex((step) => step.with?.operation === "dep_evidence");
+  const scan = evidence.steps.findIndex((step) =>
+    step.run?.includes('secret-scan.cjs file "$RUNNER_TEMP/factory-dependencies/evidence.json"')
+  );
+  assert.ok(operation >= 0 && scan > operation);
+  const upload = evidence.steps[scan + 1];
+  assert.match(upload.uses, /^actions\/upload-artifact@/);
+  assert.equal(upload.with["if-no-files-found"], "error");
+  assert.deepEqual(jobs.reserve.needs, ["select", "evidence"]);
+  assert.match(jobs.reserve.if, /needs.evidence.outputs.ready == 'true'/);
+  const reserve = jobs.reserve.steps.findIndex((step) => step.with?.operation === "dep_reserve");
+  assert.equal(jobs.reserve.steps[reserve - 1].with.name, upload.with.name);
+  assert.ok(jobs.finalize.needs.includes("evidence"));
 });

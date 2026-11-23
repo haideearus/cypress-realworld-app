@@ -131,6 +131,7 @@ test("dependency worker supplies fresh exact-commit facts without adding model t
   const fixture = new FactoryFixture();
   const backing = new GitHub({ token: "fixture-only", fetch: fixture.fetch });
   let changedMain = false;
+  let ciAttempt = 1;
   const api = {
     request: async (method, route, ...args) => {
       if (route.endsWith("/pulls/52")) return structuredClone(pr);
@@ -141,6 +142,9 @@ test("dependency worker supplies fresh exact-commit facts without adding model t
         ];
       if (route.endsWith("/git/ref/heads/main"))
         return { object: { sha: changedMain ? "f".repeat(40) : base } };
+      if (route.endsWith(`/compare/${base}...${head}`))
+        return { behind_by: 0, merge_base_commit: { sha: base } };
+      if (route.endsWith("/actions/runs/501")) return (await transport(route)).json();
       return backing.request(method, route, ...args);
     },
   };
@@ -161,8 +165,10 @@ test("dependency worker supplies fresh exact-commit facts without adding model t
     workflowRef: d.WORKFLOW,
     workflowSha: base,
   };
-  const saved = await ledger.update((state) => {
-    const next = lifecycle.claimDependency(state, pr, ctx, config);
+  let now = Date.now() - 61000;
+  const clock = () => new Date(now);
+  await ledger.update((state) => {
+    const next = lifecycle.claimDependency(state, pr, ctx, config, clock());
     next.tickets["52"].analysis = a.reportFor(
       {
         repository: policy.REPOSITORY,
@@ -178,58 +184,108 @@ test("dependency worker supplies fresh exact-commit facts without adding model t
       { changed: 2, candidateVersions: 1, cleared: [], remainingBaseline: [] }
     );
     next.tickets["52"].ci = { head, passed: true, runId: 501, requestId: "worker-ci" };
-    return lifecycle.reserveDependencyReview(next, ctx, config);
+    return { state: next };
   });
+  let outage = true;
+  const transport = async (url) => {
+    if (outage && url.includes("registry.npmjs.org")) {
+      outage = false;
+      return new Response(null, { status: 503 });
+    }
+    let result;
+    if (url.endsWith("/workflows/factory-ci.yml"))
+      result = { id: 1, path: ".github/workflows/factory-ci.yml" };
+    else if (url.endsWith("/runs/501"))
+      result = {
+        id: 501,
+        workflow_id: 1,
+        path: ".github/workflows/factory-ci.yml",
+        head_sha: head,
+        run_attempt: ciAttempt,
+        event: "workflow_dispatch",
+        display_title: "Factory CI / worker-ci",
+        repository: { full_name: policy.REPOSITORY },
+        head_repository: { full_name: policy.REPOSITORY },
+        status: "completed",
+        conclusion: "success",
+      };
+    else if (url.includes("/attempts/1/jobs"))
+      result = {
+        total_count: 1,
+        jobs: [
+          {
+            id: 2,
+            run_id: 501,
+            head_sha: head,
+            name: "verify",
+            status: "completed",
+            conclusion: "success",
+            steps: [
+              "Run yarn types && yarn lint && yarn test:unit:ci",
+              "API and browser regression tests without cloud recording",
+            ].map((name) => ({ name, status: "completed", conclusion: "success" })),
+          },
+        ],
+      };
+    else if (url.endsWith("querybatch")) result = { results: [{}, {}] };
+    else
+      result = {
+        name: "foo",
+        version: "1.0.1",
+        dist: { tarball: "https://registry.npmjs.org/foo/-/foo-1.0.1.tgz", integrity },
+      };
+    return new Response(JSON.stringify(result));
+  };
+  const preflight = require("../factory/dependency-preflight.cjs");
+  const candidate = new (require("../factory/dependencies.cjs").DependencyCoordinator)(
+    api,
+    config,
+    ctx
+  );
+  const { packet, ready } = await preflight.prepare(
+    candidate,
+    52,
+    (ticket) => ({
+      base,
+      head,
+      baseManifest: runGit("show", base + ":package.json"),
+      headManifest: runGit("show", head + ":package.json"),
+      baseLock: runGit("show", base + ":yarn.lock"),
+      headLock: runGit("show", head + ":yarn.lock"),
+      ci: ticket.ci,
+    }),
+    {
+      transport,
+      clock,
+      wait: async (ms) => {
+        assert.equal(ms, 60000);
+        const { state } = await ledger.read();
+        assert.equal(state.tickets["52"].reviews, 0);
+        assert.equal(Object.keys(state.grants).length, 0);
+        now += ms;
+      },
+    }
+  );
+  assert.equal(ready, true);
+  const prepared = (await ledger.read()).state;
+  assert.deepEqual(
+    prepared.tickets["52"].dependency.attempts[0].evidence.map((attempt) => attempt.status),
+    ["temporary", "ready"]
+  );
+  assert.equal(prepared.tickets["52"].reviews, 0);
+  const saved = await ledger.update((state) =>
+    lifecycle.reserveDependencyReview(state, ctx, config)
+  );
+  const packetPath = path.join(app.cwd, "..", path.basename(app.cwd) + "-facts.json");
+  t.after(() => fs.rmSync(packetPath, { force: true }));
+  fs.writeFileSync(packetPath, JSON.stringify({ ...packet, extra: "changed" }));
   const options = {
     grantId: saved.grant.id,
     cwd: app.cwd,
-    environment: {},
-    transport: async (url) => {
-      let result;
-      if (url.endsWith("/workflows/factory-ci.yml"))
-        result = { id: 1, path: ".github/workflows/factory-ci.yml" };
-      else if (url.endsWith("/runs/501"))
-        result = {
-          id: 501,
-          workflow_id: 1,
-          path: ".github/workflows/factory-ci.yml",
-          head_sha: head,
-          run_attempt: 1,
-          event: "workflow_dispatch",
-          display_title: "Factory CI / worker-ci",
-          repository: { full_name: policy.REPOSITORY },
-          head_repository: { full_name: policy.REPOSITORY },
-          status: "completed",
-          conclusion: "success",
-        };
-      else if (url.includes("/attempts/1/jobs"))
-        result = {
-          total_count: 1,
-          jobs: [
-            {
-              id: 2,
-              run_id: 501,
-              head_sha: head,
-              name: "verify",
-              status: "completed",
-              conclusion: "success",
-              steps: [
-                "Run yarn types && yarn lint && yarn test:unit:ci",
-                "API and browser regression tests without cloud recording",
-              ].map((name) => ({ name, status: "completed", conclusion: "success" })),
-            },
-          ],
-        };
-      else if (url.endsWith("querybatch")) result = { results: [{}, {}] };
-      else
-        result = {
-          name: "foo",
-          version: "1.0.1",
-          dist: { tarball: "https://registry.npmjs.org/foo/-/foo-1.0.1.tgz", integrity },
-        };
-      return new Response(JSON.stringify(result));
-    },
+    environment: { FACTORY_DEPENDENCY_EVIDENCE: packetPath },
   };
+  await assert.rejects(worker.prepare(api, config, ctx, options), /mismatched.*evidence/);
+  fs.writeFileSync(packetPath, JSON.stringify(packet));
   const before = (await ledger.read()).commit;
   const result = await worker.prepare(api, config, ctx, options);
   const input = JSON.parse(fs.readFileSync(path.join(app.cwd, ".factory-input/context.json")));
@@ -252,6 +308,9 @@ test("dependency worker supplies fresh exact-commit facts without adding model t
   assert.deepEqual(input.capabilities.shellCommands, []);
   assert.ok(result.claudeArgs.includes('--tools "Read,Glob,Grep"'));
   assert.equal((await ledger.read()).commit, before);
+  ciAttempt = 2;
+  await assert.rejects(worker.prepare(api, config, ctx, options), /exact-head CI/);
+  ciAttempt = 1;
   changedMain = true;
   await assert.rejects(worker.prepare(api, config, ctx, options), /base|main/i);
   assert.equal((await ledger.read()).commit, before);

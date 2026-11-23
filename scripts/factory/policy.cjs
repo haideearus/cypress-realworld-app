@@ -582,6 +582,8 @@ function reserve(original, request, config, now = new Date()) {
       existing.ci.passed !== true
     )
       deny("Dependency analysis and CI required");
+    if (attempt.evidence?.at(-1)?.status !== "ready")
+      deny("Dependency public evidence must pass before review");
   }
   if (
     (dependency.contextOK(request) && !dependencyReview) ||

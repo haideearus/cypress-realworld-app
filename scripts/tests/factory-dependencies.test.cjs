@@ -208,6 +208,7 @@ async function reviewSession(x) {
           display_title: "Factory CI / 11111111-1111-4111-8111-111111111111",
           event: "workflow_dispatch",
           path: ".github/workflows/factory-ci.yml",
+          run_attempt: 1,
           status: "completed",
           conclusion: "success",
         }
@@ -225,7 +226,27 @@ async function reviewSession(x) {
     };
     return { state: s };
   });
-  const g = await x.coordinator.reserve(52);
+  const packet = {
+    version: 2,
+    base: pr().base.sha,
+    head: pr().head.sha,
+    checkedAt: new Date().toISOString(),
+    ciEvidence: { status: "verified", runId: 9, runAttempt: 1, head: pr().head.sha },
+  };
+  await assert.rejects(x.coordinator.reserve(52, packet), /evidence/);
+  await x.ledger.update((state) => {
+    state.tickets["52"].dependency.attempts[0].evidence = [
+      {
+        at: packet.checkedAt,
+        finishedAt: packet.checkedAt,
+        status: "ready",
+        digest: require("../factory/dependency-contract.cjs").digest(packet),
+      },
+    ];
+    return { state };
+  });
+  await assert.rejects(x.coordinator.reserve(52, { ...packet, injected: true }), /evidence/);
+  const g = await x.coordinator.reserve(52, packet);
   return {
     grantId: g.grantId,
     bundle: {
@@ -831,8 +852,14 @@ test("workflow preserves preview, trusted source, readonly model and isolated cr
     actions: "read",
   });
   assert.equal(w.jobs.select.permissions.issues, "write");
-  for (const name of ["preview", "select"])
-    assert.ok(w.jobs[name].steps.some((step) => step.with?.operation === "dep_track"));
+  assert.ok(w.jobs.preview.steps.some((step) => step.with?.operation === "dep_track"));
+  const track = w.jobs.select.steps.find((step) => step.env?.FACTORY_OPERATION === "dep_track");
+  assert.equal(track.run, "node scripts/factory/dependency-run.cjs");
+  assert.equal(
+    track.env.FACTORY_DEPENDABOT_REBASE_TOKEN,
+    "${{ secrets.FACTORY_DEPENDABOT_REBASE_TOKEN }}"
+  );
+  assert.doesNotMatch(JSON.stringify(w.jobs.select.steps.filter((s) => s !== track)), /secrets\./);
   for (const [name, job] of Object.entries(w.jobs)) {
     if (name !== "preview" && name !== "finalize") {
       assert.match(job.if, /FACTORY_ENABLED/);
@@ -847,7 +874,7 @@ test("workflow preserves preview, trusted source, readonly model and isolated cr
     "premerge",
     "ci",
     "preview",
-    "select",
+    "evidence",
     "reserve",
     "assess",
     "finalize",
@@ -902,4 +929,33 @@ test("placeholder dependency review leaves the used reservation and gate untouch
   await assert.rejects(x.coordinator.assess(52, grantId, bundle), /review|placeholder/i);
   assert.deepEqual(await x.ledger.read(), before);
   assert.equal(x.f.publicationStates.length, 0);
+});
+
+test("a stale reviewed native head releases its terminal lease without using a new review", async () => {
+  const x = await reviewedV2();
+  const before = (await x.ledger.read()).state;
+  const route = x.f.route;
+  x.f.rows[0].base.sha = "e".repeat(40);
+  x.f.route = (p, ...args) =>
+    p === "/git/ref/heads/main"
+      ? { object: { sha: x.f.rows[0].base.sha } }
+      : p.startsWith("/compare/")
+        ? { behind_by: 1, merge_base_commit: { sha: head } }
+        : route(p, ...args);
+  const observer = new DependencyCoordinator(x.api, x.config, { ...ctx, runId: "200" });
+  assert.equal((await observer.select(false)).ready, false);
+  assert.deepEqual((await x.ledger.read()).state, before);
+  x.f.terminal = true;
+  assert.equal((await observer.select(false)).ready, false);
+  const after = (await x.ledger.read()).state;
+  assert.equal(after.tickets["52"].status, "blocked");
+  assert.equal(after.tickets["52"].approval, null);
+  assert.deepEqual(after.activeTickets, {});
+  assert.deepEqual(after.days, before.days);
+  assert.deepEqual(after.grants, before.grants);
+  assert.deepEqual(
+    after.tickets["52"].dependency.attempts,
+    before.tickets["52"].dependency.attempts
+  );
+  assert.equal(after.tickets["52"].reviews, before.tickets["52"].reviews);
 });

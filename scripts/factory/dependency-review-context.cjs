@@ -65,6 +65,23 @@ async function releaseFacts(entry, read) {
       "Official upstream release and GitHub-verified signed tag. This is not npm provenance or proof that the npm distribution equals this source commit; registry gitHead may refer to a separate built distribution branch.",
   };
 }
+function verifyCIRun({ head, ci }, run, attempt) {
+  requireFact(
+    run.path === ".github/workflows/factory-ci.yml" &&
+      run.id === ci.runId &&
+      run.head_sha === head &&
+      run.repository?.full_name === REPOSITORY &&
+      run.head_repository?.full_name === REPOSITORY &&
+      run.event === "workflow_dispatch" &&
+      run.display_title === `Factory CI / ${ci.requestId}` &&
+      Number.isSafeInteger(attempt) &&
+      attempt > 0 &&
+      run.run_attempt === attempt &&
+      run.status === "completed" &&
+      run.conclusion === "success"
+  );
+}
+
 async function ciFacts(source, read) {
   const ci = source.ci;
   if (!ci) return { status: "not-supplied" };
@@ -83,19 +100,9 @@ async function ciFacts(source, read) {
     workflow.path === ".github/workflows/factory-ci.yml" &&
       Number.isSafeInteger(workflow.id) &&
       workflow.id > 0 &&
-      run.workflow_id === workflow.id &&
-      run.path === workflow.path &&
-      run.id === ci.runId &&
-      run.head_sha === source.head &&
-      run.repository?.full_name === REPOSITORY &&
-      run.head_repository?.full_name === REPOSITORY &&
-      run.event === "workflow_dispatch" &&
-      run.display_title === `Factory CI / ${ci.requestId}` &&
-      Number.isSafeInteger(run.run_attempt) &&
-      run.run_attempt > 0 &&
-      run.status === "completed" &&
-      run.conclusion === "success"
+      run.workflow_id === workflow.id
   );
+  verifyCIRun(source, run, run.run_attempt);
   const listJobs = async (query) => {
     const list = await read(`${root}/runs/${ci.runId}/${query}`);
     requireFact(
@@ -177,4 +184,4 @@ async function collectReviewContext(source, inventory, { publicJSON }) {
   for (const entry of unique) upstreamReleases.push(await releaseFacts(entry, publicJSON));
   return { upstreamReleases, ciEvidence: await ciFacts(source, publicJSON) };
 }
-module.exports = { collectReviewContext };
+module.exports = { collectReviewContext, verifyCIRun };

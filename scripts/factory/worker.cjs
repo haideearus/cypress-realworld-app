@@ -206,12 +206,7 @@ function findingEvidenceForModel(ticket, record) {
     },
   };
 }
-async function prepare(
-  api,
-  config,
-  context,
-  { grantId, cwd, environment = process.env, transport = fetch }
-) {
+async function prepare(api, config, context, { grantId, cwd, environment = process.env }) {
   policy.assertSubscriptionEnv(environment);
   const wake = require("./trusted-wake.cjs");
   context = await wake.loadWakeContext(api, context, environment);
@@ -319,18 +314,15 @@ async function prepare(
       title: "Review a bounded dependency update",
       body: "Check compatibility and security of the root package.json/yarn.lock diff. No coding or tool execution is authorized. Hold any concern; do not assume tests or OSV prove safety.",
     };
-    const show = (ref, file) => git(cwd, ["show", `${ref}:${file}`]);
-    data.dependencyFacts = await require("./dependency-evidence.cjs").collectEvidence(
-      {
-        base: attempt.base,
-        head: grant.head,
-        baseManifest: show(attempt.base, "package.json"),
-        headManifest: show(grant.head, "package.json"),
-        baseLock: show(attempt.base, "yarn.lock"),
-        headLock: show(grant.head, "yarn.lock"),
-        ci: ticket.ci,
-      },
-      { transport }
+    data.dependencyFacts = require("./dependency-preflight.cjs").verifyPacket(
+      ticket,
+      require("./controller.cjs").readJson(environment.FACTORY_DEPENDENCY_EVIDENCE, 262144)
+    );
+    const ci = await api.request("GET", `${ROOT}/actions/runs/${ticket.ci.runId}`);
+    require("./dependency-review-context.cjs").verifyCIRun(
+      { head: grant.head, ci: ticket.ci },
+      ci,
+      data.dependencyFacts.ciEvidence.runAttempt
     );
   }
   if (grant.phase === "review") {
