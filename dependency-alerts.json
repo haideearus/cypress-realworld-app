@@ -209,8 +209,8 @@
       "name": "jsonwebtoken",
       "day": "2026-11-23",
       "trackingReason": "major-held",
-      "phase": "tracking-intent",
-      "issue": null,
+      "phase": "tracking",
+      "issue": 209,
       "pr": null
     }
   },
