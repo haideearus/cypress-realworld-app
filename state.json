@@ -3608,9 +3608,17 @@
       "reviews": 1,
       "retries": 0,
       "head": "a147ed8160a40dd507deb1171563fc614c70eb7f",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 207,
-      "approval": null,
+      "approval": {
+        "head": "a147ed8160a40dd507deb1171563fc614c70eb7f",
+        "pr": 207,
+        "grant": "3bfe60dc-e8ae-4a16-a6ba-575ad13dd496",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/45179461390"
+      },
       "criteriaHash": "46da53d65800f541f00bf6b4ef8b0b536179c189a5a5344e3df19049fa9dbc3d",
       "branch": "agent/weekly-browser-ci-reliability",
       "ci": {
@@ -3618,7 +3626,8 @@
         "head": "a147ed8160a40dd507deb1171563fc614c70eb7f",
         "runId": 45179592002,
         "passed": true
-      }
+      },
+      "feedback": "{\"head\":\"a147ed8160a40dd507deb1171563fc614c70eb7f\",\"verdict\":\"pass\",\"summary\":\"Reviewed the diff touching scripts/tests/factory-functional-discovery.cy.js (paymentPersistence) and scripts/tests/factory-functional-weekly-transactions.cjs (readApp export). The fix replaces a fragile cy.intercept+cy.wait('@paymentNotifications') with a direct cy.request-based readApp('/notifications') call, matching the already-established pattern used elsewhere in the same file for expectNotification/balanceOf. This removes the race where sign-in/navigation could trigger the GET /api/notifications request before the intercept alias was registered, matching the ticket's described root cause (inconclusive payment-persistence check, #204 CI run). The assertion still verifies status 200, a single matching notification row for the correct transactionId/receiver.id, and still asserts the row is visible via expectText on '/notifications' using the same 'payment-recipient-notification' assertion id required by scripts/factory/functional-discovery-contract.cjs's ASSERTIONS table, so the acceptance criterion of verifying the persisted notification under the recipient's session while still confirming UI visibility is satisfied. Weekly coverage (registerWeeklyTransactions), synthetic fixtures, and the loopback guard (guardExtendedJourney's baseUrl check and GET passthrough in the intercept) are unchanged; readApp's hardcoded loopback origin matches the asserted baseUrl, consistent with existing conventions in this file. The downstream 'inconclusive' classification logic in scripts/factory/functional-discovery.cjs/functional-discovery-contract.cjs is untouched by this diff and still applies the same way. I could not execute the Cypress suite or CI in this read-only review; I relied on static inspection of the current source plus the referenced CI run as supplied evidence of a passing replay.\",\"findings\":[]}"
     }
   },
   "grants": {
@@ -5191,15 +5200,12 @@
       "runId": "45179461390",
       "runAttempt": 1,
       "head": "a147ed8160a40dd507deb1171563fc614c70eb7f",
-      "status": "reserved",
-      "at": "2026-11-23T12:59:47.711Z"
+      "status": "finished",
+      "at": "2026-11-23T12:59:47.711Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 206,
-    "runId": "45179461390",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -8727,6 +8733,14 @@
       "runId": "45179461390",
       "runAttempt": 1,
       "actor": "haideearus"
+    },
+    {
+      "at": "2026-11-23T13:12:13.014Z",
+      "event": "finished",
+      "ticket": 206,
+      "grant": "3bfe60dc-e8ae-4a16-a6ba-575ad13dd496",
+      "status": "reviewed",
+      "head": "a147ed8160a40dd507deb1171563fc614c70eb7f"
     }
   ]
 }
