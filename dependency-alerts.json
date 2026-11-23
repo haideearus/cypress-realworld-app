@@ -142,7 +142,7 @@
       "name": "brace-expansion",
       "day": "2026-11-23",
       "trackingReason": "no-common-candidate",
-      "phase": "linked",
+      "phase": "ready",
       "issue": 177,
       "pr": 217,
       "candidate": "1.1.21",
