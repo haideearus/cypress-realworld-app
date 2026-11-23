@@ -336,3 +336,122 @@ test("disabled automatic CLI does not need a GitHub token and still rejects paid
     /subscription/i
   );
 });
+test("a labeled feature is ignored until its exact receipt is ready and a due repair wins", async () => {
+  const c = require("../factory/feature-contract.cjs");
+  const { PILOT } = require("../factory/feature-planner.cjs");
+  const s = await setup({ FACTORY_FEATURE_MODE: "pilot", FACTORY_PRIORITY_RETRY_ENABLED: "true" });
+  const key = c.proposalKey(PILOT);
+  const row = {
+    week: "2026-11-23",
+    producer: { mode: "pilot", head, runId: "120" },
+    proposal: PILOT,
+    parent: null,
+    stages: [{ phase: "created", issue: 11 }],
+  };
+  const published = issue(11, { user: c.BOT, ...c.issueFields(key, row, 0) });
+  s.fixture.issues = new Map([[11, published]]);
+  const metadataCommit = "a".repeat(40);
+  const request = s.api.request.bind(s.api);
+  s.api.request = (method, route, body) => {
+    if (route.endsWith("/git/ref/heads/factory/features"))
+      return { object: { sha: metadataCommit } };
+    if (route.endsWith("/contents/features.json?ref=" + metadataCommit)) {
+      const registry = { version: 1, records: { [key]: row } };
+      return {
+        type: "file",
+        encoding: "base64",
+        content: Buffer.from(JSON.stringify(registry)).toString("base64"),
+      };
+    }
+    if (route.endsWith("/pulls?state=open&base=main&per_page=100&page=1")) return [];
+    return request(method, route, body);
+  };
+  assert.equal((await s.coordinator.pick({ dryRun: true })).ticket, undefined);
+  row.stages[0].phase = "ready";
+  s.fixture.issues.set(10, issue(10));
+  assert.equal((await s.coordinator.pick({ dryRun: true })).ticket, 10);
+  s.fixture.issues.delete(10);
+  const delayedCandidate = s.coordinator.delayedCandidate.bind(s.coordinator);
+  s.coordinator.delayedCandidate = async (state, options) =>
+    options ? delayedCandidate(state, options) : issue(10);
+  const repair = await s.coordinator.pick({ dryRun: true });
+  assert.equal(repair.ticket, 10);
+  assert.equal(repair.delayedRetry, true);
+  s.coordinator.delayedCandidate = delayedCandidate;
+  published.body += "\nUntrusted change";
+  assert.equal((await s.coordinator.pick({ dryRun: true })).ticket, undefined);
+  published.body = c.issueFields(key, row, 0).body;
+  const assigned = await s.coordinator.pick();
+  assert.equal(assigned.ticket, 11);
+  assert.deepEqual((await s.ledger.read()).state.tickets[11].feature, c.receiptFor(key, row, 0));
+});
+test("mode-off reviewed features do not block ordinary or dependency repairs in either ledger version", async () => {
+  for (const version of [1, 2]) {
+    const s = await setup(version === 2 ? { FACTORY_MAX_CONCURRENT_TICKETS: "2" } : {});
+    if (version === 2) {
+      await s.ledger.update((state) => {
+        state.version = 2;
+        delete state.active;
+        state.activeTickets = {};
+        return { state };
+      });
+    }
+    await reviewedAutomatic(s);
+    await s.ledger.update((state) => {
+      const t = state.tickets[10];
+      t.feature = {
+        mode: "pilot",
+        issue: 10,
+        index: 0,
+        criteriaHash: t.criteriaHash,
+        key: "a".repeat(64),
+        head,
+        runId: "120",
+      };
+      if (version === 2)
+        state.activeTickets[10] = { ticket: 10, runId: automaticContext.runId, runAttempt: 1 };
+      return { state };
+    });
+    s.fixture.issues.set(11, issue(11));
+    const original = s.api.request.bind(s.api);
+    s.api.request = (method, route, body) =>
+      route.endsWith("/runs/100/attempts/1")
+        ? { id: 100, run_attempt: 1, status: "completed" }
+        : original(method, route, body);
+    const selected = await s.coordinator.pick();
+    assert.equal(selected.ticket, 11);
+    assert.equal(selected.ready, true);
+    const { state } = await s.ledger.read();
+    const owners = require("../factory/active-tickets.cjs").activeEntries(state);
+    assert.deepEqual(
+      owners.map((owner) => owner.ticket),
+      [11]
+    );
+    assert.equal(state.tickets[10].status, "reviewed");
+    assert.equal(state.tickets[10].merge, undefined);
+    assert.equal(require("../factory/dependency-policy.cjs").pending(state, 11), false);
+  }
+});
+
+test("a recorded feature merge intent must reconcile even after mode-off", async () => {
+  const s = await setup();
+  await reviewedAutomatic(s, "intent");
+  await s.ledger.update((state) => {
+    const t = state.tickets[10];
+    t.feature = {
+      mode: "pilot",
+      issue: 10,
+      index: 0,
+      criteriaHash: t.criteriaHash,
+      key: "a".repeat(64),
+      head,
+      runId: "120",
+    };
+    return { state };
+  });
+  s.fixture.issues.set(11, issue(11));
+  const result = await s.coordinator.pick();
+  assert.equal(result.kind, "merge");
+  assert.equal(result.ticket, 10);
+  assert.equal((await s.ledger.read()).state.tickets[10].merge.status, "intent");
+});

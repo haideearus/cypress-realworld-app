@@ -111,6 +111,13 @@ class GitHub {
         await this.sleep(READ_BACKOFF_MS[gatewayAttempts++]);
         continue;
       }
+      const rate = ["limit", "remaining", "reset"].map((key) =>
+        response.headers?.get("x-ratelimit-" + key)
+      );
+      if (rate.every((value) => /^\d+$/.test(value || ""))) {
+        const [limit, remaining, reset] = rate.map(Number);
+        this.rate = { limit, remaining, reset: reset * 1000 };
+      }
       if (response.status === 304 && cached) return cached.value;
       if (!response.ok) {
         const error = new Error(`GitHub request failed (${response.status})`);

@@ -85,7 +85,7 @@ function ticketEvidence(state, number) {
 }
 
 function issueMatches(issue, number, ticket) {
-  const fromBot = Boolean(ticket.monitor || ticket.finding);
+  const fromBot = Boolean(ticket.monitor || ticket.finding || ticket.feature);
   return (
     issue.number === number &&
     !issue.pull_request &&
@@ -97,7 +97,7 @@ function issueMatches(issue, number, ticket) {
   );
 }
 
-async function trustedOrigin(api, issue, ticket) {
+async function trustedOrigin(api, issue, ticket, allowClosed = false) {
   if (ticket.monitor) {
     const proof = await verifyMonitorIssue(api, issue, {
       proof: ticket.monitor,
@@ -108,6 +108,11 @@ async function trustedOrigin(api, issue, ticket) {
     const incident = state.incidents[proof.incidentId];
     return state.active === proof.incidentId && incident?.recovered === true;
   }
+  if (ticket.feature)
+    return require("./feature-origin.cjs").verifyFeatureIssue(api, issue, {
+      proof: ticket.feature,
+      allowClosed,
+    });
   if (ticket.finding)
     return require("./discovery-origin.cjs").verifyRepairOrigin(api, issue, ticket.finding);
   return true;
@@ -166,9 +171,12 @@ async function isLiveRelease(verifyLive, release) {
   }
 }
 
-async function inspectRepair(api, issue, ticket, release) {
+async function inspectRepair(api, issue, ticket, release, allowClosed = false) {
   const number = issue.number;
-  if (!issueMatches(issue, number, ticket) || !(await trustedOrigin(api, issue, ticket)))
+  if (
+    !issueMatches(issue, number, ticket) ||
+    !(await trustedOrigin(api, issue, ticket, allowClosed))
+  )
     return { reason: "issue_or_origin_changed" };
   const pr = await api.request("GET", `${ROOT}/pulls/${ticket.pr}`);
   if (
@@ -222,6 +230,7 @@ async function runClosure({
   context,
   event,
   enabled,
+  featureParents = false,
   ledger = new Ledger(api),
   verifyLive = waitForRelease,
   readLiveRelease = currentRelease,
@@ -241,7 +250,13 @@ async function runClosure({
     ? [await api.request("GET", `${ROOT}/issues/${target}`)]
     : await api.pages(`${ROOT}/issues?state=open&labels=factory-ready`);
   const candidates = issues.filter((i) => i.state === "open" && ticketEvidence(state, i.number));
-  if (!candidates.length) {
+  let parents = [];
+  if (!preview && featureParents) {
+    const publication = require("./feature-publication.cjs");
+    const registry = (await publication.storeFor(api).read({ allowMissing: true })).state;
+    parents = publication.mergedMajorParents(registry, state);
+  }
+  if (!candidates.length && !parents.length) {
     if (preview) result.held.push({ issue: target, reason: "no_open_reviewed_factory_repair" });
     return result;
   }
@@ -321,6 +336,55 @@ async function runClosure({
       throw Error("Ticket closure could not be confirmed");
     result.closed.push(proof);
   }
+  if (parents.length && result.closed.length < MAX_CLOSURES) {
+    const { issueMatches: matchFeature } = require("./feature-contract.cjs");
+    const start = Number(context.runId) % parents.length;
+    const batch = [...parents.slice(start), ...parents.slice(0, start)].slice(0, 3);
+    for (const [key, row] of batch) {
+      if (result.closed.length >= MAX_CLOSURES) break;
+      const parent = await api.request("GET", ROOT + "/issues/" + row.parent.issue);
+      if (!matchFeature(parent, key, row, -1)) continue;
+      const fresh = (await ledger.read()).state;
+      policy.assertNotStopped(fresh);
+      const proofs = [];
+      for (const stage of row.stages) {
+        const ticket = ticketEvidence(fresh, stage.issue);
+        if (!ticket?.feature) break;
+        const child = await api.request("GET", ROOT + "/issues/" + stage.issue);
+        if (
+          child.state !== "closed" ||
+          child.state_reason !== "completed" ||
+          child.closed_by?.id !== BOT_ID
+        )
+          break;
+        const { proof } = await inspectRepair(api, child, ticket, release, true);
+        if (!proof) break;
+        proofs.push(proof);
+      }
+      if (proofs.length !== row.stages.length) continue;
+      if (!(await isLiveRelease(verifyLive, release)))
+        return { ...result, outcome: "live_release_unverified" };
+      const before = await api.request("GET", ROOT + "/issues/" + parent.number);
+      policy.assertNotStopped((await ledger.read()).state);
+      if (!matchFeature(before, key, row, -1)) continue;
+      try {
+        await api.request("PATCH", ROOT + "/issues/" + parent.number, {
+          state: "closed",
+          state_reason: "completed",
+        });
+      } catch {
+        // Confirm the authoritative state without replaying a potentially successful write.
+      }
+      const after = await api.request("GET", ROOT + "/issues/" + parent.number);
+      if (
+        !matchFeature(after, key, row, -1, false, true) ||
+        after.state !== "closed" ||
+        after.state_reason !== "completed"
+      )
+        throw Error("Major feature closure could not be confirmed");
+      result.closed.push({ issue: parent.number, stages: proofs });
+    }
+  }
   return result;
 }
 
@@ -331,6 +395,7 @@ async function main(env = process.env) {
     api: new GitHub({ token: env.GITHUB_TOKEN, retryReads: true }),
     context: contextFromEnv(env),
     event: JSON.parse(fs.readFileSync(env.GITHUB_EVENT_PATH, "utf8")),
+    featureParents: env.FACTORY_FEATURE_MODE === "live",
     enabled: env.FACTORY_ENABLED === "true" && env.FACTORY_AUTOMATION_ENABLED === "true",
   });
   const output = JSON.stringify(result, null, 2);

@@ -71,7 +71,7 @@ function drillIssueText(incident) {
 }
 function counters(state, ticket, now) {
   return {
-    daily: (state.days[policy.dayKey(new Date(now), "Europe/Bucharest")] || []).length,
+    daily: policy.dailyAdmissions(state, policy.dayKey(new Date(now), "Europe/Bucharest")),
     coding: ticket ? state.tickets[String(ticket)]?.coding || 0 : 0,
     reviews: ticket ? state.tickets[String(ticket)]?.reviews || 0 : 0,
     retries: ticket ? state.tickets[String(ticket)]?.retries || 0 : 0,

@@ -93,6 +93,7 @@ class Controller {
     await this.rejectDrillIssue(issue);
     let monitor = null;
     let finding = null;
+    let feature = null;
     if (
       automatic &&
       !issue.labels?.some(
@@ -100,7 +101,15 @@ class Controller {
       )
     )
       throw new Error("Automatic admission needs a trusted factory-ready issue");
-    if (automatic && issue.user?.login !== policy.OWNER) {
+    if (require("./feature-contract.cjs").marked(issue)) {
+      if (!automatic || !["pilot", "live"].includes(this.config.featureMode))
+        throw Error("Feature ticket requires the enabled automatic feature path");
+      feature = await require("./feature-origin.cjs").verifyFeatureIssue(this.api, issue, {
+        mode: this.config.featureMode,
+      });
+      if (!feature) throw Error("Feature ticket lacks a trusted publication receipt");
+    }
+    if (automatic && !feature && issue.user?.login !== policy.OWNER) {
       monitor = await verifyMonitorIssue(this.api, issue);
       if (!monitor && this.config.discovery)
         finding = await require("./discovery-origin.cjs").findingForAdmission(this.api, issue);
@@ -127,6 +136,26 @@ class Controller {
     const saved = await this.ledger.update(async (state) => {
       const existing = state.tickets[String(ticket)];
       if (automatic && existing) throw new Error("Automatic ticket already admitted");
+      if (feature) {
+        const fresh = await this.issue(ticket);
+        if (
+          !(await require("./feature-origin.cjs").verifyFeatureIssue(this.api, fresh, {
+            mode: this.config.featureMode,
+            proof: feature,
+          }))
+        )
+          throw Error("Feature origin changed before admission");
+        if (
+          slots.activeEntries(state).some((entry) => state.tickets[entry.ticket]?.feature) ||
+          (await require("./feature-priority.cjs").repairsWaiting(
+            this.api,
+            this.config,
+            this.context,
+            state
+          ))
+        )
+          throw Error("Another active ticket or ready repair precedes this feature");
+      }
       if (monitor) {
         const current = await verifyMonitorIssue(this.api, issue, { proof: monitor });
         if (!current || JSON.stringify(current) !== JSON.stringify(monitor))
@@ -145,6 +174,7 @@ class Controller {
           ([id, other]) =>
             id !== String(ticket) &&
             (other.automatic || other.dependency) &&
+            (!other.feature || feature || slots.activeFor(state, Number(id))) &&
             !other.findingApiRecovery &&
             other.status === "reviewed" &&
             !["merged", "closed"].includes(other.merge?.status)
@@ -175,6 +205,7 @@ class Controller {
         };
       if (monitor) result.state.tickets[String(ticket)].monitor = monitor;
       if (finding) result.state.tickets[String(ticket)].finding = finding;
+      if (feature) result.state.tickets[String(ticket)].feature = feature;
       return result;
     });
     return this.result(saved.grant);

@@ -9,6 +9,7 @@ const AGENT_WORKFLOWS = Object.freeze(
   [
     "factory-agents.yml",
     "factory-discovery.yml",
+    "factory-features.yml",
     "factory-automatic.yml",
     "factory-dependencies.yml",
     "factory-dependency-alerts.yml",
@@ -88,6 +89,11 @@ function cleanup(state, terminalIds) {
       ticket.approval = null;
     }
     slots.releaseActive(next, active);
+  }
+  for (const planner of slots.reservedPlanners(next)) {
+    if (!terminalIds.has(Number(planner.runId))) continue;
+    planner.status = "blocked";
+    policy.audit(next, "weekly_planner_cancelled", { runId: planner.runId, grant: planner.id });
   }
   return next;
 }
@@ -179,7 +185,10 @@ async function stopFactory({
       );
       const loaded = await ledger.read();
       if (loaded.state.stop?.id !== stop.id) throw new Error("Durable stop marker changed");
-      for (const active of slots.activeEntries(loaded.state)) {
+      for (const active of [
+        ...slots.activeEntries(loaded.state),
+        ...slots.reservedPlanners(loaded.state),
+      ]) {
         const activeId = Number(active.runId);
         if (!byId.has(activeId)) {
           const activeRun = await api.request("GET", `${ROOT}/actions/runs/${activeId}`);
@@ -209,6 +218,11 @@ async function stopFactory({
               if (attempt.run_attempt !== active.runAttempt || attempt.status !== "completed")
                 throw new Error("Active reservation attempt is not confirmed terminal");
             }
+            const planner = slots
+              .reservedPlanners(loaded.state)
+              .find((g) => Number(g.runId) === id);
+            if (planner && !(await require("./feature-meter.cjs").terminalPlanner(api, planner)))
+              throw Error("Planner attempt is not confirmed terminal");
             terminalIds.add(id);
             continue;
           }
@@ -293,7 +307,7 @@ async function resumeFactory({ api, actor, execute = false, ledger = new Ledger(
   if (!state.stop) throw new Error("Factory has no durable stop marker to resume");
   validateStop(state.stop);
   let inventory = await partitionRuns(api, state, await runs(api));
-  if (slots.activeEntries(state).length || inventory.pending.length)
+  if (slots.usedCapacity(state) || inventory.pending.length)
     throw new Error("Active or running agents must be terminal before resume");
   if (!execute)
     return {
@@ -314,7 +328,7 @@ async function resumeFactory({ api, actor, execute = false, ledger = new Ledger(
   if (SWITCHES.some((name) => actual[name] !== state.stop.previous[name]))
     throw new Error("Resume switches were not acknowledged; durable stop retained");
   await ledger.update(async (current) => {
-    if (current.stop?.id !== state.stop.id || slots.activeEntries(current).length)
+    if (current.stop?.id !== state.stop.id || slots.usedCapacity(current))
       throw new Error("Factory state changed before resume");
     inventory = await partitionRuns(api, current, await runs(api));
     if (inventory.pending.length) throw new Error("Running agents changed before resume");

@@ -1105,7 +1105,7 @@ async function runRepair({
   if (require("./dependency-policy.cjs").pending(state))
     return report({ outcome: "pending-protected-merge" });
   if (
-    (state.days[day] || []).length >= config.daily ||
+    policy.dailyAdmissions(state, day) >= config.daily ||
     Object.values(registry.records).filter((row) => row.day === day).length >= 10
   )
     return report({ outcome: "daily-limit" });
@@ -1342,4 +1342,5 @@ module.exports = {
   verifyAlertGitDiff,
   patchLock,
   runRepair,
+  storeFor,
 };

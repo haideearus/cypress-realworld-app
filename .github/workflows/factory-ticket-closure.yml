@@ -77,4 +77,5 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           FACTORY_ENABLED: ${{ vars.FACTORY_ENABLED }}
           FACTORY_AUTOMATION_ENABLED: ${{ vars.FACTORY_AUTOMATION_ENABLED }}
+          FACTORY_FEATURE_MODE: ${{ vars.FACTORY_FEATURE_MODE }}
         run: node scripts/factory/ticket-closure.cjs

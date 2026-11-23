@@ -7,6 +7,9 @@ const { secretLike } = require("./artifacts.cjs");
 const { verifyMonitorIssue } = require("./monitor-origin.cjs");
 const { PROBE_MODE: FUNCTIONAL_MODE } = require("./functional-discovery-contract.cjs");
 const delayed = require("./delayed-retry.cjs");
+const { marked } = require("./feature-contract.cjs");
+const { readyFeature, verifyFeatureIssue } = require("./feature-origin.cjs");
+const { repairsWaiting } = require("./feature-priority.cjs");
 
 const QUEUE_LABEL = "factory-ready";
 const MAX_QUEUE_PAGES = 5;
@@ -49,7 +52,7 @@ class AutomaticCoordinator {
     this.controller = new Controller(api, config, context);
   }
 
-  async candidate(state) {
+  async candidate(state, { complete = false } = {}) {
     let ordinary = null;
     for (let page = 1; page <= MAX_QUEUE_PAGES; page++) {
       const rows = await this.api.request(
@@ -62,6 +65,7 @@ class AutomaticCoordinator {
         .filter(
           (issue) =>
             queueIssue(issue) &&
+            !marked(issue) &&
             issue.number !== this.config.activityIssue &&
             !state.tickets[String(issue.number)]
         )
@@ -90,13 +94,23 @@ class AutomaticCoordinator {
       }
       if (rows.length < 100) return ordinary;
     }
-    if (this.config.priorityRetry)
-      throw Error("Priority queue exceeds the bounded lookup; no delayed retry admitted");
+    if (this.config.priorityRetry || complete)
+      throw Error("Priority queue exceeds the bounded lookup; no discretionary work admitted");
     return null;
   }
 
   async verifyDelayedIssue(issue, ticket) {
     if (!queueIssue(issue) || criteriaHash(issue) !== ticket.criteriaHash) return false;
+    if (ticket.feature)
+      return (
+        ["pilot", "live"].includes(this.config.featureMode) &&
+        Boolean(
+          await verifyFeatureIssue(this.api, issue, {
+            mode: this.config.featureMode,
+            proof: ticket.feature,
+          })
+        )
+      );
     if (ticket.monitor) {
       return Boolean(await verifyMonitorIssue(this.api, issue, { proof: ticket.monitor }));
     }
@@ -117,16 +131,18 @@ class AutomaticCoordinator {
     return eligibleIssue(issue);
   }
 
-  async delayedCandidate(state) {
+  async delayedCandidate(state, { feature = false, priorityCheck = false } = {}) {
     if (
       !this.config.priorityRetry ||
-      this.context.wake ||
-      this.context.actor !== policy.OWNER ||
-      this.context.runAttempt !== 1
+      (!priorityCheck &&
+        (this.context.wake || this.context.actor !== policy.OWNER || this.context.runAttempt !== 1))
     )
       return null;
     const candidates = Object.entries(state.tickets)
-      .filter(([id, ticket]) => delayed.due(state, ticket, Number(id), this.config))
+      .filter(
+        ([id, ticket]) =>
+          Boolean(ticket.feature) === feature && delayed.due(state, ticket, Number(id), this.config)
+      )
       .sort(
         ([left, a], [right, b]) =>
           a.delayedRetry.notBefore.localeCompare(b.delayedRetry.notBefore) ||
@@ -173,6 +189,11 @@ class AutomaticCoordinator {
     // Read the ready queue again after the slower provenance and branch checks.
     if (await this.candidate(state))
       return { ready: false, reason: "New work is ready; delayed retry remains queued" };
+    if (
+      state.tickets[ticket].feature &&
+      (await repairsWaiting(this.api, this.config, this.context, state))
+    )
+      return { ready: false, reason: "A repair takes priority over the feature retry" };
     const recovery = state.tickets[ticket].delayedRetry?.fix;
     if (
       recovery &&
@@ -211,7 +232,10 @@ class AutomaticCoordinator {
     if (!dryRun && (!this.config.enabled || !this.config.automatic))
       return { ready: false, reason: "Automatic pickup disabled; no model invocation" };
 
-    const { state, commit } = await this.ledger.read();
+    let loaded = await this.ledger.read();
+    if (!dryRun && !loaded.state.stop)
+      loaded = await require("./feature-meter.cjs").reconcile(this.api, this.ledger, loaded);
+    let { state, commit } = loaded;
     if (summaryPath) {
       const summary = require("./queue-summary.cjs").queueSummary(state, this.config);
       if (summary) require("node:fs").appendFileSync(summaryPath, summary);
@@ -254,10 +278,35 @@ class AutomaticCoordinator {
       };
     for (const entry of slots.activeEntries(state)) {
       const held = state.tickets[String(entry.ticket)];
+      if (
+        held?.feature &&
+        held.feature.mode !== this.config.featureMode &&
+        held.status === "reviewed" &&
+        !held.merge &&
+        (await terminalParent(this.api, entry)) &&
+        !dryRun
+      ) {
+        const saved = await this.ledger.update(
+          (current) => {
+            if (
+              !slots.owns(slots.activeFor(current, entry.ticket), entry) ||
+              current.tickets[entry.ticket]?.merge
+            )
+              throw Error("Paused feature ownership changed");
+            slots.releaseActive(current, entry);
+            return { state: current };
+          },
+          { expectedCommit: commit }
+        );
+        state = saved.state;
+        commit = saved.commit;
+        continue;
+      }
       const intent = held?.merge;
       if (
         state.version === 2 &&
         held?.automatic &&
+        (!held.feature || held.feature.mode === this.config.featureMode) &&
         !held.findingApiRecovery &&
         held.status === "reviewed" &&
         !["merged", "closed"].includes(intent?.status) &&
@@ -295,12 +344,16 @@ class AutomaticCoordinator {
           ticket.automatic &&
           !ticket.findingApiRecovery &&
           ticket.origin === "factory" &&
+          (!ticket.feature || ticket.feature.mode === this.config.featureMode) &&
           ticket.status === "reviewed" &&
           (state.version === 1 || !slots.activeFor(state, Number(id))) &&
           !["merged", "closed"].includes(ticket.merge?.status)
       )
-      .sort(([left], [right]) => Number(left) - Number(right))[0];
-    if (pending)
+      .sort(
+        ([left, a], [right, b]) =>
+          Number(Boolean(a.feature)) - Number(Boolean(b.feature)) || Number(left) - Number(right)
+      )[0];
+    if (pending && !pending[1].feature)
       return {
         ready: false,
         preview: dryRun,
@@ -309,9 +362,25 @@ class AutomaticCoordinator {
         reason: "Reconcile the pending automatic PR before admitting new work",
       };
 
-    const candidate = await this.candidate(state);
+    let candidate = await this.candidate(state);
     if (!candidate) {
-      const due = await this.delayedCandidate(state);
+      let due = await this.delayedCandidate(state);
+      if (
+        !due &&
+        ["pilot", "live"].includes(this.config.featureMode) &&
+        !(await repairsWaiting(this.api, this.config, this.context, state))
+      ) {
+        if (pending?.[1].feature)
+          return {
+            ready: false,
+            preview: dryRun,
+            kind: "merge",
+            ticket: Number(pending[0]),
+            reason: "Reconcile the reviewed feature while the repair queue is clear",
+          };
+        due = await this.delayedCandidate(state, { feature: true });
+        if (!due) candidate = await readyFeature(this.api, state, this.config.featureMode);
+      }
       if (due) {
         if (dryRun)
           return {
@@ -324,7 +393,8 @@ class AutomaticCoordinator {
           };
         return this.reserveDelayed(due, state, commit);
       }
-      return { ready: false, preview: dryRun, reason: "No eligible issue in the bounded queue" };
+      if (!candidate)
+        return { ready: false, preview: dryRun, reason: "No eligible issue in the bounded queue" };
     }
     if (dryRun)
       return {

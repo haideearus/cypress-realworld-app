@@ -6,6 +6,7 @@ function pending(state, except) {
     ([id, t]) =>
       Number(id) !== except &&
       (t.automatic || t.dependency) &&
+      (!t.feature || t.merge?.status === "intent" || slots.activeFor(state, Number(id))) &&
       !t.findingApiRecovery &&
       t.status === "reviewed" &&
       !["closed", "merged"].includes(t.merge?.status)
@@ -60,7 +61,8 @@ function claimDependency(original, pr, context, config, now = new Date(), alertR
   } else {
     const day = policy.dayKey(now, config.timezone),
       admissions = state.days[day] || [];
-    if (admissions.length >= config.daily) throw new Error("Daily ticket limit reached");
+    if (policy.dailyAdmissions(state, day) >= config.daily)
+      throw new Error("Daily ticket limit reached");
     state.days[day] = [...admissions, pr.number];
     state.tickets[id] = {
       coding: 0,

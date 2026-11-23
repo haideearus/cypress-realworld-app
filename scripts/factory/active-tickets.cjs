@@ -39,11 +39,14 @@ function validateActive(state) {
 function activeFor(state, ticket) {
   return activeEntries(state).find((entry) => entry.ticket === ticket) || null;
 }
+const reservedPlanners = (state) =>
+  Object.values(state.featurePlans || {}).filter((grant) => grant.status === "reserved");
+const usedCapacity = (state) => activeEntries(state).length + reservedPlanners(state).length;
 function capacity(state, limit) {
   if (![1, 2].includes(limit)) throw new Error("Invalid active ticket capacity");
   if (state.version === 1 && limit !== 1)
     throw new Error("Concurrency two requires owner ledger migration to version two");
-  return activeEntries(state).length < limit;
+  return usedCapacity(state) < limit;
 }
 const owns = (entry, owner) =>
   Boolean(
@@ -85,4 +88,6 @@ module.exports = {
   claimActive,
   releaseActive,
   pendingIntent,
+  reservedPlanners,
+  usedCapacity,
 };

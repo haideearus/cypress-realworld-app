@@ -34,7 +34,10 @@ function integer(value, label, max = Number.MAX_SAFE_INTEGER) {
 function readConfig(vars) {
   if (![undefined, "true", "false"].includes(vars.FACTORY_DISCOVERY_ENABLED))
     throw Error("Invalid discovery opt-in");
+  const featureMode = vars.FACTORY_FEATURE_MODE ?? "off";
+  if (!["off", "pilot", "live"].includes(featureMode)) deny("Invalid weekly feature mode");
   const config = {
+    featureMode,
     enabled: vars.FACTORY_ENABLED === "true",
     discovery: vars.FACTORY_DISCOVERY_ENABLED === "true",
   };
@@ -113,6 +116,7 @@ function validateState(state) {
     deny("Invalid factory ledger state");
   const entries = active.validateActive(state);
   validateStop(state.stop);
+  require("./feature-meter.cjs").validate(state.featurePlans);
   for (const [day, ids] of Object.entries(state.days)) {
     if (
       !/^\d{4}-\d{2}-\d{2}$/.test(day) ||
@@ -158,6 +162,18 @@ function validateState(state) {
       ["discovering", "discovery_complete"].includes(ticket.status)
     )
       deny("Invalid discovery origin");
+    if (ticket.feature !== undefined) {
+      const feature = require("./feature-contract.cjs").validateReceipt(ticket.feature);
+      if (
+        ticket.origin !== "factory" ||
+        !ticket.automatic ||
+        ticket.finding ||
+        ticket.monitor ||
+        feature.issue !== Number(id) ||
+        feature.criteriaHash !== ticket.criteriaHash
+      )
+        deny("Invalid feature ticket provenance");
+    }
     if (ticket.origin === "dependency-pr") dependency.validateTicket(ticket, grants);
     else if (ticket.dependency !== undefined) deny("Invalid dependency ticket origin");
     if (ticket.origin === "drill") {
@@ -360,6 +376,14 @@ function dayKey(date, timezone) {
   }).formatToParts(date);
   const part = (type) => parts.find((p) => p.type === type).value;
   return `${part("year")}-${part("month")}-${part("day")}`;
+}
+function dailyAdmissions(state, day) {
+  return (
+    (state.days[day] || []).length +
+    Object.values(state.featurePlans || {}).filter(
+      (grant) => dayKey(new Date(grant.at), "Europe/Bucharest") === day
+    ).length
+  );
 }
 function authorize(request) {
   denyRetiredRun(request.runId);
@@ -592,7 +616,7 @@ function reserve(original, request, config, now = new Date()) {
   if (!existing && (request.phase === "code" || ownerReview)) {
     const day = dayKey(now, config.timezone);
     const admitted = state.days[day] || [];
-    if (admitted.length >= config.daily) deny("Daily ticket limit reached");
+    if (dailyAdmissions(state, day) >= config.daily) deny("Daily ticket limit reached");
     state.days[day] = [...admitted, request.ticket];
     state.tickets[id] = {
       coding: 0,
@@ -685,7 +709,7 @@ function preflight(state, grantId, context, config) {
   if (require("./discovery-policy.cjs").contextOK(context))
     return require("./discovery-policy.cjs").preflightSweep(state, grantId, context, config);
   active.capacity(state, config.concurrent);
-  if (active.activeEntries(state).length > config.concurrent)
+  if (active.usedCapacity(state) > config.concurrent)
     deny("Pending reservation exceeds current concurrency limit");
   if (!config.enabled || !config.minutes || !config.turns) deny("Factory disabled");
   if (context.slot === require("./review-recovery.cjs").SLOT && config.autoMerge !== false)
@@ -721,7 +745,7 @@ function preflight(state, grantId, context, config) {
     (ticket.coding > config.coding + recovery.allowance(state, grant.ticket, config) ||
       ticket.reviews > config.reviews ||
       ticket.retries > config.retries ||
-      (state.days[dayKey(new Date(grant.at), config.timezone)] || []).length > config.daily)
+      dailyAdmissions(state, dayKey(new Date(grant.at), config.timezone)) > config.daily)
   )
     deny("Pending reservation exceeds current limit");
   if (
@@ -858,6 +882,7 @@ function assertNotStopped(state) {
   if (state?.stop) deny("Factory stopped by owner; explicit resume is required");
 }
 module.exports = {
+  dailyAdmissions,
   assertNotStopped,
   REPOSITORY,
   OWNER,

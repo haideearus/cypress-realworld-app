@@ -65,7 +65,7 @@ function reserveSweep(original, r, config, now = new Date()) {
   active.capacity(original, config.concurrent);
   const day = p.dayKey(now, config.timezone);
   if (day !== r.discovery.day) throw Error("Discovery day changed before reservation");
-  if ((original.days[day] || []).length >= config.daily) throw Error("Daily ticket limit reached");
+  if (p.dailyAdmissions(original, day) >= config.daily) throw Error("Daily ticket limit reached");
   if (
     Object.values(original.grants).filter(
       (g) => g.phase === "discover" && p.dayKey(new Date(g.at), config.timezone) === day
