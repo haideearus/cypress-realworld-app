@@ -228,6 +228,14 @@
       "phase": "tracking",
       "issue": 213,
       "pr": null
+    },
+    "66a5eb17807169c8a2f2ae91dc61a9cf53bf8c918df4b20dedd85e9c2692855e": {
+      "name": "rollup",
+      "day": "2026-11-23",
+      "trackingReason": "no-common-candidate",
+      "phase": "tracking-intent",
+      "issue": null,
+      "pr": null
     }
   },
   "heldAfter": "nanoid"
