@@ -1,8 +1,13 @@
 const { appendFileSync } = require("node:fs");
 const { readFileSync } = require("node:fs");
-const { GitHub, ROOT } = require("./github.cjs");
+const { GitHub, Ledger, ROOT } = require("./github.cjs");
 const { REPOSITORY, SHA, assertSubscriptionEnv } = require("./policy.cjs");
 const { actorAllowed, runActorOK } = require("./discovery-contract.cjs");
+const {
+  SWEEP_WORKFLOW,
+  selectBrowserLead,
+  verifyBrowserLead,
+} = require("./discovery-browser-handoff.cjs");
 const {
   CHECKS,
   WORKFLOW_PATH,
@@ -100,7 +105,17 @@ async function verifyCITrigger(api, context, event) {
     throw Error("Untrusted functional discovery CI verify job");
 }
 
-function renderIssueText(incident, { check, assertion }) {
+function renderIssueText(incident, { check, assertion }, browserSource) {
+  const discoveryEvidence = browserSource
+    ? `
+Triggered by discovery sweep: https://github.com/${REPOSITORY}/actions/runs/${browserSource.runId}
+Discovery artifact: ${browserSource.artifactId} (${browserSource.artifactDigest})
+Replay template: ${browserSource.lead.journey.check} / ${browserSource.lead.journey.variant}
+Exploratory assertion: ${browserSource.lead.marker}
+Template hash: ${browserSource.lead.templateHash}
+Exploratory result log hash: ${browserSource.lead.logHash}
+`
+    : "";
   return {
     title: `Functional discovery: ${CHECKS[check]} failed`,
     body: `## Confirmed functional failure
@@ -112,7 +127,7 @@ Failed assertion: ${assertion}
 
 Tested main: ${incident.source.workflowSha}
 Evidence: https://github.com/${REPOSITORY}/actions/runs/${incident.source.runId}
-
+${discoveryEvidence}
 ## Acceptance criteria
 
 - Reproduce the named check on current main with synthetic data in a disposable app. Hold the ticket if it no longer fails.
@@ -139,6 +154,10 @@ async function publishFunctional({
   dryRun,
   extended = false,
   passedChecks = [],
+  browserSource,
+  discoveryEnabled = false,
+  ledger = new Ledger(api),
+  discovery,
   store = new MonitorStore(api, "functional"),
 }) {
   assertContext(context);
@@ -163,8 +182,25 @@ async function publishFunctional({
   if (dryRun) return { outcome: "preview", observation, modelCalls: 0 };
   if (!enabled) return { outcome: "disabled", modelCalls: 0 };
   if (observation.status === "inconclusive") return { outcome: "inconclusive", modelCalls: 0 };
-  if (context.eventName === "workflow_run") await verifyCITrigger(api, context, event);
+  const sweep =
+    context.eventName === "workflow_run" && event?.workflow_run?.path === SWEEP_WORKFLOW;
+  if (sweep) {
+    if (!discoveryEnabled) return { outcome: "disabled", modelCalls: 0 };
+    if (
+      !browserSource ||
+      observation.status !== "confirmed_failure" ||
+      browserSource.check !== observation.check ||
+      browserSource.assertion !== observation.assertion
+    )
+      return { outcome: "inconclusive", modelCalls: 0 };
+    if (!(await verifyBrowserLead(api, context, event, browserSource, { ledger, discovery })))
+      return { outcome: "disabled", modelCalls: 0 };
+  } else {
+    if (browserSource) throw Error("Browser lead requires a completed discovery sweep");
+    if (context.eventName === "workflow_run") await verifyCITrigger(api, context, event);
+  }
   await assertCurrentMain(api, context);
+  if (sweep && (await ledger.read()).state.stop) return { outcome: "disabled", modelCalls: 0 };
   const result = await observeIncident({
     api,
     context,
@@ -173,7 +209,7 @@ async function publishFunctional({
     probeMode: PROBE_MODE,
     functionalChecks: coverage,
     functionalPassed: passedChecks,
-    issueText: renderIssueText,
+    issueText: (incident, confirmed) => renderIssueText(incident, confirmed, browserSource),
   });
   return { ...result, modelCalls: 0 };
 }
@@ -202,15 +238,35 @@ async function main(env = process.env) {
     context.eventName === "workflow_run"
       ? JSON.parse(readFileSync(env.GITHUB_EVENT_PATH, "utf8"))
       : undefined;
+  const discoveryEnabled =
+    env.FACTORY_DISCOVERY_ENABLED === "true" &&
+    env.FACTORY_ENABLED === "true" &&
+    env.FACTORY_AUTOMATION_ENABLED === "true";
   if (env.FACTORY_FUNCTIONAL_OPERATION === "plan") {
     assertContext(context);
-    if (context.eventName === "workflow_run") await verifyCITrigger(api, context, event);
+    const sweep =
+      context.eventName === "workflow_run" && event?.workflow_run?.path === SWEEP_WORKFLOW;
+    if (context.eventName === "workflow_run" && !sweep) await verifyCITrigger(api, context, event);
     await assertCurrentMain(api, context);
-    const extended = await selectCoverage(
-      new MonitorStore(api, "functional"),
-      env.FACTORY_FUNCTIONAL_EXTENDED === "true"
-    );
-    if (env.GITHUB_OUTPUT) appendFileSync(env.GITHUB_OUTPUT, `extended=${extended}\n`);
+    const browserSource =
+      sweep && discoveryEnabled ? await selectBrowserLead(api, context, event) : null;
+    const probe = !sweep || browserSource !== null;
+    const extended =
+      probe &&
+      (await selectCoverage(
+        new MonitorStore(api, "functional"),
+        env.FACTORY_FUNCTIONAL_EXTENDED === "true"
+      ));
+    if (env.GITHUB_OUTPUT)
+      appendFileSync(
+        env.GITHUB_OUTPUT,
+        `extended=${extended}\nprobe=${probe}\nexpectedCheck=${browserSource?.check || ""}\nexpectedAssertion=${browserSource?.assertion || ""}\nbrowserSource=${JSON.stringify(browserSource)}\n`
+      );
+    if (sweep && !probe)
+      writeSummary(
+        env,
+        "## Browser discovery handoff\n\nNo eligible browser assertion was available for model-free confirmation."
+      );
     return;
   }
   const result = await publishFunctional({
@@ -222,6 +278,8 @@ async function main(env = process.env) {
     assertion: env.FACTORY_FUNCTIONAL_ASSERTION || "",
     extended: env.FACTORY_FUNCTIONAL_EXTENDED === "true",
     passedChecks: JSON.parse(env.FACTORY_FUNCTIONAL_PASSED_CHECKS || "[]"),
+    browserSource: JSON.parse(env.FACTORY_FUNCTIONAL_BROWSER_SOURCE || "null"),
+    discoveryEnabled,
     enabled: env.FACTORY_FUNCTIONAL_DISCOVERY_ENABLED === "true",
     dryRun:
       !["schedule", "workflow_run"].includes(context.eventName) &&

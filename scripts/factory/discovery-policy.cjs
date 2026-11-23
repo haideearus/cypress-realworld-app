@@ -52,6 +52,21 @@ function checks(state, r, config) {
   )
     throw Error("Invalid discovery provenance");
 }
+function discoveryGrantsOn(state, day, timezone) {
+  const { dayKey } = require("./policy.cjs");
+  return Object.values(state.grants).filter(
+    (grant) => grant.phase === "discover" && dayKey(new Date(grant.at), timezone) === day
+  );
+}
+function hasThirdSweepHeadroom(quota) {
+  return (
+    Number.isSafeInteger(quota?.limit) &&
+    quota.limit > 0 &&
+    Number.isSafeInteger(quota.remaining) &&
+    quota.remaining <= quota.limit &&
+    quota.remaining >= Math.ceil(quota.limit / 4)
+  );
+}
 function reserveSweep(original, r, config, now = new Date()) {
   const p = require("./policy.cjs");
   checks(original, r, config);
@@ -60,18 +75,22 @@ function reserveSweep(original, r, config, now = new Date()) {
   if (original.tickets[String(r.ticket)]) throw Error("Discovery source already admitted");
   if (Object.values(original.tickets).some((t) => t.discovery?.key === r.discovery.key))
     throw Error("Duplicate discovery source");
-  if (active.activeEntries(original).length >= config.concurrent)
-    throw Error("No active discovery capacity");
-  active.capacity(original, config.concurrent);
+  if (!active.capacity(original, config.concurrent)) throw Error("No active discovery capacity");
   const day = p.dayKey(now, config.timezone);
   if (day !== r.discovery.day) throw Error("Discovery day changed before reservation");
   if (p.dailyAdmissions(original, day) >= config.daily) throw Error("Daily ticket limit reached");
-  if (
-    Object.values(original.grants).filter(
-      (g) => g.phase === "discover" && p.dayKey(new Date(g.at), config.timezone) === day
-    ).length >= 2
-  )
+  const used = discoveryGrantsOn(original, day, config.timezone);
+  if (used.length >= (config.discoverySweeps ?? 2))
     throw Error("Discovery daily session limit reached");
+  if (
+    used.some((g) => original.tickets[String(g.ticket)].discovery.charter === r.discovery.charter)
+  )
+    throw Error("Discovery charter already used today");
+  if (used.length >= 2 && !hasThirdSweepHeadroom(r.quota)) {
+    const e = Error("Insufficient GitHub API headroom for a third discovery sweep");
+    e.code = "DISCOVERY_HEADROOM";
+    throw e;
+  }
   const state = structuredClone(original);
   state.days[day] = [...(state.days[day] || []), r.ticket];
   state.tickets[String(r.ticket)] = {
@@ -156,4 +175,12 @@ function finishSweep(original, id, outcome, now = new Date()) {
   p.validateState(s);
   return s;
 }
-module.exports = { ...c, validateTicket, reserveSweep, preflightSweep, finishSweep };
+module.exports = {
+  ...c,
+  validateTicket,
+  reserveSweep,
+  preflightSweep,
+  finishSweep,
+  discoveryGrantsOn,
+  hasThirdSweepHeadroom,
+};

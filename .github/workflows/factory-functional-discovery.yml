@@ -6,7 +6,7 @@ on:
     - cron: "20 7 * * 0"
       timezone: Europe/Bucharest
   workflow_run:
-    workflows: [Factory CI]
+    workflows: [Factory CI, Proactive app discovery]
     branches: [main]
     types: [completed]
   workflow_dispatch:
@@ -17,7 +17,7 @@ on:
         required: true
         default: true
       extended:
-        description: Include the weekly transaction, comment and profile picture checks
+        description: Include the full weekly browser suite
         type: boolean
         default: false
 
@@ -27,6 +27,7 @@ permissions:
 concurrency:
   group: factory-functional-discovery
   cancel-in-progress: false
+  queue: max
 
 jobs:
   browser:
@@ -39,7 +40,12 @@ jobs:
              (github.event_name == 'schedule' && vars.FACTORY_FUNCTIONAL_DISCOVERY_ENABLED == 'true'))) ||
            (github.event_name == 'workflow_run' && vars.FACTORY_FUNCTIONAL_DISCOVERY_ENABLED == 'true' &&
             (github.actor == 'haideearus' || github.actor == 'haideearus-software-factory[bot]') &&
-            github.event.workflow_run.event == 'push' &&
+            ((github.event.workflow_run.path == '.github/workflows/factory-ci.yml' &&
+              github.event.workflow_run.event == 'push') ||
+             (github.event.workflow_run.path == '.github/workflows/factory-discovery.yml' &&
+              vars.FACTORY_ENABLED == 'true' &&
+              vars.FACTORY_DISCOVERY_ENABLED == 'true' &&
+              vars.FACTORY_AUTOMATION_ENABLED == 'true')) &&
             github.event.workflow_run.run_attempt == 1 &&
             github.event.workflow_run.conclusion == 'success' &&
             github.event.workflow_run.head_branch == 'main' &&
@@ -51,12 +57,15 @@ jobs:
     permissions:
       contents: read
       actions: read
+      issues: read
     outputs:
       status: ${{ steps.browser.outputs.status }}
       check: ${{ steps.browser.outputs.check }}
       assertion: ${{ steps.browser.outputs.assertion }}
       passedChecks: ${{ steps.browser.outputs.passedChecks }}
       extended: ${{ steps.coverage.outputs.extended }}
+      browserSource: ${{ steps.coverage.outputs.browserSource }}
+      probe: ${{ steps.coverage.outputs.probe }}
     services:
       postgres:
         image: postgres:17.6
@@ -85,11 +94,15 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
           FACTORY_FUNCTIONAL_OPERATION: plan
+          FACTORY_ENABLED: ${{ vars.FACTORY_ENABLED }}
+          FACTORY_DISCOVERY_ENABLED: ${{ vars.FACTORY_DISCOVERY_ENABLED }}
+          FACTORY_AUTOMATION_ENABLED: ${{ vars.FACTORY_AUTOMATION_ENABLED }}
           FACTORY_FUNCTIONAL_EXTENDED: >-
             ${{ toJSON((github.event_name == 'schedule' && github.event.schedule == '20 7 * * 0') ||
                        (github.event_name == 'workflow_dispatch' && inputs.extended == true)) }}
         run: node scripts/factory/functional-discovery.cjs
       - name: Prepare the disposable application
+        if: ${{ steps.coverage.outputs.probe == 'true' }}
         run: |
           corepack enable && corepack prepare yarn@1.22.22 --activate
           yarn install --frozen-lockfile
@@ -97,8 +110,11 @@ jobs:
           yarn build:production
       - name: Run approved browser checks
         id: browser
+        if: ${{ steps.coverage.outputs.probe == 'true' }}
         env:
           FACTORY_FUNCTIONAL_EXTENDED: ${{ steps.coverage.outputs.extended }}
+          FACTORY_FUNCTIONAL_EXPECTED_CHECK: ${{ steps.coverage.outputs.expectedCheck }}
+          FACTORY_FUNCTIONAL_EXPECTED_ASSERTION: ${{ steps.coverage.outputs.expectedAssertion }}
         run: node scripts/factory/functional-browser.cjs
       - name: Report incomplete browser coverage
         if: ${{ failure() }}
@@ -111,7 +127,7 @@ jobs:
           SUMMARY
 
   publish:
-    if: ${{ needs.browser.result == 'success' }}
+    if: ${{ needs.browser.result == 'success' && needs.browser.outputs.probe == 'true' }}
     needs: browser
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -131,6 +147,9 @@ jobs:
       - name: Publish confirmed functional failure
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          FACTORY_ENABLED: ${{ vars.FACTORY_ENABLED }}
+          FACTORY_DISCOVERY_ENABLED: ${{ vars.FACTORY_DISCOVERY_ENABLED }}
+          FACTORY_AUTOMATION_ENABLED: ${{ vars.FACTORY_AUTOMATION_ENABLED }}
           FACTORY_FUNCTIONAL_DISCOVERY_ENABLED: ${{ vars.FACTORY_FUNCTIONAL_DISCOVERY_ENABLED }}
           FACTORY_FUNCTIONAL_DRY_RUN: ${{ toJSON(inputs.dry_run) }}
           FACTORY_FUNCTIONAL_EXTENDED: ${{ needs.browser.outputs.extended }}
@@ -138,4 +157,5 @@ jobs:
           FACTORY_FUNCTIONAL_CHECK: ${{ needs.browser.outputs.check }}
           FACTORY_FUNCTIONAL_ASSERTION: ${{ needs.browser.outputs.assertion }}
           FACTORY_FUNCTIONAL_PASSED_CHECKS: ${{ needs.browser.outputs.passedChecks }}
+          FACTORY_FUNCTIONAL_BROWSER_SOURCE: ${{ needs.browser.outputs.browserSource }}
         run: node scripts/factory/functional-discovery.cjs

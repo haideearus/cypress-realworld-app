@@ -1,6 +1,7 @@
 const fs = require("node:fs");
 const p = require("./policy.cjs");
 const c = require("./discovery-contract.cjs");
+const { discoveryGrantsOn, hasThirdSweepHeadroom } = require("./discovery-policy.cjs");
 const { GitHub, Ledger, ROOT } = require("./github.cjs");
 const { diagnostic, withStage } = require("./discovery-diagnostics.cjs");
 const { DiscoveryStore } = require("./discovery-store.cjs");
@@ -21,6 +22,7 @@ function selectSweep({
   config,
   repairsWaiting = false,
   ciSignal = null,
+  quota,
 }) {
   p.assertNotStopped(state);
   if (!config.enabled || !config.discovery) return { ready: false, reason: "Discovery disabled" };
@@ -38,16 +40,16 @@ function selectSweep({
     )
   )
     return { ready: false, reason: "Duplicate main CI discovery signal" };
-  if (repairsWaiting || active.activeEntries(state).length)
+  if (repairsWaiting || active.usedCapacity(state))
     return { ready: false, reason: "Repairs or active work take priority" };
   if (p.dailyAdmissions(state, day) >= config.daily)
     return { ready: false, reason: "Daily ticket limit reached" };
   const discoveryGrants = Object.values(state.grants).filter((g) => g.phase === "discover");
-  const usedToday = discoveryGrants.filter(
-    (g) => p.dayKey(new Date(g.at), config.timezone) === day
-  );
-  if (usedToday.length >= 2)
+  const usedToday = discoveryGrantsOn(state, day, config.timezone);
+  if (usedToday.length >= (config.discoverySweeps ?? 2))
     return { ready: false, reason: "Discovery daily session limit reached" };
+  if (usedToday.length >= 2 && !hasThirdSweepHeadroom(quota))
+    return { ready: false, reason: "Insufficient GitHub API headroom for a third discovery sweep" };
   const recentUse = new Map();
   for (const grant of discoveryGrants) {
     const charter = state.tickets[String(grant.ticket)]?.discovery?.charter;
@@ -55,11 +57,13 @@ function selectSweep({
     if (CHARTERS.includes(charter))
       recentUse.set(charter, Math.max(recentUse.get(charter) || 0, at));
   }
-  const usedCharter = state.tickets[String(usedToday[0]?.ticket)]?.discovery?.charter;
+  const usedCharters = new Set(
+    usedToday.map((g) => state.tickets[String(g.ticket)]?.discovery?.charter)
+  );
   const offset = Number.parseInt(c.digest(day).slice(0, 4), 16) % CHARTERS.length;
   const charters = [...CHARTERS.slice(offset), ...CHARTERS.slice(0, offset)];
   const charter = charters
-    .filter((x) => x !== usedCharter && !registry.sources[c.sweepKey(head, x, day)])
+    .filter((x) => !usedCharters.has(x) && !registry.sources[c.sweepKey(head, x, day)])
     .sort((a, b) => (recentUse.get(a) || 0) - (recentUse.get(b) || 0))[0];
   return charter
     ? { ready: true, charter }
@@ -259,6 +263,7 @@ async function main(env = process.env, dependencies = {}) {
     day,
     config: preview ? { ...config, enabled: true, discovery: true } : config,
     ciSignal: context.event === "workflow_run" ? tested.ciRunId : null,
+    quota: api.primaryQuota,
     repairsWaiting: queue.some(
       (i) =>
         !i.pull_request && !state.tickets[String(i.number)] && i.number !== config.activityIssue
@@ -311,7 +316,17 @@ async function main(env = process.env, dependencies = {}) {
     origin: "discovery-sweep",
     discovery: proof,
   };
-  const result = await ledger.update((s) => p.reserve(s, request, config));
+  let result;
+  try {
+    result = await ledger.update((s) =>
+      p.reserve(s, { ...request, quota: api.primaryQuota }, config)
+    );
+  } catch (error) {
+    if (error.code !== "DISCOVERY_HEADROOM") throw error;
+    const held = { outcome: "held", ready: false, reason: error.message, modelCalls: 0 };
+    output(held, env);
+    return held;
+  }
   output(
     {
       ready: true,

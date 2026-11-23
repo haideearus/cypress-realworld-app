@@ -2,7 +2,14 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const yaml = require("js-yaml");
-const { argsFor } = require("../factory/discovery-worker.cjs");
+const { argsFor, promptFor } = require("../factory/discovery-worker.cjs");
+test("later sweeps ask for distinct browser journeys within the shared four batches", () => {
+  const identity = { head: "a".repeat(40), grantId: "fixture-grant" };
+  assert.doesNotMatch(promptFor(identity, "functional-feed"), /two batches for distinct browser/);
+  const later = promptFor(identity, "functional-feed", true);
+  assert.match(later, /two batches for distinct browser journeys/);
+  assert.match(later, /up to four combined API and browser batches/);
+});
 test("discovery model has no builtin shell/filesystem/network tool and only its pinned broker", () => {
   const args = argsFor({ turns: 200 }, "/tmp/discovery/mcp.json");
   assert.ok(args.includes("--tools="));
@@ -16,6 +23,8 @@ test("workflow previews by default and confines OAuth to one reserved step; repl
   const flow = yaml.load(fs.readFileSync(".github/workflows/factory-discovery.yml", "utf8"));
   assert.equal(flow.on.workflow_dispatch.inputs.dry_run.default, true);
   assert.equal(flow.on.workflow_dispatch.inputs.operation.default, "preview");
+  assert.ok(flow.on.schedule.some((schedule) => schedule.cron === "12 21 * * *"));
+  assert.match(flow.jobs.select.if, /FACTORY_MAX_DISCOVERY_SWEEPS_PER_DAY == '3'/);
   assert.ok(flow.jobs.discover.if.includes("outputs.ready == 'true'"));
   const oauthSteps = Object.values(flow.jobs)
     .flatMap((j) => j.steps || [])

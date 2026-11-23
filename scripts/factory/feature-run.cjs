@@ -107,7 +107,7 @@ async function main(env = process.env, dependencies = {}) {
       operation !== "prepare"
     )
       throw new FeatureHold("Daily ticket limit reached");
-    if (!meter.headroom(api.rate, now()))
+    if (!meter.headroom(api.primaryQuota, now()))
       throw new FeatureHold("GitHub API headroom not available");
     return state;
   };
@@ -204,7 +204,7 @@ async function main(env = process.env, dependencies = {}) {
       const { head } = await testedMain(api, context, {});
       const openIssues = await issues(api);
       p.assertNotStopped((await ledger.read()).state);
-      if (!meter.headroom(api.rate, now()))
+      if (!meter.headroom(api.primaryQuota, now()))
         throw new FeatureHold("GitHub API headroom not available");
       accepted = await savePlan(
         value.proposals,

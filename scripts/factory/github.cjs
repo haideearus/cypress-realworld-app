@@ -34,6 +34,18 @@ function quotaSafeRequest(method, path) {
   );
 }
 
+function primaryQuota(headers) {
+  if (headers?.get("x-ratelimit-resource") !== "core") return null;
+  const limit = headers.get("x-ratelimit-limit");
+  const remaining = headers.get("x-ratelimit-remaining");
+  if (!/^[1-9]\d{0,8}$/.test(limit || "") || !/^\d{1,9}$/.test(remaining || "")) return null;
+  if (Number(remaining) > Number(limit)) return null;
+  const quota = { limit: Number(limit), remaining: Number(remaining) };
+  const reset = headers.get("x-ratelimit-reset");
+  if (/^[1-9]\d{0,11}$/.test(reset || "")) quota.reset = Number(reset) * 1000;
+  return quota;
+}
+
 class GitHub {
   constructor({
     token,
@@ -102,6 +114,7 @@ class GitHub {
     let gatewayAttempts = 0;
     for (;;) {
       const response = await this.fetch(url, { ...options, signal: AbortSignal.timeout(30000) });
+      this.primaryQuota = primaryQuota(response.headers);
       if (
         retryable &&
         gatewayAttempts < READ_BACKOFF_MS.length &&
@@ -110,13 +123,6 @@ class GitHub {
         await response.body?.cancel().catch(() => {});
         await this.sleep(READ_BACKOFF_MS[gatewayAttempts++]);
         continue;
-      }
-      const rate = ["limit", "remaining", "reset"].map((key) =>
-        response.headers?.get("x-ratelimit-" + key)
-      );
-      if (rate.every((value) => /^\d+$/.test(value || ""))) {
-        const [limit, remaining, reset] = rate.map(Number);
-        this.rate = { limit, remaining, reset: reset * 1000 };
       }
       if (response.status === 304 && cached) return cached.value;
       if (!response.ok) {

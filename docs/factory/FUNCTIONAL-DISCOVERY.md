@@ -11,7 +11,7 @@ The transaction form check finds a seeded recipient and verifies that the reques
 and payment controls are disabled for missing values and enabled with valid
 values. The check ends before submission. Notifications checks use seeded
 unread like and comment items for the populated view and a fixed empty
-response for the empty view. The browser does not mark notifications as read.
+response for the empty view. The short suite leaves notification state alone.
 
 The Settings persistence check creates its own synthetic user. It changes the
 first name through the form, checks that the save succeeds, then starts a
@@ -56,9 +56,16 @@ Each attempt gets a fresh disposable database and avatar fixture:
 - Comment on a synthetic transaction, reload, and verify the comment persists.
 - Upload a small PNG, reload the profile, and verify the saved image loads.
   The production storage adapter talks to a temporary loopback S3 fixture.
+- Send a demo payment, then verify the balance, transaction history and
+  recipient notification in fresh browser sessions.
+- Mark a notification read and verify it stays read after signing in again.
+- Apply date and amount filters on a narrow screen. Verify the matching feed,
+  empty state and restored results after clearing the filters.
+- Delete the last demo bank account and verify the list and onboarding after
+  signing in again.
 
-To preview the full suite, tick **Include the weekly transaction, comment and
-profile picture checks** and keep the preview box checked. Normal checks still
+To preview the full suite, tick **Include the full weekly browser suite** and
+keep the preview box checked. Normal checks still
 run on their usual events. While a weekly issue is active, those events also
 run the full suite to verify recovery promptly. A short run cannot mark a
 weekly issue as recovered.
@@ -87,6 +94,18 @@ owner or the verified factory GitHub App. Look for **Verify functional discovery
 still current, and pickup requires the retained passing trigger proof.
 Periodic checks can still find regressions with no recent merge. GitHub can
 delay or drop a scheduled start. [GitHub schedule behavior](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule)
+
+## Browser failures from exploratory sweeps
+
+An eligible completed **Proactive app discovery** sweep can hand one exact
+browser assertion to this workflow. It verifies the sweep and artifact on
+current `main` and runs the matching fixed check twice with fresh synthetic
+data. The current mappings cover invalid email, required email, required first
+name, and the empty Notifications view. A candidate that passes on either replay
+or fails differently remains in the sweep evidence. A confirmed match uses the
+same functional incident slot and deduplication as a scheduled check. Other
+leads stay in the sweep report, including those that could not publish while a
+different incident was active.
 
 **Proactive app discovery** and **Verified discovery finding intake** have
 separate activation controls. Event pickup and the factory switches control the

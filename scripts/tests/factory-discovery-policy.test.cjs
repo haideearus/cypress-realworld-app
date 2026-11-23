@@ -69,6 +69,113 @@ test("same source and charter cannot reserve twice through a different issue or 
   );
   assert.equal(p.reviewGate(s, { head, number: 100 }).ok, false);
 });
+
+test("opt-in admits three distinct charters and rejects a fourth on the same day", () => {
+  const cfg = p.readConfig({
+    ...vars,
+    FACTORY_MAX_TICKETS_PER_DAY: "20",
+    FACTORY_DISCOVERY_ENABLED: "true",
+    FACTORY_MAX_DISCOVERY_SWEEPS_PER_DAY: "3",
+  });
+  let state = p.emptyState(p.REPOSITORY);
+  for (const [id, charter] of [
+    [100, "functional-feed"],
+    [101, "functional-directory"],
+    [102, "functional-notifications"],
+  ]) {
+    const r = one(state, { ...request(id, charter), quota: { limit: 1000, remaining: 250 } }, cfg);
+    state = p.finish(r.state, r.grant.id, { status: "blocked" }, now);
+    p.validateState(state);
+  }
+  assert.deepEqual(state.days["2026-11-17"], [100, 101, 102]);
+  assert.throws(() => one(state, request(103, "functional-settings"), cfg), /Discovery daily/);
+  assert.throws(
+    () => p.readConfig({ ...vars, FACTORY_MAX_DISCOVERY_SWEEPS_PER_DAY: "4" }),
+    /approved limit|discovery sweep/i
+  );
+});
+
+test("the third selection reserves quota headroom and excludes all used charters after a push", () => {
+  const cfg = { ...config(), discoverySweeps: 3 };
+  const nextHead = "b".repeat(40);
+  let state = p.emptyState(p.REPOSITORY);
+  for (const [id, charter] of [
+    [100, "functional-feed"],
+    [101, "functional-directory"],
+  ]) {
+    const r = one(state, request(id, charter), cfg);
+    state = p.finish(r.state, r.grant.id, { status: "discovery_complete" }, now);
+  }
+  const input = {
+    state,
+    registry: { sources: {} },
+    head: nextHead,
+    day: "2026-11-17",
+    config: cfg,
+  };
+  const { selectSweep } = require("../factory/discovery-run.cjs");
+  assert.match(selectSweep(input).reason, /GitHub API headroom/);
+  assert.equal(selectSweep({ ...input, quota: { limit: 1000, remaining: 249 } }).ready, false);
+  const allowed = selectSweep({ ...input, quota: { limit: 1000, remaining: 250 } });
+  assert.equal(allowed.ready, true);
+  assert.ok(["functional-notifications", "functional-settings"].includes(allowed.charter));
+  assert.throws(
+    () =>
+      one(
+        state,
+        { ...request(102, allowed.charter, nextHead), quota: { limit: 1000, remaining: 249 } },
+        cfg
+      ),
+    /GitHub API headroom/
+  );
+  assert.equal(Object.keys(state.grants).length, 2);
+  assert.throws(
+    () => one(state, request(102, "functional-directory", nextHead), cfg),
+    /already used/i
+  );
+});
+test("the weekly planner shares discovery capacity and the daily admission budget", () => {
+  const meter = require("../factory/feature-meter.cjs");
+  const { WORKFLOW } = require("../factory/feature-contract.cjs");
+  const { selectSweep } = require("../factory/discovery-run.cjs");
+  const cfg = { ...config(), automatic: true, featureMode: "live", daily: 3, discoverySweeps: 3 };
+  const context = {
+    ...request(99),
+    event: "schedule",
+    workflowRef: `${p.REPOSITORY}/${WORKFLOW}@refs/heads/main`,
+  };
+  const plan = meter.reserve(p.emptyState(p.REPOSITORY), context, cfg, now);
+  const select = (state) =>
+    selectSweep({
+      state,
+      registry: { sources: {} },
+      head,
+      day: "2026-11-17",
+      config: cfg,
+      quota: { limit: 1000, remaining: 500 },
+    });
+  assert.match(select(plan.state).reason, /active work/);
+  assert.throws(() => one(plan.state, request(), cfg), /capacity/i);
+
+  let state = meter.finish(plan.state, context, plan.grant.id, "blocked", now);
+  for (const [id, charter] of [
+    [100, "functional-feed"],
+    [101, "functional-directory"],
+  ]) {
+    const sweep = one(state, request(id, charter), cfg);
+    state = p.finish(sweep.state, sweep.grant.id, { status: "discovery_complete" }, now);
+  }
+  assert.match(select(state).reason, /daily ticket limit/i);
+  assert.throws(
+    () =>
+      one(
+        state,
+        { ...request(102, "functional-notifications"), quota: { limit: 1000, remaining: 500 } },
+        cfg
+      ),
+    /daily ticket limit/i
+  );
+});
 test("discovery cannot bypass the global cap, stop, disabled opt-in or active work", () => {
   assert.throws(
     () => one(p.emptyState(p.REPOSITORY), request(), { ...config(), daily: 0 }),
