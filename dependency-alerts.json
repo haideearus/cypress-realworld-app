@@ -220,6 +220,14 @@
       "phase": "tracking",
       "issue": 210,
       "pr": null
+    },
+    "478e7ffaba2cd4320a255ae1b191268dab30b243dda0e9f7a02a3382d83c7da4": {
+      "name": "minimatch",
+      "day": "2026-11-23",
+      "trackingReason": "no-common-candidate",
+      "phase": "tracking-intent",
+      "issue": null,
+      "pr": null
     }
   },
   "heldAfter": "vitest"
