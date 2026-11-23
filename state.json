@@ -3523,7 +3523,7 @@
       "origin": "dependency-pr",
       "head": "104fc8782aeaf497da883787a3899e73c427f200",
       "pr": 200,
-      "status": "reviewing",
+      "status": "blocked",
       "approval": null,
       "branch": "dependabot/npm_and_yarn/fuse.js-6.6.2",
       "criteriaHash": "7ac00746dca3ab2638a34bab0c8015046afd81ccade34d745591e7bab1f525a9",
@@ -3570,7 +3570,8 @@
           "cleared": [],
           "remainingBaseline": []
         }
-      }
+      },
+      "feedback": "Dependency subscription review unavailable; no automatic retry of this head"
     }
   },
   "grants": {
@@ -5119,15 +5120,12 @@
       "runId": "45113100962",
       "runAttempt": 1,
       "head": "104fc8782aeaf497da883787a3899e73c427f200",
-      "status": "reserved",
-      "at": "2026-11-23T04:49:11.660Z"
+      "status": "finished",
+      "at": "2026-11-23T04:49:11.660Z",
+      "outcome": "blocked"
     }
   },
-  "active": {
-    "ticket": 200,
-    "runId": "45113100962",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -8621,6 +8619,12 @@
       "actor": "github-actions[bot]",
       "wakeReceipt": "041556dd3c3d5654c53afe4347f0f141a6815da6f964f4523b05e8a1514e212e",
       "sourceActor": "dependabot[bot]"
+    },
+    {
+      "at": "2026-11-23T04:49:53.509Z",
+      "event": "blocked",
+      "ticket": 200,
+      "reason": "Dependency subscription review unavailable; no automatic retry of this head"
     }
   ]
 }
