@@ -126,7 +126,8 @@
       200,
       203,
       206,
-      202
+      202,
+      211
     ]
   },
   "tickets": {
@@ -3681,6 +3682,19 @@
         "passed": true
       },
       "feedback": "{\"head\":\"a147ed8160a40dd507deb1171563fc614c70eb7f\",\"verdict\":\"pass\",\"summary\":\"Reviewed the diff touching scripts/tests/factory-functional-discovery.cy.js (paymentPersistence) and scripts/tests/factory-functional-weekly-transactions.cjs (readApp export). The fix replaces a fragile cy.intercept+cy.wait('@paymentNotifications') with a direct cy.request-based readApp('/notifications') call, matching the already-established pattern used elsewhere in the same file for expectNotification/balanceOf. This removes the race where sign-in/navigation could trigger the GET /api/notifications request before the intercept alias was registered, matching the ticket's described root cause (inconclusive payment-persistence check, #204 CI run). The assertion still verifies status 200, a single matching notification row for the correct transactionId/receiver.id, and still asserts the row is visible via expectText on '/notifications' using the same 'payment-recipient-notification' assertion id required by scripts/factory/functional-discovery-contract.cjs's ASSERTIONS table, so the acceptance criterion of verifying the persisted notification under the recipient's session while still confirming UI visibility is satisfied. Weekly coverage (registerWeeklyTransactions), synthetic fixtures, and the loopback guard (guardExtendedJourney's baseUrl check and GET passthrough in the intercept) are unchanged; readApp's hardcoded loopback origin matches the asserted baseUrl, consistent with existing conventions in this file. The downstream 'inconclusive' classification logic in scripts/factory/functional-discovery.cjs/functional-discovery-contract.cjs is untouched by this diff and still applies the same way. I could not execute the Cypress suite or CI in this read-only review; I relied on static inspection of the current source plus the referenced CI run as supplied evidence of a passing replay.\",\"findings\":[]}"
+    },
+    "211": {
+      "coding": 0,
+      "origin": "owner-pr",
+      "reviews": 1,
+      "retries": 0,
+      "head": "ae2a73511753ecbad8d3f259c61dd6a3a50687ac",
+      "status": "reviewing",
+      "pr": 212,
+      "approval": null,
+      "criteriaHash": "5d27a0ca1ab4399b4082fffe8cd2a6294017a83ac64328fe9de758e6b2cbb3c2",
+      "branch": "agent/dependency-evidence-recovery",
+      "ci": null
     }
   },
   "grants": {
@@ -5280,9 +5294,24 @@
       "status": "finished",
       "at": "2026-11-23T14:20:00.142Z",
       "outcome": "reviewed"
+    },
+    "306d4695-439f-467e-bc4a-ab5978ff89d1": {
+      "id": "306d4695-439f-467e-bc4a-ab5978ff89d1",
+      "ticket": 211,
+      "phase": "review",
+      "slot": "existing",
+      "runId": "45199118929",
+      "runAttempt": 1,
+      "head": "ae2a73511753ecbad8d3f259c61dd6a3a50687ac",
+      "status": "reserved",
+      "at": "2026-11-23T14:54:13.061Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 211,
+    "runId": "45199118929",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -8877,6 +8906,16 @@
       "runAttempt": 1,
       "outcome": "accepted",
       "mergeCommit": "bfc0ef5eea6131d566b41668faa8ccd866bc577a"
+    },
+    {
+      "at": "2026-11-23T14:54:13.061Z",
+      "event": "reserved",
+      "ticket": 211,
+      "grant": "306d4695-439f-467e-bc4a-ab5978ff89d1",
+      "phase": "review",
+      "runId": "45199118929",
+      "runAttempt": 1,
+      "actor": "haideearus"
     }
   ]
 }
