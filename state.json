@@ -3613,7 +3613,11 @@
       "approval": null,
       "criteriaHash": "46da53d65800f541f00bf6b4ef8b0b536179c189a5a5344e3df19049fa9dbc3d",
       "branch": "agent/weekly-browser-ci-reliability",
-      "ci": null
+      "ci": {
+        "requestId": "0f64022a-cb26-466c-abdc-ebfc253e1616",
+        "head": "a147ed8160a40dd507deb1171563fc614c70eb7f",
+        "runId": null
+      }
     }
   },
   "grants": {
