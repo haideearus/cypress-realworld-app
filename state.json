@@ -9130,6 +9130,17 @@
       "grant": "a832cbb8-b54e-4c75-a8c8-08569bd859c8",
       "status": "reviewed",
       "head": "3fd19d19a7d950233e04a04ebde3398b83b428fb"
+    },
+    {
+      "at": "2026-11-23T17:14:42.699Z",
+      "event": "automatic_merge_api_result",
+      "ticket": 217,
+      "pr": 217,
+      "head": "3fd19d19a7d950233e04a04ebde3398b83b428fb",
+      "runId": "45222732002",
+      "runAttempt": 1,
+      "outcome": "accepted",
+      "mergeCommit": "04a49eb82822f04dc2055b5d0b9cdfdf443be363"
     }
   ]
 }
