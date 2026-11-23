@@ -1,10 +1,39 @@
 const policy = require("./policy.cjs");
 const dependency = require("./dependency-contract.cjs");
+const slots = require("./active-tickets.cjs");
 const { Ledger, ROOT } = require("./github.cjs");
 const { MetadataStore } = require("./metadata-store.cjs");
 
 const READY_LABEL = "factory-dependency-ready";
 const LIMIT = 500;
+const RECOVERY_HEADS_PER_PR = 10;
+const REFRESH_COMMAND = "@dependabot rebase";
+const STALE_NOTES = {
+  manual: {
+    status: "Dependabot refresh needs the owner credential",
+    detail:
+      "The repository secret `FACTORY_DEPENDABOT_REBASE_TOKEN` is unset. A repository writer can comment `@dependabot rebase` on the PR.",
+  },
+  requested: {
+    status: "Dependabot refresh requested",
+    detail: "GitHub accepted the Dependabot rebase request. Wait for a new Dependabot commit.",
+  },
+  unconfirmed: {
+    status: "Dependabot refresh delivery unconfirmed",
+    detail:
+      "The factory could not confirm delivery of its Dependabot rebase request. If no new commit appears, check the PR and request a rebase there.",
+  },
+};
+const EVIDENCE_BLOCKERS = {
+  invalid_public_evidence:
+    "The public dependency evidence was unavailable or invalid. Check the registry, advisory and CI evidence linked in the run.",
+  public_service_unavailable:
+    "The public evidence service did not recover within this attempt’s retry window.",
+  public_rate_limit:
+    "The public evidence service reported a rate limit. Inspect the run for details.",
+  candidate_changed:
+    "The dependency candidate changed during verification. Wait for a current Dependabot commit and its CI.",
+};
 const PUBLICATIONS_PER_RUN = 5;
 const INSPECTIONS_PER_RUN = 12;
 const BUDGET_MS = 60_000;
@@ -12,6 +41,31 @@ const ALLOW_MISSING = { allowMissing: true };
 const validNumber = (n) => Number.isSafeInteger(n) && n > 0;
 const empty = () => ({ version: 1, records: {} });
 class TrackingDeadline extends Error {}
+
+function validRecovery(recovery) {
+  return (
+    recovery &&
+    typeof recovery === "object" &&
+    !Array.isArray(recovery) &&
+    Object.keys(recovery).length <= RECOVERY_HEADS_PER_PR &&
+    Object.entries(recovery).every(
+      ([head, receipt]) =>
+        dependency.SHA.test(head) &&
+        receipt &&
+        typeof receipt === "object" &&
+        !Array.isArray(receipt) &&
+        Object.keys(receipt).length > 0 &&
+        Object.keys(receipt).every((key) => ["refresh", "stale", "blocked"].includes(key)) &&
+        (receipt.refresh === undefined || ["attempted", "confirmed"].includes(receipt.refresh)) &&
+        (receipt.blocked === undefined || receipt.blocked === true) &&
+        (receipt.stale === undefined ||
+          (Object.hasOwn(STALE_NOTES, receipt.stale) &&
+            (receipt.stale === "manual" ||
+              (receipt.stale === "requested" && receipt.refresh === "confirmed") ||
+              (receipt.stale === "unconfirmed" && receipt.refresh === "attempted"))))
+    )
+  );
+}
 
 function validate(state) {
   if (
@@ -28,11 +82,14 @@ function validate(state) {
       !validNumber(Number(number)) ||
       String(Number(number)) !== number ||
       !row ||
-      Object.keys(row).some((key) => !["branch", "issue", "status", "rejected"].includes(key)) ||
+      Object.keys(row).some(
+        (key) => !["branch", "issue", "status", "rejected", "recovery"].includes(key)
+      ) ||
       !dependency.branch(row.branch) ||
       !["intent", "open", "closing", "closed", "merged"].includes(row.status) ||
       (row.rejected !== undefined &&
         (row.status !== "intent" || ![403, 422].includes(row.rejected))) ||
+      (row.recovery !== undefined && (row.status === "intent" || !validRecovery(row.recovery))) ||
       (row.status === "intent"
         ? row.issue !== null
         : !validNumber(row.issue) || String(row.issue) === number || issues.has(row.issue))
@@ -47,6 +104,14 @@ const title = (pr) => `Dependency maintenance for Dependabot PR #${pr}`;
 const body = (pr) =>
   `Track [Dependabot PR #${pr}](https://github.com/${policy.REPOSITORY}/pull/${pr}). Dependency maintenance verifies the current proposal through its protected analysis, CI, review and merge workflow.\n\n<!-- factory-native-dependency:${pr} -->`;
 
+function isActionsBot(user) {
+  return user?.login === "github-actions[bot]" && user.id === 41898282 && user.type === "Bot";
+}
+
+function isOwner(user) {
+  return user?.login === "haideearus" && user.id === 101267861 && user.type === "User";
+}
+
 function issueOK(issue, pr, number) {
   return (
     validNumber(issue?.number) &&
@@ -54,9 +119,7 @@ function issueOK(issue, pr, number) {
     (number === null || issue.number === number) &&
     ["open", "closed"].includes(issue.state) &&
     !issue.pull_request &&
-    issue.user?.login === "github-actions[bot]" &&
-    issue.user.id === 41898282 &&
-    issue.user.type === "Bot" &&
+    isActionsBot(issue.user) &&
     issue.title === title(pr) &&
     issue.body === body(pr) &&
     Array.isArray(issue.labels) &&
@@ -215,7 +278,209 @@ async function syncKnown(api, store, number, row, pr, beforeWrite) {
   return open ? "reopened" : "closed";
 }
 
-async function track(api, preview, now, result, links) {
+function recoveryAllowed(state, pr) {
+  const t = state.tickets[String(pr.number)];
+  return (
+    !state.stop &&
+    !slots.activeFor(state, pr.number) &&
+    !slots.pendingIntent(state) &&
+    !Object.values(state.grants).some((g) => g.ticket === pr.number && g.status === "reserved") &&
+    (!t || (t.origin === "dependency-pr" && t.branch === pr.head.ref && !t.merge))
+  );
+}
+
+function blocker(state, pr) {
+  const t = state.tickets[String(pr.number)];
+  if (t?.head !== pr.head.sha || t.status !== "blocked") return null;
+  const attempt = dependency.validateTicket(t);
+  const evidence = attempt.evidence?.at(-1);
+  const hasReview = Object.values(state.grants).some(
+    (g) => g.ticket === pr.number && g.head === pr.head.sha
+  );
+  let reason = "Dependency preparation stopped before a review could be reserved.";
+  if (hasReview)
+    reason = "The independent review did not produce a usable approval for this commit.";
+  if (evidence && ["started", "temporary"].includes(evidence.status))
+    reason = "Public evidence preparation was interrupted before it could finish.";
+  if (evidence?.status === "held") reason = EVIDENCE_BLOCKERS[evidence.reason] || reason;
+  return (
+    `Dependency maintenance is blocked for \`${pr.head.sha}\`. ${reason} ` +
+    `[Inspect the recorded attempt](https://github.com/${policy.REPOSITORY}/actions/runs/${attempt.runId}). ` +
+    "The existing attempt remains in the ledger. A fresh Dependabot commit can be checked under the normal limits."
+  );
+}
+
+async function saveRecovery(store, pr, row, fields, beforeWrite) {
+  const head = pr.head.sha;
+  const recovery = { ...row.recovery, [head]: { ...row.recovery?.[head], ...fields } };
+  return advance(store, pr.number, row, { ...row, recovery }, beforeWrite);
+}
+
+async function sameHead(api, pr) {
+  const fresh = await currentPR(api, pr.number, pr.head.ref);
+  return fresh?.head.sha === pr.head.sha && fresh.base.sha === pr.base.sha;
+}
+
+async function currentMain(api) {
+  const { object } = await api.request("GET", `${ROOT}/git/ref/heads/main`);
+  if (!dependency.SHA.test(object?.sha || ""))
+    throw Error("Invalid main ref for dependency recovery");
+  return object.sha;
+}
+
+async function staleHead(api, pr, main) {
+  const compare = await api.request("GET", `${ROOT}/compare/${main}...${pr.head.sha}?per_page=1`);
+  return (
+    Number.isSafeInteger(compare.behind_by) &&
+    compare.behind_by > 0 &&
+    dependency.SHA.test(compare.merge_base_commit?.sha || "") &&
+    compare.merge_base_commit.sha !== main
+  );
+}
+
+async function postRecoveryComment(api, number, body, isAuthor) {
+  try {
+    const result = await api.request("POST", `${ROOT}/issues/${number}/comments`, { body });
+    return validNumber(result?.id) && isAuthor(result.user) && result.body === body;
+  } catch (error) {
+    if (error instanceof TrackingDeadline) throw error;
+    // Treat an uncertain acknowledgement as unconfirmed.
+    return false;
+  }
+}
+
+async function publishRecoveryNote(api, pr, row, kind, message, beforeWrite) {
+  const marker = `<!-- factory-dependency-recovery:${pr.number}:${pr.head.sha}:${kind} -->`;
+  const body = `${message}\n\n${marker}`;
+  for (let page = 1; page <= 3; page++) {
+    const comments = await api.request(
+      "GET",
+      `${ROOT}/issues/${row.issue}/comments?per_page=100&page=${page}`
+    );
+    if (!Array.isArray(comments) || comments.length > 100)
+      throw Error("Invalid bounded recovery comment list");
+    const tracked = comments.find(
+      (c) =>
+        validNumber(c?.id) &&
+        isActionsBot(c.user) &&
+        typeof c.body === "string" &&
+        c.body.endsWith(marker)
+    );
+    if (tracked) return tracked.body === body;
+    if (comments.length === 100) continue;
+    await beforeWrite();
+    const issue = await readExisting(api, `${ROOT}/issues/${row.issue}`);
+    if (!issueOK(issue, pr.number, row.issue) || issue.state !== "open") return false;
+    return postRecoveryComment(api, row.issue, body, isActionsBot);
+  }
+  // A partial comment list cannot establish that a previous note was never posted.
+  return false;
+}
+
+function staleNoteKind(refresh) {
+  if (refresh === "confirmed") return "requested";
+  if (refresh === "attempted") return "unconfirmed";
+  return "manual";
+}
+
+async function recoverTrackedPR({
+  api,
+  refreshApi,
+  store,
+  ledger,
+  state,
+  proposals,
+  now,
+  beforeWrite,
+}) {
+  const eligible = [...proposals.values()].filter((pr) => {
+    const row = state.records[pr.number];
+    const receipt = row?.recovery?.[pr.head.sha];
+    return (
+      row?.status === "open" &&
+      row.branch === pr.head.ref &&
+      (receipt || Object.keys(row.recovery || {}).length < RECOVERY_HEADS_PER_PR)
+    );
+  });
+  if (eligible.length === 0) return null;
+  const { state: usage } = await ledger.read();
+  let main;
+  for (const proposal of inspectionBatch(eligible, now)) {
+    if (!recoveryAllowed(usage, proposal)) continue;
+    const number = proposal.number;
+    let row = state.records[number];
+    const receipt = row.recovery?.[proposal.head.sha];
+    const message = receipt?.blocked ? null : blocker(usage, proposal);
+    let refresh = receipt?.refresh;
+    const wantsRefresh = Boolean(refreshApi && !refresh);
+    const wantsStaleNote = receipt?.stale !== staleNoteKind(refresh);
+    let stale = false;
+    if (wantsRefresh || wantsStaleNote) {
+      if (refresh) {
+        stale = true;
+      } else {
+        main ??= await currentMain(api);
+        stale = await staleHead(api, proposal, main);
+      }
+    }
+    if (!stale && !message) continue;
+
+    const pr = await currentPR(api, number, row.branch);
+    if (pr?.head.sha !== proposal.head.sha || pr.base.sha !== proposal.base.sha) continue;
+    const files = await api.request("GET", `${ROOT}/pulls/${number}/files?per_page=3`);
+    try {
+      dependency.filesOK(files);
+    } catch {
+      continue;
+    }
+    const issue = await readExisting(api, `${ROOT}/issues/${row.issue}`);
+    if (!issueOK(issue, number, row.issue) || issue.state !== "open") continue;
+
+    const guard = async () => {
+      const { state: latest } = await ledger.read();
+      if (!recoveryAllowed(latest, pr) || !(await sameHead(api, pr)))
+        throw Error("Native dependency recovery candidate changed");
+    };
+    if (stale) {
+      if (wantsRefresh) {
+        refresh = "attempted";
+        if ((await currentMain(api)) !== main) continue;
+        row = await saveRecovery(store, pr, row, { refresh }, guard);
+        await guard();
+        if (await postRecoveryComment(refreshApi, number, REFRESH_COMMAND, isOwner)) {
+          refresh = "confirmed";
+          row = await saveRecovery(store, pr, row, { refresh }, beforeWrite);
+        }
+      }
+      const kind = staleNoteKind(refresh);
+      const { detail, status } = STALE_NOTES[kind];
+      const notified = await publishRecoveryNote(
+        api,
+        pr,
+        row,
+        kind,
+        `Dependency commit \`${pr.head.sha}\` was behind \`main\`. ${detail} The factory keeps all previous attempts.`,
+        beforeWrite
+      );
+      if (notified) await saveRecovery(store, pr, row, { stale: kind }, beforeWrite);
+      return {
+        pr: number,
+        issue: row.issue,
+        status: notified ? status : status + ". Tracking note delivery unconfirmed",
+      };
+    }
+    const sent = await publishRecoveryNote(api, pr, row, "blocked", message, guard);
+    if (sent) await saveRecovery(store, pr, row, { blocked: true }, beforeWrite);
+    return {
+      pr: number,
+      issue: row.issue,
+      status: sent ? "blocker recorded" : "blocker comment delivery unconfirmed",
+    };
+  }
+  return null;
+}
+
+async function track(api, refreshApi, preview, now, result, links) {
   const ledger = new Ledger(api);
   const beforeWrite = async () => policy.assertNotStopped((await ledger.read()).state);
   if ((await ledger.read()).state.stop)
@@ -325,7 +590,7 @@ async function track(api, preview, now, result, links) {
       // Keep the intent after an uncertain write. Only exact issue reconciliation may advance it.
     }
     if (issueOK(issue, number, null) && issue.state === "open") {
-      await advance(
+      state.records[number] = await advance(
         store,
         number,
         saved,
@@ -341,6 +606,17 @@ async function track(api, preview, now, result, links) {
     }
     if (attempts === PUBLICATIONS_PER_RUN) break;
   }
+  const recovery = await recoverTrackedPR({
+    api,
+    refreshApi,
+    store,
+    ledger,
+    state,
+    proposals,
+    now,
+    beforeWrite,
+  });
+  if (recovery) links.set(recovery.pr, recovery);
   for (const [number, row] of Object.entries(state.records)) {
     const pr = Number(number);
     if (links.size >= 10) break;
@@ -349,24 +625,31 @@ async function track(api, preview, now, result, links) {
   }
 }
 
-async function trackNativeDependencies(api, config, context, preview) {
+async function trackNativeDependencies(api, config, context, preview, { refreshApi } = {}) {
   policy.authorize(context);
   if (!dependency.contextOK(context) || typeof preview !== "boolean")
     throw Error("Unauthorized native dependency tracking");
   if (!preview && (!config.enabled || !config.automatic))
     return { reason: "Native dependency tracking is disabled" };
   const now = Date.now();
-  const bounded = {
+  const bounded = (client) => ({
     request(method, path, data) {
       if (Date.now() >= now + BUDGET_MS) throw new TrackingDeadline();
-      return api.request(method, path, data);
+      return client.request(method, path, data);
     },
-  };
+  });
   const result = { published: 0, reconciled: 0, closed: 0, reopened: 0, held: 0, rejected: 0 };
   const links = new Map();
   let reason;
   try {
-    reason = await track(bounded, preview, now, result, links);
+    reason = await track(
+      bounded(api),
+      refreshApi && bounded(refreshApi),
+      preview,
+      now,
+      result,
+      links
+    );
   } catch (error) {
     if (!(error instanceof TrackingDeadline)) throw error;
     reason =

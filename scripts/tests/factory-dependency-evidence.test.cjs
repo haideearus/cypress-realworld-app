@@ -386,3 +386,15 @@ test("valid individual advisory records cannot produce a packet beyond 256 KiB",
   await assert.rejects(collect(fetcher), /packet oversized/);
   assert.equal(fetched, 6);
 });
+test("public evidence classifies confirmed gateway outages, including the OSV batch", async () => {
+  for (const endpoint of ["registry.npmjs.org", "querybatch", "/v1/vulns/"]) {
+    await assert.rejects(
+      collect(
+        transport((body, url) => {
+          if (url.includes(endpoint)) return new Response(null, { status: 503 });
+        })
+      ),
+      { code: "public_service_unavailable" }
+    );
+  }
+});

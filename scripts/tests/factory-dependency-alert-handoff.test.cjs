@@ -390,6 +390,10 @@ async function pipeline() {
         },
         { changed: 2, candidateVersions: 1, cleared: [], remainingBaseline: [] }
       );
+      const at = new Date().toISOString();
+      ticket.dependency.attempts[0].evidence = [
+        { at, finishedAt: at, status: "ready", digest: "d".repeat(64) },
+      ];
       const reserved = require("../factory/dependency-policy.cjs").reserveDependencyReview(
         state,
         ctx,

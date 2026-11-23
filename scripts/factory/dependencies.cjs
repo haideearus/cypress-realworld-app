@@ -11,6 +11,12 @@ const { validateReview } = require("./artifacts.cjs");
 const { ConfirmationUnavailable, readMergePR } = require("./merge-confirmation.cjs");
 const { verifyAlertPR, AlertAdmissionHold } = require("./dependency-alert-repair.cjs");
 
+class StaleDependencyBase extends Error {
+  constructor() {
+    super("Dependency PR requires a current-main rebase");
+  }
+}
+
 function expectedReport(ticket, context, stage) {
   const a = d.validateTicket(ticket);
   return {
@@ -174,7 +180,22 @@ class DependencyCoordinator {
       });
       return null;
     }
-    if (observed.head.sha !== t.head) {
+    let checked;
+    let staleBase = false;
+    if (
+      observed.state === "open" &&
+      observed.head.sha === t.head &&
+      d.branch(t.branch) &&
+      !t.merge
+    ) {
+      try {
+        checked = await this.pr(t.pr, { expected: t });
+      } catch (error) {
+        if (!(error instanceof StaleDependencyBase)) throw error;
+        staleBase = true;
+      }
+    }
+    if (observed.head.sha !== t.head || staleBase) {
       if (t.merge?.status === "intent")
         return {
           ready: false,
@@ -186,10 +207,12 @@ class DependencyCoordinator {
           mode: "preview",
           ticket: t.pr,
           head: observed.head.sha,
-          reason: "Bot changed reviewed head; live intake must invalidate stale approval",
+          reason: staleBase
+            ? "Reviewed Dependabot PR needs a refresh on current main"
+            : "Bot changed reviewed head; live intake must invalidate stale approval",
         };
-      // Without a merge intent this is a new candidate head. An uncertain merge
-      // was handled above and must never retire its approval on this path.
+      // The old approval is stale after a head or base change. An uncertain
+      // merge must keep its approval for reconciliation.
       if (observed.state !== "open")
         return {
           ready: false,
@@ -221,14 +244,25 @@ class DependencyCoordinator {
           latest.number !== t.pr ||
           latest.head.ref !== t.branch ||
           latest.head.sha !== observed.head.sha ||
-          latest.head.sha === t.head
+          latest.base.sha !== observed.base.sha
         )
-          throw new Error("Dependency bot head changed during reconciliation");
+          throw new Error("Dependency bot candidate changed during reconciliation");
+        if (staleBase) {
+          let stillStale = false;
+          try {
+            await this.pr(t.pr, { expected: t });
+          } catch (error) {
+            if (!(error instanceof StaleDependencyBase)) throw error;
+            stillStale = true;
+          }
+          if (!stillStale) throw new Error("Dependency base changed during reconciliation");
+        }
         policy.audit(s, "dependency_stale_approval_retired", {
           ticket: t.pr,
           head: t.head,
           observedHead: latest.head.sha,
           grant: t.approval?.grant,
+          ...(staleBase ? { reason: "stale-base" } : {}),
           ...(t.merge ? { mergeIntent: t.merge } : {}),
         });
         current.status = "blocked";
@@ -241,7 +275,7 @@ class DependencyCoordinator {
     }
     if (t.merge?.status === "intent")
       return { ready: !preview, mode: "reconcile", ticket: t.pr, head: t.head };
-    const pr = await this.pr(t.pr, { closed: true, expected: t });
+    const pr = checked ?? (await this.pr(t.pr, { closed: true, expected: t }));
     return {
       ready: !preview,
       mode: pr.state === "closed" ? "reconcile" : "merge",
@@ -279,7 +313,7 @@ class DependencyCoordinator {
         compare.merge_base_commit?.sha !== base ||
         (expected && base !== d.validateTicket(expected).base)
       )
-        throw new Error("Dependency PR requires a current-main rebase");
+        throw new StaleDependencyBase();
     }
     return base === pr.base.sha ? pr : { ...pr, base: { ...pr.base, sha: base } };
   }
@@ -489,13 +523,20 @@ class DependencyCoordinator {
     });
     return { passed: true, ticket: number, head: t.head };
   }
-  async reserve(number) {
+  async reserve(number, packet) {
     const t = await this.ticket(number);
-    if (!(await this.controller.validateCI(t.ci?.runId, t.head, t.ci)).passed)
+    const { verifyPacket } = require("./dependency-preflight.cjs");
+    verifyPacket(t, packet);
+    if (
+      !(await this.controller.validateCI(t.ci.runId, t.head, t.ci, packet.ciEvidence.runAttempt))
+        .passed
+    )
       throw new Error("Dependency CI failed");
-    const result = await this.ledger.update((s) =>
-      lifecycle.reserveDependencyReview(s, this.context, this.config)
-    );
+    const result = await this.ledger.update((s) => {
+      this.controller.activeRun(s, number);
+      verifyPacket(s.tickets[String(number)], packet);
+      return lifecycle.reserveDependencyReview(s, this.context, this.config);
+    });
     return this.controller.result(result.grant);
   }
   async assess(number, grantId, bundle) {

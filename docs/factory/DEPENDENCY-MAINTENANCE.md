@@ -131,7 +131,8 @@ repair issues use `factory-ready` and their existing coding workflow.
 
 ```text
 Dependabot PR -> metadata admission -> version/source/OSV checks -> exact-head CI
-             -> read-only Claude Pro review -> fresh version/source/OSV checks
+             -> scanned public evidence -> reserve and run read-only Claude Pro review
+             -> fresh version/source/OSV checks
              -> native required checks -> protected merge
              -> named human deployment approval -> existing Render/live checks
 ```
@@ -173,7 +174,9 @@ does not prove merge or authorize deployment.
 - A dependency PR has zero coding attempts/retries. Each distinct head gets at
   most one review attempt, capped at ten lifetime heads and the configured review
   limit. New bot commits preserve its admission and lifetime counters. A failed
-  head is never automatically retried. The existing turn and timeout caps apply.
+  model review is never automatically retried on the same head. The evidence
+  check can retry once without reserving a model. The existing turn and timeout
+  caps apply.
 - Only modified root `package.json` and `yarn.lock` are accepted. Stable patch and
   minor updates and supported transitive fixes are eligible. Major upgrades,
   downgrades, changed dependency names/sections, scripts/configuration, unsupported
@@ -286,8 +289,8 @@ The fixture suite simulates GitHub/OSV/model results; it is not a live Claude tr
 
 ## Current facts supplied to the reviewer
 
-Before the dependency model session, trusted code reads `package.json` and
-`yarn.lock` from the reserved immutable base/head commits. It fetches each resulting
+After exact-head CI and before reserving Claude, trusted code in the `evidence` job
+reads `package.json` and `yarn.lock` from the immutable base and head. It fetches each resulting
 affected version's npm registry record, including retained/baseline copies, and
 matches the package name, version, canonical
 tarball, integrity, and any lock URL SHA-1 fragment. A fresh OSV batch maps advisory
@@ -297,7 +300,10 @@ The packet records its
 observation time, exact commits, changed dependency files, source URLs and the
 separate cleared/remaining-baseline summary.
 
-The reviewer receives these facts in `.factory-input/context.json`. A separate
+The factory scans the packet before handing it to the reservation job. The reservation
+and reviewer both check the digest retained in the active attempt, the exact CI run,
+the base and head, and a 15-minute age limit. The reviewer receives these facts in
+`.factory-input/context.json`. A separate
 `dependency-facts-<grant>` artifact retains the same scanned packet for seven days.
 It is evidence, not an approval or a replacement for CI, independent review,
 fresh premerge checks or native branch protection. Unchanged historical documents
@@ -305,21 +311,45 @@ are context; they cannot authorize approval of a newer head. Registry existence
 and matching checksums do not establish publisher trust, API compatibility, or an
 absence of vulnerabilities throughout the app.
 
-Only fixed, unauthenticated npm and OSV endpoints are contacted by trusted code;
-redirects are refused and metadata-supplied URLs are never followed. No package
-code or lifecycle scripts run to collect facts. The parser tools are installed
-from the existing private lock in the trusted checkout before candidate checkout,
-without model credentials. Claude still has only Read, Glob and Grep.
+Trusted code uses fixed npm, OSV and GitHub endpoints. The job token is used
+only for same-repository CI evidence. Upstream requests are unauthenticated.
+Redirects are refused and metadata-supplied URLs are never followed. No package
+code or lifecycle scripts run to collect facts. The evidence job installs the
+parser tools from the existing private lock in its trusted checkout. The reviewer
+does not install parsers or fetch package evidence after reserving Claude. Claude
+still has only Read, Glob and Grep.
 
 Evidence collection permits at most 50 resulting affected versions, 100 distinct advisory
 records, four concurrent public requests, 1 MiB per response, 256 KiB for the
 finished packet, 500 explicit versions per affected record, 15 seconds per request
 and two minutes for collection. Missing,
 changed, withdrawn, oversized or malformed evidence holds the review. Unsupported
-advisory range formats are held rather than silently omitted. These are metadata
-safety bounds; the existing AI admission/attempt/review/turn/time limits and
-historical ledger schema remain unchanged. A failed preparation retains its grant
-and history; this feature does not introduce a same-head retry exemption.
+advisory range formats also hold the review.
+
+When a reviewer evidence request returns HTTP 502, 503 or 504, the factory waits
+60 seconds and checks once more after revalidating ownership and the PR. Rate
+limits and unverified evidence hold the attempt. The ledger keeps start times and
+outcomes under the original dependency attempt. If preparation stops here, no
+Claude reservation is created. Older attempts and all usage counters remain
+readable and keep their original values.
+
+A later tracking pass reports unresolved evidence and review holds on the linked
+native Dependabot issue. When immutable comparison proves that a native bot PR is
+behind `main`, the pass can post `@dependabot rebase` once for that commit. The
+tracking record preserves the request even if the response is lost. The PR
+becomes eligible again when Dependabot supplies a new eligible head. Successful
+comment delivery does not establish that Dependabot acted.
+
+Automatic refresh needs the optional `FACTORY_DEPENDABOT_REBASE_TOKEN` Actions
+secret. Create a fine-grained personal access token as the repository owner,
+select only `cypress-realworld-app`, and grant only **Pull requests: Read and write**
+plus GitHub's required metadata permission. Save the token directly as an
+[Actions secret](https://github.com/haideearus/cypress-realworld-app/settings/secrets/actions).
+The trusted tracking step uses it only for the rebase command. An unconfigured
+credential leaves a manual rebase instruction on the tracking issue. Expired
+credentials can be replaced. Inspect an ambiguous request on the PR before
+sending another. [Dependabot command access](https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/manage-your-dependency-security/manage-dependabot-prs)
+· [Comment token permissions](https://docs.github.com/en/rest/issues/comments#create-an-issue-comment).
 
 Sources: [Dependabot configuration and limits](https://docs.github.com/en/code-security/reference/supply-chain-security/dependabot-options-reference),
 [fork version updates](https://docs.github.com/en/code-security/dependabot/working-with-dependabot/enabling-and-disabling-version-updates),

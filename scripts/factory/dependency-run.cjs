@@ -94,9 +94,11 @@ async function main(env = process.env) {
   const n = Number(inputs.ticket);
   let result;
   if (op === "dep_select") result = await c.select(preview);
-  else if (op === "dep_track")
-    result = await trackNativeDependencies(api, config, context, preview);
-  else if (op === "dep_analysis" || op === "dep_premerge") {
+  else if (op === "dep_track") {
+    const token = env.FACTORY_DEPENDABOT_REBASE_TOKEN;
+    const refreshApi = !preview && token ? new GitHub({ token }) : undefined;
+    result = await trackNativeDependencies(api, config, context, preview, { refreshApi });
+  } else if (op === "dep_analysis" || op === "dep_premerge") {
     const stage = op === "dep_analysis" ? "analysis" : "premerge";
     const report = await analyze(c, n, stage);
     const dir = path.join(env.RUNNER_TEMP, "factory-dependencies");
@@ -113,7 +115,40 @@ async function main(env = process.env) {
   else if (op === "dep_ci") {
     await c.ticket(n);
     result = await c.controller.ci(n);
-  } else if (op === "dep_reserve") result = await c.reserve(n);
+  } else if (op === "dep_evidence") {
+    const preflight = require("./dependency-preflight.cjs");
+    const { packet, ...outcome } = await preflight.prepare(
+      c,
+      n,
+      async (t) => {
+        const attempt = require("./dependency-contract.cjs").validateTicket(t);
+        const [baseManifest, headManifest, baseLock, headLock] = await Promise.all([
+          content(api, attempt.base, "package.json"),
+          content(api, t.head, "package.json"),
+          content(api, attempt.base, "yarn.lock"),
+          content(api, t.head, "yarn.lock"),
+        ]);
+        return {
+          base: attempt.base,
+          head: t.head,
+          baseManifest,
+          headManifest,
+          baseLock,
+          headLock,
+          ci: t.ci,
+        };
+      },
+      { transport: preflight.evidenceTransport(env.GH_TOKEN) }
+    );
+    if (packet) {
+      const dir = path.join(env.RUNNER_TEMP, "factory-dependencies");
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(path.join(dir, "evidence.json"), JSON.stringify(packet));
+    }
+    console.log(outcome.reason);
+    result = outcome;
+  } else if (op === "dep_reserve")
+    result = await c.reserve(n, readJson(env.FACTORY_BUNDLE_PATH, 262144));
   else if (op === "dep_assess")
     result = await c.assess(n, inputs.grantId, readJson(env.FACTORY_BUNDLE_PATH));
   else if (op === "dep_merge")

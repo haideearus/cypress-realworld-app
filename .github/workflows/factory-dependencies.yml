@@ -78,11 +78,13 @@ jobs:
       - name: Track native Dependabot proposals
         if: ${{ always() && !cancelled() }}
         continue-on-error: true
-        uses: ./.github/actions/factory-control
-        with:
-          operation: dep_track
-          variables_json: ${{ toJSON(vars) }}
-          parameters: "${{ toJSON(inputs) }}"
+        run: node scripts/factory/dependency-run.cjs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FACTORY_OPERATION: dep_track
+          FACTORY_VARIABLES: ${{ toJSON(vars) }}
+          FACTORY_INPUTS: ${{ toJSON(inputs) }}
+          FACTORY_DEPENDABOT_REBASE_TOKEN: ${{ secrets.FACTORY_DEPENDABOT_REBASE_TOKEN }}
 
   analysis:
     needs: select
@@ -159,9 +161,51 @@ jobs:
           variables_json: ${{ toJSON(vars) }}
           parameters: '{"ticket":"${{ needs.select.outputs.ticket }}"}'
 
-  reserve:
+  evidence:
     needs: [select, ci]
     if: ${{ needs.ci.result == 'success' && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      actions: read
+      contents: write
+      issues: read
+      pull-requests: read
+    outputs:
+      ready: ${{ steps.control.outputs.ready }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.20.0
+      - name: Install trusted parser tools without lifecycle scripts or model credentials
+        working-directory: scripts/factory/dependency-tools
+        run: npm ci --ignore-scripts --no-audit --fund=false
+      - name: Install the checksum-pinned scanner
+        run: node scripts/factory/scanner-install.cjs
+      - id: control
+        uses: ./.github/actions/factory-control
+        with:
+          operation: dep_evidence
+          variables_json: ${{ toJSON(vars) }}
+          parameters: '{"ticket":"${{ needs.select.outputs.ticket }}"}'
+      - name: Scan the public evidence before upload
+        if: ${{ steps.control.outputs.ready == 'true' }}
+        run: node scripts/factory/secret-scan.cjs file "$RUNNER_TEMP/factory-dependencies/evidence.json"
+      - if: ${{ steps.control.outputs.ready == 'true' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: dependency-evidence-${{ github.run_id }}-${{ github.run_attempt }}-${{ needs.select.outputs.ticket }}-${{ needs.select.outputs.head }}
+          path: ${{ runner.temp }}/factory-dependencies/evidence.json
+          if-no-files-found: error
+          retention-days: 7
+
+  reserve:
+    needs: [select, evidence]
+    if: ${{ needs.evidence.outputs.ready == 'true' && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -180,12 +224,17 @@ jobs:
         with:
           ref: ${{ github.workflow_sha }}
           persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: dependency-evidence-${{ github.run_id }}-${{ github.run_attempt }}-${{ needs.select.outputs.ticket }}-${{ needs.select.outputs.head }}
+          path: ${{ runner.temp }}/dependency-evidence
       - id: control
         uses: ./.github/actions/factory-control
         with:
           operation: dep_reserve
           variables_json: ${{ toJSON(vars) }}
           parameters: '{"ticket":"${{ needs.select.outputs.ticket }}"}'
+          bundle_path: ${{ runner.temp }}/dependency-evidence/evidence.json
 
   review:
     needs: [select, reserve]
@@ -310,7 +359,7 @@ jobs:
           parameters: '{"ticket":"${{ needs.select.outputs.ticket }}"}'
           bundle_path: ${{ needs.select.outputs.mode != 'reconcile' && format('{0}/dependency-premerge/premerge.json', runner.temp) || '' }}
   finalize:
-    needs: [select, analysis, ci, reserve, review, assess, premerge, merge]
+    needs: [select, analysis, ci, evidence, reserve, review, assess, premerge, merge]
     if: ${{ always() && !cancelled() && needs.select.outputs.ready == 'true' && needs.select.outputs.mode == 'review' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5

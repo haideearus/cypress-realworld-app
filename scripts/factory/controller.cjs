@@ -443,7 +443,7 @@ class Controller {
     )
       throw new Error("CI reservation changed");
   }
-  async validateCI(runId, head, reservation) {
+  async validateCI(runId, head, reservation, expectedAttempt) {
     if (!Number.isSafeInteger(runId) || runId < 1) throw new Error("Invalid CI run ID");
     if (
       !reservation ||
@@ -458,9 +458,10 @@ class Controller {
       run.display_title !== `Factory CI / ${reservation.requestId}` ||
       run.event !== "workflow_dispatch" ||
       run.path !== ".github/workflows/factory-ci.yml" ||
-      run.status !== "completed"
+      run.status !== "completed" ||
+      (expectedAttempt !== undefined && run.run_attempt !== expectedAttempt)
     )
-      throw new Error("CI does not cover the expected head");
+      throw new Error("CI does not cover the expected head or run attempt");
     const jobs = await this.api.pages(`${ROOT}/actions/runs/${runId}/jobs`, "jobs");
     const verified = jobs.filter((job) => job.name === "verify");
     return {

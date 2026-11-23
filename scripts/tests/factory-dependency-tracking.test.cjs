@@ -3,12 +3,15 @@ const assert = require("node:assert/strict");
 const d = require("../factory/dependency-contract.cjs");
 const { GitHub, Ledger, ROOT } = require("../factory/github.cjs");
 const { trackNativeDependencies } = require("../factory/dependency-tracking.cjs");
-const { GitHubFixture, context } = require("./helpers/factory-fixtures.cjs");
+const policy = require("../factory/policy.cjs");
+const lifecycle = require("../factory/dependency-policy.cjs");
+const { GitHubFixture, context, vars } = require("./helpers/factory-fixtures.cjs");
 
 const label = "factory-dependency-ready";
 const config = { enabled: true, automatic: true };
 const ctx = { ...context, workflowRef: d.WORKFLOW, workflowSha: "a".repeat(40) };
 const bot = { login: "github-actions[bot]", id: 41898282, type: "Bot" };
+const owner = { login: "haideearus", id: 101267861, type: "User" };
 const repo = { full_name: d.REPOSITORY };
 const native = {
   number: 9,
@@ -26,6 +29,11 @@ async function setup() {
   const git = new GitHubFixture();
   const ledgerFetch = git.fetch;
   const fixture = {
+    main: native.base.sha,
+    behind: 0,
+    compareReads: 0,
+    notePosts: 0,
+    comments: [],
     pulls: [structuredClone(native)],
     issues: [],
     issuePosts: 0,
@@ -67,6 +75,42 @@ async function setup() {
         return new Response(null, { status: 422 });
       fixture.ref = data.sha;
       return json({ object: { sha: fixture.ref } });
+    }
+    if (method === "GET" && path === "/git/ref/heads/main")
+      return json({ object: { sha: fixture.main } });
+    if (method === "GET" && path.startsWith("/compare/")) {
+      fixture.compareReads++;
+      return json({
+        behind_by: fixture.behind,
+        merge_base_commit: { sha: fixture.behind ? "e".repeat(40) : fixture.main },
+      });
+    }
+    const comment = /^\/issues\/(\d+)\/comments$/.exec(path);
+    if (method === "GET" && comment)
+      return json(fixture.comments.filter(({ number }) => number === Number(comment[1])));
+    if (method === "POST" && comment) {
+      const usingOwner = request.headers.Authorization === "Bearer owner-fixture";
+      if (data.body === "@dependabot rebase") {
+        if (!usingOwner) return new Response(null, { status: 403 });
+      } else {
+        fixture.notePosts++;
+        if (fixture.rejectNote) return new Response(null, { status: 403 });
+      }
+      const created = {
+        number: Number(comment[1]),
+        id: 123 + fixture.comments.length,
+        user: usingOwner && !fixture.untrustedRefreshAuthor ? owner : bot,
+        body: data.body,
+      };
+      fixture.comments.push(created);
+      if (data.body === "@dependabot rebase") {
+        if (fixture.lostRefreshResponse) throw Error("lost comment response");
+        if (fixture.refreshHead) {
+          fixture.pulls[0].head.sha = fixture.refreshHead;
+          fixture.behind = 0;
+        }
+      } else if (fixture.lostNoteResponse) throw Error("lost note response");
+      return json(created);
     }
     if (method === "GET" && path === "/pulls")
       return json(fixture.pulls.filter((pr) => pr.state === "open"));
@@ -124,7 +168,20 @@ async function setup() {
   return {
     fixture,
     ledger,
-    track: (preview = false) => trackNativeDependencies(api, config, ctx, preview),
+    track: (preview = false, refresh = false) =>
+      trackNativeDependencies(api, config, ctx, preview, {
+        refreshApi: refresh
+          ? new GitHub({
+              token: "owner-fixture",
+              fetch(url, request) {
+                assert.equal(request.method, "POST");
+                assert.equal(url.pathname, `${ROOT}/issues/${native.number}/comments`);
+                assert.deepEqual(JSON.parse(request.body), { body: "@dependabot rebase" });
+                return git.fetch(url, request);
+              },
+            })
+          : undefined,
+      }),
   };
 }
 
@@ -260,4 +317,146 @@ test("parallel first runs can claim one native issue publication intent", async 
   assert.equal(fixture.issuePosts, 1);
   await track();
   assert.equal(fixture.issuePosts, 1);
+});
+
+test("a stale native head gets one refresh request and a tracking issue reason even after lost delivery", async () => {
+  const { fixture, ledger, track } = await setup();
+  await track();
+  const before = await ledger.read();
+  fixture.behind = 2;
+  fixture.lostRefreshResponse = true;
+
+  await track(true, true);
+  assert.equal(fixture.comments.length, 0);
+  await track(false, true);
+  await track(false, true);
+  assert.deepEqual(
+    fixture.comments
+      .filter(({ body }) => body === "@dependabot rebase")
+      .map(({ number }) => number),
+    [native.number]
+  );
+  const [notice] = fixture.comments.filter(({ number }) => number === 92);
+  assert.match(notice.body, /behind `main`/);
+  assert.match(notice.body, /could not confirm/);
+  assert.equal(fixture.comments.filter(({ number }) => number === 92).length, 1);
+  assert.deepEqual(await ledger.read(), before);
+});
+
+test("a failed dependency preparation gets one bound blocker notice without changing the ledger", async () => {
+  const { fixture, ledger, track } = await setup();
+  await track();
+  const cfg = policy.readConfig({
+    ...vars,
+    FACTORY_AUTOMATION_ENABLED: "true",
+    FACTORY_GITHUB_APP_CLIENT_ID: "Iv123456789",
+    FACTORY_GITHUB_APP_SLUG: "factory-app-fixture",
+  });
+  await ledger.update((s) => ({ state: lifecycle.claimDependency(s, native, ctx, cfg) }));
+  await ledger.update((s) => ({ state: lifecycle.finishPreparation(s, native.number, ctx) }));
+  const before = await ledger.read();
+
+  await track();
+  await track();
+  assert.equal(fixture.comments.length, 1);
+  assert.equal(fixture.comments[0].number, 92);
+  assert.match(fixture.comments[0].body, /preparation stopped/);
+  assert.match(fixture.comments[0].body, new RegExp(native.head.sha));
+  assert.deepEqual(await ledger.read(), before);
+});
+
+test("the tracker does not request a stale-head refresh for an active or untrusted proposal", async () => {
+  const { fixture, ledger, track } = await setup();
+  await track();
+  fixture.behind = 1;
+  const cfg = policy.readConfig({
+    ...vars,
+    FACTORY_AUTOMATION_ENABLED: "true",
+    FACTORY_GITHUB_APP_CLIENT_ID: "Iv123456789",
+    FACTORY_GITHUB_APP_SLUG: "factory-app-fixture",
+  });
+  await ledger.update((s) => ({ state: lifecycle.claimDependency(s, native, ctx, cfg) }));
+  await track(false, true);
+  assert.equal(fixture.comments.length, 0);
+
+  await ledger.update((s) => ({ state: lifecycle.finishPreparation(s, native.number, ctx) }));
+  fixture.pulls[0].files = [{ filename: "scripts/factory/dependencies.cjs", status: "modified" }];
+  await track(false, true);
+  assert.equal(fixture.comments.length, 0);
+});
+
+test("a fresh commit arriving during a requested rebase still records the old head on its issue", async () => {
+  const { fixture, track } = await setup();
+  await track();
+  fixture.main = "f".repeat(40);
+  fixture.behind = 1;
+  fixture.refreshHead = "d".repeat(40);
+
+  const result = await track(false, true);
+  assert.equal(result.links[0].status, "Dependabot refresh requested");
+  const note = fixture.comments.find(({ number }) => number === 92);
+  assert.match(note.body, new RegExp(native.head.sha));
+  assert.match(note.body, /GitHub accepted the Dependabot rebase request/);
+  assert.equal(fixture.pulls[0].head.sha, fixture.refreshHead);
+  await track();
+  assert.equal(fixture.comments.length, 2);
+});
+
+test("without the owner credential, record one manual action and reconsider when it is configured", async () => {
+  const { fixture, track } = await setup();
+  await track();
+  fixture.behind = 1;
+
+  await track();
+  const compared = fixture.compareReads;
+  await track();
+  assert.equal(fixture.comments.length, 1);
+  assert.equal(fixture.comments[0].number, 92);
+  assert.match(fixture.comments[0].body, /FACTORY_DEPENDABOT_REBASE_TOKEN/);
+  assert.match(fixture.comments[0].body, /@dependabot rebase/);
+  assert.equal(fixture.compareReads, compared);
+
+  await track(false, true);
+  assert.deepEqual(
+    fixture.comments.map(({ user }) => user),
+    [bot, owner, bot]
+  );
+  assert.equal(fixture.comments[1].number, native.number);
+  assert.equal(fixture.comments[1].body, "@dependabot rebase");
+});
+
+test("a rebase response must be authored by the configured owner", async () => {
+  const { fixture, track } = await setup();
+  await track();
+  fixture.behind = 1;
+  fixture.untrustedRefreshAuthor = true;
+
+  const result = await track(false, true);
+  assert.match(result.links[0].status, /delivery unconfirmed/);
+  assert.match(fixture.comments[1].body, /could not confirm/);
+  await track(false, true);
+  assert.equal(fixture.comments.length, 2);
+});
+
+test("a rejected tracking note retries and a lost note acknowledgement reconciles without repetition", async () => {
+  const { fixture, track } = await setup();
+  await track();
+  fixture.behind = 1;
+  fixture.rejectNote = true;
+  await track(false, true);
+
+  assert.equal(fixture.comments.length, 1);
+  assert.equal(fixture.notePosts, 1);
+  assert.equal(fixture.comments[0].body, "@dependabot rebase");
+  fixture.rejectNote = false;
+  fixture.lostNoteResponse = true;
+  await track(false, true);
+
+  assert.equal(fixture.comments.length, 2);
+  assert.equal(fixture.notePosts, 2);
+  assert.equal(fixture.comments[1].number, 92);
+  await track(false, true);
+  await track(false, true);
+  assert.equal(fixture.comments.length, 2);
+  assert.equal(fixture.notePosts, 2);
 });

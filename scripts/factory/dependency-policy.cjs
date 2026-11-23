@@ -164,7 +164,10 @@ function finishPreparation(original, ticket, context) {
     throw new Error("Dependency preparation lock cannot be released");
   t.status = "blocked";
   t.approval = null;
-  t.feedback = "Dependency preparation held; no model invocation";
+  const evidence = d.validateTicket(t).evidence?.at(-1);
+  t.feedback = evidence?.reason
+    ? d.EVIDENCE_REASONS[evidence.reason]
+    : "Dependency preparation held; no model invocation";
   slots.releaseActive(state, { ticket, runId: context.runId, runAttempt: context.runAttempt });
   policy.audit(state, "dependency_preparation_blocked", {
     ticket,

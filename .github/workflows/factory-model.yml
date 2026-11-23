@@ -63,10 +63,6 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 22.20.0
-      - name: Install trusted dependency evidence parsers without model credentials
-        if: ${{ inputs.phase == 'review' && inputs.slot == 'dependency' }}
-        working-directory: scripts/factory/dependency-tools
-        run: npm ci --ignore-scripts --no-audit --fund=false
       - name: Preserve trusted helpers outside the agent checkout
         run: node -e "require('node:fs').cpSync('scripts/factory',process.env.RUNNER_TEMP+'/factory-control',{recursive:true})"
       - name: Install the checksum-pinned scanner without model credentials
@@ -109,6 +105,12 @@ jobs:
           corepack enable && corepack prepare yarn@1.22.22 --activate
           yarn install --frozen-lockfile --production=false
           yarn predev:cognito:ci
+      - name: Download the scanned pre-reservation dependency evidence
+        if: ${{ inputs.phase == 'review' && inputs.slot == 'dependency' }}
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: dependency-evidence-${{ github.run_id }}-${{ github.run_attempt }}-${{ inputs.ticket }}-${{ inputs.head }}
+          path: ${{ runner.temp }}/dependency-evidence
       - name: Verify the durable reservation and prepare the isolated role
         id: prepare
         run: node "$RUNNER_TEMP/factory-control/worker.cjs"
@@ -118,6 +120,7 @@ jobs:
           FACTORY_OPERATION: prepare
           FACTORY_INPUTS: ${{ toJSON(inputs) }}
           FACTORY_FINDING_INPUT: ${{ runner.temp }}/finding-original
+          FACTORY_DEPENDENCY_EVIDENCE: ${{ runner.temp }}/dependency-evidence/evidence.json
       - name: Hold before Claude after a temporary GitHub gateway error
         if: ${{ steps.prepare.outputs.temporaryGateway == 'true' }}
         run: exit 1
