@@ -3746,8 +3746,16 @@
       "origin": "dependency-pr",
       "head": "3fd19d19a7d950233e04a04ebde3398b83b428fb",
       "pr": 217,
-      "status": "reviewing",
-      "approval": null,
+      "status": "reviewed",
+      "approval": {
+        "head": "3fd19d19a7d950233e04a04ebde3398b83b428fb",
+        "pr": 217,
+        "grant": "a832cbb8-b54e-4c75-a8c8-08569bd859c8",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/45222732002"
+      },
       "branch": "agent/dependency-alert-2702bb8457f35edb6bfb39ec1714432aabaf1eb75c182d62ebb73d894d9e64da",
       "criteriaHash": "8e7e730aebef788e12bdb7159d2a0b1e5862bd643305089a1de70ba8f57ce846",
       "dependency": {
@@ -3810,7 +3818,8 @@
           ],
           "remainingBaseline": []
         }
-      }
+      },
+      "feedback": "{\"findings\":[{\"severity\":\"minor\",\"message\":\"ciEvidence.testFiles (src/components/__tests__/UserSettingsForm.test.tsx, cypress/tests/ui/auth.spec.ts, bankaccounts.spec.ts, user-settings.spec.ts) are pre-existing Formik/Yup form and UI regression specs unrelated to brace-expansion's glob/brace-pattern parsing. There is no test in the repo that exercises minimatch/brace-expansion pattern-matching edge cases directly, so the passing CI run is suite-level regression evidence, not targeted coverage of the bumped package's behavior. Risk is low because brace-expansion is only a transitive dependency of minimatch (used by dev/build/lint/test tooling), not application or payment-processing code.\"}],\"head\":\"3fd19d19a7d950233e04a04ebde3398b83b428fb\",\"summary\":\"Reviewed the yarn.lock-only diff at head 3fd19d19 (ticket #217), which bumps brace-expansion 1.1.12→1.1.21, 2.0.2→2.1.7, and 5.0.3→5.0.12. Confirmed via Grep on package.json and yarn.lock that brace-expansion is not a direct dependency; it's pulled in transitively only by minimatch@^10/^3/^5/^9 ranges (yarn.lock lines 9066-9092), which satisfy the unchanged existing semver ranges (^1.1.7, ^2.0.1, ^5.0.2), so no package.json range edits were needed and no breaking major-version jump occurred. Grep across src/ and backend/ found zero direct references to minimatch or brace-expansion, confirming this only affects dev/build/lint/test tooling, not runtime or payment logic. dependencyFacts registry entries show integrityMatched: true for all three added versions, and the advisorySummary shows all 8 cleared GHSA regex-DoS advisories (GHSA-3jxr, 6j4f, f886, jxxr, mh99, q2hr, qhr7, rgw5) with an empty remainingBaseline. ciEvidence confirms a verified exact-head CI run passing types/lint/unit tests and API/browser regression; I read one of the cited test files (UserSettingsForm.test.tsx) and found it covers unrelated Formik/Yup validation, not brace-expansion behavior — so CI is general regression evidence, not targeted coverage, per the noted limitation. No upstream release claims were asserted (upstreamReleases is empty) so no package-takeover concern applies. Overall this is a narrowly-scoped, semver-compatible, integrity-verified security patch with no production code impact.\",\"verdict\":\"pass\"}"
     }
   },
   "grants": {
@@ -5443,15 +5452,12 @@
       "runId": "45222732002",
       "runAttempt": 1,
       "head": "3fd19d19a7d950233e04a04ebde3398b83b428fb",
-      "status": "reserved",
-      "at": "2026-11-23T17:10:30.588Z"
+      "status": "finished",
+      "at": "2026-11-23T17:10:30.588Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 217,
-    "runId": "45222732002",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -9104,6 +9110,14 @@
       "actor": "github-actions[bot]",
       "wakeReceipt": "dd1f828e47926e60dcbc9d017327e950219741f06b1549594d79091a82c57f4d",
       "sourceActor": "haideearus-software-factory[bot]"
+    },
+    {
+      "at": "2026-11-23T17:13:00.455Z",
+      "event": "finished",
+      "ticket": 217,
+      "grant": "a832cbb8-b54e-4c75-a8c8-08569bd859c8",
+      "status": "reviewed",
+      "head": "3fd19d19a7d950233e04a04ebde3398b83b428fb"
     }
   ]
 }
