@@ -3769,7 +3769,11 @@
           }
         ]
       },
-      "ci": null,
+      "ci": {
+        "requestId": "7cb8dbe0-47ee-4d98-adb0-e4c02c21bd87",
+        "head": "3fd19d19a7d950233e04a04ebde3398b83b428fb",
+        "runId": null
+      },
       "analysis": {
         "version": 2,
         "repository": "haideearus/cypress-realworld-app",
