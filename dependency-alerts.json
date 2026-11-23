@@ -225,8 +225,8 @@
       "name": "minimatch",
       "day": "2026-11-23",
       "trackingReason": "no-common-candidate",
-      "phase": "tracking-intent",
-      "issue": null,
+      "phase": "tracking",
+      "issue": 213,
       "pr": null
     }
   },
