@@ -3582,9 +3582,17 @@
       "reviews": 1,
       "retries": 0,
       "head": "dcfab1ba968cdd239401e8ecd799af2a5314ef4d",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 205,
-      "approval": null,
+      "approval": {
+        "head": "dcfab1ba968cdd239401e8ecd799af2a5314ef4d",
+        "pr": 205,
+        "grant": "cbdb1b76-7a4f-445e-b925-a01756adfd05",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/45183977841"
+      },
       "criteriaHash": "9bd0519249d7bcb35eb668767e7e9b6a7f677f24cf81ff82ce20deb6081acf95",
       "branch": "agent/weekly-ai-features",
       "ci": {
@@ -3592,7 +3600,8 @@
         "head": "dcfab1ba968cdd239401e8ecd799af2a5314ef4d",
         "runId": 45184103706,
         "passed": true
-      }
+      },
+      "feedback": "{\"verdict\":\"pass\",\"head\":\"dcfab1ba968cdd239401e8ecd799af2a5314ef4d\",\"summary\":\"Reviewed the weekly AI feature-planning workflow added for ticket #202 against .github/workflows/factory-features.yml and the new scripts/factory/feature-{contract,meter,priority,origin,planner,publication,run}.cjs modules plus their integration points in automation.cjs, controller.cjs, worker.cjs and ticket-closure.cjs, with scripts/tests/factory-feature-*.test.cjs as corroborating evidence. The preview job (factory-features.yml:19-37) runs with contents:read only, no secrets and no anthropics/* action, matching the \\\"model-free preview\\\" criterion, and is asserted by factory-feature-workflow.test.cjs. The pilot path (feature-run.cjs, feature-planner.cjs PILOT constant) publishes exactly one hard-coded minor accessibility proposal with no model call, satisfying the \\\"guarded pilot\\\" requirement. Live planning is gated behind FACTORY_FEATURE_MODE=live plus FACTORY_ENABLED/FACTORY_AUTOMATION_ENABLED, invokes claude-code-action only in the isolated \\\"plan\\\" job with --max-turns 1, --tools=, and a locked-down --disallowedTools list (feature-planner.cjs modelArgs), and the surrounding feature-run.cjs explicitly refuses to run if CLAUDE_CODE_OAUTH_TOKEN leaks into the planning/selection steps (feature-run.cjs:78-79). Weekly/major/minor caps (feature-contract.cjs validatePlan/LIMITS), duplicate/evidence checks, and the shared daily/turn/minute budget (feature-meter.cjs reserve/preflight, policy.cjs dailyAdmissions) are enforced, and repair/incident/dependency work is given priority over feature admission and publication writes via feature-priority.cjs repairsWaiting, called from both feature-run.cjs beforeWrite() and feature-publication.cjs publishPart (covered by factory-feature-publication.test.cjs's \\\"a repair prevents even a publication intent\\\" case). Production closure for both single tickets and major parents in ticket-closure.cjs still requires a verified live release (isLiveRelease/verifyLive) before any issue is closed, preserving the human Render production-approval gate; feature implementation tickets reuse the existing worker.cjs coding/review pipeline with the same Bash/PowerShell-denylist (factory-feature-worker.test.cjs). Tests also cover idempotent issue creation after a lost HTTP response, DST-crossing week boundaries, and blocked/exhausted stage handling. Limits of this review: I inspected the files above and their unit tests but did not execute the test suite or CI myself (only a CI run URL was supplied, with no pass/fail detail, so it is not used as evidence here), and did not line-by-line diff every touched pre-existing file (e.g. discovery-intake.cjs, dependency-policy.cjs, monitor-drill.cjs, metadata-store.cjs, merge.cjs, github.cjs, active-tickets.cjs) beyond confirming their call sites are used correctly by the new feature code.\",\"findings\":[]}"
     },
     "203": {
       "coding": 0,
@@ -5231,15 +5240,12 @@
       "runId": "45183977841",
       "runAttempt": 1,
       "head": "dcfab1ba968cdd239401e8ecd799af2a5314ef4d",
-      "status": "reserved",
-      "at": "2026-11-23T13:27:10.355Z"
+      "status": "finished",
+      "at": "2026-11-23T13:27:10.355Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 202,
-    "runId": "45183977841",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -8785,6 +8791,14 @@
       "runId": "45183977841",
       "runAttempt": 1,
       "actor": "haideearus"
+    },
+    {
+      "at": "2026-11-23T13:39:31.479Z",
+      "event": "finished",
+      "ticket": 202,
+      "grant": "cbdb1b76-7a4f-445e-b925-a01756adfd05",
+      "status": "reviewed",
+      "head": "dcfab1ba968cdd239401e8ecd799af2a5314ef4d"
     }
   ]
 }
