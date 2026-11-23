@@ -102,15 +102,15 @@
         },
         "observations": [
           {
-            "runId": "45069520488",
-            "workflowSha": "51cf2053c42a7300b346f5a2b246ce4a52591b8b",
-            "at": "2026-11-22T21:01:23.834Z",
-            "release": "e416716595fe9e02314bf431e26dac35a9c68b5c"
-          },
-          {
             "runId": "45095102218",
             "workflowSha": "825f1f42bc6696ce1ee66ef02bc78144ea9a3974",
             "at": "2026-11-23T01:33:39.522Z",
+            "release": "e416716595fe9e02314bf431e26dac35a9c68b5c"
+          },
+          {
+            "runId": "45149371171",
+            "workflowSha": "825f1f42bc6696ce1ee66ef02bc78144ea9a3974",
+            "at": "2026-11-23T09:42:00.040Z",
             "release": "e416716595fe9e02314bf431e26dac35a9c68b5c"
           }
         ]
