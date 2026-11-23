@@ -18,6 +18,8 @@ on:
     # Durable daily counters govern admission, including delayed runs.
     - cron: "12 3,15 * * *"
       timezone: Europe/Bucharest
+    - cron: "12 21 * * *"
+      timezone: Europe/Bucharest
 permissions:
   contents: read
 concurrency:
@@ -25,7 +27,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   select:
-    if: ${{ github.repository == 'haideearus/cypress-realworld-app' && github.ref == 'refs/heads/main' && github.run_attempt == 1 && (github.event_name == 'workflow_dispatch' || (vars.FACTORY_DISCOVERY_ENABLED == 'true' && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'))) }}
+    if: ${{ github.repository == 'haideearus/cypress-realworld-app' && github.ref == 'refs/heads/main' && github.run_attempt == 1 && (github.event_name == 'workflow_dispatch' || (vars.FACTORY_DISCOVERY_ENABLED == 'true' && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success') && (github.event_name != 'schedule' || github.event.schedule != '12 21 * * *' || vars.FACTORY_MAX_DISCOVERY_SWEEPS_PER_DAY == '3'))) }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     concurrency:

@@ -15,6 +15,28 @@ function setup() {
 }
 test("GitHub persistence adapter exists", () =>
   assert.ok(adapter, "missing GitHub ledger adapter"));
+test("only the latest valid core quota headers establish GitHub API headroom", async () => {
+  const headers = [
+    { "x-ratelimit-resource": "core", "x-ratelimit-limit": "1000", "x-ratelimit-remaining": "250" },
+    { "x-ratelimit-resource": "search", "x-ratelimit-limit": "10", "x-ratelimit-remaining": "10" },
+    {
+      "x-ratelimit-resource": "core",
+      "x-ratelimit-limit": "1000",
+      "x-ratelimit-remaining": "1001",
+    },
+  ];
+  const api = new adapter.GitHub({
+    token: "fixture-only",
+    fetch: async () => new Response("{}", { headers: headers.shift() }),
+  });
+  const path = adapter.ROOT + "/issues";
+  await api.request("GET", path);
+  assert.deepEqual(api.primaryQuota, { limit: 1000, remaining: 250 });
+  await api.request("GET", path);
+  assert.equal(api.primaryQuota, null);
+  await api.request("GET", path);
+  assert.equal(api.primaryQuota, null);
+});
 test("missing state refuses reads and initialization is explicit and one-time", async () => {
   const { ledger } = setup();
   await assert.rejects(ledger.read(), /GitHub.*404/);

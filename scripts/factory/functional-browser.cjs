@@ -6,6 +6,7 @@ const {
   ASSERTIONS,
   CHECKS,
   functionalChecks,
+  validAssertion,
   validateFunctionalResult,
 } = require("./functional-discovery-contract.cjs");
 
@@ -148,16 +149,19 @@ function inspectAttempt(report, extended = false) {
   return failed ? { status: "failed", failures } : { status: "healthy", check: "", assertion: "" };
 }
 
-async function verifyFunctionalChecks(run, extended = false) {
+async function verifyFunctionalChecks(run, extended = false, target) {
   const checks = functionalChecks(extended);
+  if (target && (!checks.includes(target.check) || !validAssertion(target.check, target.assertion)))
+    return inconclusive;
   const first = await run();
   if (first?.status === "healthy") return first;
   if (first?.status !== "failed" || !first.failures) return inconclusive;
+  if (target && first.failures[target.check] !== target.assertion) return inconclusive;
 
   const second = await run();
   if (second?.status !== "failed" || !second.failures) return inconclusive;
 
-  const check = checks.find(
+  const check = (target ? [target.check] : checks).find(
     (id) => first.failures[id] && first.failures[id] === second.failures[id]
   );
   if (!check) return inconclusive;
@@ -251,24 +255,32 @@ function freshCypressRun(env, extended, avatarFixtureOrigin) {
 async function main() {
   const uri = process.env.TEST_DATABASE_URL;
   const extended = process.env.FACTORY_FUNCTIONAL_EXTENDED === "true";
+  const expectedCheck = process.env.FACTORY_FUNCTIONAL_EXPECTED_CHECK;
+  const expectedAssertion = process.env.FACTORY_FUNCTIONAL_EXPECTED_ASSERTION;
+  const target =
+    expectedCheck || expectedAssertion
+      ? { check: expectedCheck, assertion: expectedAssertion }
+      : undefined;
   let verdict = inconclusive;
   if (isDisposableDatabase(uri)) {
     const env = { ...isolatedBrowserEnvironment(process.env), CYPRESS_CRASH_REPORTS: "0" };
     try {
-      verdict = extended
-        ? await verifyFunctionalChecks(
-            () =>
-              withFreshWeeklyDatabase(uri, (testUri) =>
-                withProductionBrowser(
-                  { uri: testUri, quiet: true, env, avatarFixture: true },
-                  ({ avatarFixtureOrigin }) => freshCypressRun(env, true, avatarFixtureOrigin)
-                )
-              ),
-            true
-          )
-        : await withProductionBrowser({ uri, quiet: true, env }, () =>
-            verifyFunctionalChecks(() => freshCypressRun(env, false))
-          );
+      verdict =
+        extended || target
+          ? await verifyFunctionalChecks(
+              () =>
+                withFreshWeeklyDatabase(uri, (testUri) =>
+                  withProductionBrowser(
+                    { uri: testUri, quiet: true, env, avatarFixture: extended },
+                    ({ avatarFixtureOrigin }) => freshCypressRun(env, extended, avatarFixtureOrigin)
+                  )
+                ),
+              extended,
+              target
+            )
+          : await withProductionBrowser({ uri, quiet: true, env }, () =>
+              verifyFunctionalChecks(() => freshCypressRun(env, false))
+            );
     } catch {
       // Setup, crashes, and infrastructure failures are inconclusive.
     }

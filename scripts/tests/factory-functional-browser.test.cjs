@@ -120,6 +120,31 @@ test("weekly runs require the full suite and match repeat failures by check and 
   );
 });
 
+test("the longer discovery journeys require an extended run and repeat their own assertions", async () => {
+  const { inspectAttempt, verifyFunctionalChecks } = require("../factory/functional-browser.cjs");
+  const extendedChecks = functionalChecks(true);
+  for (const [check, id] of [
+    ["payment-persistence", "payment-receipt-opened"],
+    ["notification-read-persistence", "notification-read-reloaded"],
+    ["mobile-feed-filters", "mobile-filters-reset"],
+    ["bank-account-deletion", "bank-deletion-onboarding"],
+  ]) {
+    assert.ok(!checks.includes(check), check);
+    const attempt = report({ [check]: assertion(id) }, true);
+    const evidence = inspectAttempt(attempt, true);
+    assert.deepEqual(
+      await verifyFunctionalChecks(async () => evidence, true),
+      {
+        status: "confirmed_failure",
+        check,
+        assertion: id,
+        passedChecks: extendedChecks.filter((known) => known !== check),
+      },
+      check
+    );
+  }
+});
+
 test("all passing checks produce a healthy verdict without a retry", async () => {
   assert.deepEqual(await verify(report()), healthy);
 });
@@ -175,6 +200,34 @@ test("multiple repeated failures select one assertion in catalog order", async (
   assert.match(summary, /Opening Settings — failed at `settings-profile`/);
   assert.match(summary, /Settings form validation — unconfirmed/);
   assert.match(summary, /Browser sign-in — passed/);
+});
+
+test("a targeted replay confirms only the requested named assertion", async () => {
+  const { inspectAttempt, verifyFunctionalChecks } = require("../factory/functional-browser.cjs");
+  const target = { check: "form-validation", assertion: "settings-email-required" };
+  const bothFail = inspectAttempt(
+    report({
+      settings: assertion("settings-profile"),
+      "form-validation": assertion("settings-email-required"),
+    })
+  );
+  const unrelatedFailure = inspectAttempt(report({ settings: assertion("settings-profile") }));
+  assert.deepEqual(await verifyFunctionalChecks(async () => bothFail, false, target), {
+    ...target,
+    status: "confirmed_failure",
+    passedChecks: checks.filter((id) => !["settings", "form-validation"].includes(id)),
+  });
+  assert.deepEqual(
+    await verifyFunctionalChecks(async () => unrelatedFailure, false, target),
+    inconclusive
+  );
+  assert.deepEqual(
+    await verifyFunctionalChecks(() => assert.fail("invalid target should not run"), false, {
+      ...target,
+      assertion: "settings-profile",
+    }),
+    inconclusive
+  );
 });
 
 test("only unchanged assertion IDs are eligible when browser attempts disagree", async () => {

@@ -67,15 +67,27 @@ and verify the stored result and visible receipt.
 
 Browser runs and API runs share four batch slots per sweep. The run summary
 shows the actual pages, variant, and pass or follow-up outcome. Browser evidence
-is retained with the sweep. The existing verified API finding intake and
-separate Safe functional discovery browser ticket lane continue to file
-independently confirmed bugs.
+is retained with the sweep. An exact approved browser failure can start the
+model-free confirmation in Safe functional discovery. The existing API
+finding intake continues to verify API failures independently.
+
+The browser handoff currently supports single-screen Settings invalid or
+required email, required first name, and an empty Notifications view. It uses
+the first eligible failed batch in a completed sweep. Safe functional discovery
+verifies the source and replays the corresponding checked-in assertion twice
+on fresh disposable app instances. A repeated failure can create or update an
+incident with `factory-ready` under the existing publication limit. The issue
+links the sweep and the fixed replay. Other failures remain in sweep evidence.
 
 ## Budgets and retained state
 
 - `FACTORY_DISCOVERY_ENABLED` is opt-in; absent/false disables model admission.
-- Two discovery reservations per Europe/Bucharest day, sharing the existing
-  twenty-ticket admission cap and configured execution capacity. Each source
+- Two discovery reservations per Europe/Bucharest day by default. To allow a
+  third, set the repository Actions variable
+  `FACTORY_MAX_DISCOVERY_SWEEPS_PER_DAY=3`. A third sweep requires at least 25%
+  of the GitHub job token's current core allowance at selection, reservation,
+  and before Claude starts. Unavailable quota data holds the third sweep. All sweeps share
+  the twenty-ticket admission cap and configured execution capacity. Each source
   receives one `discover` grant, with zero coding/review attempts.
 - Failed builds, provider rejection, invalid reports, interruption and failed
   replay retain consumed reservations. No automatic model retries or refunds.
@@ -99,7 +111,9 @@ intents. Each successful source issue is an unlabelled audit record, never a
 against the exact bot-authored body, not resent speculatively.
 
 Ready repairs and active work take priority over new sweeps. Successful main CI
-and the 03:12 and 15:12 Europe/Bucharest schedules request discovery. GitHub can
+and the 03:12 and 15:12 Europe/Bucharest schedules request discovery. Setting the
+limit to three also enables the 21:12 schedule. A charter already used on that
+day stays excluded after a new push. GitHub can
 start a scheduled run late or skip it. A delayed start still checks the current
 release, repair queue, and durable budget for the day it actually runs. Manual
 runs use the same counters. Automatic paths also require automatic pickup.
@@ -113,15 +127,17 @@ Open **Proactive app discovery → Summary** for executed scenario coverage, wha
 was skipped, and what the replay verified. A report with zero findings describes
 the scenarios executed in that run. The summary flags coverage as partial below
 three distinct completed cases. Claude is prompted to cover three cases
-across the API charter and browser journeys and can execute up to four. Repeats, timeouts and
+across the API charter and browser journeys and can execute up to four. The
+second and optional third sweep ask for two distinct browser journeys within
+that same batch limit. Repeats, timeouts and
 incomplete sandbox runs do not count toward the coverage target. Look in **Verified discovery finding intake →
 Summary** for links to published issues and their current-main verification
 results. **Safe functional discovery → Summary** reports the browser suite
 separately, including sign-in, navigation, Settings and form assertions.
+Look there for a browser handoff result after a completed Claude sweep.
 
-The limits stay at two Claude discovery reservations and four new finding ticket
-intents per Bucharest day. A limit increases the number of opportunities. The
-verified scenario and browser contracts determine the actual coverage.
+Finding intake keeps its cap of four new ticket intents per Bucharest day.
+Review Claude Pro's five-hour and weekly usage before enabling the third sweep.
 
 ## Candidate evidence and replay
 

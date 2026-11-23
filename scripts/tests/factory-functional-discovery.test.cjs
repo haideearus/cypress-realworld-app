@@ -64,11 +64,15 @@ test("browser discovery defaults to preview and separates tests from the publish
   );
   assert.equal(workflow.on.workflow_dispatch.inputs.dry_run.default, true);
   assert.deepEqual(workflow.on.workflow_run, {
-    workflows: ["Factory CI"],
+    workflows: ["Factory CI", "Proactive app discovery"],
     branches: ["main"],
     types: ["completed"],
   });
-  assert.deepEqual(workflow.jobs.browser.permissions, { contents: "read", actions: "read" });
+  assert.deepEqual(workflow.jobs.browser.permissions, {
+    contents: "read",
+    actions: "read",
+    issues: "read",
+  });
   const browserSteps = workflow.jobs.browser.steps;
   const preflight = browserSteps.find(
     (step) => step.name === "Verify functional discovery CI trigger"
