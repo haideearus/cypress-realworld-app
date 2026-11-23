@@ -198,5 +198,5 @@
       "pr": null
     }
   },
-  "heldAfter": "@babel/plugin-transform-modules-systemjs"
+  "heldAfter": "brace-expansion"
 }
