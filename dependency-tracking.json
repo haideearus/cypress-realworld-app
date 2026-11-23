@@ -4,7 +4,7 @@
     "200": {
       "branch": "dependabot/npm_and_yarn/fuse.js-6.6.2",
       "issue": 201,
-      "status": "closing"
+      "status": "merged"
     }
   }
 }
