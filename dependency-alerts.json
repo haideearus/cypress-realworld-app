@@ -204,6 +204,14 @@
       "phase": "tracking",
       "issue": 208,
       "pr": null
+    },
+    "bd3f3038d28503129b336546c48546a3b3b709a4e95ca3fcadf61161fa3a4616": {
+      "name": "jsonwebtoken",
+      "day": "2026-11-23",
+      "trackingReason": "major-held",
+      "phase": "tracking-intent",
+      "issue": null,
+      "pr": null
     }
   },
   "heldAfter": "extract-zip"
