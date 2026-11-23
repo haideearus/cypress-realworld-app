@@ -116,9 +116,9 @@
       "issue": 167,
       "pr": null,
       "recheck": {
-        "fingerprint": "b061713cfcbe54995f5125ec588a887f04d2cc3eb4f172ef0130fc0ed9b08aba",
+        "fingerprint": "c765ceaea37850e86dfb40a2e1b0d552a7f56e6326be7ddb1b05332d7398bfcc",
         "reason": "graph-held",
-        "at": "2026-11-22T23:34:51.418Z",
+        "at": "2026-11-23T15:20:35.434Z",
         "next": 0
       }
     },
