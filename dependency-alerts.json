@@ -140,11 +140,27 @@
     },
     "2702bb8457f35edb6bfb39ec1714432aabaf1eb75c182d62ebb73d894d9e64da": {
       "name": "brace-expansion",
-      "day": "2026-11-22",
+      "day": "2026-11-23",
       "trackingReason": "no-common-candidate",
-      "phase": "tracking",
+      "phase": "issue",
       "issue": 177,
-      "pr": null
+      "pr": null,
+      "candidate": "1.1.21",
+      "base": "224152a199f75f34f6982e60737071d81cfb62d7",
+      "head": "3fd19d19a7d950233e04a04ebde3398b83b428fb",
+      "wider": {
+        "manifestChanged": false,
+        "manifestHash": "b61596a4207b0a91cbad0acdea11c4c73c9d2a183b8837b5f46bc90417679ec3",
+        "lockHash": "915dd8fc7d2cf4a8855b682180c9f9aad680e49bc4abf29926bd935ef74af09d",
+        "removed": false
+      },
+      "widerChecks": [
+        {
+          "fingerprint": "2b55a9da47997e4894fa34fa7ca892571f0999b6cc23ee3ffe1b03ab6d1a1006",
+          "result": "verified",
+          "at": "2026-11-23T16:50:27.389Z"
+        }
+      ]
     },
     "eeb6bada65c09ca9f536f244406cdb261aa414cff5895ce78d5242b8e57e5dd1": {
       "name": "braces",
