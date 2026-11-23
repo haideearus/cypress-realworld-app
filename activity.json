@@ -277,6 +277,29 @@
       },
       "status": "intent",
       "commentId": null
+    },
+    "a1c97e0940163c4cd5e0f359a10e6ba819f951a69f2d60d325136bce92748df2": {
+      "event": {
+        "id": "a1c97e0940163c4cd5e0f359a10e6ba819f951a69f2d60d325136bce92748df2",
+        "producer": {
+          "runId": "45187645635",
+          "runAttempt": 1,
+          "workflow": "factory-discovery-intake.yml",
+          "workflowSha": "526aeb1286741708370428e82b2a9b7b67a4256b",
+          "phase": "finding-finalize",
+          "actor": "haideearus"
+        },
+        "kind": "discovery",
+        "state": "skipped",
+        "subject": 45187645635,
+        "head": "526aeb1286741708370428e82b2a9b7b67a4256b",
+        "summary": "Finding intake assessment recorded. Observed resolution is not a factory-authored repair or production verification.",
+        "links": [
+          "https://github.com/haideearus/cypress-realworld-app/actions/runs/45187645635"
+        ]
+      },
+      "status": "intent",
+      "commentId": null
     }
   },
   "lastMonitor": {
