@@ -72,6 +72,15 @@ function filesOK(files, lockOnly = false) {
   )
     throw new Error("Dependency PR changes forbidden files");
 }
+function alertFilesOK(files, receipt) {
+  filesOK(files, Boolean(receipt && !receipt.wider?.manifestChanged));
+  if (
+    receipt?.wider &&
+    (files.length !== (receipt.wider.manifestChanged ? 2 : 1) ||
+      !files.some((file) => file.filename === "yarn.lock"))
+  )
+    throw new Error("Wider dependency change does not match the publication receipt");
+}
 const EVIDENCE_DELAY_MS = 60000;
 const EVIDENCE_REASONS = {
   invalid_public_evidence: "Public package, advisory, release or CI evidence could not be verified",
@@ -215,6 +224,7 @@ module.exports = {
   alertBranch,
   prOK,
   filesOK,
+  alertFilesOK,
   validateTicket,
   matches,
 };

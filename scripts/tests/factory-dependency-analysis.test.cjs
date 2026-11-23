@@ -32,6 +32,190 @@ const inspect = (a = lock(), b = lock("1.0.1"), ma = manifest(), mb = ma) =>
 const childLock = (range, version) =>
   `\n"bar@${range}":\n  version "${version}"\n  resolved "https://registry.npmjs.org/bar/-/bar-${version}.tgz"\n  integrity ${sri}\n`;
 
+const graphLock = (name, range, version, edges = "", registryName = name) =>
+  `\n"${name}@${range}":\n  version "${version}"\n  resolved "https://registry.npmjs.org/${registryName}/-/${registryName}-${version}.tgz"\n  integrity ${sri}\n${edges}`;
+const inspectWider = (a, b, ma = manifest(), mb = ma, details = false) =>
+  inspectUpdate(ma, mb, a, b, tools, details, { wider: true });
+
+test("receipt-bound analysis allows bounded major upgrades with split and reused patched paths", () => {
+  const keep =
+    graphLock("keep", "1.0.0", "1.0.0", '  dependencies:\n    bar "~2.0.0"\n') +
+    graphLock("bar", "~2.0.0", "2.0.1", '  dependencies:\n    leaf "^1.0.0"\n') +
+    graphLock("leaf", "^1.0.0", "1.0.1");
+  const oldEdges = '  dependencies:\n    bar "^1.0.0"\n';
+  const base =
+    graphLock("foo", "^1.0.0", "1.0.0", oldEdges) +
+    graphLock("aux", "^1.0.0", "1.0.0", oldEdges) +
+    childLock("^1.0.0", "1.0.0") +
+    keep;
+  const head =
+    graphLock("foo", "^2.0.0", "2.0.0", '  dependencies:\n    bar "^1.0.1"\n') +
+    graphLock("aux", "2.0.0", "2.0.0", '  dependencies:\n    bar "~2.0.0"\n') +
+    childLock("^1.0.1", "1.0.1") +
+    keep;
+  const before = manifest("^1.0.0", {
+    dependencies: { foo: "^1.0.0", keep: "1.0.0" },
+    devDependencies: { aux: "^1.0.0" },
+  });
+  const after = manifest("^2.0.0", {
+    dependencies: { foo: "^2.0.0", keep: "1.0.0" },
+    devDependencies: { aux: "2.0.0" },
+  });
+  assert.throws(() => inspect(base, head, before, after), /major/i);
+  const result = inspectWider(base, head, before, after, true);
+  assert.deepEqual(
+    result.queries.filter((q) => ["bar", "leaf"].includes(q.name)),
+    [
+      { name: "bar", version: "1.0.0", side: "removed" },
+      { name: "bar", version: "1.0.1", side: "added" },
+      { name: "bar", version: "2.0.1", side: "retained" },
+      { name: "leaf", version: "1.0.1", side: "retained" },
+    ]
+  );
+  assert.ok(
+    result.registryEntries.some(({ name, version }) => name === "leaf" && version === "1.0.1")
+  );
+});
+
+test("wider analysis requires every reachable edge and holds unrelated lock mutations", () => {
+  const root = lock("1.0.0", '  dependencies:\n    bar "^1.0.0"\n');
+  const next = lock("1.0.1", '  dependencies:\n    bar "^1.0.0"\n');
+  const bar = childLock("^1.0.0", "1.0.0") + '  optionalDependencies:\n    leaf "^1.0.0"\n';
+  const leaf = graphLock("leaf", "^1.0.0", "1.0.0");
+  const orphan = graphLock("unused", "^1.0.0", "1.0.0");
+  const base = root + bar + leaf + orphan;
+  assert.throws(() => inspectWider(base, next + bar + orphan), /incomplete.*edge/i);
+  assert.throws(
+    () =>
+      inspectWider(
+        base,
+        next +
+          bar +
+          leaf.replaceAll("1.0.0", "2.0.0").replace("leaf@^2.0.0", "leaf@^1.0.0") +
+          orphan
+      ),
+    /range/i
+  );
+  assert.throws(() => inspectWider(base, next + bar + leaf), /unreachable|remov/i);
+  assert.throws(
+    () =>
+      inspectWider(
+        base,
+        next +
+          bar +
+          leaf +
+          orphan.replaceAll("1.0.0", "1.0.1").replace("unused@^1.0.1", "unused@^1.0.0")
+      ),
+    /unreachable/i
+  );
+  assert.throws(() => inspectWider(root + bar + leaf, next + bar + leaf + orphan), /unreachable/i);
+});
+
+test("wider analysis checks a retained version when an optional edge becomes required", () => {
+  const leaf = childLock("^1.0.0", "1.0.0");
+  const base = lock("1.0.0", '  optionalDependencies:\n    bar "^1.0.0"\n') + leaf;
+  const head = lock("1.0.1", '  dependencies:\n    bar "^1.0.0"\n') + leaf;
+  assert.ok(
+    inspectWider(base, head).queries.some(
+      (query) => query.name === "bar" && query.version === "1.0.0" && query.side === "retained"
+    )
+  );
+});
+
+test("wider analysis holds a reachable downgrade and same-release metadata changes", () => {
+  const old = lock("1.1.0", '  dependencies:\n    bar "^1.0.0"\n') + childLock("^1.0.0", "1.0.0");
+  assert.throws(() => inspectWider(old, lock("1.0.0")), /downgrade/i);
+  assert.throws(() => inspectWider(old, lock("1.1.0")), /same.*release|immutable/i);
+  assert.throws(
+    () => inspectWider(old, old.replace("registry.npmjs.org", "registry.yarnpkg.com")),
+    /same.*release|immutable/i
+  );
+});
+
+test("wider analysis rejects different lock metadata for copies of a newly selected release", () => {
+  const base = lock();
+  const head =
+    lock("1.0.1", '  dependencies:\n    bar "^1.0.0"\n    other "^1.0.0"\n') +
+    childLock("^1.0.0", "1.0.1") +
+    graphLock("other", "^1.0.0", "1.0.0", '  dependencies:\n    bar "~1.0.1"\n') +
+    childLock("~1.0.1", "1.0.1").replace(sri, "sha512-" + Buffer.alloc(64, 2).toString("base64"));
+  assert.throws(() => inspectWider(base, head), /same.*release|immutable/i);
+});
+
+test("wider analysis leaves unchanged alias and tag selections in baseline coverage", () => {
+  const retainedEdges = '  dependencies:\n    compat "npm:bar@^1.0.0"\n    bar latest\n';
+  const legacy =
+    graphLock("compat", "npm:bar@^1.0.0", "1.0.0", "", "bar") + graphLock("bar", "latest", "1.0.0");
+  const base =
+    lock("1.0.0", retainedEdges + '    bar-patch "^1.0.0"\n') +
+    legacy +
+    graphLock("bar-patch", "^1.0.0", "1.0.0", '  dependencies:\n    bar "^1.0.0"\n') +
+    childLock("^1.0.0", "1.0.0");
+  const head = base
+    .replace(lock("1.0.0", retainedEdges), lock("1.0.1", retainedEdges))
+    .replace(childLock("^1.0.0", "1.0.0"), childLock("^1.0.0", "1.0.1"));
+  const result = inspectWider(base, head, manifest(), manifest(), true);
+  assert.deepEqual(
+    result.queries.filter((q) => q.name === "bar"),
+    [
+      { name: "bar", version: "1.0.0", side: "baseline" },
+      { name: "bar", version: "1.0.1", side: "added" },
+    ]
+  );
+  assert.equal(
+    result.registryEntries.find(({ name, version }) => name === "bar" && version === "1.0.0")
+      .entries.length,
+    2
+  );
+  assert.throws(
+    () =>
+      inspectWider(
+        base,
+        head.replace(legacy, legacy.replaceAll("1.0.0", "1.0.1").replaceAll("^1.0.1", "^1.0.0"))
+      ),
+    /selector/i
+  );
+});
+
+test("wider analysis holds a retargeted alias when another path still uses its old selector", () => {
+  const aliasEdge = '  dependencies:\n    bar "npm:alternate@^1.0.0"\n';
+  const unchanged =
+    graphLock("keep", "1.0.0", "1.0.0", aliasEdge) +
+    graphLock("bar", "npm:alternate@^1.0.0", "1.0.0", "", "alternate");
+  const base = lock("1.0.0", aliasEdge) + unchanged;
+  const head =
+    lock("1.0.1", '  dependencies:\n    bar "^1.0.0"\n') + childLock("^1.0.0", "1.0.1") + unchanged;
+  const roots = manifest("^1.0.0", { dependencies: { foo: "^1.0.0", keep: "1.0.0" } });
+  assert.throws(() => inspectWider(base, head, roots), /selector/i);
+});
+
+test("wider analysis holds five direct range edits and other manifest changes", () => {
+  const names = ["a", "b", "c", "d", "e"];
+  const direct = (range, extra) =>
+    manifest(range, {
+      dependencies: Object.fromEntries(names.map((name) => [name, range])),
+      ...extra,
+    });
+  const before = direct("^1.0.0");
+  const after = direct("2.0.0");
+  assert.throws(() => inspectWider("", "", before, after), /manifest.*limit/i);
+  assert.throws(
+    () =>
+      inspectWider(lock(), lock("1.0.1"), manifest(), manifest("^1.0.0", { devDependencies: {} })),
+    /manifest/i
+  );
+  assert.throws(
+    () =>
+      inspectWider(
+        lock(),
+        lock("1.0.1"),
+        manifest(),
+        manifest("^1.0.0", { overrides: { foo: "1.0.1" } })
+      ),
+    /manifest/i
+  );
+});
+
 test("deduplication queries the retained candidate version as well as removed identities", () => {
   const previous =
     lock("1.0.0", '  dependencies:\n    bar "^1.0.0"\n') +
@@ -330,6 +514,7 @@ test("the actual app manifest and lock form a valid unchanged baseline", () => {
   const m = fs.readFileSync(path.join(root, "package.json"), "utf8");
   const l = fs.readFileSync(path.join(root, "yarn.lock"), "utf8");
   assert.deepEqual(inspect(l, l, m, m), { changed: 0, candidateVersions: 0, queries: [] });
+  assert.deepEqual(inspectWider(l, l, m, m), { changed: 0, candidateVersions: 0, queries: [] });
 });
 
 test("the application lock does not retain the known affected form-data 4.x versions", () => {

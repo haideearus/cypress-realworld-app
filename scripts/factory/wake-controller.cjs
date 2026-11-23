@@ -42,7 +42,7 @@ async function verifyAlertCI(api, pr, run, config, bound = false) {
 
   if (receipt.base === pr.base.sha) {
     const files = await api.request("GET", `${ROOT}/pulls/${pr.number}/files?per_page=3`);
-    dependency.filesOK(files, true);
+    dependency.alertFilesOK(files, receipt);
   } else if (bound) {
     await verifyAlertGitDiff(api, receipt);
   }

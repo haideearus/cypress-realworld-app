@@ -46,14 +46,13 @@ runs dependency analysis, CI, and one independent Claude Pro review through
 the existing ledger. Both required checks and the existing merging switch
 govern merge. Production deployment retains its approval gate.
 
-Intake can prepare in-range lockfile updates with unchanged dependency edges.
-Updates that require new dependency edges, a parent update, or unsupported
-advisory evidence stay held. It preserves attempts when refreshing the same
-PR against a newer `main` and honors removal of the ready label. It records a
-publication intent before creating a ticket or PR, and only reconciles a lost
-response against a matching GitHub object. It closes a ticket after the
-protected merge is recorded, the patched lock entries are on `main`, and
-GitHub reports no open alerts for the package.
+Intake first tries an in-range lockfile update with unchanged dependency edges.
+For an existing held issue, it can then evaluate a wider upgrade. It preserves
+attempts when refreshing the same PR against a newer `main` and honors removal
+of the ready label. It records a publication intent before creating a ticket or
+PR and verifies a matching GitHub object to recover a lost response. It closes
+a ticket after the protected merge is recorded, the patched lock entries are on
+`main`, and GitHub reports no open alerts for the package.
 
 ### Held vulnerability tickets
 
@@ -81,9 +80,27 @@ candidate releases, or advisory evidence change. A weekly recheck covers updates
 reported only by the independent advisory service. Removing the held label pauses
 promotion. The issue keeps its identity and history when a candidate passes.
 
-The successful version goes through the existing dependency analysis, CI,
-independent subscription review and protected merge. Parent changes and major
-upgrades still need a compatible update path beyond lockfile-only rechecks.
+After an in-range check is exhausted or no common candidate fits, intake can
+search for separate patched versions for different selectors. It can also try
+upgrades to existing direct packages that introduce the vulnerable dependency,
+including a major version step, or remove the vulnerable version when a new
+parent release drops the dependency. It uses fixed public npm endpoints and
+builds the manifest and Yarn lockfile from metadata. Preparation executes no
+package code or lifecycle scripts.
+
+A wider proposal can edit up to four existing direct dependency ranges and
+the affected lockfile graph. It preserves root dependency names and manifest
+configuration. Unsupported sources, missing patches, changes that need app code
+edits, and incomplete evidence can still leave the issue held. The original issue
+keeps the latest blocker, with recent search results retained in the registry
+and earlier results in its commit history. Unchanged unsuccessful searches back
+off for a day. Unavailable evidence gets one earlier retry after 30 minutes.
+
+The exact candidate files are bound to the existing App-authored PR receipt, and
+only that path accepts wider changes. Candidate CI, independent Claude Pro
+review, native required checks and protected merge are still required. A bot
+event can request pickup only for a matching trusted green CI receipt. A later
+intake confirms automatic closure after the merge and alert clearance.
 
 ### Reserved turns for held dependencies
 
@@ -96,9 +113,12 @@ and one-publication limit still apply.
 Held tickets are ordered by severity, runtime exposure and time waiting.
 A bounded scan moves past paused tickets and incomplete evidence so those
 records cannot block later held tickets. Intake keeps the original ticket and
-records prepared, merged and GitHub-cleared repairs separately. Availability of
-compatible releases, review capacity and GitHub scheduling determine how many
-repairs can finish in a day.
+records prepared, merged and GitHub-cleared repairs separately. It targets two
+completed held repairs when candidates and capacity are available. The automatic
+merge path authorizes at most four held merges per Bucharest day. Alert
+reconciliation can finish after the cap is reached. Availability of compatible
+releases, review capacity and GitHub scheduling determine how many repairs can
+finish in a day.
 
 ### Event-driven dependency handoff
 
@@ -180,8 +200,10 @@ does not prove merge or authorize deployment.
 - Only modified root `package.json` and `yarn.lock` are accepted. Stable patch and
   minor updates and supported transitive fixes are eligible. Major upgrades,
   downgrades, changed dependency names/sections, scripts/configuration, unsupported
-  sources, prereleases and ambiguous graph transitions are held. The ordinary app
-  merger still cannot merge dependency files.
+  sources, prereleases and ambiguous graph transitions are held under ordinary
+  dependency policy. A wider alert proposal has a separate, receipt-bound
+  policy for verified stable upgrades. The ordinary app merger still cannot merge
+  dependency files.
 - OSV checks cover removed versions and every resulting version of affected
   package names. Added versions and existing versions selected by changed root or
   dependency paths are blocking candidates. Reused paths are followed recursively

@@ -29,32 +29,87 @@ const canonical = (x) =>
         )
       : x;
 const same = (a, b) => JSON.stringify(canonical(a)) === JSON.stringify(canonical(b));
-function compatible(a, b, semver) {
+function compatible(a, b, semver, wider) {
   if (!semver.valid(a) || !semver.valid(b) || semver.prerelease(a) || semver.prerelease(b))
     fail("Unsupported dependency version");
-  if (semver.major(a) !== semver.major(b)) fail("Dependency major update held");
+  if (!wider && semver.major(a) !== semver.major(b)) fail("Dependency major update held");
   if (semver.lt(b, a)) fail("Dependency downgrade held");
 }
-function inspectUpdate(baseManifest, headManifest, baseLock, headLock, tools, details = false) {
+const packageName = /^(?:@[a-z0-9._-]+\/)?[a-z0-9._-]+$/i;
+const selectorParts = (selector) => /^((?:@[a-z0-9._-]+\/)?[a-z0-9._-]+)@(.+)$/i.exec(selector);
+function dependencyEntries(object, section) {
+  if (!Object.hasOwn(object, section)) return [];
+  const map = object[section];
+  if (!map || typeof map !== "object" || Array.isArray(map)) fail("Invalid dependency map");
+  const entries = Object.entries(map);
+  for (const [name, range] of entries)
+    if (!packageName.test(name) || typeof range !== "string" || !range || range.length > 500)
+      fail("Unsupported dependency selector");
+  return entries;
+}
+function reachableSelectors(roots, lock, edgesOf, semver) {
+  const visited = new Set();
+  const pending = [];
+  const visit = (selector) => {
+    if (visited.has(selector)) return;
+    const entry = lock[selector];
+    if (!entry) fail("Incomplete reachable dependency edge");
+    if (typeof entry !== "object" || Array.isArray(entry) || !semver.valid(entry.version))
+      fail("Invalid reachable dependency version");
+    const range = selectorParts(selector)?.[2];
+    if (range && semver.validRange(range) && !semver.satisfies(entry.version, range))
+      fail("Dependency version outside selector range");
+    visited.add(selector);
+    pending.push(entry);
+  };
+  for (const [name, range] of roots) visit(name + "@" + range);
+  const traversed = new Set();
+  while (pending.length) {
+    const entry = pending.pop();
+    if (traversed.has(entry)) continue;
+    traversed.add(entry);
+    for (const [name, range] of edgesOf(entry)) visit(name + "@" + range);
+  }
+  return visited;
+}
+function inspectUpdate(
+  baseManifest,
+  headManifest,
+  baseLock,
+  headLock,
+  tools,
+  details = false,
+  options = {}
+) {
+  const wider = options.wider === true;
   const { lockfile, semver } = tools;
   const a = json(baseManifest),
     b = json(headManifest);
   const sections = ["dependencies", "devDependencies"];
   const other = (o) => Object.fromEntries(Object.entries(o).filter(([k]) => !sections.includes(k)));
   if (!same(other(a), other(b))) fail("Forbidden manifest configuration change");
+  const manifestRange = (range) =>
+    wider
+      ? typeof range === "string" && semver.validRange(range)
+      : /^[~^]?\d+\.\d+\.\d+$/.test(range);
+  let directEdits = 0;
   for (const section of sections) {
+    if (wider && Object.hasOwn(a, section) !== Object.hasOwn(b, section))
+      fail("Dependency manifest sections changed");
     const before = a[section] || {},
       after = b[section] || {};
     if (!same(Object.keys(before).sort(), Object.keys(after).sort()))
       fail("Dependency manifest names changed");
     for (const name of Object.keys(before)) {
       if (before[name] === after[name]) continue;
-      if (!/^[~^]?\d+\.\d+\.\d+$/.test(before[name]) || !/^[~^]?\d+\.\d+\.\d+$/.test(after[name]))
+      if (wider && ++directEdits > 4) fail("Dependency manifest exceeds direct edit limit");
+      if (!manifestRange(before[name]) || !manifestRange(after[name]))
         fail("Unsupported manifest version range");
       compatible(
-        semver.minVersion(before[name]).version,
-        semver.minVersion(after[name]).version,
-        semver
+        semver.minVersion(before[name])?.version,
+        semver.minVersion(after[name])?.version,
+        semver,
+        wider
       );
     }
   }
@@ -75,17 +130,25 @@ function inspectUpdate(baseManifest, headManifest, baseLock, headLock, tools, de
   const retargetedNames = new Set();
   const selectedCandidateIds = new Set();
   const nameOf = (selector) => {
-    const m = /^((?:@[a-z0-9._-]+\/)?[a-z0-9._-]+)@(.+)$/i.exec(selector);
+    const m = selectorParts(selector);
     if (!m || !semver.validRange(m[2]) || /(?:git|https?|file|link|npm):/.test(m[2]))
       fail("Unsupported dependency selector");
     return m[1];
   };
-  const inventoryName = (selector) =>
-    selector.includes("@npm:")
-      ? nameOf(selector.slice(selector.indexOf("@npm:") + 5))
-      : nameOf(selector);
-  const validateEntry = (selector, entry) => {
-    const name = nameOf(selector);
+  const inventoryName = (selector) => {
+    const alias = wider
+      ? selectorParts(selector)?.[2]?.startsWith("npm:")
+      : selector.includes("@npm:");
+    const source = alias ? selector.slice(selector.indexOf("@npm:") + 5) : selector;
+    if (wider) {
+      if (source !== selector && packageName.test(source)) return source;
+      const parts = selectorParts(source);
+      if (parts && /^[a-z][a-z0-9._-]*$/i.test(parts[2])) return parts[1];
+    }
+    return nameOf(source);
+  };
+  const validateEntry = (selector, entry, baseline = false) => {
+    const name = baseline ? inventoryName(selector) : nameOf(selector);
     if (
       !entry ||
       typeof entry !== "object" ||
@@ -125,7 +188,44 @@ function inspectUpdate(baseManifest, headManifest, baseLock, headLock, tools, de
       Buffer.from(m[2], "base64").toString("base64") !== m[2]
     )
       fail("Invalid dependency integrity");
+    return name;
   };
+  const entriesByObject = new Map();
+  const edgesOf = (entry) => {
+    if (!entriesByObject.has(entry)) {
+      const edges = new Map(dependencyEntries(entry, "dependencies"));
+      for (const [name, range] of dependencyEntries(entry, "optionalDependencies")) {
+        if (edges.has(name) && edges.get(name) !== range)
+          fail("Ambiguous optional dependency edge");
+        edges.set(name, range);
+      }
+      entriesByObject.set(entry, edges);
+    }
+    return entriesByObject.get(entry);
+  };
+  const rootSections = [...sections, "optionalDependencies"];
+  const rootsOf = (manifest) =>
+    rootSections.flatMap((section) => dependencyEntries(manifest, section));
+  const oldReachable = wider ? reachableSelectors(rootsOf(a), old, edgesOf, semver) : undefined;
+  const nextReachable = wider ? reachableSelectors(rootsOf(b), next, edgesOf, semver) : undefined;
+  const knownReleases = new Map();
+  const contentsByObject = new Map();
+  const contents = (entry) => {
+    if (!contentsByObject.has(entry)) contentsByObject.set(entry, JSON.stringify(canonical(entry)));
+    return contentsByObject.get(entry);
+  };
+  const sameEntry = wider ? (before, after) => contents(before) === contents(after) : same;
+  if (wider) {
+    for (const [selector, entry] of Object.entries(old)) {
+      const id = inventoryName(selector) + "@" + entry.version;
+      if (!knownReleases.has(id)) knownReleases.set(id, new Set());
+      knownReleases.get(id).add(contents(entry));
+      if (!Object.hasOwn(next, selector)) {
+        if (!oldReachable.has(selector)) fail("Unreachable dependency removal held");
+        nameOf(selector);
+      }
+    }
+  }
   // Compare actual base/candidate paths. A reused node can select a new reused
   // descendant even though neither identity was added to the lock inventory.
   const oldIds = new Map(Object.values(old).map((entry, i) => [entry, i]));
@@ -141,35 +241,53 @@ function inspectUpdate(baseManifest, headManifest, baseLock, headLock, tools, de
       if (visited.size > 500) fail("Dependency selection exceeds inventory limit");
       const entry = next[target];
       if (!entry) fail("Incomplete candidate dependency edge");
-      validateEntry(target, entry);
-      if (before) compatible(before.version, entry.version, semver);
+      const name = validateEntry(target, entry);
+      if (before) compatible(before.version, entry.version, semver, wider);
       selectedSelectors.add(target);
-      retargetedNames.add(nameOf(target));
-      selectedCandidateIds.add(nameOf(target) + "@" + entry.version);
-      for (const [child, range] of Object.entries({
-        ...entry.dependencies,
-        ...entry.optionalDependencies,
-      })) {
+      retargetedNames.add(name);
+      selectedCandidateIds.add(name + "@" + entry.version);
+      const edges = wider
+        ? edgesOf(entry)
+        : Object.entries({ ...entry.dependencies, ...entry.optionalDependencies });
+      for (const [child, range] of edges) {
         const candidate = next[child + "@" + range];
         if (!candidate) fail("Incomplete candidate dependency edge");
-        const priorRange = before?.dependencies?.[child] || before?.optionalDependencies?.[child];
+        const priorRange =
+          wider && before
+            ? edgesOf(before).get(child)
+            : before?.dependencies?.[child] || before?.optionalDependencies?.[child];
         const prior = priorRange ? old[child + "@" + priorRange] : undefined;
         if (priorRange && !prior) fail("Incomplete base dependency edge");
-        if (priorRange !== range || !same(prior, candidate))
+        const changedOptionality =
+          wider &&
+          priorRange &&
+          Object.hasOwn(entry.optionalDependencies || {}, child) !==
+            Object.hasOwn(before.optionalDependencies || {}, child);
+        if (priorRange !== range || changedOptionality || !sameEntry(prior, candidate)) {
+          if (wider && priorRange) nameOf(child + "@" + priorRange);
           pending.push([prior, child + "@" + range]);
+        }
         if (pending.length > 500) fail("Dependency selection exceeds inventory limit");
       }
     }
   }
   for (const [selector, entry] of Object.entries(next)) {
     const before = old[selector];
-    if (same(before, entry)) continue;
-    validateEntry(selector, entry);
-    selectedCandidateIds.add(nameOf(selector) + "@" + entry.version);
+    if (sameEntry(before, entry)) continue;
+    if (wider && !nextReachable.has(selector)) fail("Unreachable dependency change held");
+    const name = validateEntry(selector, entry);
+    const id = name + "@" + entry.version;
+    if (wider) {
+      const known = knownReleases.get(id);
+      if (before?.version === entry.version || (known && !known.has(contents(entry))))
+        fail("Same dependency release metadata changed");
+      if (!known) knownReleases.set(id, new Set([contents(entry)]));
+    }
+    selectedCandidateIds.add(id);
     if (before) followSelection(before, selector);
-    else {
+    else if (!wider) {
       const previous = Object.entries(old)
-        .filter(([s]) => inventoryName(s) === nameOf(selector))
+        .filter(([s]) => inventoryName(s) === name)
         .map(([, e]) => e.version);
       if (
         previous.length &&
@@ -180,19 +298,27 @@ function inspectUpdate(baseManifest, headManifest, baseLock, headLock, tools, de
         fail("Dependency major version or downgrade held");
     }
   }
-  for (const [name, range] of Object.entries({
-    ...b.dependencies,
-    ...b.devDependencies,
-    ...b.optionalDependencies,
-  })) {
+  const rootChanges = wider
+    ? rootSections.flatMap((section) =>
+        dependencyEntries(b, section).map(([name, range]) => [name, range, a[section]?.[name]])
+      )
+    : Object.entries({
+        ...b.dependencies,
+        ...b.devDependencies,
+        ...b.optionalDependencies,
+      }).map(([name, range]) => [
+        name,
+        range,
+        a.dependencies?.[name] || a.devDependencies?.[name] || a.optionalDependencies?.[name],
+      ]);
+  for (const [name, range, previousRange] of rootChanges) {
     const selector = name + "@" + range;
     const entry = next[selector];
-    if (!entry || !semver.satisfies(entry.version, range)) fail("Incomplete root dependency lock");
-    const previousRange =
-      a.dependencies?.[name] || a.devDependencies?.[name] || a.optionalDependencies?.[name];
+    if (!entry || (!wider && !semver.satisfies(entry.version, range)))
+      fail("Incomplete root dependency lock");
     const previous = old[name + "@" + previousRange];
     if (!previous) fail("Incomplete base root dependency edge");
-    if (previousRange !== range || !same(previous, entry)) followSelection(previous, selector);
+    if (previousRange !== range || !sameEntry(previous, entry)) followSelection(previous, selector);
   }
   // New selectors must be attributable to an actual changed path; guessing from
   // every historical version both misses nested changes and mislabels baselines.
@@ -210,7 +336,7 @@ function inspectUpdate(baseManifest, headManifest, baseLock, headLock, tools, de
     ni = inventory(next);
   const affectedNames = new Set(
     [...new Set([...Object.keys(old), ...Object.keys(next)])]
-      .filter((s) => !same(old[s], next[s]))
+      .filter((s) => !sameEntry(old[s], next[s]))
       .map(inventoryName)
   );
   for (const name of retargetedNames) affectedNames.add(name);
@@ -243,7 +369,7 @@ function inspectUpdate(baseManifest, headManifest, baseLock, headLock, tools, de
         entries: Object.entries(next)
           .filter(([s, e]) => inventoryName(s) === q.name && e.version === q.version)
           .map(([s, e]) => {
-            validateEntry(s, e);
+            validateEntry(s, e, wider && !selectedSelectors.has(s) && sameEntry(old[s], e));
             return { resolved: e.resolved, integrity: e.integrity };
           }),
       }));
