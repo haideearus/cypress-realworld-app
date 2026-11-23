@@ -3526,8 +3526,16 @@
       "origin": "dependency-pr",
       "head": "1a511d1d7a28181c3fb3843ccc9d2fe3ba668480",
       "pr": 200,
-      "status": "reviewing",
-      "approval": null,
+      "status": "reviewed",
+      "approval": {
+        "head": "1a511d1d7a28181c3fb3843ccc9d2fe3ba668480",
+        "pr": 200,
+        "grant": "8980c853-c062-4e36-a482-127f85a3d74b",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/45191018738"
+      },
       "branch": "dependabot/npm_and_yarn/fuse.js-6.6.2",
       "criteriaHash": "7ac00746dca3ab2638a34bab0c8015046afd81ccade34d745591e7bab1f525a9",
       "dependency": {
@@ -3563,7 +3571,7 @@
         "runId": 45191263580,
         "passed": true
       },
-      "feedback": "Dependency subscription review unavailable; no automatic retry of this head",
+      "feedback": "{\"head\":\"1a511d1d7a28181c3fb3843ccc9d2fe3ba668480\",\"verdict\":\"pass\",\"summary\":\"Reviewed the package.json/yarn.lock diff at head 1a511d1d: it bumps fuse.js 6.5.3→6.6.2 (same literal pin style, no range introduced) and deduplicates yarn.lock entries for lodash and picomatch into single resolved blocks with unchanged integrity hashes (lodash stays at retained version 4.18.1). Inspected backend/database.ts (setupSearch/performSearch/searchUsers, Fuse.js usage with a plain keys-only options object) and renovate.json to confirm fuse.js is only used for simple fuzzy search and the bump stays within the same major version. Confirmed via dependencyFacts that both fuse.js versions and the retained lodash version have no advisories (cleared: [], remainingBaseline: [], advisoryIds: []), and that registry integrity for the new fuse.js tarball matches the lockfile. Checked src/__tests__/users.test.ts, which directly exercises searchUsers fuzzy-match behavior (email/username/phone/firstName fuzzy queries) against the Fuse.js-backed search path, and vite.config.ts, which has no custom test include/exclude that would drop it from `vitest --run` (test:unit:ci), so this regression coverage should have run in the cited CI receipt even though it isn't explicitly named in ciEvidence.testFiles. No compatibility break, no new/retained advisory, and the lockfile rewrite is a pure dedupe with identical resolved versions/integrity.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"ciEvidence.testFiles/sourceReferences for this head list UserSettingsForm.test.tsx and three Cypress specs but omit src/__tests__/users.test.ts, which is the only test that actually exercises Fuse.js-backed fuzzy search (searchUsers) touched by the fuse.js 6.5.3→6.6.2 bump; the citation packet does not explicitly confirm this file ran, even though default vitest globs under test:unit:ci would include it.\"},{\"severity\":\"minor\",\"message\":\"No upstreamReleases/changelog evidence was supplied specifically for fuse.js 6.6.2 (only lodash 4.18.1 has an upstreamReleases entry), so version-specific behavioral/changelog claims for the fuse.js bump rest only on registry integrity matching and the existing fuzzy-match unit test, not on reviewed release notes.\"}]}",
       "analysis": {
         "version": 2,
         "repository": "haideearus/cypress-realworld-app",
@@ -5260,15 +5268,12 @@
       "runId": "45191018738",
       "runAttempt": 1,
       "head": "1a511d1d7a28181c3fb3843ccc9d2fe3ba668480",
-      "status": "reserved",
-      "at": "2026-11-23T14:20:00.142Z"
+      "status": "finished",
+      "at": "2026-11-23T14:20:00.142Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 200,
-    "runId": "45191018738",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -8844,6 +8849,14 @@
       "actor": "github-actions[bot]",
       "wakeReceipt": "77e76126abab68b8c753cae2954100432cb808b5dd8ab1dd08e5fbba65cbd8c7",
       "sourceActor": "dependabot[bot]"
+    },
+    {
+      "at": "2026-11-23T14:22:46.813Z",
+      "event": "finished",
+      "ticket": 200,
+      "grant": "8980c853-c062-4e36-a482-127f85a3d74b",
+      "status": "reviewed",
+      "head": "1a511d1d7a28181c3fb3843ccc9d2fe3ba668480"
     }
   ]
 }
