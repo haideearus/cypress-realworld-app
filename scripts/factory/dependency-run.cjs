@@ -5,6 +5,7 @@ const { GitHub, ROOT } = require("./github.cjs");
 const { runtimeContext, output, readJson } = require("./controller.cjs");
 const { DependencyCoordinator, DependencyMerger, expectedReport } = require("./dependencies.cjs");
 const { trackNativeDependencies } = require("./dependency-tracking.cjs");
+const { widerReceiptFor, verifyWiderContents } = require("./dependency-alert-repair.cjs");
 const {
   inspectUpdate,
   queryOsv,
@@ -56,15 +57,20 @@ async function analyze(coordinator, number, stage, { transport = fetch } = {}) {
     content(coordinator.api, identity.base, "yarn.lock"),
     content(coordinator.api, identity.head, "yarn.lock"),
   ]);
+  const wider = verifyWiderContents(await widerReceiptFor(coordinator.api, t), hm, hl);
   const inventory = inspectUpdate(
     bm,
     hm,
     bl,
     hl,
-    toolsAt(path.join(__dirname, "dependency-tools"))
+    toolsAt(path.join(__dirname, "dependency-tools")),
+    false,
+    { wider }
   );
   if (!inventory.changed) throw new Error("Dependency PR has no changed package versions");
   const advisory = await queryOsv(inventory.queries, transport);
+  if (wider && (!advisory.cleared.length || advisory.remainingBaseline.length))
+    throw new Error("Wider dependency advisory clearance is no longer verified");
   // Revalidate the main/base/head after the public service call.
   await coordinator.pr(number, { expected: t });
   return validateReport(
@@ -136,6 +142,7 @@ async function main(env = process.env) {
           baseLock,
           headLock,
           ci: t.ci,
+          wider: verifyWiderContents(await widerReceiptFor(api, t), headManifest, headLock),
         };
       },
       { transport: preflight.evidenceTransport(env.GH_TOKEN) }

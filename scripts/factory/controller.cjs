@@ -293,9 +293,9 @@ class Controller {
       )
         throw new Error("Dependency PR identity changed");
       if (!receipt || receipt.base === pr.base.sha)
-        d.filesOK(
+        d.alertFilesOK(
           await this.api.request("GET", `${ROOT}/pulls/${t.pr}/files?per_page=3`),
-          Boolean(receipt)
+          receipt
         );
       return pr;
     }

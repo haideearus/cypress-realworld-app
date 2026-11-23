@@ -181,7 +181,8 @@ async function collectEvidence(
     source.baseLock,
     source.headLock,
     tools,
-    true
+    true,
+    { wider: source.wider === true }
   );
   if (!inventory.changed || inventory.registryEntries.length > 50)
     fail("Dependency evidence inventory exceeds bound");
@@ -190,6 +191,8 @@ async function collectEvidence(
     return registryRecord(await publicJSON(url, request), entry, url);
   });
   const osv = await queryOsv(inventory.queries, request, true);
+  if (source.wider === true && (!osv.cleared.length || osv.remainingBaseline.length))
+    fail("Wider dependency advisory clearance is no longer verified");
   const observed = [
     ...new Set([
       ...osv.cleared,

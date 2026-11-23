@@ -128,10 +128,18 @@ async function pipeline() {
     ref: null,
     releaseReads: [],
   };
-  const locked = () => {
+  const manifest = JSON.stringify({ dependencies: { example: "^1.0.0" } });
+  const committed = (name) => {
     const commit = f.objects.get(fixture.ref);
     const tree = f.objects.get(commit.tree);
-    return Buffer.from(f.objects.get(tree.tree[0].sha).content, "base64").toString("utf8");
+    const row = tree.tree.find((entry) => entry.path === name);
+    return row ? Buffer.from(f.objects.get(row.sha).content, "base64").toString("utf8") : undefined;
+  };
+  const locked = () => committed("yarn.lock");
+  const changed = () => {
+    const commit = f.objects.get(fixture.ref);
+    const tree = f.objects.get(commit.tree);
+    return tree.tree.map(({ path }) => ({ filename: path, status: "modified" }));
   };
   f.fetch = async (url, request) => {
     const endpoint = url.pathname.slice(ROOT.length);
@@ -164,6 +172,17 @@ async function pipeline() {
           content: Buffer.from(JSON.stringify(state)).toString("base64"),
         });
       }
+      if (endpoint === "/contents/package.json") {
+        const text =
+          (url.searchParams.get("ref") === fixture.ref && committed("package.json")) || manifest;
+        return response({
+          type: "file",
+          path: "package.json",
+          encoding: "base64",
+          content: Buffer.from(text).toString("base64"),
+          size: Buffer.byteLength(text),
+        });
+      }
       if (endpoint === "/contents/yarn.lock") {
         const text = url.searchParams.get("ref") === base ? lock : locked();
         return response({
@@ -189,15 +208,18 @@ async function pipeline() {
         return issues.has(Number(endpoint.split("/").at(-1)))
           ? response(issues.get(Number(endpoint.split("/").at(-1))))
           : new Response(null, { status: 404 });
-      if (endpoint === "/pulls") return response(fixture.pr ? [fixture.pr] : []);
+      if (endpoint === "/pulls") {
+        if (url.searchParams.has("head") && fixture.failPrLookup)
+          return new Response(null, { status: 503 });
+        return response(fixture.pr ? [fixture.pr] : []);
+      }
       if (endpoint === "/pulls/9") return response(fixture.pr);
-      if (endpoint === "/pulls/9/files")
-        return response(fixture.cachedPrFiles || [{ filename: "yarn.lock", status: "modified" }]);
+      if (endpoint === "/pulls/9/files") return response(fixture.cachedPrFiles || changed());
       if (endpoint.startsWith("/compare/"))
         return response({
           behind_by: 0,
           merge_base_commit: { sha: fixture.main },
-          files: fixture.comparisonFiles || [{ filename: "yarn.lock", status: "modified" }],
+          files: fixture.comparisonFiles || changed(),
           status: "identical",
         });
       if (endpoint.startsWith("/labels/")) return response({ name: endpoint.split("/").at(-1) });
@@ -253,6 +275,7 @@ async function pipeline() {
     if (request.method === "POST" && endpoint === "/pulls") {
       fixture.prPosts++;
       assert.equal(request.headers.Authorization, "Bearer publisher-fixture");
+      if (fixture.rejectPr) return new Response(null, { status: fixture.rejectPr });
       fixture.pr = {
         ...pr,
         title: data.title,
@@ -260,6 +283,7 @@ async function pipeline() {
         base: { ...pr.base, sha: fixture.main },
         head: { ...pr.head, ref: data.head, sha: fixture.ref },
       };
+      if (fixture.losePrResponse) throw Error("lost pull request response");
       return response(fixture.pr);
     }
     if (request.method === "POST" && endpoint === "/issues/8/labels") {
@@ -301,6 +325,7 @@ async function pipeline() {
   });
   const ctx = { ...context, workflowRef: d.WORKFLOW, workflowSha: base, event: "schedule" };
   const transport = async (url, request) => {
+    url = new URL(url);
     if (String(url).includes("/dependabot/alerts") && fixture.alertCleared)
       return Response.json([]);
     if (String(url).includes("/dependabot/alerts"))
@@ -362,8 +387,8 @@ async function pipeline() {
       token: "alerts-fixture",
       config,
       base: fixture.main,
-      lock: fixture.lockUpdated ? locked() : lock,
-      manifest: JSON.stringify({ dependencies: { example: "^1.0.0" } }),
+      lock: fixture.currentLock || (fixture.lockUpdated ? locked() : lock),
+      manifest,
       tools,
       transport,
       trigger,
@@ -417,6 +442,8 @@ async function pipeline() {
     run,
     reviewed,
     coordinator: new DependencyCoordinator(api, cfg, ctx),
+    api,
+    transport,
     cfg,
   };
 }
@@ -1131,4 +1158,188 @@ test("a cached base cannot make a stale alert receipt current", async () => {
   x.fixture.liveMain = "e".repeat(40);
   assert.equal((await x.coordinator.select(false)).ready, false);
   assert.deepEqual((await x.ledger.read()).state.grants, {});
+});
+
+test("a directly held major upgrade publishes its manifest and lock on the original issue", async () => {
+  const x = await pipeline();
+  x.fixture.versions = { "2.0.0": {} };
+  const held = await x.run();
+  assert.equal(held.outcome, "tracked-held");
+  const repaired = await x.run();
+  assert.equal(repaired.outcome, "published");
+  assert.equal(repaired.issue, held.issue);
+  const receipt = Object.values((await x.store.read()).state.records)[0];
+  assert.equal(receipt.candidate, "2.0.0");
+  assert.equal(receipt.wider.manifestChanged, true);
+  assert.equal(receipt.widerChecks[0].result, "verified");
+  assert.equal(x.fixture.issuePosts, 1);
+  assert.equal(x.fixture.prPosts, 1);
+  assert.equal((await x.coordinator.select(false)).ready, true);
+  const { analyze } = require("../factory/dependency-run.cjs");
+  const report = await analyze(x.coordinator, 9, "analysis", { transport: x.transport });
+  assert.deepEqual(report.result.cleared, ["GHSA-example"]);
+  assert.throws(
+    () => a.verifyWiderContents(receipt.wider, '{"scripts":{"postinstall":"different"}}', ""),
+    /changed after preparation/
+  );
+});
+
+test("held merge capacity counts only held repairs on the current Bucharest day", () => {
+  const today = new Date("2026-11-23T01:00:00Z");
+  const records = Object.fromEntries(
+    [1, 2, 3, 4, 5].map((id) => [
+      id,
+      { candidate: "2.0.0", pr: id, ...(id !== 5 && { trackingReason: "major-held" }) },
+    ])
+  );
+  const tickets = Object.fromEntries(
+    [1, 2, 3, 4, 5].map((id) => [
+      id,
+      { merge: { status: "merged", at: "2026-11-22T22:00:30.000Z" } },
+    ])
+  );
+  assert.equal(a.heldMergeCapacity({ records }, { tickets }, today), false);
+  tickets[4].merge.at = "2026-11-22T21:59:59.000Z";
+  assert.equal(a.heldMergeCapacity({ records }, { tickets }, today), true);
+  tickets[4].merge.at = "2026-11-22T22:00:30.000Z";
+  assert.equal(
+    a.heldMergeCapacity({ records }, { tickets }, new Date("2026-11-23T22:00:00Z")),
+    true
+  );
+});
+
+test("wider search records an outage and waits before trying the same evidence again", async () => {
+  const x = await pipeline();
+  const now = new Date("2026-11-23T12:00:00Z");
+  x.fixture.versions = { "2.0.0": {} };
+  x.fixture.releaseUnavailable = "2.0.0";
+  const held = await x.run(x.cfg, undefined, now);
+  assert.equal(held.outcome, "tracked-held");
+  await x.run(x.cfg, undefined, now);
+  assert.match(x.fixture.issue.body, /could not be verified/);
+  await x.run(x.cfg, undefined, new Date(now.getTime() + 29 * 60000));
+  assert.deepEqual(x.fixture.releaseReads, ["2.0.0"]);
+  assert.equal(x.fixture.prPosts, 0);
+  x.fixture.releaseUnavailable = undefined;
+  const recovered = await x.run(x.cfg, undefined, new Date(now.getTime() + 30 * 60000));
+  assert.equal(recovered.outcome, "published");
+  assert.equal(recovered.issue, held.issue);
+  const receipt = Object.values((await x.store.read()).state.records)[0];
+  assert.deepEqual(
+    receipt.widerChecks.map((row) => row.result),
+    ["wider-unavailable", "verified"]
+  );
+});
+
+test("a definite App rejection backs off and can publish the same held issue later", async () => {
+  const x = await pipeline();
+  const now = new Date("2026-11-23T10:00:00Z");
+  x.fixture.versions = { "2.0.0": {} };
+  const held = await x.run(x.cfg, undefined, now);
+  x.fixture.rejectPr = 403;
+  assert.equal((await x.run(x.cfg, undefined, now)).outcome, "held-publication-rejected");
+  x.fixture.rejectPr = undefined;
+  await x.run(x.cfg, undefined, new Date(now.getTime() + 29 * 60000));
+  assert.equal(x.fixture.prPosts, 1);
+  x.fixture.failPrLookup = true;
+  await assert.rejects(x.run(x.cfg, undefined, new Date(now.getTime() + 30 * 60000)), /503/);
+  assert.equal(x.fixture.prPosts, 1);
+  assert.equal(Object.values((await x.store.read()).state.records)[0].phase, "issue");
+  x.fixture.failPrLookup = false;
+  const published = await x.run(x.cfg, undefined, new Date(now.getTime() + 31 * 60000));
+  assert.equal(published.outcome, "published");
+  assert.equal(published.issue, held.issue);
+  assert.equal(x.fixture.issuePosts, 1);
+  assert.equal(x.fixture.prPosts, 2);
+});
+
+test("lost publication across a main advance links and refreshes the same App PR", async () => {
+  const x = await pipeline();
+  x.fixture.versions = { "2.0.0": {} };
+  const held = await x.run();
+  x.fixture.losePrResponse = true;
+  assert.equal((await x.run()).outcome, "held-publication-uncertain");
+  const oldHead = x.fixture.pr.head.sha;
+  x.fixture.main = "e".repeat(40);
+  x.fixture.versions = { "2.1.0": {} };
+  x.fixture.losePrResponse = false;
+  const refreshed = await x.run();
+  assert.equal(refreshed.outcome, "refreshed");
+  assert.notEqual(x.fixture.pr.head.sha, oldHead);
+  const published = await x.run();
+  assert.equal(published.outcome, "published");
+  assert.equal(published.issue, held.issue);
+  assert.equal(published.pr, 9);
+  const row = Object.values((await x.store.read()).state.records)[0];
+  assert.equal(row.candidate, "2.1.0");
+  assert.equal(x.fixture.issuePosts, 1);
+  assert.equal(x.fixture.prPosts, 1);
+});
+
+test("a verified wider merge can close after main safely advances to a newer patch", async () => {
+  const x = await pipeline();
+  x.fixture.versions = { "2.0.0": {} };
+  assert.equal((await x.run()).outcome, "tracked-held");
+  assert.equal((await x.run()).outcome, "published");
+  await x.reviewed();
+  const mergeCommit = "d".repeat(40);
+  await x.ledger.update((state) => {
+    const ticket = state.tickets[9];
+    ticket.merge = {
+      status: "merged",
+      head: ticket.head,
+      pr: 9,
+      at: new Date().toISOString(),
+      runId: context.runId,
+      runAttempt: 1,
+      mergeCommit,
+    };
+    return { state };
+  });
+  x.fixture.main = "e".repeat(40);
+  x.fixture.pr = { ...x.fixture.pr, state: "closed", merged: true, merge_commit_sha: mergeCommit };
+  const validatedLock = tools.lockfile.stringify({
+    "example@2.1.0": {
+      version: "2.1.0",
+      resolved: "https://registry.npmjs.org/example/-/example-2.1.0.tgz",
+      integrity: "sha512-" + Buffer.alloc(64, 1).toString("base64"),
+    },
+  });
+  x.fixture.currentLock = validatedLock;
+  x.fixture.alertCleared = true;
+  x.fixture.vulnerableVersions = ["2.1.0"];
+  await x.run();
+  assert.equal(x.fixture.issue.state, "open");
+  x.fixture.vulnerableVersions = [];
+  await x.run();
+  assert.equal(x.fixture.issue.state, "closed");
+  assert.equal(x.fixture.issue.state_reason, "completed");
+});
+
+test("unconfirmed App delivery with no matching PR never resends the same command", async () => {
+  const x = await pipeline();
+  x.fixture.versions = { "2.0.0": {} };
+  await x.run();
+  x.fixture.rejectPr = 503;
+  assert.equal((await x.run()).outcome, "held-publication-uncertain");
+  x.fixture.rejectPr = undefined;
+  x.fixture.main = "e".repeat(40);
+  await x.run();
+  assert.equal(x.fixture.prPosts, 1);
+  assert.equal(Object.values((await x.store.read()).state.records)[0].phase, "pr-intent");
+});
+
+test("a vanished alert group defers stale wider refresh without replacing the PR", async () => {
+  const x = await pipeline();
+  x.fixture.versions = { "2.0.0": {} };
+  assert.equal((await x.run()).outcome, "tracked-held");
+  assert.equal((await x.run()).outcome, "published");
+  x.fixture.main = "d".repeat(40);
+  x.fixture.alertCleared = true;
+  assert.equal((await x.run()).outcome, "held-wider-refresh");
+  const receipt = Object.values((await x.store.read()).state.records)[0];
+  assert.equal(receipt.phase, "ready");
+  assert.ok(receipt.refreshAfter);
+  assert.equal(x.fixture.prPosts, 1);
+  assert.equal(x.fixture.issue.state, "open");
 });

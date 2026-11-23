@@ -290,9 +290,9 @@ async function prepare(api, config, context, { grantId, cwd, environment = proce
     )
       throw new Error("Dependency review identity changed");
     if (!receipt || receipt.base === pr.base.sha)
-      d.filesOK(
+      d.alertFilesOK(
         await api.request("GET", `${ROOT}/pulls/${ticket.pr}/files?per_page=3`),
-        Boolean(receipt)
+        receipt
       );
     // Age was checked when accepted before CI. A separate fresh report is mandatory before merge.
     data.dependency = a.validateReport(
@@ -312,7 +312,11 @@ async function prepare(api, config, context, { grantId, cwd, environment = proce
     data.ticket = {
       number: ticket.pr,
       title: "Review a bounded dependency update",
-      body: "Check compatibility and security of the root package.json/yarn.lock diff. No coding or tool execution is authorized. Hold any concern; do not assume tests or OSV prove safety.",
+      body:
+        "Check compatibility and security of the root package.json/yarn.lock diff. No coding or tool execution is authorized. Hold any concern; do not assume tests or OSV prove safety." +
+        (receipt?.wider
+          ? " This held-alert proposal can include wider upgrades. Check changed APIs, peers, runtime requirements, and test coverage for every changed dependency path."
+          : ""),
     };
     data.dependencyFacts = require("./dependency-preflight.cjs").verifyPacket(
       ticket,

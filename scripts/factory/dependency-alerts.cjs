@@ -156,7 +156,7 @@ function planGroup(group, releases, knownRanges, semver) {
   return { ...result, status: "no-common-candidate", holdReason };
 }
 
-async function packagePlan(group, semver, transport, candidateVersion) {
+async function packagePlan(group, semver, transport, candidateVersion, wider) {
   const name = encodeURIComponent(group.name);
   const [advisories, registry] = await Promise.all([
     readJSON(
@@ -184,7 +184,11 @@ async function packagePlan(group, semver, transport, candidateVersion) {
     (v) => !candidateVersion || v === candidateVersion
   );
   const plan = planGroup(group, releases, affected, semver);
-  return { ...plan, evidence: digest([group, affected.sort(), plan.candidates || []]) };
+  const evidence = digest([group, affected.sort(), plan.candidates || []]);
+  if (!wider || plan.status === "advisory-held") return { ...plan, evidence };
+  const excluded = affected.map((value) => ranges(value, semver));
+  const stableReleases = releases.filter((v) => /^\d+\.\d+\.\d+$/.test(v) && semver.valid(v) === v);
+  return { ...plan, evidence, upgradeEvidence: { excluded, releases: stableReleases } };
 }
 
 async function readGroups(token, lockText, tools, transport, openAlerts) {
@@ -201,9 +205,9 @@ async function readGroups(token, lockText, tools, transport, openAlerts) {
   return { alerts, groups: groupsFor(alerts, parsed.object, tools.semver) };
 }
 
-async function readPlan(group, tools, transport, candidateVersion) {
+async function readPlan(group, tools, transport, candidateVersion, { wider = false } = {}) {
   try {
-    return await packagePlan(group, tools.semver, transport, candidateVersion);
+    return await packagePlan(group, tools.semver, transport, candidateVersion, wider);
   } catch {
     return {
       package: group.name,

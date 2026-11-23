@@ -9,7 +9,11 @@ const { Controller } = require("./controller.cjs");
 const { AutomaticMerger } = require("./merge.cjs");
 const { validateReview } = require("./artifacts.cjs");
 const { ConfirmationUnavailable, readMergePR } = require("./merge-confirmation.cjs");
-const { verifyAlertPR, AlertAdmissionHold } = require("./dependency-alert-repair.cjs");
+const {
+  verifyAlertPR,
+  AlertAdmissionHold,
+  heldMergeAllowed,
+} = require("./dependency-alert-repair.cjs");
 
 class StaleDependencyBase extends Error {
   constructor() {
@@ -301,9 +305,9 @@ class DependencyCoordinator {
     const base = receipt?.base ?? pr.base.sha;
     if (pr.state === "open" && !confirmation) {
       if (base === pr.base.sha)
-        d.filesOK(
+        d.alertFilesOK(
           await this.api.request("GET", `${ROOT}/pulls/${number}/files?per_page=3`),
-          Boolean(receipt)
+          receipt
         );
       const main = await this.api.request("GET", `${ROOT}/git/ref/heads/main`);
       const compare = await this.api.request("GET", `${ROOT}/compare/${base}...${pr.head.sha}`);
@@ -430,6 +434,14 @@ class DependencyCoordinator {
           const verified = await this.pr(row.number);
           if (target && verified.head.sha !== target.head) continue;
           if (d.alertKey(row.head.ref)) {
+            if (
+              !(await heldMergeAllowed(
+                this.api,
+                { branch: verified.head.ref, head: verified.head.sha, pr: verified.number },
+                state
+              ))
+            )
+              continue;
             generated = verified;
           } else {
             candidate = verified;
@@ -482,6 +494,15 @@ class DependencyCoordinator {
     await this.ledger.update(async (s) => {
       const pr = await this.pr(candidate.number);
       const receipt = await verifyAlertPR(this.api, pr, this.config);
+      if (
+        receipt &&
+        !(await heldMergeAllowed(
+          this.api,
+          { branch: pr.head.ref, head: pr.head.sha, pr: pr.number },
+          s
+        ))
+      )
+        throw Error("Daily held dependency merge limit reached");
       if (
         receipt &&
         (await new (require("./automation.cjs").AutomaticCoordinator)(
@@ -618,6 +639,9 @@ class DependencyMerger extends AutomaticMerger {
   }
   async permitWrite(number, t) {
     await this.pr(number, t);
+    const { state } = await this.ledger.read();
+    if (!(await heldMergeAllowed(this.api, t, state)))
+      throw Error("Daily held dependency merge limit reached");
     analysis.validateReport(this.report, expectedReport(t, this.context, "premerge"));
   }
   async pr(number, t, { confirmation = false } = {}) {
@@ -634,7 +658,15 @@ class DependencyMerger extends AutomaticMerger {
     const t = this.automaticTicket(state, number);
     if (t.merge?.status === "intent") return super.merge(number, options);
     const pr = await this.coordinator.pr(number, { closed: true, expected: t });
-    if (pr.state === "open") await producer(this.api, this.context, t, this.report, "premerge");
+    if (pr.state === "open") {
+      if (!(await heldMergeAllowed(this.api, t, state)))
+        return {
+          ticket: number,
+          merged: false,
+          reason: "Daily held dependency merge limit reached",
+        };
+      await producer(this.api, this.context, t, this.report, "premerge");
+    }
     return super.merge(number, options);
   }
 }

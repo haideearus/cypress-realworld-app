@@ -6,6 +6,7 @@ const slots = require("./active-tickets.cjs");
 const { terminalParent } = require("./active-runs.cjs");
 const { GitHub, Ledger, ROOT } = require("./github.cjs");
 const { MetadataStore } = require("./metadata-store.cjs");
+const { buildWiderCandidate } = require("./dependency-wider-candidate.cjs");
 const {
   inspectUpdate,
   queryOsv,
@@ -66,6 +67,15 @@ const RECHECK_BATCH_SIZE = 4;
 const RESERVED_HELD_PROPOSALS = 3;
 const HELD_PROBES_PER_INTAKE = 3;
 const RECHECK_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
+const WIDER_RECHECK_MS = 24 * 60 * 60 * 1000;
+const WIDER_TEMPORARY_RECHECK_MS = 30 * 60 * 1000;
+const WIDER_HISTORY_LIMIT = 8;
+const HELD_MERGE_LIMIT = 4;
+const HELD_MERGE_TIMEZONE = "Europe/Bucharest";
+const WIDER_NOTES = {
+  "wider-held": "No verified wider upgrade was found within the current search limits.",
+  "wider-unavailable": "Registry or advisory evidence for the wider upgrade could not be verified.",
+};
 const WORKFLOW_FILE = ".github/workflows/factory-dependency-alerts.yml";
 const CI_WORKFLOW = ".github/workflows/factory-ci.yml";
 const DISCOVERY_WORKFLOW = ".github/workflows/factory-discovery.yml";
@@ -83,8 +93,20 @@ const validTimestamp = (value) =>
   Number.isFinite(Date.parse(value)) && new Date(value).toISOString() === value;
 const empty = () => ({ version: 1, cursor: 0, records: {} });
 class UncertainPublication extends Error {}
+class RejectedPublication extends Error {}
 class AlertAdmissionHold extends Error {}
 class CandidateGraphHold extends Error {}
+
+function validWider(wider) {
+  return Boolean(
+    wider &&
+      Object.keys(wider).sort().join(",") === "lockHash,manifestChanged,manifestHash,removed" &&
+      typeof wider.manifestChanged === "boolean" &&
+      typeof wider.removed === "boolean" &&
+      d.HASH.test(wider.manifestHash) &&
+      d.HASH.test(wider.lockHash)
+  );
+}
 
 function validate(state) {
   if (
@@ -92,6 +114,7 @@ function validate(state) {
     !Number.isSafeInteger(state.cursor) ||
     state.cursor < 0 ||
     state.cursor > 500 ||
+    (state.publicationAfter !== undefined && !d.HASH.test(state.publicationAfter)) ||
     (state.urgentDay !== undefined &&
       (typeof state.urgentDay !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(state.urgentDay))) ||
     (state.heldAfter !== undefined &&
@@ -131,6 +154,36 @@ function validate(state) {
       (row.trackingReason !== undefined && !hasTrackingReason)
     )
       throw Error("Invalid dependency alert receipt");
+    if (
+      (row.publishAfter !== undefined &&
+        (row.phase !== "issue" || !validTimestamp(row.publishAfter))) ||
+      (row.refreshAfter !== undefined &&
+        (!row.wider ||
+          !["issue", "linked", "ready"].includes(row.phase) ||
+          !validTimestamp(row.refreshAfter)))
+    )
+      throw Error("Invalid dependency publication backoff");
+    if (
+      row.wider !== undefined &&
+      (!hasTrackingReason || TRACKING_PHASES.includes(row.phase) || !validWider(row.wider))
+    )
+      throw Error("Invalid wider dependency receipt");
+    if (
+      row.widerChecks !== undefined &&
+      (!hasTrackingReason ||
+        !Array.isArray(row.widerChecks) ||
+        row.widerChecks.length < 1 ||
+        row.widerChecks.length > WIDER_HISTORY_LIMIT ||
+        row.widerChecks.some(
+          (check) =>
+            !check ||
+            Object.keys(check).sort().join(",") !== "at,fingerprint,result" ||
+            !validTimestamp(check.at) ||
+            !d.HASH.test(check.fingerprint || "") ||
+            !["verified", "wider-held", "wider-unavailable"].includes(check.result)
+        ))
+    )
+      throw Error("Invalid wider dependency search history");
     if (row.recheck !== undefined) {
       const { fingerprint, reason, at, next } = row.recheck || {};
       if (
@@ -186,7 +239,11 @@ function validate(state) {
           !d.SHA.test(row.refresh?.base || "") ||
           !d.SHA.test(row.refresh?.head || "") ||
           row.refresh.head === row.head ||
-          row.refresh.base === row.base
+          row.refresh.base === row.base ||
+          Boolean(row.refresh.wider) !== Boolean(row.wider) ||
+          (row.refresh.wider !== undefined
+            ? !validWider(row.refresh.wider) || !RELEASE.test(row.refresh.candidate || "")
+            : row.refresh.candidate !== undefined)
         : row.refresh !== undefined)
     )
       throw Error("Invalid dependency alert receipt");
@@ -197,7 +254,10 @@ function validate(state) {
 }
 
 const storeFor = (api) => new MetadataStore(api, "dependency-alerts", empty, validate);
-const pullTitle = (r) => `Security maintenance: update ${r.name} to ${r.candidate}`;
+const pullTitle = (r) =>
+  r.wider
+    ? `Security maintenance: repair ${r.name} through a wider upgrade`
+    : `Security maintenance: update ${r.name} to ${r.candidate}`;
 const issueTitle = (r) =>
   r.trackingReason ? `Security maintenance: investigate ${r.name}` : pullTitle(r);
 function issueBody(key, row) {
@@ -211,10 +271,12 @@ function issueBody(key, row) {
 const linkedIssueBody = (key, row) =>
   `${issueBody(key, row)}\n\nRepair proposal [#${row.pr}](https://github.com/${d.REPOSITORY}/pull/${row.pr}).`;
 const pullBody = (r) =>
-  `Tracks #${r.issue}.\n\nApply the prepared Yarn lockfile update for \`${r.name}\` \`${r.candidate}\`.`;
+  r.wider
+    ? `Tracks #${r.issue}.\n\nApply root dependency and lockfile changes verified against the affected \`${r.name}\` selections.`
+    : `Tracks #${r.issue}.\n\nApply the prepared Yarn lockfile update for \`${r.name}\` \`${r.candidate}\`.`;
 
 const recheckIssueBody = (key, row, reason) =>
-  `${issueBody(key, row)}\n\nLatest automatic recheck: ${TRACKING_REASONS[reason][0]}`;
+  `${issueBody(key, row)}\n\nLatest automatic recheck: ${WIDER_NOTES[reason] ?? TRACKING_REASONS[reason][0]}`;
 
 function issueOK(issue, key, row, ready = true) {
   const original = issueBody(key, row);
@@ -232,7 +294,7 @@ function issueOK(issue, key, row, ready = true) {
         (issue.body === original ||
           (row.trackingReason &&
             row.issue &&
-            CONFIRMED_RECHECK_HOLDS.some(
+            [...CONFIRMED_RECHECK_HOLDS, ...Object.keys(WIDER_NOTES)].some(
               (reason) => issue.body === recheckIssueBody(key, row, reason)
             ))))) &&
     (!ready || (hasLabel(issue, READY_LABEL) && !hasLabel(issue, HELD_LABEL)))
@@ -245,7 +307,7 @@ async function verifyAlertGitDiff(api, receipt) {
   const comparison = await api.request("GET", `${ROOT}/compare/${receipt.base}...${receipt.head}`);
   if (comparison.behind_by !== 0 || comparison.merge_base_commit?.sha !== receipt.base)
     throw new AlertAdmissionHold("Refreshed dependency proposal requires current-main ancestry");
-  d.filesOK(comparison.files, true);
+  d.alertFilesOK(comparison.files, receipt);
 }
 
 async function verifyAlertPR(api, pr, config, store = storeFor(api), reconcile = false) {
@@ -547,19 +609,30 @@ async function consumeHeldWake(api, store, registry, source, state, base, now, e
   return true;
 }
 
-async function makeCommit(api, base, lock, previous) {
+async function makeCommit(api, base, lock, previous, manifest) {
   const parent = await api.request("GET", `${ROOT}/git/commits/${base}`);
   if (!d.SHA.test(parent.tree?.sha || "")) throw Error("Missing base tree");
-  const blob = await api.request("POST", `${ROOT}/git/blobs`, {
-    encoding: "base64",
-    content: Buffer.from(lock).toString("base64"),
-  });
+  const files = [["yarn.lock", lock]];
+  if (manifest !== undefined) files.push(["package.json", manifest]);
+  const objects = await Promise.all(
+    files.map(async ([path, text]) => {
+      const blob = await api.request("POST", `${ROOT}/git/blobs`, {
+        encoding: "base64",
+        content: Buffer.from(text).toString("base64"),
+      });
+      if (!d.SHA.test(blob.sha || "")) throw Error("Invalid dependency blob");
+      return { path, mode: "100644", type: "blob", sha: blob.sha };
+    })
+  );
   const tree = await api.request("POST", `${ROOT}/git/trees`, {
     base_tree: parent.tree.sha,
-    tree: [{ path: "yarn.lock", mode: "100644", type: "blob", sha: blob.sha }],
+    tree: objects,
   });
   const commit = await api.request("POST", `${ROOT}/git/commits`, {
-    message: "Update locked dependency to a patched version",
+    message:
+      manifest === undefined
+        ? "Update locked dependency to a patched version"
+        : "Upgrade dependencies to clear a held vulnerability",
     tree: tree.sha,
     parents: previous ? [base, previous] : [base],
   });
@@ -591,13 +664,13 @@ async function addRecord(store, key, row, urgentDay) {
   return saved;
 }
 
-function intakeGroups(registry, groups, day) {
+function intakeGroups(registry, groups, day, allowHeld = true) {
   const tracked = new Map();
   for (const [key, row] of Object.entries(registry.records))
     if (row.phase !== "resolved") tracked.set(row.name, [key, row]);
   const trackedDay = (group) => tracked.get(group.name)[1].day;
   const held = groups
-    .filter((group) => tracked.get(group.name)?.[1].phase === "tracking")
+    .filter((group) => allowHeld && tracked.get(group.name)?.[1].phase === "tracking")
     .sort(
       (a, b) =>
         b.severity - a.severity ||
@@ -652,6 +725,22 @@ function heldProgress(registry, usage, day, timezone) {
       progress.cleared++;
   }
   return progress;
+}
+
+function heldMergeCapacity(registry, usage, now) {
+  const day = policy.dayKey(now, HELD_MERGE_TIMEZONE);
+  return heldProgress(registry, usage, day, HELD_MERGE_TIMEZONE).merged < HELD_MERGE_LIMIT;
+}
+
+async function heldMergeAllowed(api, ticket, usage, now = new Date()) {
+  const key = d.alertKey(ticket.branch);
+  if (!key) return true;
+  const registry = (await storeFor(api).read()).state;
+  const row = registry.records[key];
+  if (row?.pr !== ticket.pr || row.head !== ticket.head)
+    throw new AlertAdmissionHold("Dependency proposal changed before checking held merge limit");
+  if (!row.trackingReason) return true;
+  return heldMergeCapacity(registry, usage, now);
 }
 
 async function readHeldIssue(api, issue) {
@@ -733,7 +822,35 @@ async function recoverTrackingIssue(api, store, base, key, row) {
   }
 }
 
-async function publish(api, app, config, store, key, row) {
+async function linkProposal(api, config, store, key, row, pr, recovering = false) {
+  try {
+    d.prOK(pr, false, config);
+  } catch {
+    throw new UncertainPublication("Dependency PR author or repository is not acknowledged");
+  }
+  if (
+    pr.head.ref !== d.alertBranch(key) ||
+    pr.head.sha !== row.head ||
+    pr.body !== pullBody(row) ||
+    pr.title !== pullTitle(row) ||
+    (!recovering && pr.base.sha !== row.base)
+  )
+    throw new UncertainPublication("Dependency PR identity is not acknowledged");
+  if (pr.base.sha !== row.base) await verifyAlertGitDiff(api, row);
+  return advance(store, key, row, { phase: "linked", pr: pr.number, publishAfter: undefined });
+}
+
+async function recoverProposal(api, config, store, key, row, currentBase) {
+  const ref = d.alertBranch(key);
+  const rows = await api.pages(`${ROOT}/pulls?state=all&head=${policy.OWNER}:${ref}`);
+  if (!rows.length) return null;
+  if (rows.length !== 1 || rows[0].state !== "open")
+    throw new UncertainPublication("Dependency alert PR creation requires reconciliation");
+  await current(api, currentBase);
+  return linkProposal(api, config, store, key, row, rows[0], true);
+}
+
+async function publish(api, app, config, store, key, row, now = new Date()) {
   const ref = d.alertBranch(key);
   await current(api, row.base);
   await ensureRef(api, ref, row.head);
@@ -751,39 +868,32 @@ async function publish(api, app, config, store, key, row) {
     const issue = await issueMatching(api, key, row);
     row = await advance(store, key, row, { phase: "issue", issue: issue.number });
   }
-  async function link(pr) {
-    d.prOK(pr, false, config);
-    if (
-      pr.head.ref !== ref ||
-      pr.head.sha !== row.head ||
-      pr.base.sha !== row.base ||
-      pr.body !== pullBody(row) ||
-      pr.title !== pullTitle(row)
-    )
-      throw Error("Dependency PR creation not acknowledged");
-    return advance(store, key, row, { phase: "linked", pr: pr.number });
-  }
   if (row.phase === "issue") {
     if (row.trackingReason) {
       const issue = await api.request("GET", `${ROOT}/issues/${row.issue}`);
       if (!trackingIssueOK(issue, key, row)) throw Error("Held dependency issue changed");
     }
-    row = await advance(store, key, row, { phase: "pr-intent" });
+    row = await advance(store, key, row, { phase: "pr-intent", publishAfter: undefined });
     await current(api, row.base);
-    row = await link(
-      await app.request("POST", `${ROOT}/pulls`, {
+    let pr;
+    try {
+      pr = await app.request("POST", `${ROOT}/pulls`, {
         title: pullTitle(row),
         body: pullBody(row),
         base: "main",
         head: ref,
         draft: false,
-      })
-    );
-  } else if (row.phase === "pr-intent") {
-    const rows = await api.pages(`${ROOT}/pulls?state=open&head=${policy.OWNER}:${ref}`);
-    if (rows.length !== 1)
-      throw new UncertainPublication("Dependency alert PR creation requires reconciliation");
-    row = await link(rows[0]);
+      });
+    } catch (error) {
+      if (![401, 403, 404, 422].includes(error.status))
+        throw new UncertainPublication("Dependency PR delivery is unconfirmed");
+      await advance(store, key, row, {
+        phase: "issue",
+        publishAfter: new Date(now.getTime() + WIDER_TEMPORARY_RECHECK_MS).toISOString(),
+      });
+      throw new RejectedPublication("GitHub rejected dependency PR creation");
+    }
+    if (pr) row = await linkProposal(api, config, store, key, row, pr);
   }
   await current(api, row.base);
   let issue = await api.request("GET", `${ROOT}/issues/${row.issue}`);
@@ -860,6 +970,147 @@ async function buildCandidate(
   };
 }
 
+const targetVersions = (lock, name) =>
+  [
+    ...new Set(
+      Object.entries(lock)
+        .filter(([selector]) =>
+          (selector.includes("@npm:") ? selector.split("@npm:").at(-1) : selector).startsWith(
+            name + "@"
+          )
+        )
+        .map(([, entry]) => entry.version)
+    ),
+  ].sort();
+
+function verifyWiderContents(wider, manifest, lock) {
+  if (!wider) return false;
+  if (
+    !validWider(wider) ||
+    d.digest(manifest) !== wider.manifestHash ||
+    d.digest(lock) !== wider.lockHash
+  )
+    throw new AlertAdmissionHold("Wider dependency files changed after preparation");
+  return true;
+}
+
+async function widerReceiptFor(api, ticket) {
+  const key = d.alertKey(ticket.branch);
+  if (!key) return null;
+  const receipt = (await storeFor(api).read()).state.records[key];
+  const attempt = d.validateTicket(ticket);
+  if (
+    receipt?.phase !== "ready" ||
+    receipt.pr !== ticket.pr ||
+    receipt.head !== ticket.head ||
+    receipt.base !== attempt.base
+  )
+    throw new AlertAdmissionHold("Dependency source no longer matches its alert receipt");
+  return receipt.wider ?? null;
+}
+
+async function verifiedWider(group, plan, lock, manifest, tools, transport) {
+  const candidate = await buildWiderCandidate({
+    group,
+    plan,
+    lock,
+    manifest,
+    tools,
+    transport,
+    accept: async (proposal, signal) => {
+      let inventory;
+      try {
+        inventory = inspectUpdate(manifest, proposal.manifest, lock, proposal.lock, tools, true, {
+          wider: true,
+        });
+        const next = tools.lockfile.parse(proposal.lock);
+        const retained = targetVersions(next.object, group.name);
+        if (
+          !inventory.changed ||
+          inventory.registryEntries.length > 50 ||
+          group.alerts.some((a) => !a.range) ||
+          Boolean(proposal.removed) !== (retained.length === 0) ||
+          retained.some(
+            (v) =>
+              !tools.semver.valid(v) ||
+              [...group.alerts.map((a) => a.range), ...plan.upgradeEvidence.excluded].some(
+                (range) => tools.semver.satisfies(v, range)
+              )
+          )
+        )
+          return false;
+      } catch {
+        return false;
+      }
+      try {
+        const report = await queryOsv(
+          inventory.queries,
+          (url, options) =>
+            transport(url, { ...options, signal: AbortSignal.any([signal, options.signal]) }),
+          true
+        );
+        const affected = new Set(
+          report.packages
+            .filter((entry) => entry.side === "removed")
+            .flatMap((entry) => entry.vulnerabilities.map(({ id }) => id))
+        );
+        return (
+          report.cleared.length > 0 && report.remainingBaseline.length === 0 && affected.size <= 100
+        );
+      } catch (error) {
+        if (error instanceof VulnerableDependencyCandidate) return false;
+        throw error;
+      }
+    },
+  });
+  if (!candidate) return null;
+  return {
+    candidate: candidate.lock,
+    manifest: candidate.manifest === manifest ? undefined : candidate.manifest,
+    version: candidate.version,
+    wider: {
+      manifestChanged: candidate.manifest !== manifest,
+      manifestHash: d.digest(candidate.manifest),
+      lockHash: d.digest(candidate.lock),
+      removed: Boolean(candidate.removed),
+    },
+  };
+}
+
+async function checkWider(row, group, plan, source, lock, manifest, tools, transport, now) {
+  if (!plan?.upgradeEvidence) return null;
+  const history = row.widerChecks || [];
+  const fingerprint = d.digest([source, plan.evidence, plan.upgradeEvidence]);
+  const previous = history.at(-1);
+  const temporary =
+    previous?.result === "wider-unavailable" &&
+    !(
+      history.at(-2)?.fingerprint === fingerprint && history.at(-2)?.result === "wider-unavailable"
+    );
+  if (
+    previous?.fingerprint === fingerprint &&
+    now.getTime() - Date.parse(previous.at) <
+      (temporary ? WIDER_TEMPORARY_RECHECK_MS : WIDER_RECHECK_MS)
+  )
+    return null;
+  let proposal;
+  let result;
+  try {
+    proposal = await verifiedWider(group, plan, lock, manifest, tools, transport);
+    result = proposal ? "verified" : "wider-held";
+  } catch {
+    result = "wider-unavailable";
+  }
+  return {
+    proposal,
+    reason: result,
+    checks: [
+      ...history.slice(1 - WIDER_HISTORY_LIMIT),
+      { fingerprint, result, at: now.toISOString() },
+    ],
+  };
+}
+
 async function finishRefresh(api, app, store, base, key, row) {
   const ref = `${ROOT}/git/ref/heads/${d.alertBranch(key)}`;
   const { base: nextBase, head, resume } = row.refresh;
@@ -872,6 +1123,10 @@ async function finishRefresh(api, app, store, base, key, row) {
     throw error;
   });
   const saved = { base: nextBase, head, phase: resume, refresh: undefined };
+  if (row.refresh.wider) {
+    saved.wider = row.refresh.wider;
+    saved.candidate = row.refresh.candidate;
+  }
   if (result.object?.sha === row.refresh.head) {
     await advance(store, key, row, saved);
     return { outcome: "refreshed" };
@@ -909,13 +1164,40 @@ async function canRefresh(api, state, row) {
   );
 }
 
-async function verifyResolvedLock(api, row, lock, tools) {
+async function verifyResolvedLock(api, row, lock, tools, transport) {
   const { content } = require("./dependency-run.cjs");
-  const before = tools.lockfile.parse(await content(api, row.base, "yarn.lock"));
-  const after = tools.lockfile.parse(await content(api, row.head, "yarn.lock"));
+  const [baseLock, candidateLock] = await Promise.all([
+    content(api, row.base, "yarn.lock"),
+    content(api, row.head, "yarn.lock"),
+  ]);
+  const before = tools.lockfile.parse(baseLock);
+  const after = tools.lockfile.parse(candidateLock);
   const currentLock = tools.lockfile.parse(lock);
   if ([before, after, currentLock].some((x) => x.type !== "success"))
     throw Error("Dependency merge evidence lockfile invalid");
+  if (row.wider) {
+    const candidateManifest = await content(api, row.head, "package.json");
+    verifyWiderContents(row.wider, candidateManifest, candidateLock);
+    const expected = targetVersions(after.object, row.name);
+    const original = targetVersions(before.object, row.name);
+    const live = targetVersions(currentLock.object, row.name);
+    if (
+      JSON.stringify(original) === JSON.stringify(expected) ||
+      row.wider.removed !== (expected.length === 0) ||
+      live.some((version) => original.includes(version) && !expected.includes(version))
+    )
+      return false;
+    if (JSON.stringify(live) === JSON.stringify(expected) || !live.length) return true;
+    try {
+      await queryOsv(
+        live.map((version) => ({ name: row.name, version, side: "added" })),
+        transport
+      );
+      return true;
+    } catch {
+      return false;
+    }
+  }
   const updated = Object.keys(after.object).filter(
     (key) =>
       key.startsWith(row.name + "@") &&
@@ -999,23 +1281,92 @@ async function runRepair({
     return snapshot;
   };
   const refresh = async (key, row) => {
+    if (Date.parse(row.refreshAfter) > now.getTime()) return null;
     const { groups } = await alertSnapshot();
     const group = groups.find((g) => g.name === row.name);
-    const plan = group ? await readPlan(group, tools, transport, row.candidate) : undefined;
-    const { candidate } = await buildCandidate(plan, lock, manifest, tools, transport);
-    if (!candidate) return null;
+    const plan = group
+      ? await readPlan(group, tools, transport, row.wider ? undefined : row.candidate, {
+          wider: Boolean(row.wider),
+        })
+      : undefined;
+    const wider =
+      row.wider &&
+      (await checkWider(
+        row,
+        group,
+        plan,
+        d.digest([manifest, lock, base]),
+        lock,
+        manifest,
+        tools,
+        transport,
+        now
+      ));
+    const proposal = row.wider
+      ? wider?.proposal
+      : await buildCandidate(plan, lock, manifest, tools, transport);
+    if (!proposal?.candidate) {
+      if (!row.wider) return null;
+      await current(api, base);
+      await advance(store, key, row, {
+        ...(wider?.checks && { widerChecks: wider.checks }),
+        refreshAfter: new Date(now.getTime() + WIDER_TEMPORARY_RECHECK_MS).toISOString(),
+      });
+      return { outcome: "held-wider-refresh", issue: row.issue, ...(row.pr && { pr: row.pr }) };
+    }
     await current(api, base);
-    const head = await makeCommit(api, base, candidate, row.head);
+    const head = await makeCommit(api, base, proposal.candidate, row.head, proposal.manifest);
     const next = await advance(store, key, row, {
       phase: "refresh",
-      refresh: { base, head, resume: row.phase },
+      publishAfter: undefined,
+      refreshAfter: undefined,
+      ...(wider?.checks && { widerChecks: wider.checks }),
+      refresh: {
+        base,
+        head,
+        resume: row.phase,
+        ...(proposal.wider && { wider: proposal.wider, candidate: proposal.version }),
+      },
     });
     return finishRefresh(api, app, store, base, key, next);
   };
+  let publicationUnconfirmed = false;
+  const retryable = new Set();
+  if (!active.length) {
+    const intents = Object.entries(registry.records).filter(
+      ([, row]) =>
+        row.phase === "pr-intent" ||
+        (row.publishAfter && Date.parse(row.publishAfter) <= now.getTime())
+    );
+    const start = intents.findIndex(([key]) => key === registry.publicationAfter) + 1;
+    const batch = [...intents.slice(start), ...intents.slice(0, start)].slice(0, 3);
+    for (const [key, row] of batch) {
+      const linked = await recoverProposal(api, config, store, key, row, base).catch((error) => {
+        if (!(error instanceof UncertainPublication)) throw error;
+        return undefined;
+      });
+      if (linked) registry.records[key] = linked;
+      else if (linked === null && row.publishAfter) retryable.add(key);
+      else publicationUnconfirmed = true;
+    }
+    if (intents.length > batch.length) {
+      await current(api, base);
+      await store.update((next) => {
+        if (next.publicationAfter !== registry.publicationAfter)
+          throw Error("Dependency publication scan position changed");
+        next.publicationAfter = batch.at(-1)[0];
+        return { state: next };
+      });
+    }
+  }
   const pending = active.length
     ? null
     : Object.entries(registry.records).find(
-        ([, row]) => PUBLISH_PHASES.includes(row.phase) || row.phase === "tracking-intent"
+        ([key, row]) =>
+          (row.phase === "tracking-intent" ||
+            (row.phase !== "pr-intent" && PUBLISH_PHASES.includes(row.phase))) &&
+          (!row.publishAfter || retryable.has(key)) &&
+          !(Date.parse(row.refreshAfter) > now.getTime())
       );
   if (pending) {
     const [key, row] = pending;
@@ -1026,18 +1377,24 @@ async function runRepair({
         const recovered = await refresh(key, row);
         if (recovered) return report(recovered);
       }
-      await advance(store, key, row, { phase: "held", hold: "stale-base" });
+      await advance(store, key, row, {
+        phase: "held",
+        hold: "stale-base",
+        publishAfter: undefined,
+        refreshAfter: undefined,
+      });
       return report({ outcome: "held-stale-preparation" });
     }
     try {
-      const published = await publish(api, app, config, store, key, row);
+      const published = await publish(api, app, config, store, key, row, now);
       registry.records[key] = published;
       return report({ outcome: "published", issue: published.issue, pr: published.pr });
     } catch (error) {
-      if (!(error instanceof UncertainPublication)) throw error;
-      const latest = (await store.read()).state.records[key];
-      await advance(store, key, latest, { phase: "held", hold: "publication-uncertain" });
-      return report({ outcome: "held-publication-uncertain" });
+      if (error instanceof RejectedPublication)
+        return report({ outcome: "held-publication-rejected", issue: row.issue });
+      if (error instanceof UncertainPublication)
+        return report({ outcome: "held-publication-uncertain", issue: row.issue });
+      throw error;
     }
   }
   const linked = Object.entries(registry.records).filter(([, row]) => row.phase === "ready");
@@ -1057,9 +1414,11 @@ async function runRepair({
         pr.head.sha !== row.head ||
         pr.merge_commit_sha !== result.merge.mergeCommit ||
         !["ahead", "identical"].includes(status) ||
-        !(await verifyResolvedLock(api, row, lock, tools))
-      )
+        !(await verifyResolvedLock(api, row, lock, tools, transport))
+      ) {
+        if (row.wider) continue;
         throw Error("Dependency resolution lacks verified merge");
+      }
       const issue = await api.request("GET", `${ROOT}/issues/${row.issue}`);
       if (issue.state === "open") {
         if (!issueOK(issue, key, row)) throw Error("Dependency alert issue changed");
@@ -1127,7 +1486,7 @@ async function runRepair({
       return report({ outcome: "existing-dependency-pr" });
   }
   const { groups } = await alertSnapshot();
-  const queue = intakeGroups(registry, groups, day);
+  const queue = intakeGroups(registry, groups, day, heldMergeCapacity(registry, state, now));
   let heldAfter = registry.heldAfter;
   const saveTurn = async (outcome, cursor = registry.cursor) => {
     if (heldAfter !== registry.heldAfter || cursor !== registry.cursor) {
@@ -1144,6 +1503,7 @@ async function runRepair({
   };
   const source = d.digest([manifest, lock]);
   let heldOutcome;
+  let widerProbeUsed = false;
   for (const group of queue.groups) {
     const tracked = queue.tracked.get(group.name);
     let issue;
@@ -1153,33 +1513,41 @@ async function runRepair({
       issue = await readHeldIssue(api, row.issue);
       if (!trackingIssueOK(issue, key, row)) continue;
     }
-    const plan = await readPlan(group, tools, transport);
-    if (tracked && plan.status !== "compatible-candidate") continue;
+    const plan = await readPlan(group, tools, transport, undefined, { wider: Boolean(tracked) });
+    if (tracked && plan.status !== "compatible-candidate" && !plan.upgradeEvidence) continue;
     const fingerprint = d.digest([source, plan.evidence]);
     let offset = 0;
     let versions;
-    if (tracked) {
+    let alreadyExhausted = false;
+    if (tracked && plan.status === "compatible-candidate") {
       const [key, row] = tracked;
       if (
         row.recheck?.fingerprint === fingerprint &&
         now.getTime() - Date.parse(row.recheck.at) < RECHECK_INTERVAL_MS
       ) {
         offset = row.recheck.next;
-        if (offset === 0) continue;
+        if (offset === 0) alreadyExhausted = true;
       }
-      versions = plan.candidates.slice(offset, offset + RECHECK_BATCH_SIZE);
-      if (!versions.length) throw Error("Dependency recheck has no remaining candidates");
+      versions = alreadyExhausted ? [] : plan.candidates.slice(offset, offset + RECHECK_BATCH_SIZE);
+      if (!alreadyExhausted && !versions.length)
+        throw Error("Dependency recheck has no remaining candidates");
     }
-    const { candidate, version, reason, confirmed, lastHold } = await buildCandidate(
-      plan,
-      lock,
-      manifest,
-      tools,
-      transport,
-      versions
-    );
+    const narrow = alreadyExhausted
+      ? {}
+      : await buildCandidate(plan, lock, manifest, tools, transport, versions);
+    const { reason, confirmed, lastHold } = narrow;
+    const exhausted =
+      plan.status !== "compatible-candidate" ||
+      alreadyExhausted ||
+      (confirmed === versions?.length && offset + confirmed >= plan.candidates?.length);
+    const wider =
+      tracked && !narrow.candidate && exhausted && !widerProbeUsed
+        ? await checkWider(tracked[1], group, plan, source, lock, manifest, tools, transport, now)
+        : null;
+    if (wider?.checks) widerProbeUsed = true;
+    const { candidate, version } = wider?.proposal ?? narrow;
     if (tracked) {
-      if (!candidate && !confirmed) continue;
+      if (!candidate && !confirmed && !wider) continue;
       const [key, row] = tracked;
       await current(api, base);
       issue = await readHeldIssue(api, row.issue);
@@ -1188,22 +1556,26 @@ async function runRepair({
     if (!candidate) {
       if (tracked) {
         const [key, row] = tracked;
-        const body = recheckIssueBody(key, row, lastHold);
+        const body = recheckIssueBody(key, row, lastHold || wider.reason);
         if (issue.body !== body) {
           const saved = await api.request("PATCH", `${ROOT}/issues/${row.issue}`, { body });
           if (saved.body !== body || !trackingIssueOK(saved, key, row))
             throw Error("Dependency recheck note was not acknowledged");
         }
-        const position = offset + confirmed;
-        const next = position < plan.candidates.length ? position : 0;
-        registry.records[key] = await advance(store, key, row, {
-          recheck: {
+        const updates = {};
+        if (confirmed) {
+          const position = offset + confirmed;
+          const next = position < plan.candidates.length ? position : 0;
+          updates.recheck = {
             fingerprint,
             reason: lastHold,
             at: next && offset ? row.recheck.at : now.toISOString(),
             next,
-          },
-        });
+          };
+        }
+        if (wider?.checks) updates.widerChecks = wider.checks;
+        if (Object.keys(updates).length)
+          registry.records[key] = await advance(store, key, row, updates);
         heldOutcome ??= { outcome: "held-rechecked", issue: row.issue };
         continue;
       }
@@ -1239,8 +1611,12 @@ async function runRepair({
       if (registry.records[key]) continue;
       await current(api, base);
     }
-    const head = await makeCommit(api, base, candidate);
+    const head = await makeCommit(api, base, candidate, undefined, wider?.proposal?.manifest);
     const preparation = { candidate: version, day, base, head };
+    if (wider?.proposal) {
+      preparation.wider = wider.proposal.wider;
+      preparation.widerChecks = wider.checks;
+    }
     const saved = tracked
       ? await advance(store, key, tracked[1], {
           ...preparation,
@@ -1259,11 +1635,24 @@ async function runRepair({
           },
           queue.urgent === group ? day : undefined
         );
-    const published = await publish(api, app, config, store, key, saved);
-    registry.records[key] = published;
-    return saveTurn({ outcome: "published", issue: published.issue, pr: published.pr });
+    try {
+      const published = await publish(api, app, config, store, key, saved, now);
+      registry.records[key] = published;
+      return saveTurn({ outcome: "published", issue: published.issue, pr: published.pr });
+    } catch (error) {
+      if (error instanceof RejectedPublication)
+        return saveTurn({ outcome: "held-publication-rejected", issue: saved.issue });
+      if (error instanceof UncertainPublication)
+        return saveTurn({ outcome: "held-publication-uncertain", issue: saved.issue });
+      throw error;
+    }
   }
-  return saveTurn(heldOutcome ?? { outcome: "no-compatible-update" }, queue.nextOffset);
+  return saveTurn(
+    heldOutcome ?? {
+      outcome: publicationUnconfirmed ? "held-publication-uncertain" : "no-compatible-update",
+    },
+    queue.nextOffset
+  );
 }
 
 async function main(env = process.env) {
@@ -1339,6 +1728,10 @@ module.exports = {
   issueTitle,
   issueBody,
   verifyAlertPR,
+  verifyWiderContents,
+  widerReceiptFor,
+  heldMergeAllowed,
+  heldMergeCapacity,
   verifyAlertGitDiff,
   patchLock,
   runRepair,

@@ -347,3 +347,26 @@ test("only a bound, merged alert PR tolerates GitHub dropping the CI PR associat
   s.ci.pull_requests = [{ number: 99 }];
   await assert.rejects(verifyWake(input), /CI identity/);
 });
+
+test("the App CI wake accepts a wider proposal only with the exact receipt file scope", async () => {
+  const s = alertWake();
+  s.files.push({ filename: "package.json", status: "modified" });
+  const { verifyAlertCI } = require("../factory/wake-controller.cjs");
+  const config = { alertRepair: true, appSlug: "factory-example" };
+  await assert.rejects(verifyAlertCI(s.api, s.pr, s.ci, config), /forbidden files/);
+  s.record.trackingReason = "major-held";
+  s.record.wider = {
+    manifestChanged: true,
+    removed: false,
+    manifestHash: "d".repeat(64),
+    lockHash: "e".repeat(64),
+  };
+  s.issue.title = issueTitle(s.record);
+  s.issue.body =
+    issueBody(key, s.record) +
+    `\n\nRepair proposal [#22](https://github.com/${s.context.repository}/pull/22).`;
+  const verified = await verifyAlertCI(s.api, s.pr, s.ci, config);
+  assert.equal(verified.wider.manifestChanged, true);
+  s.files.push({ filename: ".github/workflows/factory-ci.yml", status: "modified" });
+  await assert.rejects(verifyAlertCI(s.api, s.pr, s.ci, config), /forbidden files/);
+});
