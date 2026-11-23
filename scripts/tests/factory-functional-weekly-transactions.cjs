@@ -324,4 +324,4 @@ function registerWeeklyTransactions() {
   it("transaction-comment", commentJourney);
 }
 
-module.exports = { registerWeeklyTransactions, transactionAssertions, writeAlias };
+module.exports = { readApp, registerWeeklyTransactions, transactionAssertions, writeAlias };
