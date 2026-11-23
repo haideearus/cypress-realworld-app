@@ -3587,7 +3587,11 @@
       "approval": null,
       "criteriaHash": "9bd0519249d7bcb35eb668767e7e9b6a7f677f24cf81ff82ce20deb6081acf95",
       "branch": "agent/weekly-ai-features",
-      "ci": null
+      "ci": {
+        "requestId": "1aa2e0b5-8ebc-41f6-955d-22cb5a5f0b97",
+        "head": "dcfab1ba968cdd239401e8ecd799af2a5314ef4d",
+        "runId": null
+      }
     },
     "203": {
       "coding": 0,
