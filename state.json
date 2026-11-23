@@ -3590,6 +3590,14 @@
           "cleared": [],
           "remainingBaseline": []
         }
+      },
+      "merge": {
+        "status": "intent",
+        "head": "1a511d1d7a28181c3fb3843ccc9d2fe3ba668480",
+        "pr": 200,
+        "at": "2026-11-23T14:24:11.431Z",
+        "runId": "45191018738",
+        "runAttempt": 1
       }
     },
     "202": {
@@ -5273,7 +5281,11 @@
       "outcome": "reviewed"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 200,
+    "runId": "45191018738",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
