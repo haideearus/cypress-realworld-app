@@ -3580,9 +3580,17 @@
       "reviews": 1,
       "retries": 0,
       "head": "88ad5c308c0203dbfcceb28c6b92db376ea664d7",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 204,
-      "approval": null,
+      "approval": {
+        "head": "88ad5c308c0203dbfcceb28c6b92db376ea664d7",
+        "pr": 204,
+        "grant": "16f99464-14bb-4f9f-afd2-284ad99b1ed8",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/45163814143"
+      },
       "criteriaHash": "554abc552ad98b25a567d8ffe7d9f03d3ea1bd99f2d5f39ff95463d033247882",
       "branch": "agent/expand-browser-discovery",
       "ci": {
@@ -3590,7 +3598,8 @@
         "head": "88ad5c308c0203dbfcceb28c6b92db376ea664d7",
         "runId": 45163929720,
         "passed": true
-      }
+      },
+      "feedback": "{\"head\":\"88ad5c308c0203dbfcceb28c6b92db376ea664d7\",\"verdict\":\"pass\",\"summary\":\"Reviewed the ticket #203 diff against HEAD 88ad5c30. The four new weekly journeys (payment-persistence, notification-read-persistence, mobile-feed-filters, bank-account-deletion) are defined consistently across scripts/factory/functional-discovery-contract.cjs (checks/assertions), implemented in scripts/tests/factory-functional-discovery.cy.js (paymentPersistence, notificationReadPersistence, mobileFeedFilters, bankAccountDeletion, gated behind the existing `extended` flag and WEEKLY_CHECKS list), and exercised with isolated fresh-session fixtures (freshDiscoveryLogin, guardExtendedJourney intercept allow-listing) that block any write the test didn't explicitly authorize. Regression coverage for these four checks exists in scripts/tests/factory-functional-browser.test.cjs (\\\"the longer discovery journeys require an extended run...\\\"), matching confirmed_failure/passedChecks semantics. The new scripts/factory/discovery-browser-handoff.cjs routes approved Cypress browser failures from the discovery sweep into the repair queue: it maps only a small fixed set of assertions (fixedAssertion), validates journey/template hashes, re-derives the rendered test body, enforces strict provenance checks (sweepInputs/assertSweepArtifact reuse the existing audited verifySweepSource from discovery-origin.cjs), and downloads evidence via a bounded, digest-verified, single-entry zip extraction (decodeBrowserArchive, MAX_ARCHIVE=4MB) with a redirect-then-no-token fetch pattern to avoid leaking the job token to signed storage URLs. Bounded isolated replay (five-minute per-finding deadline, two deterministic proposal replays plus an oracle replay with no model credential) is unchanged/reused in scripts/factory/discovery-replay.cjs, and discovery-browser-handoff.browserLeads() is wired into assessCandidates() and suppressed whenever a batch-intent mismatch sets browserFollowUp, which is a conservative anti-gaming guard. Deduplication/\\\"protected repair gate\\\" behavior (one active incident per check, `another_functional_incident_active`, current-main staleness check via assertCurrentMain) is exercised in scripts/tests/factory-discovery-browser-handoff.test.cjs. The \\\"third metered sweep\\\" is gated end-to-end: policy.cjs caps FACTORY_MAX_DISCOVERY_SWEEPS_PER_DAY at 3, discovery-policy.cjs's hasThirdSweepHeadroom requires ≥25% of the real GitHub rate-limit quota (scripts/factory/github.cjs primaryQuota, parsed from response headers, not attacker-influenced) before granting a third sweep, and .github/workflows/factory-discovery.yml only fires the extra schedule trigger when that variable is \\\"3\\\" — all backed by tests in factory-discovery-policy.test.cjs and factory-github.test.cjs. The Settings-rehearsal compatibility fix in scripts/rehearsal/prepare-settings.cjs correctly falls back to the pre-existing condition when the new `probe` output isn't present, matching the new plan-step output added in functional-discovery.cjs. I did not execute any tests or builds in this read-only session and treated the linked GitHub Actions run as external evidence rather than verifying it myself; given the diff's size (24+ files including CI workflows and docs), I concentrated on the files most load-bearing for the stated acceptance criteria rather than every line of every touched file (e.g., discovery-sandbox.cjs internals and the full workflow YAML diffs were only spot-checked).\",\"findings\":[]}"
     }
   },
   "grants": {
@@ -5151,15 +5160,12 @@
       "runId": "45163814143",
       "runAttempt": 1,
       "head": "88ad5c308c0203dbfcceb28c6b92db376ea664d7",
-      "status": "reserved",
-      "at": "2026-11-23T11:17:42.269Z"
+      "status": "finished",
+      "at": "2026-11-23T11:17:42.269Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 203,
-    "runId": "45163814143",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -8669,6 +8675,14 @@
       "runId": "45163814143",
       "runAttempt": 1,
       "actor": "haideearus"
+    },
+    {
+      "at": "2026-11-23T11:31:29.856Z",
+      "event": "finished",
+      "ticket": 203,
+      "grant": "16f99464-14bb-4f9f-afd2-284ad99b1ed8",
+      "status": "reviewed",
+      "head": "88ad5c308c0203dbfcceb28c6b92db376ea664d7"
     }
   ]
 }
