@@ -3717,9 +3717,17 @@
       "reviews": 1,
       "retries": 0,
       "head": "473d788b272ba856085e1f8816ce47b0abf06f89",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 216,
-      "approval": null,
+      "approval": {
+        "head": "473d788b272ba856085e1f8816ce47b0abf06f89",
+        "pr": 216,
+        "grant": "2931cb5d-38ab-44ca-8340-9ba50e4256a3",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/45215784863"
+      },
       "criteriaHash": "965b7ff6f30e13235eebc002e7801cc035022da63a41460f1d19fef0a916dbae",
       "branch": "agent/held-dependency-upgrades",
       "ci": {
@@ -3727,7 +3735,8 @@
         "head": "473d788b272ba856085e1f8816ce47b0abf06f89",
         "runId": 45215946981,
         "passed": true
-      }
+      },
+      "feedback": "{\"head\":\"473d788b272ba856085e1f8816ce47b0abf06f89\",\"verdict\":\"pass\",\"summary\":\"Reviewed the new scripts/factory/dependency-wider-candidate.cjs module plus its wiring into dependency-alert-repair.cjs, dependencies.cjs, dependency-alerts.cjs, dependency-analysis.cjs, dependency-contract.cjs, dependency-evidence.cjs and wake-controller.cjs, along with docs/factory/DEPENDENCY-MAINTENANCE.md. The wider-upgrade search is bounded (request/attempt/selector caps) and only reads public npm JSON metadata (never executes package code), validating registry identity, integrity and tarball URLs before use. The held-merge cap is implemented as HELD_MERGE_LIMIT=4 keyed to Europe/Bucharest day boundaries (dependency-alert-repair.cjs heldMergeCapacity/heldMergeAllowed) and enforced both at candidate selection (dependencies.cjs DependencyCoordinator.select) and at merge time (DependencyMerger.permitWrite/merge), matching the acceptance criterion and the matching unit test that checks the exact Bucharest midnight boundary. Original issues and prior attempts are retained via row.issue persistence and the bounded widerChecks history (WIDER_HISTORY_LIMIT=8). File-scope restriction (dependency-contract.cjs alertFilesOK/filesOK) limits wider PRs to package.json/yarn.lock only, which also substantiates the \\\"no label-priority or production approval changes\\\" constraint since workflow and label-ordering code paths are untouched by the diff. Independent review is informed of wider scope via the worker.cjs ticket body addition, and dependency-evidence.cjs enforces stricter advisory clearance for wider proposals. Coverage includes a new, fairly thorough test file (factory-dependency-wider-candidate.test.cjs) exercising split-version, parent-removal, major-step, selector-pinning, and transient-failure cases, plus updated handoff/wake tests for the merge cap and file-scope checks. Limits of this review: I inspected source and the included diff/CI metadata only, in a read-only session; I did not execute the test suite or the referenced CI run myself, and some supporting files (controller.cjs, worker.cjs, wake-controller.cjs edits) were only spot-checked rather than fully traced line-by-line given the very large diff size.\",\"findings\":[]}"
     }
   },
   "grants": {
@@ -5348,15 +5357,12 @@
       "runId": "45215784863",
       "runAttempt": 1,
       "head": "473d788b272ba856085e1f8816ce47b0abf06f89",
-      "status": "reserved",
-      "at": "2026-11-23T16:23:05.004Z"
+      "status": "finished",
+      "at": "2026-11-23T16:23:05.004Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 215,
-    "runId": "45215784863",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -8979,6 +8985,14 @@
       "runId": "45215784863",
       "runAttempt": 1,
       "actor": "haideearus"
+    },
+    {
+      "at": "2026-11-23T16:37:29.348Z",
+      "event": "finished",
+      "ticket": 215,
+      "grant": "2931cb5d-38ab-44ca-8340-9ba50e4256a3",
+      "status": "reviewed",
+      "head": "473d788b272ba856085e1f8816ce47b0abf06f89"
     }
   ]
 }
