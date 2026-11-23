@@ -196,6 +196,14 @@
       "phase": "tracking",
       "issue": 199,
       "pr": null
+    },
+    "5ccd5f1b7cd3c6b72c20b575da22a7c1fe18179b93b404fdd1e01302d01bc019": {
+      "name": "js-yaml",
+      "day": "2026-11-23",
+      "trackingReason": "no-common-candidate",
+      "phase": "tracking-intent",
+      "issue": null,
+      "pr": null
     }
   },
   "heldAfter": "brace-expansion"
