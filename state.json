@@ -3524,9 +3524,9 @@
       "reviews": 1,
       "retries": 0,
       "origin": "dependency-pr",
-      "head": "104fc8782aeaf497da883787a3899e73c427f200",
+      "head": "1a511d1d7a28181c3fb3843ccc9d2fe3ba668480",
       "pr": 200,
-      "status": "blocked",
+      "status": "new",
       "approval": null,
       "branch": "dependabot/npm_and_yarn/fuse.js-6.6.2",
       "criteriaHash": "7ac00746dca3ab2638a34bab0c8015046afd81ccade34d745591e7bab1f525a9",
@@ -3546,34 +3546,18 @@
             "runAttempt": 1,
             "workflowSha": "825f1f42bc6696ce1ee66ef02bc78144ea9a3974",
             "at": "2026-11-23T04:39:12.164Z"
+          },
+          {
+            "head": "1a511d1d7a28181c3fb3843ccc9d2fe3ba668480",
+            "base": "526aeb1286741708370428e82b2a9b7b67a4256b",
+            "runId": "45191018738",
+            "runAttempt": 1,
+            "workflowSha": "526aeb1286741708370428e82b2a9b7b67a4256b",
+            "at": "2026-11-23T14:08:57.585Z"
           }
         ]
       },
-      "ci": {
-        "requestId": "e9a9491f-9b15-4965-88d5-9ae7acc03d80",
-        "head": "104fc8782aeaf497da883787a3899e73c427f200",
-        "runId": 45113241531,
-        "passed": true
-      },
-      "analysis": {
-        "version": 2,
-        "repository": "haideearus/cypress-realworld-app",
-        "pr": 200,
-        "base": "825f1f42bc6696ce1ee66ef02bc78144ea9a3974",
-        "head": "104fc8782aeaf497da883787a3899e73c427f200",
-        "workflowSha": "825f1f42bc6696ce1ee66ef02bc78144ea9a3974",
-        "runId": "45113100962",
-        "runAttempt": 1,
-        "stage": "analysis",
-        "toolDigest": "f280c92eeb2f5ac163b37bbe2d1cffa0ca85a8237161c40dced67f0c8f5dffb5",
-        "at": "2026-11-23T04:39:45.348Z",
-        "result": {
-          "changed": 2,
-          "candidateVersions": 2,
-          "cleared": [],
-          "remainingBaseline": []
-        }
-      },
+      "ci": null,
       "feedback": "Dependency subscription review unavailable; no automatic retry of this head"
     },
     "202": {
@@ -5245,7 +5229,11 @@
       "outcome": "reviewed"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 200,
+    "runId": "45191018738",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -8799,6 +8787,16 @@
       "grant": "cbdb1b76-7a4f-445e-b925-a01756adfd05",
       "status": "reviewed",
       "head": "dcfab1ba968cdd239401e8ecd799af2a5314ef4d"
+    },
+    {
+      "at": "2026-11-23T14:08:57.585Z",
+      "event": "dependency_metadata_admitted",
+      "ticket": 200,
+      "head": "1a511d1d7a28181c3fb3843ccc9d2fe3ba668480",
+      "runId": "45191018738",
+      "actor": "github-actions[bot]",
+      "wakeReceipt": "77e76126abab68b8c753cae2954100432cb808b5dd8ab1dd08e5fbba65cbd8c7",
+      "sourceActor": "dependabot[bot]"
     }
   ]
 }
