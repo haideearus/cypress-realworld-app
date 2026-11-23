@@ -34,6 +34,15 @@ function quotaSafeRequest(method, path) {
   );
 }
 
+function primaryQuota(headers) {
+  if (headers?.get("x-ratelimit-resource") !== "core") return null;
+  const limit = headers.get("x-ratelimit-limit");
+  const remaining = headers.get("x-ratelimit-remaining");
+  if (!/^[1-9]\d{0,8}$/.test(limit || "") || !/^\d{1,9}$/.test(remaining || "")) return null;
+  if (Number(remaining) > Number(limit)) return null;
+  return { limit: Number(limit), remaining: Number(remaining) };
+}
+
 class GitHub {
   constructor({
     token,
@@ -102,6 +111,7 @@ class GitHub {
     let gatewayAttempts = 0;
     for (;;) {
       const response = await this.fetch(url, { ...options, signal: AbortSignal.timeout(30000) });
+      this.primaryQuota = primaryQuota(response.headers);
       if (
         retryable &&
         gatewayAttempts < READ_BACKOFF_MS.length &&

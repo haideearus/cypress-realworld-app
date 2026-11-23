@@ -54,22 +54,25 @@ function isolateWorkflows(app) {
         .replaceAll(`${LIVE}'`, `${SANDBOX}'`)
         .replaceAll(LIVE_APP_URL, SANDBOX_APP_URL);
       // The rehearsal has one owner dispatch and a resulting event wake. No cron.
-      return scoped.replace(/^  schedule:\r?\n    - cron:[^\r\n]+\r?\n/m, "");
+      return scoped.replace(/^  schedule:\r?\n(?: {4}[^\r\n]*\r?\n)+/m, "");
     });
   }
   // Preview reports all outcomes. Only this assertion can open an issue in the rehearsal.
-  modify(app, ".github/workflows/factory-functional-discovery.yml", (source) =>
-    replaceOnce(
-      source,
-      "    if: ${{ needs.browser.result == 'success' }}",
+  modify(app, ".github/workflows/factory-functional-discovery.yml", (source) => {
+    const browserSuccess = "needs.browser.result == 'success'";
+    const browserProbe = browserSuccess + " && needs.browser.outputs.probe == 'true'";
+    const condition = source.includes(browserProbe) ? browserProbe : browserSuccess;
+    return replaceOnce(
+      source.replace("workflows: [Factory CI, Proactive app discovery]", "workflows: [Factory CI]"),
+      "    if: ${{ " + condition + " }}",
       `    if: >-
-      \${{ needs.browser.result == 'success' &&
+      \${{ ${condition} &&
           (inputs.dry_run || needs.browser.outputs.status == 'healthy' ||
            (needs.browser.outputs.status == 'confirmed_failure' &&
             needs.browser.outputs.check == 'form-validation' &&
             needs.browser.outputs.assertion == 'settings-email-invalid')) }}`
-    )
-  );
+    );
+  });
   modify(app, ".github/actions/factory-app-token/action.yml", (source) =>
     replaceOnce(
       source,

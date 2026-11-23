@@ -112,8 +112,8 @@ function seedSyntheticUser(scenario, profile) {
     });
 }
 
-function fillDemoBank() {
-  for (const [field, value] of Object.entries(testBank))
+function fillDemoBank(account = testBank) {
+  for (const [field, value] of Object.entries(account))
     cy.get(selector(`bankaccount-${field}-input`))
       .find("input")
       .clear()
@@ -121,7 +121,7 @@ function fillDemoBank() {
   cy.get(selector("bankaccount-submit")).click();
 }
 
-function bankAccountRequest(request, userId) {
+function bankAccountRequest(request, userId, account = testBank) {
   const { operationName, query, variables } = request.body || {};
   if (typeof query !== "string") return;
   // Permit only the app's named, single-root GraphQL operations for this fixture.
@@ -141,12 +141,389 @@ function bankAccountRequest(request, userId) {
     /^bankName:\s*\$bankName\s*,?\s*accountNumber:\s*\$accountNumber\s*,?\s*routingNumber:\s*\$routingNumber$/.test(
       save?.[1].trim()
     ) &&
-    Cypress._.isEqual(
-      variables,
-      variables?.userId === undefined ? testBank : { ...testBank, userId }
-    )
+    Cypress._.isEqual(variables, variables?.userId === undefined ? account : { ...account, userId })
   )
     return "save";
+}
+
+const disposableOrigin = "https://127.0.0.1:8443";
+const sender = { id: "uBmeaz5pX", credentials: user };
+const receiver = { id: "GjWovtg2hr", credentials: { ...user, username: "Arvilla_Hegmann" } };
+const paymentMemo = "Discovery demo payment";
+const notificationRows = '[data-test^="notification-list-item-"]';
+const primaryNotification = "8NnQy36xaMtB";
+
+function guardExtendedJourney() {
+  expect(Cypress.config("baseUrl")).to.equal(disposableOrigin);
+  const flow = {};
+  cy.viewport(1280, 800);
+  cy.intercept({ url: "**", middleware: true }, (request) => {
+    const target = new URL(request.url);
+    if (target.origin !== disposableOrigin) return request.reply({ statusCode: 204 });
+    if (request.method === "GET" || request.method === "HEAD") return;
+    if (target.pathname === "/api/graphql" && request.method === "POST" && !target.search) {
+      if (
+        bankAccountRequest(request) === "list" &&
+        (request.body.variables === undefined || Cypress._.isEqual(request.body.variables, {}))
+      )
+        return;
+    }
+    const write = flow.write;
+    if (
+      write &&
+      request.method === write.method &&
+      target.pathname === write.path &&
+      !target.search &&
+      write.matches(request)
+    ) {
+      flow.write = undefined;
+      request.alias = "discoveryWrite";
+      return;
+    }
+    return request.reply({ statusCode: 405 });
+  });
+  return flow;
+}
+
+function allowWrite(flow, method, path, matches) {
+  cy.then(() => {
+    expect(flow.write).to.be.undefined;
+    flow.write = { method, path, matches };
+  });
+}
+
+function freshDiscoveryLogin(flow, fixture) {
+  const { id, credentials } = fixture;
+  cy.clearAllCookies({ log: false });
+  allowWrite(flow, "POST", "/api/login", ({ body }) =>
+    Cypress._.isEqual(body, {
+      type: "LOGIN",
+      username: credentials.username,
+      password: credentials.password,
+    })
+  );
+  signInFixture(credentials);
+  return cy.wait("@discoveryWrite", { log: false }).then(({ response }) => {
+    expect(response?.statusCode).to.equal(200);
+    expect(response?.body?.user?.id).to.equal(id);
+    return response.body.user;
+  });
+}
+
+function expectExactText(query, expected, id) {
+  cy.get("body").should(($body) => {
+    const $element = $body.find(query);
+    expect(visible($element) && $element.text().trim() === expected, named(id)).to.equal(true);
+  });
+}
+
+function expectBalance(cents, id) {
+  expectExactText(
+    selector("sidenav-user-balance"),
+    (cents / 100).toLocaleString("en-US", { style: "currency", currency: "USD" }),
+    id
+  );
+}
+
+function openDiscoveryNotifications() {
+  cy.get(selector("sidenav-notifications")).click();
+  cy.location("pathname").should("equal", "/notifications");
+}
+
+function expectPaymentHistory(transactionId, id) {
+  cy.get(selector("sidenav-home")).click();
+  cy.get(selector("nav-personal-tab")).click();
+  expectRoute("/personal", id);
+  const item = selector("transaction-item-" + transactionId);
+  expectText(item, paymentMemo, id);
+  expectText(item + " " + selector("transaction-amount-" + transactionId), "$2.00", id);
+  return cy.get(item);
+}
+
+function paymentPersistence() {
+  const flow = guardExtendedJourney();
+  let recipientBefore;
+  let senderBefore;
+  freshDiscoveryLogin(flow, receiver).then(({ balance }) => {
+    expect(Number.isSafeInteger(balance)).to.equal(true);
+    recipientBefore = balance;
+  });
+  freshDiscoveryLogin(flow, sender).then(({ balance }) => {
+    expect(Number.isSafeInteger(balance) && balance >= 200).to.equal(true);
+    senderBefore = balance;
+  });
+
+  cy.get(selector("nav-top-new-transaction")).click();
+  cy.get(selector("user-list-search-input")).type("Kristian");
+  cy.get(selector("user-list-item-" + receiver.id)).click();
+  cy.get(selector("transaction-create-amount-input") + " input")
+    .type("2")
+    .blur();
+  cy.get(selector("transaction-create-description-input") + " input")
+    .type(paymentMemo)
+    .blur();
+  const payment = {
+    senderId: sender.id,
+    receiverId: receiver.id,
+    transactionType: "payment",
+    description: paymentMemo,
+  };
+  allowWrite(
+    flow,
+    "POST",
+    "/api/transactions",
+    ({ body }) =>
+      (body?.amount === "2" || body?.amount === 2) &&
+      Cypress._.isEqual(body, { ...payment, amount: body.amount })
+  );
+  cy.get(selector("transaction-create-submit-payment")).click();
+  cy.wait("@discoveryWrite", { log: false }).then(({ response }) => {
+    const id = named("payment-created");
+    expect(response?.statusCode, id).to.equal(200);
+    const transaction = response?.body?.transaction;
+    expect(transaction, id).to.include({
+      senderId: sender.id,
+      receiverId: receiver.id,
+      amount: 200,
+      description: paymentMemo,
+    });
+    expect(transaction.id, id).to.match(/^[a-zA-Z0-9_-]{7,24}$/);
+
+    freshDiscoveryLogin(flow, sender);
+    expectBalance(senderBefore - 200, "payment-sender-balance");
+    expectPaymentHistory(transaction.id, "payment-sender-history");
+
+    freshDiscoveryLogin(flow, receiver);
+    expectBalance(recipientBefore + 200, "payment-recipient-balance");
+    cy.intercept("GET", "/api/notifications").as("paymentNotifications");
+    openDiscoveryNotifications();
+    cy.wait("@paymentNotifications", { log: false }).then(({ response: notifications }) => {
+      const assertion = named("payment-recipient-notification");
+      expect(notifications?.statusCode, assertion).to.equal(200);
+      expect(notifications?.body?.results, assertion).to.be.an("array");
+      const matches = notifications.body.results.filter(
+        (item) => item.transactionId === transaction.id && item.userId === receiver.id
+      );
+      expect(matches, assertion).to.have.length(1);
+      expect(matches[0].id, assertion).to.match(/^[a-zA-Z0-9_-]{7,24}$/);
+      expectText(
+        selector("notification-list-item-" + matches[0].id),
+        "received payment.",
+        "payment-recipient-notification"
+      );
+    });
+
+    expectPaymentHistory(transaction.id, "payment-recipient-history").click();
+    expectRoute("/transaction/" + transaction.id, "payment-receipt-opened");
+    expectText(selector("transaction-description"), paymentMemo, "payment-receipt-opened");
+    expectText(selector("transaction-amount-" + transaction.id), "$2.00", "payment-receipt-opened");
+  });
+}
+
+function notificationReadPersistence() {
+  const flow = guardExtendedJourney();
+  const notification = selector("notification-list-item-" + primaryNotification);
+  const dismiss = selector("notification-mark-read-" + primaryNotification);
+  const badge = selector("nav-top-notifications-count");
+  freshDiscoveryLogin(flow, sender);
+  openDiscoveryNotifications();
+  cy.get(notification).should("be.visible");
+  cy.get(notificationRows).then(($rows) => {
+    const remaining = Array.from($rows, (row) => row.dataset.test).filter(
+      (id) => id !== "notification-list-item-" + primaryNotification
+    );
+    expect(remaining.length).to.be.greaterThan(0);
+    allowWrite(flow, "PATCH", "/api/notifications/" + primaryNotification, ({ body }) =>
+      Cypress._.isEqual(body, { id: primaryNotification, isRead: true })
+    );
+    cy.get(dismiss).click();
+    cy.wait("@discoveryWrite", { log: false }).then(({ response }) => {
+      expect(response?.statusCode, named("notification-read-dismissed")).to.equal(204);
+    });
+    expectExactText(badge, String(remaining.length), "notification-read-dismissed");
+
+    freshDiscoveryLogin(flow, sender);
+    openDiscoveryNotifications();
+    cy.get("body").should(($body) => {
+      expect(
+        Array.from($body.find(notificationRows), (row) => row.dataset.test),
+        named("notification-read-reloaded")
+      ).to.have.members(remaining);
+    });
+    expectExactText(badge, String(remaining.length), "notification-read-reloaded");
+  });
+}
+
+function mobileFeedFilters() {
+  const flow = guardExtendedJourney();
+  freshDiscoveryLogin(flow, sender);
+  cy.viewport(390, 844);
+  cy.intercept({ method: "GET", pathname: "/api/transactions" }).as("personalFeed");
+  cy.get(selector("nav-personal-tab")).click();
+  cy.wait("@personalFeed").then(({ response }) => {
+    const baseline = response?.body?.results?.map(({ id }) => id);
+    expect(baseline, named("mobile-filters-unfiltered")).to.include("J5Fd3dlBEBu");
+    expectVisible(selector("transaction-item-J5Fd3dlBEBu"), "mobile-filters-unfiltered");
+
+    const amountButton = selector("transaction-list-filter-amount-range-button");
+    const amountClose = selector("amount-range-filter-drawer-close");
+    cy.get(amountButton).click();
+    cy.get(selector("transaction-list-filter-amount-range-slider")).then(($slider) => {
+      // Clicking 40% of the slider moves the lower thumb to $400.
+      cy.wrap($slider).click(Math.round($slider.width() * 0.4), Math.round($slider.height() / 2));
+    });
+    expectText(
+      selector("transaction-list-filter-amount-range-text"),
+      "$400 - $1,000",
+      "mobile-filters-amount"
+    );
+    cy.get(amountClose).click();
+    cy.wait("@personalFeed").then(({ response: amount }) => {
+      const assertion = named("mobile-filters-amount");
+      expect(
+        amount?.body?.results?.map(({ id }) => id),
+        assertion
+      ).to.include("GiWvOORKa8fF");
+      expect(
+        amount.body.results.every(({ amount }) => amount >= 40000),
+        assertion
+      ).to.equal(true);
+    });
+    expectVisible(selector("transaction-item-GiWvOORKa8fF"), "mobile-filters-amount");
+
+    // The amount filter debounces against wall time. Pin only the calendar's starting month.
+    cy.clock(new Date(2024, 2, 15).getTime(), ["Date"]).as("calendarClock");
+    cy.get(selector("transaction-list-filter-date-range-button")).click();
+    const calendarDay =
+      selector("transaction-list-filter-date-range") +
+      " .react-calendar__month-view__days button:not(.react-calendar__month-view__days__day--neighboringMonth)";
+    cy.contains(calendarDay, /^5$/).click();
+    cy.contains(calendarDay, /^7$/).click();
+    cy.get("@calendarClock").invoke("restore");
+    cy.wait("@personalFeed").then(({ response: empty }) => {
+      expect(empty?.body?.results, named("mobile-filters-empty")).to.deep.equal([]);
+    });
+    expectExactText(selector("empty-list-header"), "No Transactions", "mobile-filters-empty");
+    const create = selector("transaction-list-empty-create-transaction-button");
+    expectVisible(create, "mobile-filters-empty");
+    cy.get(create).should(($link) => {
+      expect($link.attr("href"), named("mobile-filters-empty")).to.equal("/transaction/new");
+    });
+
+    cy.get(amountButton).click();
+    cy.get(selector("transaction-list-filter-amount-clear-button")).click();
+    cy.get(amountClose).click();
+    cy.wait("@personalFeed").then(({ response: date }) => {
+      expect(
+        date?.body?.results?.map(({ id }) => id),
+        named("mobile-filters-date")
+      ).to.deep.equal(["Wfk6WoLHlPZ", "52ypEQM_-jD", "glw3rNgxp6yC", "UOO3uWBD_iZ"]);
+    });
+    expectVisible(selector("transaction-item-Wfk6WoLHlPZ"), "mobile-filters-date");
+
+    cy.get(selector("transaction-list-filter-date-clear-button")).click();
+    cy.wait("@personalFeed").then(({ response: restored }) => {
+      expect(
+        restored?.body?.results?.map(({ id }) => id),
+        named("mobile-filters-reset")
+      ).to.deep.equal(baseline);
+    });
+    expectExactText(
+      selector("transaction-list-filter-date-range-button"),
+      "Date: ALL",
+      "mobile-filters-reset"
+    );
+    expectVisible(selector("transaction-item-J5Fd3dlBEBu"), "mobile-filters-reset");
+  });
+}
+
+function saveDiscoveryBank(flow, fixture, bank) {
+  allowWrite(
+    flow,
+    "POST",
+    "/api/graphql",
+    (request) => bankAccountRequest(request, fixture.id, bank) === "save"
+  );
+  fillDemoBank(bank);
+  return cy.wait("@discoveryWrite", { log: false }).then(({ response }) => {
+    const account = response?.body?.data?.createBankAccount;
+    expect(response?.statusCode).to.equal(200);
+    expect(account?.id).to.match(/^[a-zA-Z0-9_-]{7,24}$/);
+    expect(account.userId).to.equal(fixture.id);
+    return account;
+  });
+}
+
+function removeDiscoveryBank(flow, account, id) {
+  const row = selector("bankaccount-list-item-" + account.id);
+  const button = selector("bankaccount-delete");
+  expectText(row, account.bankName, id);
+  allowWrite(
+    flow,
+    "POST",
+    "/api/graphql",
+    ({ body }) =>
+      body?.operationName === "DeleteBankAccount" &&
+      typeof body.query === "string" &&
+      /^mutation DeleteBankAccount\s*\(\s*\$id:\s*ID!\s*\)\s*\{\s*deleteBankAccount\s*\(\s*id:\s*\$id\s*\)\s*\}$/.test(
+        body.query.trim()
+      ) &&
+      Cypress._.isEqual(body.variables, { id: account.id })
+  );
+  cy.get(row).find(button).click();
+  cy.wait("@discoveryWrite", { log: false }).then(({ response }) => {
+    expect(response?.statusCode, named(id)).to.equal(200);
+    expect(response?.body?.data?.deleteBankAccount, named(id)).to.equal(true);
+  });
+  expectText(row, "(Deleted)", id);
+}
+
+function bankAccountDeletion() {
+  const flow = guardExtendedJourney();
+  const secondBank = { ...testBank, bankName: "Discovery Second Bank", accountNumber: "000000002" };
+  const dialog = selector("user-onboarding-dialog");
+  const next = selector("user-onboarding-next");
+  const accountsLink = selector("sidenav-bankaccounts");
+  seedSyntheticUser("bankdelete", { firstName: "Discovery", lastName: "Fixture" }).then(
+    (fixture) => {
+      freshDiscoveryLogin(flow, fixture);
+      cy.get(next).click();
+      saveDiscoveryBank(flow, fixture, testBank).then((first) => {
+        cy.contains(next, "Done").click();
+        cy.get(accountsLink).click();
+        cy.get(selector("bankaccount-new")).click();
+        saveDiscoveryBank(flow, fixture, secondBank).then((second) => {
+          cy.get(selector("bankaccount-list-item-" + second.id)).should("be.visible");
+          removeDiscoveryBank(flow, first, "bank-deletion-first-removed");
+          freshDiscoveryLogin(flow, fixture);
+          cy.visit("/bankaccounts");
+          expectText(
+            selector("bankaccount-list-item-" + first.id),
+            "(Deleted)",
+            "bank-deletion-active-account"
+          );
+          expectVisible(
+            selector("bankaccount-list-item-" + second.id) + " " + selector("bankaccount-delete"),
+            "bank-deletion-active-account"
+          );
+          cy.get("body").should(($body) => {
+            expect(
+              $body.find(dialog).is(":visible"),
+              named("bank-deletion-active-account")
+            ).to.equal(false);
+          });
+
+          removeDiscoveryBank(flow, second, "bank-deletion-last-removed");
+          freshDiscoveryLogin(flow, fixture);
+          expectText(
+            selector("user-onboarding-dialog-title"),
+            "Get Started",
+            "bank-deletion-onboarding"
+          );
+        });
+      });
+    }
+  );
 }
 
 describe("functional discovery", () => {
@@ -510,6 +887,10 @@ describe("functional discovery", () => {
     expectInputLabel("password", "Password", "sign-in-password-label");
   });
   if (extended) {
+    it("mobile-feed-filters", { scrollBehavior: "center" }, mobileFeedFilters);
+    it("payment-persistence", { scrollBehavior: "center" }, paymentPersistence);
+    it("notification-read-persistence", { scrollBehavior: "center" }, notificationReadPersistence);
+    it("bank-account-deletion", bankAccountDeletion);
     registerWeeklyTransactions();
     registerWeeklyAvatar();
   }

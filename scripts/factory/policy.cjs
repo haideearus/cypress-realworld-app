@@ -37,7 +37,13 @@ function readConfig(vars) {
   const config = {
     enabled: vars.FACTORY_ENABLED === "true",
     discovery: vars.FACTORY_DISCOVERY_ENABLED === "true",
+    discoverySweeps: integer(
+      vars.FACTORY_MAX_DISCOVERY_SWEEPS_PER_DAY ?? "2",
+      "discovery sweeps",
+      3
+    ),
   };
+  if (config.discoverySweeps < 1) deny("Invalid discovery sweep limit: expected 1 to 3");
   if (![undefined, "true", "false"].includes(vars.FACTORY_ENABLED)) deny("Invalid enabled setting");
   for (const [key, name] of [
     ["FACTORY_AUTOMATION_ENABLED", "automatic"],

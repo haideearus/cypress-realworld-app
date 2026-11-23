@@ -144,6 +144,7 @@ async function assessCandidates({
     if (interrupted) throw interrupted.error;
     findings.push({ finding, original, proposedReplays, ...verified });
   }
+  const browserLeads = require("./discovery-browser-handoff.cjs").browserLeads(b);
   return {
     version: 1,
     head: b.head,
@@ -162,6 +163,7 @@ async function assessCandidates({
         : {}),
     })),
     findings,
+    ...(browserLeads.length ? { browserLeads } : {}),
     ...(b.browserFollowUp === true ? { browserFollowUp: true } : {}),
     sourceHash: b.sourceHash,
     coverageComplete: false,

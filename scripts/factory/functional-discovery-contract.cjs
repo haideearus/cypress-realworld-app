@@ -6,6 +6,10 @@ const WEEKLY_CHECKS = Object.freeze([
   "request-decline",
   "transaction-comment",
   "profile-picture-persistence",
+  "payment-persistence",
+  "notification-read-persistence",
+  "mobile-feed-filters",
+  "bank-account-deletion",
 ]);
 const CHECKS = Object.freeze({
   "sign-in": "Browser sign-in",
@@ -23,6 +27,11 @@ const CHECKS = Object.freeze({
   "request-decline": "Declining a money request without changing balances",
   "transaction-comment": "Saving a transaction comment through reload",
   "profile-picture-persistence": "Uploading and reloading a profile picture",
+  "payment-persistence": "Finding a demo payment and its receipt after signing in again",
+  "notification-read-persistence":
+    "Dismissing a notification and checking unread items after sign-in",
+  "mobile-feed-filters": "Filtering and restoring the transaction feed on a small screen",
+  "bank-account-deletion": "Deleting demo bank accounts and signing in again",
 });
 const ASSERTIONS = Object.freeze({
   "sign-in": ["sign-in-form", "sign-in-route", "sign-in-identity", "sign-in-session"],
@@ -104,6 +113,29 @@ const ASSERTIONS = Object.freeze({
     "avatar-success",
     "avatar-profile-reloaded",
     "avatar-image-after-reload",
+  ],
+  "payment-persistence": [
+    "payment-created",
+    "payment-sender-balance",
+    "payment-recipient-balance",
+    "payment-sender-history",
+    "payment-recipient-history",
+    "payment-recipient-notification",
+    "payment-receipt-opened",
+  ],
+  "notification-read-persistence": ["notification-read-dismissed", "notification-read-reloaded"],
+  "mobile-feed-filters": [
+    "mobile-filters-unfiltered",
+    "mobile-filters-amount",
+    "mobile-filters-empty",
+    "mobile-filters-date",
+    "mobile-filters-reset",
+  ],
+  "bank-account-deletion": [
+    "bank-deletion-first-removed",
+    "bank-deletion-active-account",
+    "bank-deletion-last-removed",
+    "bank-deletion-onboarding",
   ],
   "bank-account-onboarding": [
     "onboarding-wizard",
