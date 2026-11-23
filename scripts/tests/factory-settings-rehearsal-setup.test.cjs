@@ -4,6 +4,7 @@ const os = require("node:os");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 const test = require("node:test");
+const yaml = require("js-yaml");
 
 const repo = path.resolve(__dirname, "../..");
 const script = path.join(repo, "scripts/rehearsal/prepare-settings.cjs");
@@ -65,7 +66,10 @@ test("preparation exports the healthy app and a separate one-line seed, with no 
   );
   for (const workflow of workflows) {
     const content = read(`.github/workflows/${workflow}`);
-    assert.doesNotMatch(content, /^  schedule:\s*$/m);
+    const config = yaml.load(content);
+    assert.equal(config.on.schedule, undefined);
+    if (workflow === "factory-functional-discovery.yml")
+      assert.ok(!config.on.workflow_run?.workflows.includes("Proactive app discovery"));
     assert.doesNotMatch(content, /onrender\.com|RENDER_DEPLOY|anthropic_api_key:/);
   }
   const expected = read(seedPath);
