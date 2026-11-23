@@ -3722,7 +3722,11 @@
       "approval": null,
       "criteriaHash": "965b7ff6f30e13235eebc002e7801cc035022da63a41460f1d19fef0a916dbae",
       "branch": "agent/held-dependency-upgrades",
-      "ci": null
+      "ci": {
+        "requestId": "1d7f4266-db39-4b6b-9bc9-c5261b99dd55",
+        "head": "473d788b272ba856085e1f8816ce47b0abf06f89",
+        "runId": null
+      }
     }
   },
   "grants": {
