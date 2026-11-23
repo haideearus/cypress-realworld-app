@@ -3694,7 +3694,11 @@
       "approval": null,
       "criteriaHash": "5d27a0ca1ab4399b4082fffe8cd2a6294017a83ac64328fe9de758e6b2cbb3c2",
       "branch": "agent/dependency-evidence-recovery",
-      "ci": null
+      "ci": {
+        "requestId": "1830a100-06f0-4a19-8cad-bebdf8f22669",
+        "head": "ae2a73511753ecbad8d3f259c61dd6a3a50687ac",
+        "runId": null
+      }
     }
   },
   "grants": {
