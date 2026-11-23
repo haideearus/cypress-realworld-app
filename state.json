@@ -128,7 +128,8 @@
       206,
       202,
       211,
-      215
+      215,
+      217
     ]
   },
   "tickets": {
@@ -3737,6 +3738,38 @@
         "passed": true
       },
       "feedback": "{\"head\":\"473d788b272ba856085e1f8816ce47b0abf06f89\",\"verdict\":\"pass\",\"summary\":\"Reviewed the new scripts/factory/dependency-wider-candidate.cjs module plus its wiring into dependency-alert-repair.cjs, dependencies.cjs, dependency-alerts.cjs, dependency-analysis.cjs, dependency-contract.cjs, dependency-evidence.cjs and wake-controller.cjs, along with docs/factory/DEPENDENCY-MAINTENANCE.md. The wider-upgrade search is bounded (request/attempt/selector caps) and only reads public npm JSON metadata (never executes package code), validating registry identity, integrity and tarball URLs before use. The held-merge cap is implemented as HELD_MERGE_LIMIT=4 keyed to Europe/Bucharest day boundaries (dependency-alert-repair.cjs heldMergeCapacity/heldMergeAllowed) and enforced both at candidate selection (dependencies.cjs DependencyCoordinator.select) and at merge time (DependencyMerger.permitWrite/merge), matching the acceptance criterion and the matching unit test that checks the exact Bucharest midnight boundary. Original issues and prior attempts are retained via row.issue persistence and the bounded widerChecks history (WIDER_HISTORY_LIMIT=8). File-scope restriction (dependency-contract.cjs alertFilesOK/filesOK) limits wider PRs to package.json/yarn.lock only, which also substantiates the \\\"no label-priority or production approval changes\\\" constraint since workflow and label-ordering code paths are untouched by the diff. Independent review is informed of wider scope via the worker.cjs ticket body addition, and dependency-evidence.cjs enforces stricter advisory clearance for wider proposals. Coverage includes a new, fairly thorough test file (factory-dependency-wider-candidate.test.cjs) exercising split-version, parent-removal, major-step, selector-pinning, and transient-failure cases, plus updated handoff/wake tests for the merge cap and file-scope checks. Limits of this review: I inspected source and the included diff/CI metadata only, in a read-only session; I did not execute the test suite or the referenced CI run myself, and some supporting files (controller.cjs, worker.cjs, wake-controller.cjs edits) were only spot-checked rather than fully traced line-by-line given the very large diff size.\",\"findings\":[]}"
+    },
+    "217": {
+      "coding": 0,
+      "reviews": 0,
+      "retries": 0,
+      "origin": "dependency-pr",
+      "head": "3fd19d19a7d950233e04a04ebde3398b83b428fb",
+      "pr": 217,
+      "status": "new",
+      "approval": null,
+      "branch": "agent/dependency-alert-2702bb8457f35edb6bfb39ec1714432aabaf1eb75c182d62ebb73d894d9e64da",
+      "criteriaHash": "8e7e730aebef788e12bdb7159d2a0b1e5862bd643305089a1de70ba8f57ce846",
+      "dependency": {
+        "version": 1,
+        "pr": 217,
+        "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-dependencies.yml@refs/heads/main",
+        "workflowSha": "224152a199f75f34f6982e60737071d81cfb62d7",
+        "runId": "45222732002",
+        "runAttempt": 1,
+        "appSlug": "haideearus-software-factory",
+        "attempts": [
+          {
+            "head": "3fd19d19a7d950233e04a04ebde3398b83b428fb",
+            "base": "224152a199f75f34f6982e60737071d81cfb62d7",
+            "runId": "45222732002",
+            "runAttempt": 1,
+            "workflowSha": "224152a199f75f34f6982e60737071d81cfb62d7",
+            "at": "2026-11-23T17:00:27.189Z"
+          }
+        ]
+      },
+      "ci": null
     }
   },
   "grants": {
@@ -5362,7 +5395,11 @@
       "outcome": "reviewed"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 217,
+    "runId": "45222732002",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -8993,6 +9030,16 @@
       "grant": "2931cb5d-38ab-44ca-8340-9ba50e4256a3",
       "status": "reviewed",
       "head": "473d788b272ba856085e1f8816ce47b0abf06f89"
+    },
+    {
+      "at": "2026-11-23T17:00:27.189Z",
+      "event": "dependency_metadata_admitted",
+      "ticket": 217,
+      "head": "3fd19d19a7d950233e04a04ebde3398b83b428fb",
+      "runId": "45222732002",
+      "actor": "github-actions[bot]",
+      "wakeReceipt": "dd1f828e47926e60dcbc9d017327e950219741f06b1549594d79091a82c57f4d",
+      "sourceActor": "haideearus-software-factory[bot]"
     }
   ]
 }
