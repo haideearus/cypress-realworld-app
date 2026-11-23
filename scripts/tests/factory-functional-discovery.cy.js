@@ -1,5 +1,8 @@
 const { WEEKLY_CHECKS } = require("../factory/functional-discovery-contract.cjs");
-const { registerWeeklyTransactions } = require("./factory-functional-weekly-transactions.cjs");
+const {
+  readApp,
+  registerWeeklyTransactions,
+} = require("./factory-functional-weekly-transactions.cjs");
 const { registerWeeklyAvatar } = require("./factory-functional-weekly-avatar.cjs");
 const extended = Cypress.expose("factoryFunctionalExtended") === true;
 
@@ -295,13 +298,13 @@ function paymentPersistence() {
 
     freshDiscoveryLogin(flow, receiver);
     expectBalance(recipientBefore + 200, "payment-recipient-balance");
-    cy.intercept("GET", "/api/notifications").as("paymentNotifications");
     openDiscoveryNotifications();
-    cy.wait("@paymentNotifications", { log: false }).then(({ response: notifications }) => {
+    // Sign-in can already have a notifications request in flight when the page opens.
+    readApp("/notifications").then(({ status, body }) => {
       const assertion = named("payment-recipient-notification");
-      expect(notifications?.statusCode, assertion).to.equal(200);
-      expect(notifications?.body?.results, assertion).to.be.an("array");
-      const matches = notifications.body.results.filter(
+      expect(status, assertion).to.equal(200);
+      expect(body?.results, assertion).to.be.an("array");
+      const matches = body.results.filter(
         (item) => item.transactionId === transaction.id && item.userId === receiver.id
       );
       expect(matches, assertion).to.have.length(1);
