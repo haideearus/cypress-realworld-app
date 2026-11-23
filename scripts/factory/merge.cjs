@@ -105,7 +105,7 @@ class AutomaticMerger {
     const { state } = await this.ledger.read();
     return this.stateTicket(state, ticket, expected);
   }
-  async issue(ticket, t, { merged = false } = {}) {
+  async issue(ticket, t, { merged = false, confirmation = false } = {}) {
     const issue = await this.api.request("GET", `${ROOT}/issues/${ticket}`);
     const monitor = t.monitor
       ? await verifyMonitorIssue(this.api, issue, { proof: t.monitor, requireActive: false })
@@ -113,10 +113,25 @@ class AutomaticMerger {
     const finding =
       t.finding &&
       (await require("./discovery-origin.cjs").verifyRepairOrigin(this.api, issue, t.finding));
+    if (t.feature && !confirmation && t.feature.mode !== this.config.featureMode)
+      throw Error("Weekly feature mode changed before a new merge");
+    const feature =
+      t.feature &&
+      (await require("./feature-origin.cjs").verifyFeatureIssue(this.api, issue, {
+        proof: t.feature,
+        allowClosed: merged,
+        ...(confirmation ? {} : { mode: this.config.featureMode }),
+      }));
     if (
       issue.number !== ticket ||
       issue.pull_request ||
-      (t.monitor ? !monitor : t.finding ? !finding : issue.user?.login !== policy.OWNER) ||
+      (t.monitor
+        ? !monitor
+        : t.finding
+          ? !finding
+          : t.feature
+            ? !feature
+            : issue.user?.login !== policy.OWNER) ||
       (issue.state !== "open" && !(merged && issue.state === "closed")) ||
       criteriaHash(issue) !== t.criteriaHash
     )
@@ -538,6 +553,18 @@ class AutomaticMerger {
     if (terminal) return terminal;
     if (["merged", "closed"].includes(t.merge?.status))
       throw new Error("Terminal merge record disagrees with current PR state");
+    if (
+      t.feature &&
+      (t.feature.mode !== this.config.featureMode ||
+        (!slots.activeFor(state, ticket) &&
+          (await require("./feature-priority.cjs").repairsWaiting(
+            this.api,
+            this.config,
+            this.context,
+            state
+          ))))
+    )
+      return { ticket, merged: false, reason: "Feature merge paused by mode or ready repairs" };
     await this.issue(ticket, t);
     await this.ci(t);
     let gate = await this.checks(ticket, t, {

@@ -134,6 +134,48 @@ test("the third selection reserves quota headroom and excludes all used charters
     /already used/i
   );
 });
+test("the weekly planner shares discovery capacity and the daily admission budget", () => {
+  const meter = require("../factory/feature-meter.cjs");
+  const { WORKFLOW } = require("../factory/feature-contract.cjs");
+  const { selectSweep } = require("../factory/discovery-run.cjs");
+  const cfg = { ...config(), automatic: true, featureMode: "live", daily: 3, discoverySweeps: 3 };
+  const context = {
+    ...request(99),
+    event: "schedule",
+    workflowRef: `${p.REPOSITORY}/${WORKFLOW}@refs/heads/main`,
+  };
+  const plan = meter.reserve(p.emptyState(p.REPOSITORY), context, cfg, now);
+  const select = (state) =>
+    selectSweep({
+      state,
+      registry: { sources: {} },
+      head,
+      day: "2026-11-17",
+      config: cfg,
+      quota: { limit: 1000, remaining: 500 },
+    });
+  assert.match(select(plan.state).reason, /active work/);
+  assert.throws(() => one(plan.state, request(), cfg), /capacity/i);
+
+  let state = meter.finish(plan.state, context, plan.grant.id, "blocked", now);
+  for (const [id, charter] of [
+    [100, "functional-feed"],
+    [101, "functional-directory"],
+  ]) {
+    const sweep = one(state, request(id, charter), cfg);
+    state = p.finish(sweep.state, sweep.grant.id, { status: "discovery_complete" }, now);
+  }
+  assert.match(select(state).reason, /daily ticket limit/i);
+  assert.throws(
+    () =>
+      one(
+        state,
+        { ...request(102, "functional-notifications"), quota: { limit: 1000, remaining: 500 } },
+        cfg
+      ),
+    /daily ticket limit/i
+  );
+});
 test("discovery cannot bypass the global cap, stop, disabled opt-in or active work", () => {
   assert.throws(
     () => one(p.emptyState(p.REPOSITORY), request(), { ...config(), daily: 0 }),

@@ -9,6 +9,7 @@ class MetadataStore {
         "activity",
         "discovery",
         "findings",
+        "features",
         "dependency-alerts",
         "dependency-tracking",
       ].includes(namespace)

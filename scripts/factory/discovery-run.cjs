@@ -40,9 +40,9 @@ function selectSweep({
     )
   )
     return { ready: false, reason: "Duplicate main CI discovery signal" };
-  if (repairsWaiting || active.activeEntries(state).length)
+  if (repairsWaiting || active.usedCapacity(state))
     return { ready: false, reason: "Repairs or active work take priority" };
-  if ((state.days[day] || []).length >= config.daily)
+  if (p.dailyAdmissions(state, day) >= config.daily)
     return { ready: false, reason: "Daily ticket limit reached" };
   const discoveryGrants = Object.values(state.grants).filter((g) => g.phase === "discover");
   const usedToday = discoveryGrantsOn(state, day, config.timezone);

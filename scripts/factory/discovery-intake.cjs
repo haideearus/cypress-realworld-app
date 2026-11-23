@@ -28,7 +28,7 @@ function canReplay(state, config, day) {
     config.enabled &&
     config.automatic &&
     config.discovery &&
-    (state.days[day] || []).length < config.daily &&
+    p.dailyAdmissions(state, day) < config.daily &&
     require("./active-tickets.cjs").capacity(state, config.concurrent) &&
     !require("./active-tickets.cjs").pendingIntent(state)
   );

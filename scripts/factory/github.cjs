@@ -40,7 +40,10 @@ function primaryQuota(headers) {
   const remaining = headers.get("x-ratelimit-remaining");
   if (!/^[1-9]\d{0,8}$/.test(limit || "") || !/^\d{1,9}$/.test(remaining || "")) return null;
   if (Number(remaining) > Number(limit)) return null;
-  return { limit: Number(limit), remaining: Number(remaining) };
+  const quota = { limit: Number(limit), remaining: Number(remaining) };
+  const reset = headers.get("x-ratelimit-reset");
+  if (/^[1-9]\d{0,11}$/.test(reset || "")) quota.reset = Number(reset) * 1000;
+  return quota;
 }
 
 class GitHub {

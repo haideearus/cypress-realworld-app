@@ -1,0 +1,151 @@
+name: Weekly AI features
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Read-only preview, guarded pilot, or live planning
+        type: choice
+        options: [preview, pilot, run]
+        default: preview
+  schedule:
+    - cron: "4 5,11,17,23 * * *"
+      timezone: Europe/Bucharest
+permissions:
+  contents: read
+concurrency:
+  group: factory-features
+  cancel-in-progress: false
+jobs:
+  preview:
+    if: ${{ github.repository == 'haideearus/cypress-realworld-app' && github.ref == 'refs/heads/main' && github.run_attempt == 1 && github.actor == 'haideearus' && github.actor == github.triggering_actor && github.event_name == 'workflow_dispatch' && inputs.operation == 'preview' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.20.0
+      - name: Preview weekly product work without reserving a model
+        run: node scripts/factory/feature-run.cjs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FACTORY_VARIABLES: ${{ toJSON(vars) }}
+          FACTORY_INPUTS: ${{ toJSON(inputs) }}
+          FACTORY_OPERATION: preview
+  select:
+    if: ${{ github.repository == 'haideearus/cypress-realworld-app' && github.ref == 'refs/heads/main' && github.run_attempt == 1 && github.actor == 'haideearus' && github.actor == github.triggering_actor && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' && ((github.event_name == 'workflow_dispatch' && inputs.operation == 'pilot' && vars.FACTORY_FEATURE_MODE == 'pilot') || ((github.event_name == 'schedule' || inputs.operation == 'run') && vars.FACTORY_FEATURE_MODE == 'live')) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    concurrency:
+      group: factory-ledger
+      cancel-in-progress: false
+      queue: max
+    permissions:
+      actions: read
+      contents: write
+      issues: write
+      pull-requests: read
+    outputs:
+      ready: ${{ steps.select.outputs.ready }}
+      grant: ${{ steps.select.outputs.grant }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.20.0
+      - name: Advance one publication or reserve the weekly planner
+        id: select
+        run: node scripts/factory/feature-run.cjs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FACTORY_VARIABLES: ${{ toJSON(vars) }}
+          FACTORY_INPUTS: ${{ toJSON(inputs) }}
+          FACTORY_OPERATION: select
+  plan:
+    needs: select
+    if: ${{ needs.select.outputs.ready == 'true' && vars.FACTORY_FEATURE_MODE == 'live' && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    permissions:
+      actions: read
+      contents: read
+      issues: read
+      pull-requests: read
+    outputs:
+      result: ${{ steps.model.outputs.structured_output }}
+      success: ${{ steps.model.outcome == 'success' }}
+    env:
+      ANTHROPIC_API_KEY: ""
+      OPENAI_API_KEY: ""
+      ANTHROPIC_AUTH_TOKEN: ""
+      ANTHROPIC_BASE_URL: ""
+      ANTHROPIC_PROFILE: ""
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.20.0
+      - name: Install the checksum-pinned source scanner
+        run: node scripts/factory/scanner-install.cjs
+      - name: Scan source before preparing product excerpts
+        run: node scripts/factory/secret-scan.cjs source
+      - name: Verify the metered planning reservation and prepare bounded product evidence
+        id: prepare
+        run: node scripts/factory/feature-run.cjs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FACTORY_VARIABLES: ${{ toJSON(vars) }}
+          FACTORY_INPUTS: ${{ toJSON(needs.select.outputs) }}
+          FACTORY_OPERATION: prepare
+      - name: Run the single reserved Claude subscription planning session
+        id: model
+        if: ${{ steps.prepare.outputs.ready == 'true' }}
+        timeout-minutes: ${{ fromJSON(vars.FACTORY_RUN_TIMEOUT_MINUTES || '15') }}
+        uses: anthropics/claude-code-action@4fa93a88de49bbef68b10eb15aabedf28ca0e1ed
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ github.token }}
+          prompt: ${{ fromJSON(steps.prepare.outputs.promptJson) }}
+          claude_args: ${{ steps.prepare.outputs.claudeArgs }}
+          settings: '{"disableAllHooks":true,"enableAllProjectMcpServers":false}'
+          display_report: "false"
+          show_full_output: "false"
+  finish:
+    needs: [select, plan]
+    if: ${{ always() && needs.select.outputs.grant != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    concurrency:
+      group: factory-ledger
+      cancel-in-progress: false
+      queue: max
+    permissions:
+      actions: read
+      contents: write
+      issues: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.20.0
+      - name: Validate the weekly plan without model access
+        run: node scripts/factory/feature-run.cjs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FACTORY_VARIABLES: ${{ toJSON(vars) }}
+          FACTORY_INPUTS: ${{ toJSON(needs.select.outputs) }}
+          FACTORY_OPERATION: finish
+          FACTORY_MODEL_SUCCESS: ${{ needs.plan.outputs.success }}
+          FACTORY_MODEL_RESULT: ${{ needs.plan.outputs.result }}

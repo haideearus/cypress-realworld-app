@@ -75,12 +75,10 @@ function reserveSweep(original, r, config, now = new Date()) {
   if (original.tickets[String(r.ticket)]) throw Error("Discovery source already admitted");
   if (Object.values(original.tickets).some((t) => t.discovery?.key === r.discovery.key))
     throw Error("Duplicate discovery source");
-  if (active.activeEntries(original).length >= config.concurrent)
-    throw Error("No active discovery capacity");
-  active.capacity(original, config.concurrent);
+  if (!active.capacity(original, config.concurrent)) throw Error("No active discovery capacity");
   const day = p.dayKey(now, config.timezone);
   if (day !== r.discovery.day) throw Error("Discovery day changed before reservation");
-  if ((original.days[day] || []).length >= config.daily) throw Error("Daily ticket limit reached");
+  if (p.dailyAdmissions(original, day) >= config.daily) throw Error("Daily ticket limit reached");
   const used = discoveryGrantsOn(original, day, config.timezone);
   if (used.length >= (config.discoverySweeps ?? 2))
     throw Error("Discovery daily session limit reached");

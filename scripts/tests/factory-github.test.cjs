@@ -17,7 +17,12 @@ test("GitHub persistence adapter exists", () =>
   assert.ok(adapter, "missing GitHub ledger adapter"));
 test("only the latest valid core quota headers establish GitHub API headroom", async () => {
   const headers = [
-    { "x-ratelimit-resource": "core", "x-ratelimit-limit": "1000", "x-ratelimit-remaining": "250" },
+    {
+      "x-ratelimit-resource": "core",
+      "x-ratelimit-limit": "1000",
+      "x-ratelimit-remaining": "250",
+      "x-ratelimit-reset": "1795430400",
+    },
     { "x-ratelimit-resource": "search", "x-ratelimit-limit": "10", "x-ratelimit-remaining": "10" },
     {
       "x-ratelimit-resource": "core",
@@ -31,7 +36,7 @@ test("only the latest valid core quota headers establish GitHub API headroom", a
   });
   const path = adapter.ROOT + "/issues";
   await api.request("GET", path);
-  assert.deepEqual(api.primaryQuota, { limit: 1000, remaining: 250 });
+  assert.deepEqual(api.primaryQuota, { limit: 1000, remaining: 250, reset: 1795430400000 });
   await api.request("GET", path);
   assert.equal(api.primaryQuota, null);
   await api.request("GET", path);
