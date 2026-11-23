@@ -3585,7 +3585,11 @@
       "approval": null,
       "criteriaHash": "554abc552ad98b25a567d8ffe7d9f03d3ea1bd99f2d5f39ff95463d033247882",
       "branch": "agent/expand-browser-discovery",
-      "ci": null
+      "ci": {
+        "requestId": "b25edad9-7af2-4686-9233-d7f1b3c46695",
+        "head": "88ad5c308c0203dbfcceb28c6b92db376ea664d7",
+        "runId": null
+      }
     }
   },
   "grants": {
