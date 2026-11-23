@@ -206,5 +206,5 @@
       "pr": null
     }
   },
-  "heldAfter": "brace-expansion"
+  "heldAfter": "extract-zip"
 }
