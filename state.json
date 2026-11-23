@@ -3560,7 +3560,8 @@
       "ci": {
         "requestId": "cff2ee4e-b2bc-4a95-8b87-5e8b1d1d1ef8",
         "head": "1a511d1d7a28181c3fb3843ccc9d2fe3ba668480",
-        "runId": null
+        "runId": 45191263580,
+        "passed": true
       },
       "feedback": "Dependency subscription review unavailable; no automatic retry of this head",
       "analysis": {
