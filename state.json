@@ -3689,9 +3689,17 @@
       "reviews": 1,
       "retries": 0,
       "head": "ae2a73511753ecbad8d3f259c61dd6a3a50687ac",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 212,
-      "approval": null,
+      "approval": {
+        "head": "ae2a73511753ecbad8d3f259c61dd6a3a50687ac",
+        "pr": 212,
+        "grant": "306d4695-439f-467e-bc4a-ab5978ff89d1",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/45199118929"
+      },
       "criteriaHash": "5d27a0ca1ab4399b4082fffe8cd2a6294017a83ac64328fe9de758e6b2cbb3c2",
       "branch": "agent/dependency-evidence-recovery",
       "ci": {
@@ -3699,7 +3707,8 @@
         "head": "ae2a73511753ecbad8d3f259c61dd6a3a50687ac",
         "runId": 45199259215,
         "passed": true
-      }
+      },
+      "feedback": "{\"head\":\"ae2a73511753ecbad8d3f259c61dd6a3a50687ac\",\"verdict\":\"pass\",\"summary\":\"Reviewed the base-to-head diff for ticket #211 against the current source of this synthetic CI/CD \\\"factory\\\" automation (not the app itself): .github/workflows/factory-dependencies.yml, factory-model.yml, scripts/factory/dependency-preflight.cjs (new), dependency-evidence-http.cjs (new), dependency-contract.cjs, dependencies.cjs, dependency-tracking.cjs, dependency-review-context.cjs, controller.cjs, policy.cjs, worker.cjs, and the accompanying test suites. All four acceptance criteria are implemented and cross-checked against their own tests: (1) a model-free \\\"evidence\\\" job now runs before \\\"reserve\\\", installing parser tools without model credentials and uploading a scanned, digest-bound evidence.json artifact (factory-dependencies.yml:164-237, worker.cjs:317-326 no longer fetches evidence itself); (2) dependency-preflight.cjs's prepare() retries exactly once, only after a confirmed 502/503/504 (public_service_unavailable), waiting 60s, and both the \\\"temporary\\\" and final records are appended to the same attempt's `evidence` array rather than creating a new attempt — enforced structurally by dependency-contract.cjs's validateEvidenceHistory/validateTicket; (3) dependency-tracking.cjs's recoverTrackedPR detects a stale native head via compare-with-main, requests one `@dependabot rebase` using the optional owner-scoped FACTORY_DEPENDABOT_REBASE_TOKEN (falling back to a manual-instruction note when unset), and posts a bounded, marker-deduplicated blocker comment on the linked tracking issue, gated by recoveryAllowed() (no active lease/reserved grant/stop); (4) the stop switch (policy.assertNotStopped), existing review/attempt/day limits, required-CI binding (controller.validateCI now also pins run_attempt, matching the evidence packet's ciEvidence.runAttempt), and human merge/production-approval code paths (merge.cjs, render checks) are untouched by this diff. I traced the digest/age/CI binding chain (dependency-preflight.cjs verifyPacket, reserve(), worker.cjs) and the token-scoping (evidenceTransport only attaches GH_TOKEN to same-repo Actions GET calls; redirect:\\\"error\\\" on all public fetches) and found them internally consistent and covered by new/updated tests (factory-dependency-preflight.test.cjs, factory-dependency-tracking.test.cjs, factory-workflows.test.cjs, factory-worker.test.cjs, etc.). Limitations: this was a static, read-only review (no commands executed); the supplied CI link was not itself inspected for pass/fail detail, only the diff and current source were examined; and one edge case — a crashed evidence job leaving a permanent unfinished \\\"started\\\" record — is not explicitly covered by a test, though it degrades safely (permanently blocks only that one head, consistent with the system's existing no-auto-retry-on-same-head policy) rather than corrupting state.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"dependency-preflight.cjs's prepare()/record() leaves a permanent evidence entry with status \\\"started\\\" (never finalized) if the evidence job's process is killed/times out mid network-call. dependency-contract.cjs's validateEvidenceHistory accepts a trailing \\\"started\\\" record as valid, so the ticket is later blocked via the pre-existing completed-run recovery path in dependencies.cjs select(), but no test exercises this exact crash/mid-flight scenario specifically for the evidence job (only for successful retry/held/rate-limit paths).\"}]}"
     }
   },
   "grants": {
@@ -5308,15 +5317,12 @@
       "runId": "45199118929",
       "runAttempt": 1,
       "head": "ae2a73511753ecbad8d3f259c61dd6a3a50687ac",
-      "status": "reserved",
-      "at": "2026-11-23T14:54:13.061Z"
+      "status": "finished",
+      "at": "2026-11-23T14:54:13.061Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 211,
-    "runId": "45199118929",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -8921,6 +8927,14 @@
       "runId": "45199118929",
       "runAttempt": 1,
       "actor": "haideearus"
+    },
+    {
+      "at": "2026-11-23T15:09:21.568Z",
+      "event": "finished",
+      "ticket": 211,
+      "grant": "306d4695-439f-467e-bc4a-ab5978ff89d1",
+      "status": "reviewed",
+      "head": "ae2a73511753ecbad8d3f259c61dd6a3a50687ac"
     }
   ]
 }
