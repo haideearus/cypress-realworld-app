@@ -88,8 +88,8 @@
     },
     "258": {
       "branch": "dependabot/npm_and_yarn/jws-3.2.3",
-      "issue": null,
-      "status": "intent"
+      "issue": 262,
+      "status": "open"
     }
   }
 }
