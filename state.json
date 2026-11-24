@@ -4633,7 +4633,7 @@
       "reviews": 1,
       "retries": 0,
       "head": "55bccb96fcf41af117a01e4eb4e3083a0527c612",
-      "status": "reviewing",
+      "status": "blocked",
       "pr": 272,
       "approval": null,
       "criteriaHash": "45952281671750c15bc301c6a4cd432a86f2c595e91c744e7d1b25d1db27b1a9",
@@ -4643,7 +4643,8 @@
         "head": "55bccb96fcf41af117a01e4eb4e3083a0527c612",
         "runId": 45466753240,
         "passed": false
-      }
+      },
+      "feedback": "Owner PR CI or subscription review unavailable; no automatic retry"
     }
   },
   "grants": {
@@ -6420,15 +6421,12 @@
       "runId": "45466599716",
       "runAttempt": 1,
       "head": "55bccb96fcf41af117a01e4eb4e3083a0527c612",
-      "status": "reserved",
-      "at": "2026-11-24T19:06:30.100Z"
+      "status": "finished",
+      "at": "2026-11-24T19:06:30.100Z",
+      "outcome": "blocked"
     }
   },
-  "active": {
-    "ticket": 271,
-    "runId": "45466599716",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -10514,6 +10512,12 @@
       "runId": "45466599716",
       "runAttempt": 1,
       "actor": "haideearus"
+    },
+    {
+      "at": "2026-11-24T19:15:51.942Z",
+      "event": "blocked",
+      "ticket": 271,
+      "reason": "Owner PR CI or subscription review unavailable; no automatic retry"
     }
   ],
   "featureTurn": {
