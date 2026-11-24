@@ -40,6 +40,11 @@
       "branch": "dependabot/npm_and_yarn/faker-js/faker-10.5.0",
       "issue": 244,
       "status": "open"
+    },
+    "233": {
+      "branch": "dependabot/npm_and_yarn/babel/core-7.29.6",
+      "issue": null,
+      "status": "intent"
     }
   }
 }
