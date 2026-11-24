@@ -69,9 +69,9 @@
       "issue": 159,
       "pr": null,
       "recheck": {
-        "fingerprint": "72e461f69108df79dce61f35fa61989dcb518ff0338e2a586a0104ef919a7359",
+        "fingerprint": "6cc5943e9902cefd35716701225583e0d6dadd8e01fb2707056bfa00aa12bbb6",
         "reason": "graph-held",
-        "at": "2026-11-23T14:33:00.547Z",
+        "at": "2026-11-24T10:21:41.699Z",
         "next": 4
       }
     },
