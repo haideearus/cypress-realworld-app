@@ -3981,6 +3981,36 @@
       "status": "observed",
       "receiver": null,
       "at": "2026-11-24T19:16:20.843Z"
+    },
+    "b1b28cc05a025ec358cb88e71a980da5b0c7ae8700bae49af792654547ab27f8": {
+      "id": "b1b28cc05a025ec358cb88e71a980da5b0c7ae8700bae49af792654547ab27f8",
+      "signal": {
+        "kind": "drain",
+        "lane": "app",
+        "number": 271,
+        "head": "855b89710d6e3b2f16c25c9521748f756023e600",
+        "criteriaHash": "081c128909a1594e67c4b4c1316dee170612d25c98298e569f1897411309827f",
+        "revision": "1",
+        "sourceRun": "45472765851",
+        "sourceAttempt": 1,
+        "actor": {
+          "login": "haideearus",
+          "id": 101267861
+        }
+      },
+      "producer": {
+        "runId": "45476162285",
+        "runAttempt": 1,
+        "workflowSha": "855b89710d6e3b2f16c25c9521748f756023e600",
+        "actor": {
+          "login": "haideearus",
+          "id": 101267861
+        },
+        "event": "workflow_run"
+      },
+      "status": "intent",
+      "receiver": null,
+      "at": "2026-11-24T20:00:34.772Z"
     }
   }
 }
