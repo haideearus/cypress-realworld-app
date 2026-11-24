@@ -135,7 +135,8 @@
       219,
       225,
       237,
-      239
+      239,
+      242
     ]
   },
   "tickets": {
@@ -4060,6 +4061,28 @@
         "passed": true
       },
       "feedback": "{\"head\":\"f29e794b1d22afe3acc4074b764a7a05603f629d\",\"verdict\":\"pass\",\"summary\":\"Reviewed scripts/factory/wake-controller.cjs, scripts/factory/trusted-wake.cjs, scripts/factory/wake-contract.cjs and the accompanying regression tests in scripts/tests/factory-wake.test.cjs and scripts/tests/factory-dependency-alert-wake.test.cjs against ticket #239's criteria for PR #238. The new StaleWakeSource error class (wake-contract.cjs) lets verifySource distinguish genuinely stale evidence (closed PR/issue, changed head, stale base) from ambiguous/transient GitHub responses (missing identity fields, incomplete compare/main evidence), fixing a prior single-candidate `.find()` design that could get stuck on one flaky item forever. handleWake now scans up to MAX_DRAIN_SOURCE_CHECKS=20 pending candidates within a 60s budget, marks confirmed-stale ones \\\"observed\\\" and pushes transiently-unverifiable ones to the back of the receipts map (verified via object re-insertion) so later completions can reach good work, matching the \\\"stale requests skipped / temporary errors leave requests queued\\\" criteria. The full-replace branch reuses sourceKey-derived ids so a queued dependency-ci/alert-ci receipt is dispatched exactly once with its original PR number/head/CI run (confirmed via dependencyWakeTarget assertions in the new tests), while the ordinary app-pickup shortcut (drain.lane===\\\"app\\\" && queued.lane===\\\"app\\\") only marks matched app work \\\"observed\\\" without replacing the dispatched signal, preserving discovery completion's original app route when no dependency work is ready. Duplicate dispatch protection (alreadyDrained plus the atomic store.update's old-status check) and ledger immutability during this path are exercised directly by the new tests, and merge/ledger logic itself is untouched by the diff. I did not execute any code in this read-only session; the diff's test additions are evidence of coverage, and the context.json references an external CI run which I treat as supplied evidence rather than something I verified myself.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"scripts/factory/trusted-wake.cjs ~lines 58-65: for issue/monitor/finding signals, the added `if (!bound && issue.state === \\\"closed\\\") throw new c.StaleWakeSource(...)` always fires before the subsequent `(!bound && issue.state !== \\\"open\\\")` clause can ever be true (GitHub issue state is only open or closed), leaving that half of the OR dead. Harmless but worth a cleanup pass.\"}]}"
+    },
+    "242": {
+      "coding": 0,
+      "reviews": 0,
+      "retries": 0,
+      "origin": "discovery-sweep",
+      "head": "c03ab9795ae0ce7c761e0e645f53ad22fae81ba7",
+      "status": "discovering",
+      "pr": null,
+      "approval": null,
+      "discovery": {
+        "version": 1,
+        "head": "c03ab9795ae0ce7c761e0e645f53ad22fae81ba7",
+        "ciRunId": "45405312198",
+        "charter": "functional-feed",
+        "day": "2026-11-24",
+        "key": "0448559aa00cf03a40842cf437adacce368952df0092bdf337dea18168730d37",
+        "runId": "45406649604",
+        "runAttempt": 1,
+        "workflowSha": "c03ab9795ae0ce7c761e0e645f53ad22fae81ba7",
+        "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-discovery.yml@refs/heads/main"
+      }
     }
   },
   "grants": {
@@ -5743,9 +5766,24 @@
       "status": "finished",
       "at": "2026-11-24T13:15:26.061Z",
       "outcome": "reviewed"
+    },
+    "3ff26f7d-1765-4179-a6ad-2c9ee03a43b1": {
+      "id": "3ff26f7d-1765-4179-a6ad-2c9ee03a43b1",
+      "ticket": 242,
+      "phase": "discover",
+      "slot": "discovery",
+      "runId": "45406649604",
+      "runAttempt": 1,
+      "head": "c03ab9795ae0ce7c761e0e645f53ad22fae81ba7",
+      "status": "reserved",
+      "at": "2026-11-24T13:46:43.062Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 242,
+    "runId": "45406649604",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -9535,6 +9573,16 @@
       "grant": "f0d30d92-3841-415f-aed5-8c56e8357417",
       "status": "reviewed",
       "head": "f29e794b1d22afe3acc4074b764a7a05603f629d"
+    },
+    {
+      "at": "2026-11-24T13:46:43.062Z",
+      "event": "reserved",
+      "ticket": 242,
+      "grant": "3ff26f7d-1765-4179-a6ad-2c9ee03a43b1",
+      "phase": "discover",
+      "runId": "45406649604",
+      "runAttempt": 1,
+      "actor": "haideearus"
     }
   ]
 }
