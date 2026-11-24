@@ -4509,9 +4509,9 @@
       "reviews": 0,
       "retries": 0,
       "origin": "dependency-pr",
-      "head": "c505120623970ef2f9ce125b90e0e81049060d61",
+      "head": "785da08ec41f3c0cfd0d0b2531347db280f3e35a",
       "pr": 247,
-      "status": "blocked",
+      "status": "new",
       "approval": null,
       "branch": "dependabot/npm_and_yarn/uuid-14.0.0",
       "criteriaHash": "a423a2104e7c24fb1c9fb5d45bf62d380e9a177989629720b1c57b32b4fa4bdf",
@@ -4531,6 +4531,14 @@
             "runAttempt": 1,
             "workflowSha": "4dea2134dabb2b0bee7d02234e57eca920843d3e",
             "at": "2026-11-24T14:29:49.570Z"
+          },
+          {
+            "head": "785da08ec41f3c0cfd0d0b2531347db280f3e35a",
+            "base": "855b89710d6e3b2f16c25c9521748f756023e600",
+            "runId": "45463570279",
+            "runAttempt": 1,
+            "workflowSha": "855b89710d6e3b2f16c25c9521748f756023e600",
+            "at": "2026-11-24T18:50:24.365Z"
           }
         ]
       },
@@ -6386,7 +6394,11 @@
       "outcome": "reviewed"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 247,
+    "runId": "45463570279",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -10445,6 +10457,16 @@
       "runAttempt": 1,
       "outcome": "accepted",
       "mergeCommit": "855b89710d6e3b2f16c25c9521748f756023e600"
+    },
+    {
+      "at": "2026-11-24T18:50:24.365Z",
+      "event": "dependency_metadata_admitted",
+      "ticket": 247,
+      "head": "785da08ec41f3c0cfd0d0b2531347db280f3e35a",
+      "runId": "45463570279",
+      "actor": "github-actions[bot]",
+      "wakeReceipt": "ec36f1100428da2c1765f63cccaabc1f8896c6b8f8ecef2770c6547e3bea6bcf",
+      "sourceActor": "dependabot[bot]"
     }
   ]
 }
