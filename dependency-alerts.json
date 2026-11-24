@@ -141,7 +141,7 @@
       "name": "@babel/plugin-transform-modules-systemjs",
       "day": "2026-11-24",
       "trackingReason": "graph-held",
-      "phase": "issue",
+      "phase": "pr-intent",
       "issue": 167,
       "pr": null,
       "candidate": "7.29.4",
