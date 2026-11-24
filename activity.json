@@ -277,29 +277,6 @@
       },
       "status": "intent",
       "commentId": null
-    },
-    "45d1c986c5da65b330a825362777c83c9c2afac829d4243a5cf610e16dace9d4": {
-      "event": {
-        "id": "45d1c986c5da65b330a825362777c83c9c2afac829d4243a5cf610e16dace9d4",
-        "producer": {
-          "runId": "45441606903",
-          "runAttempt": 1,
-          "workflow": "factory-dependencies.yml",
-          "workflowSha": "6e8e495d97a4e1ff502a66921c9367c91707bfd9",
-          "phase": "merge-220",
-          "actor": "haideearus"
-        },
-        "kind": "merge",
-        "state": "merged",
-        "subject": 220,
-        "head": "87af49adb379b3614c1ecd46f1683eef5fc0f038",
-        "summary": "Protected merge confirmed in the retained usage ledger.",
-        "links": [
-          "https://github.com/haideearus/cypress-realworld-app/actions/runs/45441606903"
-        ]
-      },
-      "status": "intent",
-      "commentId": null
     }
   },
   "lastMonitor": {
