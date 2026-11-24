@@ -17,7 +17,8 @@
       "status": "open",
       "recovery": {
         "0a3dce48ab4d74087f4790298a28b3b74a0cddcc": {
-          "refresh": "confirmed"
+          "refresh": "confirmed",
+          "stale": "requested"
         }
       }
     },
