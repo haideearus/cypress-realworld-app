@@ -55,6 +55,11 @@
       "branch": "dependabot/npm_and_yarn/humanfs/node-0.16.8",
       "issue": 251,
       "status": "open"
+    },
+    "236": {
+      "branch": "dependabot/npm_and_yarn/browserslist-4.29.6",
+      "issue": null,
+      "status": "intent"
     }
   }
 }
