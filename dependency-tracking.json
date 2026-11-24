@@ -35,6 +35,11 @@
       "branch": "dependabot/npm_and_yarn/source-map-js-1.2.4",
       "issue": 243,
       "status": "open"
+    },
+    "232": {
+      "branch": "dependabot/npm_and_yarn/faker-js/faker-10.5.0",
+      "issue": null,
+      "status": "intent"
     }
   }
 }
