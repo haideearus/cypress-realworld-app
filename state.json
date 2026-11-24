@@ -4724,7 +4724,8 @@
       "ci": {
         "requestId": "0fe6d3e8-dc56-401b-99fd-085bdd800635",
         "head": "3a7371d1f14029ae4bafa3d3a438ca838aa97099",
-        "runId": null
+        "runId": 45486867250,
+        "passed": true
       },
       "analysis": {
         "version": 2,
