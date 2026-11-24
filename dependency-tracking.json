@@ -78,8 +78,8 @@
     },
     "250": {
       "branch": "dependabot/npm_and_yarn/tootallnate/once-2.0.1",
-      "issue": null,
-      "status": "intent"
+      "issue": 257,
+      "status": "open"
     }
   }
 }
