@@ -125,7 +125,16 @@
     "261": {
       "branch": "dependabot/npm_and_yarn/rollup-2.80.0",
       "issue": 265,
-      "status": "open"
+      "status": "open",
+      "recovery": {
+        "669c95a66717b8b9e5d8f5b610d7211411d49cd9": {
+          "bases": {
+            "917fd8d36848c43679f41adb654920e51864007f": {
+              "refresh": "attempted"
+            }
+          }
+        }
+      }
     },
     "267": {
       "branch": "dependabot/npm_and_yarn/passport-0.6.0",
