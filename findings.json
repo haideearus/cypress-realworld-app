@@ -478,6 +478,17 @@
         "artifactDigest": "sha256:0bd9626e68734f0e8b62b075b4fd7fc47c22881107d30e444fda645b02b8f4b7",
         "status": "completed"
       }
+    },
+    "3ff26f7d-1765-4179-a6ad-2c9ee03a43b1": {
+      "runId": "45406649604",
+      "evidenceHash": "a17cd15ed997a8bf464618caa4fa086f18f42c2398d6a8c27d5eb05f810682f1",
+      "findings": [],
+      "status": "complete",
+      "sweepClosure": {
+        "artifactId": 14925808781,
+        "artifactDigest": "sha256:efe7ee393f43520a23da3743eb447d665ca170c025969492b00cadba576140fe",
+        "status": "pending"
+      }
     }
   }
 }
