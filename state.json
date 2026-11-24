@@ -4638,7 +4638,11 @@
       "approval": null,
       "criteriaHash": "45952281671750c15bc301c6a4cd432a86f2c595e91c744e7d1b25d1db27b1a9",
       "branch": "agent/native-dependency-refresh-recovery",
-      "ci": null,
+      "ci": {
+        "requestId": "ea16c036-e25c-49d6-8962-de824b4537cb",
+        "head": "fe29a799d5a453c101374c7364252b451a4dc321",
+        "runId": null
+      },
       "feedback": "Owner PR CI or subscription review unavailable; no automatic retry"
     }
   },
