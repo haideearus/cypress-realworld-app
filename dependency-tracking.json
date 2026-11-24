@@ -74,7 +74,7 @@
     "248": {
       "branch": "dependabot/npm_and_yarn/ws-8.23.0",
       "issue": 254,
-      "status": "open"
+      "status": "closing"
     },
     "249": {
       "branch": "dependabot/npm_and_yarn/babel/plugin-transform-modules-systemjs-7.29.15",
