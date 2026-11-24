@@ -14,7 +14,7 @@
     "221": {
       "branch": "dependabot/npm_and_yarn/baseline-browser-mapping-2.11.39",
       "issue": 228,
-      "status": "open",
+      "status": "closing",
       "recovery": {
         "0a3dce48ab4d74087f4790298a28b3b74a0cddcc": {
           "refresh": "confirmed",
