@@ -3947,7 +3947,13 @@
             "runId": "45379539568",
             "runAttempt": 1,
             "workflowSha": "6acff5ac4a036d2df4ba85bafc043551c935e400",
-            "at": "2026-11-24T10:57:10.415Z"
+            "at": "2026-11-24T10:57:10.415Z",
+            "evidence": [
+              {
+                "at": "2026-11-24T11:09:51.057Z",
+                "status": "started"
+              }
+            ]
           }
         ]
       },
