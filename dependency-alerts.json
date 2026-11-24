@@ -101,7 +101,7 @@
       "name": "nanoid",
       "day": "2026-11-24",
       "trackingReason": "major-held",
-      "phase": "linked",
+      "phase": "ready",
       "issue": 164,
       "pr": 219,
       "candidate": "3.3.18",
