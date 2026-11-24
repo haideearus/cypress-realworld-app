@@ -15,6 +15,11 @@
       "branch": "dependabot/npm_and_yarn/baseline-browser-mapping-2.11.39",
       "issue": 228,
       "status": "open"
+    },
+    "222": {
+      "branch": "dependabot/npm_and_yarn/morgan-1.12.1",
+      "issue": null,
+      "status": "intent"
     }
   }
 }
