@@ -38,8 +38,8 @@
     },
     "232": {
       "branch": "dependabot/npm_and_yarn/faker-js/faker-10.5.0",
-      "issue": null,
-      "status": "intent"
+      "issue": 244,
+      "status": "open"
     }
   }
 }
