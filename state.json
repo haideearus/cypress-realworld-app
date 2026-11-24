@@ -3923,12 +3923,12 @@
     },
     "225": {
       "coding": 0,
-      "reviews": 0,
+      "reviews": 1,
       "retries": 0,
       "origin": "dependency-pr",
       "head": "0a7ad49f8fad625e3f816a10b76ef85b5b1419d0",
       "pr": 225,
-      "status": "new",
+      "status": "reviewing",
       "approval": null,
       "branch": "dependabot/npm_and_yarn/joi-17.13.9",
       "criteriaHash": "9b3c8e3e8c48707764d70321853392e38c86040a84440d7614c6c064ec5d40e1",
@@ -5638,6 +5638,17 @@
       "status": "finished",
       "at": "2026-11-24T10:43:25.921Z",
       "outcome": "reviewed"
+    },
+    "733fd862-b5f0-448c-8322-7a3493741b90": {
+      "id": "733fd862-b5f0-448c-8322-7a3493741b90",
+      "ticket": 225,
+      "phase": "review",
+      "slot": "dependency",
+      "runId": "45379539568",
+      "runAttempt": 1,
+      "head": "0a7ad49f8fad625e3f816a10b76ef85b5b1419d0",
+      "status": "reserved",
+      "at": "2026-11-24T11:10:31.742Z"
     }
   },
   "active": {
@@ -9364,6 +9375,18 @@
       "ticket": 225,
       "head": "0a7ad49f8fad625e3f816a10b76ef85b5b1419d0",
       "runId": "45379539568",
+      "actor": "github-actions[bot]",
+      "wakeReceipt": "5382a2696224afb8371820459ce1496ebd93c7213874e4901c6288763d9753a0",
+      "sourceActor": "dependabot[bot]"
+    },
+    {
+      "at": "2026-11-24T11:10:31.742Z",
+      "event": "reserved",
+      "ticket": 225,
+      "grant": "733fd862-b5f0-448c-8322-7a3493741b90",
+      "phase": "review",
+      "runId": "45379539568",
+      "runAttempt": 1,
       "actor": "github-actions[bot]",
       "wakeReceipt": "5382a2696224afb8371820459ce1496ebd93c7213874e4901c6288763d9753a0",
       "sourceActor": "dependabot[bot]"
