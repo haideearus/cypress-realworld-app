@@ -3959,7 +3959,9 @@
             "evidence": [
               {
                 "at": "2026-11-24T16:59:12.344Z",
-                "status": "started"
+                "status": "ready",
+                "digest": "c3c1c9d6e383ea4c51461ce91cac33f26701b789905948b578143bdfb031f8e9",
+                "finishedAt": "2026-11-24T16:59:23.539Z"
               }
             ]
           }
