@@ -137,7 +137,8 @@
       237,
       239,
       242,
-      241
+      241,
+      247
     ]
   },
   "tickets": {
@@ -4168,6 +4169,38 @@
         "workflowSha": "c03ab9795ae0ce7c761e0e645f53ad22fae81ba7",
         "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-discovery.yml@refs/heads/main"
       }
+    },
+    "247": {
+      "coding": 0,
+      "reviews": 0,
+      "retries": 0,
+      "origin": "dependency-pr",
+      "head": "c505120623970ef2f9ce125b90e0e81049060d61",
+      "pr": 247,
+      "status": "new",
+      "approval": null,
+      "branch": "dependabot/npm_and_yarn/uuid-14.0.0",
+      "criteriaHash": "a423a2104e7c24fb1c9fb5d45bf62d380e9a177989629720b1c57b32b4fa4bdf",
+      "dependency": {
+        "version": 1,
+        "pr": 247,
+        "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-dependencies.yml@refs/heads/main",
+        "workflowSha": "4dea2134dabb2b0bee7d02234e57eca920843d3e",
+        "runId": "45414571579",
+        "runAttempt": 1,
+        "appSlug": "haideearus-software-factory",
+        "attempts": [
+          {
+            "head": "c505120623970ef2f9ce125b90e0e81049060d61",
+            "base": "4dea2134dabb2b0bee7d02234e57eca920843d3e",
+            "runId": "45414571579",
+            "runAttempt": 1,
+            "workflowSha": "4dea2134dabb2b0bee7d02234e57eca920843d3e",
+            "at": "2026-11-24T14:29:49.570Z"
+          }
+        ]
+      },
+      "ci": null
     }
   },
   "grants": {
@@ -5877,7 +5910,11 @@
       "outcome": "reviewed"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 247,
+    "runId": "45414571579",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -9726,6 +9763,16 @@
       "runAttempt": 1,
       "outcome": "accepted",
       "mergeCommit": "4dea2134dabb2b0bee7d02234e57eca920843d3e"
+    },
+    {
+      "at": "2026-11-24T14:29:49.570Z",
+      "event": "dependency_metadata_admitted",
+      "ticket": 247,
+      "head": "c505120623970ef2f9ce125b90e0e81049060d61",
+      "runId": "45414571579",
+      "actor": "github-actions[bot]",
+      "wakeReceipt": "040babb015486560d20198dcd5ab5addd53b29b91274d1910e5538af6b11c4a7",
+      "sourceActor": "dependabot[bot]"
     }
   ]
 }
