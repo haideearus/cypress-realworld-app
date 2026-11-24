@@ -142,7 +142,8 @@
       222,
       259,
       220,
-      235
+      235,
+      266
     ]
   },
   "tickets": {
@@ -4512,6 +4513,19 @@
         }
       },
       "feedback": "Dependency preparation held; no model invocation"
+    },
+    "266": {
+      "coding": 0,
+      "origin": "owner-pr",
+      "reviews": 1,
+      "retries": 0,
+      "head": "ca54357ad43d1ce43a61cf282bd1c90037bc2851",
+      "status": "reviewing",
+      "pr": 256,
+      "approval": null,
+      "criteriaHash": "db2f5914722df04723ea1a91d6a6b367d44a3b3351038686c7e57e20e94b4f65",
+      "branch": "agent/feature-priority-turns",
+      "ci": null
     }
   },
   "grants": {
@@ -6255,9 +6269,24 @@
       "status": "finished",
       "at": "2026-11-24T17:32:57.341Z",
       "outcome": "reviewed"
+    },
+    "519d083d-6cb1-4133-97cd-d14cf4436ef4": {
+      "id": "519d083d-6cb1-4133-97cd-d14cf4436ef4",
+      "ticket": 266,
+      "phase": "review",
+      "slot": "existing",
+      "runId": "45450624501",
+      "runAttempt": 1,
+      "head": "ca54357ad43d1ce43a61cf282bd1c90037bc2851",
+      "status": "reserved",
+      "at": "2026-11-24T17:38:01.585Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 266,
+    "runId": "45450624501",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -10248,6 +10277,16 @@
       "grant": "4437c9cc-bb9d-4561-bd03-4120a7655611",
       "status": "reviewed",
       "head": "549a89a6136766298064e014d00fa5f8009fc574"
+    },
+    {
+      "at": "2026-11-24T17:38:01.585Z",
+      "event": "reserved",
+      "ticket": 266,
+      "grant": "519d083d-6cb1-4133-97cd-d14cf4436ef4",
+      "phase": "review",
+      "runId": "45450624501",
+      "runAttempt": 1,
+      "actor": "haideearus"
     }
   ]
 }
