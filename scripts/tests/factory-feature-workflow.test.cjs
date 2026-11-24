@@ -13,8 +13,11 @@ test("preview has its own read-only job and no planner or publication credential
   assert.match(model, /needs.select.outputs.ready == 'true'/);
   assert.match(model, /steps.prepare.outputs.ready == 'true'/);
   assert.match(model, /claude_code_oauth_token:.*secrets.CLAUDE_CODE_OAUTH_TOKEN/);
+  assert.match(model, /allowed_bots:.*steps.prepare.outputs.allowedBots/);
   assert.doesNotMatch(model, /: write|ANTHROPIC_API_KEY:.*secrets/);
   assert.match(workflow, /timezone: Europe\/Bucharest/);
+  assert.match(workflow, /cron: "4 11,17 \* \* \*"/);
+  assert.match(workflow, /workflow_run:[\s\S]*Dependency maintenance[\s\S]*types: \[completed\]/);
   assert.match(workflow, /github.run_attempt == 1/);
   assert.match(workflow, /vars.FACTORY_FEATURE_MODE == 'pilot'/);
   assert.match(workflow, /vars.FACTORY_FEATURE_MODE == 'live'/);

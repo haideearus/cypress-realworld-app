@@ -232,11 +232,6 @@ async function prepare(api, config, context, { grantId, cwd, environment = proce
       }))
     )
       throw Error("Weekly feature origin changed before model preparation");
-    if (
-      grant.phase === "code" &&
-      (await require("./feature-priority.cjs").repairsWaiting(api, config, context, state))
-    )
-      throw Error("A repair takes priority before feature coding");
   }
   const data = {
     head: grant.head,

@@ -122,6 +122,80 @@ test("disabled pickup returns before network access and creates no reservation",
   }
 });
 
+test("ordinary automatic pickup yields without reserving when a feature turn is waiting", async () => {
+  const { coordinator, config, ledger } = await setup({ FACTORY_FEATURE_MODE: "live" });
+  await ledger.update((state) => {
+    require("../factory/feature-turn.cjs").enqueue(state, config, "300");
+    return { state };
+  });
+  const result = await coordinator.pick();
+  assert.equal(result.ready, false);
+  assert.match(result.reason, /feature turn is next/);
+  assert.deepEqual((await ledger.read()).state.grants, {});
+});
+
+test("a verified ready feature goes before an ordinary repair and consumes its turn", async () => {
+  const s = await setup({ FACTORY_FEATURE_MODE: "pilot" });
+  const c = require("../factory/feature-contract.cjs");
+  const turns = require("../factory/feature-turn.cjs");
+  const proposal = require("../factory/feature-planner.cjs").PILOT;
+  const key = c.proposalKey(proposal);
+  const row = {
+    week: c.weekKey(new Date()),
+    producer: { mode: "pilot", head, runId: "300" },
+    proposal,
+    parent: null,
+    stages: [{ phase: "ready", issue: 75 }],
+  };
+  s.fixture.issues.set(
+    75,
+    issue(75, {
+      ...c.issueFields(key, row, 0),
+      user: c.BOT,
+      created_at: "2026-11-24T10:00:00Z",
+    })
+  );
+  const request = s.api.request.bind(s.api);
+  s.api.request = (method, path, body) => {
+    if (path.endsWith("/git/ref/heads/factory/features")) return { object: { sha: head } };
+    if (path.includes("/contents/features.json?")) {
+      const state = { ...c.emptyRegistry(), records: { [key]: row } };
+      return {
+        type: "file",
+        encoding: "base64",
+        content: Buffer.from(JSON.stringify(state)).toString("base64"),
+      };
+    }
+    return request(method, path, body);
+  };
+  s.api.pages = async (path) =>
+    path.includes("factory-ci.yml/runs?")
+      ? [
+          {
+            id: 900,
+            run_attempt: 1,
+            head_sha: head,
+            head_branch: "main",
+            event: "push",
+            path: ".github/workflows/factory-ci.yml",
+            status: "completed",
+            conclusion: "success",
+            repository: { full_name: policy.REPOSITORY },
+          },
+        ]
+      : [{ name: "verify", head_sha: head, conclusion: "success" }];
+  await s.ledger.update((state) => {
+    turns.enqueue(state, s.config, "300");
+    turns.update(state, "300", { ticket: 75 });
+    return { state };
+  });
+  assert.equal((await s.coordinator.pick()).ticket, 75);
+  const { state } = await s.ledger.read();
+  assert.equal(state.active.ticket, 75);
+  assert.equal(state.featureTurn.status, "finished");
+  assert.equal(state.tickets["10"], undefined);
+});
+
 test("explicit preview while disabled selects a proposal without writing or granting", async () => {
   const { coordinator, ledger, fixture } = await setup({
     FACTORY_ENABLED: "false",

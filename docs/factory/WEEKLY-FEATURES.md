@@ -15,8 +15,9 @@ apply to every implementation PR.
 2. When the usual factory controls are on and current main CI is green, set
    `FACTORY_FEATURE_MODE=pilot` and dispatch **pilot**. This can publish one
    minor amount-filter accessibility feature from a checked repository
-   observation. The planning step uses no model. Automatic factory pickup uses
-   the existing metered coding and review jobs for the implementation.
+   observation. If a job is active, the pilot waits for its slot to clear.
+   The pilot uses no model to plan the issue. Automatic factory pickup uses
+   the existing metered coding and review jobs for implementation.
 3. Follow the pilot through the exact-head review, protected merge, named Render
    approval and verified issue closure. Check the Claude Pro account Usage page
    across the five-hour and weekly windows with Usage Credits off. Review GitHub
@@ -28,8 +29,8 @@ apply to every implementation PR.
 
 ## Scheduling and limits
 
-The workflow checks at 05:04, 11:04, 17:04 and 23:04 Europe/Bucharest. Each
-Monday-to-Sunday Bucharest week permits one Claude Pro planning reservation,
+In `live` mode the workflow requests a turn at 11:04 and 17:04 Europe/Bucharest.
+Each Monday-to-Sunday Bucharest week permits one Claude Pro planning reservation,
 including failed, cancelled, and empty runs. The planner has one constrained
 structured-output turn and no tools. Its reservation consumes the shared
 daily budget and one model slot until settled. Scheduled pickup can release an
@@ -37,16 +38,28 @@ abandoned reservation after confirming the exact producing attempt is terminal.
 The direct stop cancels the planner alongside the existing model workflows and
 keeps the metering record.
 
-The controller defers planner admission and publication during active work,
-production incidents, ready repair work, eligible due repair retries, or
-verified dependency work. It keeps a quarter of observed GitHub quota and defers
-within a minute of reset. Automatic pickup checks repairs first and rechecks
-before feature coding and any new feature retry. An executing stage can continue
-through its active review and merge when higher-priority work arrives. Switching
-the feature mode off pauses new feature steps and fresh feature merges. The
-automatic queue releases a terminal reviewed feature's unused active slot;
-recorded merge intents still reconcile through their existing read-and-confirm
-path.
+A scheduled request or an explicit pilot is recorded in the usage ledger
+without reserving Claude. One turn can wait at a time, and any active job and
+pending merge reconciliation can finish. If a production incident is active,
+its verified repair can take the next slot. The feature turn stays waiting.
+Otherwise new automatic app repairs, dependency admissions and discovery sweeps
+yield to the feature turn. Verified completion events recheck it on the current
+`main`, and the next schedule provides a fallback. A turn expires after 24
+hours if no run can handle it.
+
+A turn can reserve the weekly planner, advance one publication, or select an
+already-ready feature issue. When an issue is ready, Automatic factory gives it
+the next eligible pickup. The existing daily limit and current-main CI still
+apply. If GitHub headroom is too low, the turn records a later eligibility time
+and routine work can proceed. The controller retains a quarter of observed
+GitHub quota and defers within a minute of reset. If a selector stops during
+verification, its five-minute priority claim expires while the turn stays
+recorded for a later check.
+
+Switching feature mode off pauses new feature steps and fresh feature merges.
+Already-admitted feature code and review retain their normal slot and exact
+evidence checks. Recorded merge intents still reconcile through the existing
+read-and-confirm path.
 
 ## Issue and stage lifecycle
 

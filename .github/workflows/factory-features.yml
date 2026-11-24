@@ -8,13 +8,28 @@ on:
         options: [preview, pilot, run]
         default: preview
   schedule:
-    - cron: "4 5,11,17,23 * * *"
+    - cron: "4 11,17 * * *"
       timezone: Europe/Bucharest
+  workflow_run:
+    workflows:
+      [
+        Factory CI,
+        Automatic factory,
+        Dependency maintenance,
+        Proactive app discovery,
+        Factory agents,
+        Production monitor,
+        Acknowledge recovered monitor incident,
+        Close verified app repairs,
+      ]
+    types: [completed]
+    branches: [main]
 permissions:
   contents: read
 concurrency:
   group: factory-features
   cancel-in-progress: false
+  queue: max
 jobs:
   preview:
     if: ${{ github.repository == 'haideearus/cypress-realworld-app' && github.ref == 'refs/heads/main' && github.run_attempt == 1 && github.actor == 'haideearus' && github.actor == github.triggering_actor && github.event_name == 'workflow_dispatch' && inputs.operation == 'preview' }}
@@ -36,7 +51,19 @@ jobs:
           FACTORY_INPUTS: ${{ toJSON(inputs) }}
           FACTORY_OPERATION: preview
   select:
-    if: ${{ github.repository == 'haideearus/cypress-realworld-app' && github.ref == 'refs/heads/main' && github.run_attempt == 1 && github.actor == 'haideearus' && github.actor == github.triggering_actor && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' && ((github.event_name == 'workflow_dispatch' && inputs.operation == 'pilot' && vars.FACTORY_FEATURE_MODE == 'pilot') || ((github.event_name == 'schedule' || inputs.operation == 'run') && vars.FACTORY_FEATURE_MODE == 'live')) }}
+    if: >-
+      ${{ github.repository == 'haideearus/cypress-realworld-app' &&
+          github.ref == 'refs/heads/main' && github.run_attempt == 1 &&
+          vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' &&
+          ((github.event_name == 'workflow_run' &&
+            github.event.workflow_run.repository.full_name == github.repository &&
+            github.event.workflow_run.head_repository.full_name == github.repository &&
+            (vars.FACTORY_FEATURE_MODE == 'pilot' || vars.FACTORY_FEATURE_MODE == 'live')) ||
+           (github.actor == 'haideearus' && github.actor == github.triggering_actor &&
+            ((github.event_name == 'workflow_dispatch' && inputs.operation == 'pilot' &&
+              vars.FACTORY_FEATURE_MODE == 'pilot') ||
+             ((github.event_name == 'schedule' || inputs.operation == 'run') &&
+              vars.FACTORY_FEATURE_MODE == 'live')))) }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     concurrency:
@@ -114,6 +141,7 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ github.token }}
+          allowed_bots: ${{ steps.prepare.outputs.allowedBots }}
           prompt: ${{ fromJSON(steps.prepare.outputs.promptJson) }}
           claude_args: ${{ steps.prepare.outputs.claudeArgs }}
           settings: '{"disableAllHooks":true,"enableAllProjectMcpServers":false}'

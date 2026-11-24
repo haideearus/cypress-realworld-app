@@ -70,6 +70,8 @@ function hasThirdSweepHeadroom(quota) {
 function reserveSweep(original, r, config, now = new Date()) {
   const p = require("./policy.cjs");
   checks(original, r, config);
+  const turns = require("./feature-turn.cjs");
+  if (turns.priority(original, config, now)) throw Error(turns.WAITING);
   if (!c.FUNCTIONAL_CHARTERS.includes(r.discovery.charter))
     throw Error("Functional discovery charter required for a new reservation");
   if (original.tickets[String(r.ticket)]) throw Error("Discovery source already admitted");

@@ -28,6 +28,8 @@ function claimDependency(original, pr, context, config, now = new Date(), alertR
   if (!d.contextOK(context)) throw new Error("Unauthorized dependency workflow");
   if (!config.enabled || !config.automatic || !config.minutes || !config.turns || !config.reviews)
     throw new Error("Dependency factory disabled");
+  const turns = require("./feature-turn.cjs");
+  if (turns.priority(original, config, now)) throw Error(turns.WAITING);
   if (context.wake) {
     if (!config.eventPickup) throw new Error("Event pickup disabled");
     const target = require("./trusted-wake.cjs").dependencyWakeTarget(context);
