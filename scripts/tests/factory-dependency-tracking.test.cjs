@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const d = require("../factory/dependency-contract.cjs");
 const { GitHub, Ledger, ROOT } = require("../factory/github.cjs");
+const { MetadataStore } = require("../factory/metadata-store.cjs");
 const { trackNativeDependencies } = require("../factory/dependency-tracking.cjs");
 const policy = require("../factory/policy.cjs");
 const lifecycle = require("../factory/dependency-policy.cjs");
@@ -179,6 +180,7 @@ async function setup() {
   const ledger = new Ledger(api);
   await ledger.initialize();
   return {
+    api,
     fixture,
     ledger,
     track: (preview = false, refresh = false, recoveryOnly = false) =>
@@ -412,7 +414,7 @@ test("recover a queued PR that went stale during another merge before unrelated 
 });
 
 test("a full queue of current PRs leaves an inspection slot for unrelated stale PRs", async () => {
-  const { fixture, track } = await setup();
+  const { api, fixture, track } = await setup();
   fixture.wakes = wakes.emptyWakes();
   for (let number = 235; number < 247; number++) {
     const pr = structuredClone(native);
@@ -442,10 +444,30 @@ test("a full queue of current PRs leaves an inspection slot for unrelated stale 
     });
     fixture.wakes.receipts[receipt.id] = receipt;
   }
-  await track();
-  await track();
-  await track();
-  assert.equal(fixture.issuePosts, 13);
+  // Recovery starts with existing tracking records. Creating those records
+  // through live intake would make setup depend on the hourly scan rotation.
+  const records = {};
+  for (const [index, pr] of fixture.pulls.entries()) {
+    const issue = 900 + index;
+    fixture.issues.push({
+      number: issue,
+      state: "open",
+      user: bot,
+      labels: [{ name: label }],
+      title: `Dependency maintenance for Dependabot PR #${pr.number}`,
+      body:
+        `Track [Dependabot PR #${pr.number}](https://github.com/${d.REPOSITORY}/pull/${pr.number}). Dependency maintenance verifies the current proposal through its protected analysis, CI, review and merge workflow.\n\n` +
+        `<!-- factory-native-dependency:${pr.number} -->`,
+    });
+    records[pr.number] = { branch: pr.head.ref, issue, status: "open" };
+  }
+  const registry = new MetadataStore(
+    api,
+    "dependency-tracking",
+    () => ({}),
+    (state) => state
+  );
+  await registry.save({ version: 1, records }, null);
 
   fixture.staleHeads = new Set([native.head.sha]);
   await track(false, true, true);
@@ -455,6 +477,7 @@ test("a full queue of current PRs leaves an inspection slot for unrelated stale 
       .map(({ number }) => number),
     [9]
   );
+  assert.equal(fixture.issuePosts, 0);
 });
 
 test("a failed dependency preparation gets one bound blocker notice without changing the ledger", async () => {
