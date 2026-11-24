@@ -270,5 +270,5 @@
       "pr": null
     }
   },
-  "heldAfter": "brace-expansion"
+  "heldAfter": "@graphql-tools/utils"
 }
