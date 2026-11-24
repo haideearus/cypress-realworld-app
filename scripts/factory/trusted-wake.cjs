@@ -55,6 +55,8 @@ async function verifySource(api, signal, bound, vars = {}) {
   const { eligibleIssue } = require("./automation.cjs");
   if (signal.kind === "issue" || signal.kind === "monitor" || signal.kind === "finding") {
     const issue = await api.request("GET", `${ROOT}/issues/${signal.number}`);
+    if (issue?.number !== signal.number) throw Error("Wake issue identity unavailable");
+    if (!bound && issue.state === "closed") throw new c.StaleWakeSource("Wake issue closed");
     if (
       (!bound && issue.state !== "open") ||
       issue.pull_request ||
@@ -111,27 +113,30 @@ async function verifySource(api, signal, bound, vars = {}) {
     const config = bound
       ? { alertRepair: true, appSlug: signal.actor.login.slice(0, -"[bot]".length) }
       : alertWakeConfig(vars);
-    const pr = d.prOK(await api.request("GET", `${ROOT}/pulls/${signal.number}`), bound, config);
-    if (
-      pr.number !== signal.number ||
-      pr.head.sha !== signal.head ||
-      d.criteria(pr.number) !== signal.criteriaHash
-    )
-      throw Error("Wake dependency alert head changed");
+    const pr = await api.request("GET", `${ROOT}/pulls/${signal.number}`);
+    if (pr?.number !== signal.number) throw Error("Wake dependency PR identity unavailable");
+    if (!bound && pr.state === "closed") throw new c.StaleWakeSource("Wake dependency PR closed");
+    d.prOK(pr, bound, config);
+    if (pr.head.sha !== signal.head || d.criteria(pr.number) !== signal.criteriaHash)
+      throw new c.StaleWakeSource("Wake dependency alert head changed");
     const receipt = await verifyAlertCI(api, pr, run, config, bound);
     if (receipt.base !== signal.revision) throw Error("Wake dependency alert receipt changed");
     return;
   }
   if (signal.kind === "dependency-ci") {
     const d = require("./dependency-contract.cjs");
-    const pr = d.prOK(await api.request("GET", `${ROOT}/pulls/${signal.number}`), bound);
+    const pr = await api.request("GET", `${ROOT}/pulls/${signal.number}`);
+    if (pr?.number !== signal.number) throw Error("Wake dependency PR identity unavailable");
+    if (!bound && pr.state === "closed") throw new c.StaleWakeSource("Wake dependency PR closed");
+    d.prOK(pr, bound);
     if (pr.head.sha !== signal.head || d.criteria(pr.number) !== signal.criteriaHash)
-      throw Error("Wake dependency head changed");
-    if (
-      !bound &&
-      pr.base.sha !== (await api.request("GET", `${ROOT}/git/ref/heads/main`)).object?.sha
-    )
-      throw Error("Wake dependency base stale");
+      throw new c.StaleWakeSource("Wake dependency head changed");
+    if (!bound) {
+      const main = await api.request("GET", `${ROOT}/git/ref/heads/main`);
+      if (!c.SHA.test(main?.object?.sha || "")) throw Error("Wake main head unavailable");
+      if (main.object.sha !== signal.revision || pr.base.sha !== signal.revision)
+        throw new c.StaleWakeSource("Wake dependency base stale");
+    }
     d.filesOK(await api.request("GET", `${ROOT}/pulls/${pr.number}/files?per_page=3`));
     const run = await verifiedRun(api, signal.sourceRun, signal.sourceAttempt, "factory-ci.yml");
     if (

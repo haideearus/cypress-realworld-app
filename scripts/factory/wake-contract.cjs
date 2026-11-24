@@ -18,6 +18,8 @@ const DRAIN_LANES = Object.freeze({
   ".github/workflows/factory-discovery.yml": "app",
 });
 const MAX_RECEIPTS = 1200;
+class StaleWakeSource extends Error {}
+
 const exact = (o, keys) =>
   o &&
   typeof o === "object" &&
@@ -158,6 +160,7 @@ module.exports = {
   LANES,
   DRAIN_LANES,
   MAX_RECEIPTS,
+  StaleWakeSource,
   exact,
   digest,
   actor,

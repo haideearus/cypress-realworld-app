@@ -198,13 +198,12 @@ test("an activity observer sees an early receipt as pending without binding or a
   );
 });
 
-async function discoveryDrainFixture() {
+async function discoveryDrainFixture(sourceRun = "850") {
   const p = require("../factory/policy.cjs");
   const d = require("../factory/discovery-contract.cjs");
   const c = require("../factory/wake-contract.cjs");
   const { vars } = require("./helpers/factory-fixtures.cjs");
   const s = fixture();
-  const sourceRun = "850";
   const sourceAt = new Date("2026-11-21T21:48:50Z");
   const day = "2026-11-21";
   const charter = "functional-notifications";
@@ -256,7 +255,7 @@ async function discoveryDrainFixture() {
   s.event = { repository: { full_name: c.REPOSITORY }, action: "completed", workflow_run: run };
   const base = s.api.request;
   s.api.request = async (method, path, body) => {
-    if (method === "GET" && path.endsWith("/actions/runs/850/attempts/1"))
+    if (method === "GET" && path.endsWith(`/actions/runs/${sourceRun}/attempts/1`))
       return structuredClone(run);
     if (
       method === "GET" &&
@@ -275,6 +274,206 @@ async function discoveryDrainFixture() {
   };
   return { ...s, drainRun: run };
 }
+
+function queueNativeCI(s, number, runId, mode = "current") {
+  const c = require("../factory/wake-contract.cjs");
+  const { criteria } = require("../factory/dependency-contract.cjs");
+  const actor = { login: "dependabot[bot]", id: 49699333 };
+  const head = "d".repeat(40);
+  const ciPath = ".github/workflows/factory-ci.yml";
+  const receipt = c.createWake({
+    signal: {
+      kind: "dependency-ci",
+      lane: "dependency",
+      number,
+      head,
+      criteriaHash: criteria(number),
+      revision: mode === "old-base" ? "f".repeat(40) : s.context.workflowSha,
+      sourceRun: String(runId),
+      sourceAttempt: 1,
+      actor,
+    },
+    producer: {
+      runId: s.context.runId,
+      runAttempt: 1,
+      workflowSha: s.context.workflowSha,
+      actor: s.run.actor,
+      event: "workflow_run",
+    },
+  });
+  s.store.state.receipts[receipt.id] = receipt;
+  const repo = { full_name: s.context.repository };
+  const request = s.api.request;
+  s.api.request = async (method, path, body) => {
+    if (method === "GET" && path.endsWith(`/pulls/${number}`)) {
+      if (mode === "unavailable") throw Object.assign(Error("GitHub unavailable"), { status: 502 });
+      return {
+        number,
+        state: "open",
+        draft: false,
+        user: { ...actor, type: "Bot" },
+        head: {
+          sha: mode === "stale" ? "e".repeat(40) : head,
+          ref: `dependabot/npm_and_yarn/demo-${number}`,
+          repo,
+        },
+        base: { sha: s.context.workflowSha, ref: "main", repo },
+      };
+    }
+    if (method === "GET" && path.endsWith(`/pulls/${number}/files?per_page=3`))
+      return [{ filename: "yarn.lock", status: "modified" }];
+    if (method === "GET" && path.endsWith("/actions/workflows/factory-ci.yml"))
+      return { id: 70, path: ciPath };
+    if (method === "GET" && path.endsWith(`/actions/runs/${runId}/attempts/1`))
+      return {
+        ...s.run,
+        id: runId,
+        workflow_id: 70,
+        path: ciPath,
+        event: "pull_request",
+        head_sha: head,
+        status: "completed",
+        conclusion: "success",
+        pull_requests: [{ number }],
+      };
+    return request(method, path, body);
+  };
+  s.api.pages = async () => [{ name: "verify", status: "completed", conclusion: "success" }];
+  return receipt.id;
+}
+
+test("discovery completion skips stale CI and binds the next dependency PR exactly once", async () => {
+  const s = await discoveryDrainFixture();
+  const stale = [220, 221, 222, 223, 224, 226].map((number) =>
+    queueNativeCI(s, number, 600 + number, "stale")
+  );
+  const unavailable = queueNativeCI(s, 233, 702, "unavailable");
+  const ready = queueNativeCI(s, 236, 703);
+  const before = structuredClone(s.ledger.state);
+  const result = await wake.handleWake(s);
+  assert.equal(result.receiptId, ready);
+  assert.ok(stale.every((id) => s.store.state.receipts[id].status === "observed"));
+  assert.equal(s.store.state.receipts[unavailable].status, "pending");
+  assert.equal(result.skipped.length, 7);
+  assert.deepEqual(result.skipped.at(-1), {
+    kind: "dependency-ci",
+    number: 233,
+    reason: "Wake evidence could not be verified",
+  });
+  assert.deepEqual(s.dispatches, [{ ref: "main", inputs: { wake_id: ready, preview: false } }]);
+
+  const context = {
+    ...s.context,
+    actor: "github-actions[bot]",
+    triggeringActor: "github-actions[bot]",
+    event: "workflow_dispatch",
+    workflowRef: s.context.workflowRef.replace("factory-wake", "factory-dependencies"),
+    runId: "900",
+  };
+  const actor = { login: context.actor, id: 41898282 };
+  const path = ".github/workflows/factory-dependencies.yml";
+  const request = s.api.request;
+  s.api.request = (method, href, body) =>
+    href.endsWith("/actions/runs/900/attempts/1")
+      ? Promise.resolve({
+          ...s.run,
+          id: 900,
+          workflow_id: 90,
+          path,
+          actor,
+          triggering_actor: actor,
+          event: "workflow_dispatch",
+          display_title: `Dependency maintenance / wake ${ready}`,
+        })
+      : href.endsWith("/actions/workflows/factory-dependencies.yml")
+        ? Promise.resolve({ id: 90, path })
+        : request(method, href, body);
+  const { verifyWake, dependencyWakeTarget } = require("../factory/trusted-wake.cjs");
+  const proof = await verifyWake({
+    ...s,
+    context,
+    receiptId: ready,
+    lane: "dependency",
+    bind: true,
+  });
+  const target = dependencyWakeTarget({ ...context, wake: proof });
+  assert.equal(target.number, 236);
+  assert.equal(target.head, "d".repeat(40));
+  assert.equal(s.store.state.receipts[ready].signal.sourceRun, "703");
+  assert.equal((await wake.handleWake(s)).outcome, "duplicate");
+  assert.equal(s.dispatches.length, 1);
+  assert.deepEqual(s.ledger.state, before);
+});
+
+test("discovery completion keeps its app route when no queued dependency CI is usable", async () => {
+  const s = await discoveryDrainFixture();
+  const stale = queueNativeCI(s, 221, 701, "old-base");
+  const result = await wake.handleWake(s);
+  assert.equal(result.lane, "app");
+  assert.deepEqual(s.dispatches, [
+    { ref: "main", inputs: { wake_id: result.receiptId, dry_run: false } },
+  ]);
+  const { signal } = s.store.state.receipts[result.receiptId];
+  assert.equal(signal.kind, "drain");
+  assert.equal(signal.sourceRun, "850");
+  assert.equal(s.store.state.receipts[stale].status, "observed");
+  await require("../factory/trusted-wake.cjs").verifySource(s.api, signal, false);
+});
+
+test("a later completion reaches dependency CI behind a full batch of unavailable sources", async () => {
+  const s = await discoveryDrainFixture();
+  const deferred = Array.from({ length: 20 }, (_, i) =>
+    queueNativeCI(s, 200 + i, 700 + i, "unavailable")
+  );
+  const ready = queueNativeCI(s, 236, 750);
+  const first = await wake.handleWake(s);
+  assert.equal(first.lane, "app");
+  assert.equal(s.store.state.receipts[ready].status, "pending");
+
+  const next = await discoveryDrainFixture("851");
+  const request = s.api.request;
+  s.api.request = (method, path, body) =>
+    path.endsWith("/actions/runs/851/attempts/1")
+      ? next.api.request(method, path, body)
+      : request(method, path, body);
+  assert.equal(
+    (await wake.handleWake({ ...s, event: next.event, ledger: next.ledger })).receiptId,
+    ready
+  );
+  assert.ok(deferred.every((id) => s.store.state.receipts[id].status === "pending"));
+  assert.equal(s.dispatches.length, 2);
+});
+
+test("an app completion still wakes the ordinary app queue for pending app work", async () => {
+  const s = await discoveryDrainFixture();
+  const pending = fixture();
+  pending.store = s.store;
+  pending.ledger.state.active = { ticket: 9, runId: "850", runAttempt: 1 };
+  const { receiptId } = await wake.handleWake(pending);
+  const result = await wake.handleWake(s);
+  assert.equal(result.lane, "app");
+  assert.equal(s.store.state.receipts[result.receiptId].signal.kind, "drain");
+  assert.equal(s.store.state.receipts[receiptId].status, "observed");
+});
+
+test("unusable app work does not hide current dependency CI", async (t) => {
+  for (const [label, change] of [
+    ["closed", (s) => (s.issue.state = "closed")],
+    ["already admitted", (s) => (s.ledger.state.tickets["12"] = { status: "blocked" })],
+  ]) {
+    await t.test(label, async () => {
+      const s = await discoveryDrainFixture();
+      const pending = fixture();
+      pending.store = s.store;
+      pending.ledger.state.active = { ticket: 9, runId: "850", runAttempt: 1 };
+      const app = await wake.handleWake(pending);
+      change(s);
+      const dependency = queueNativeCI(s, 236, 703);
+      assert.equal((await wake.handleWake(s)).receiptId, dependency);
+      assert.equal(s.store.state.receipts[app.receiptId].status, "observed");
+    });
+  }
+});
 
 test("a completed Proactive discovery grant can wake and bind the ordinary app receiver", async () => {
   const s = await discoveryDrainFixture();
