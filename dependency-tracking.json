@@ -95,6 +95,11 @@
       "branch": "dependabot/npm_and_yarn/yaml-1.10.3",
       "issue": 263,
       "status": "open"
+    },
+    "260": {
+      "branch": "dependabot/npm_and_yarn/validator-13.15.35",
+      "issue": null,
+      "status": "intent"
     }
   }
 }
