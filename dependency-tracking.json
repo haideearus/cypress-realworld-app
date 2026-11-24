@@ -75,6 +75,11 @@
       "branch": "dependabot/npm_and_yarn/babel/plugin-transform-modules-systemjs-7.29.15",
       "status": "open",
       "issue": 255
+    },
+    "250": {
+      "branch": "dependabot/npm_and_yarn/tootallnate/once-2.0.1",
+      "issue": null,
+      "status": "intent"
     }
   }
 }
