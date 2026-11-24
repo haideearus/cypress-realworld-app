@@ -9,7 +9,7 @@
     "220": {
       "branch": "dependabot/npm_and_yarn/js-yaml-4.3.2",
       "issue": 227,
-      "status": "closing"
+      "status": "merged"
     },
     "221": {
       "branch": "dependabot/npm_and_yarn/baseline-browser-mapping-2.11.39",
