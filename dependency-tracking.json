@@ -23,8 +23,8 @@
     },
     "223": {
       "branch": "dependabot/npm_and_yarn/vitest-4.1.11",
-      "issue": null,
-      "status": "intent"
+      "issue": 230,
+      "status": "open"
     }
   }
 }
