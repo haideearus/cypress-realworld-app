@@ -4630,20 +4630,15 @@
     "271": {
       "coding": 0,
       "origin": "owner-pr",
-      "reviews": 1,
+      "reviews": 2,
       "retries": 0,
-      "head": "55bccb96fcf41af117a01e4eb4e3083a0527c612",
-      "status": "blocked",
+      "head": "fe29a799d5a453c101374c7364252b451a4dc321",
+      "status": "reviewing",
       "pr": 272,
       "approval": null,
       "criteriaHash": "45952281671750c15bc301c6a4cd432a86f2c595e91c744e7d1b25d1db27b1a9",
       "branch": "agent/native-dependency-refresh-recovery",
-      "ci": {
-        "requestId": "c01fb73d-776e-43d8-bcdb-300a5b3cbf41",
-        "head": "55bccb96fcf41af117a01e4eb4e3083a0527c612",
-        "runId": 45466753240,
-        "passed": false
-      },
+      "ci": null,
       "feedback": "Owner PR CI or subscription review unavailable; no automatic retry"
     }
   },
@@ -6424,9 +6419,24 @@
       "status": "finished",
       "at": "2026-11-24T19:06:30.100Z",
       "outcome": "blocked"
+    },
+    "35733599-11de-43eb-86bd-7aec377904d5": {
+      "id": "35733599-11de-43eb-86bd-7aec377904d5",
+      "ticket": 271,
+      "phase": "review",
+      "slot": "existing",
+      "runId": "45472765851",
+      "runAttempt": 1,
+      "head": "fe29a799d5a453c101374c7364252b451a4dc321",
+      "status": "reserved",
+      "at": "2026-11-24T19:41:21.800Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 271,
+    "runId": "45472765851",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -10518,6 +10528,16 @@
       "event": "blocked",
       "ticket": 271,
       "reason": "Owner PR CI or subscription review unavailable; no automatic retry"
+    },
+    {
+      "at": "2026-11-24T19:41:21.800Z",
+      "event": "reserved",
+      "ticket": 271,
+      "grant": "35733599-11de-43eb-86bd-7aec377904d5",
+      "phase": "review",
+      "runId": "45472765851",
+      "runAttempt": 1,
+      "actor": "haideearus"
     }
   ],
   "featureTurn": {
