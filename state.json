@@ -4053,7 +4053,8 @@
       "ci": {
         "requestId": "eb07c36d-5284-47d9-b6b6-f9d95ec374ef",
         "head": "2ed39c41038355420747b232f44afc0e23cd4e1c",
-        "runId": null
+        "runId": 45458685046,
+        "passed": true
       },
       "analysis": {
         "version": 2,
