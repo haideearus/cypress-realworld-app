@@ -290,6 +290,16 @@
       "phase": "tracking",
       "issue": 218,
       "pr": null
+    },
+    "2eb4bcd365ceff36691073a0880f83f4cbb7286fc7b70d89afa8350dbe0fd574": {
+      "candidate": "1.2.2",
+      "day": "2026-11-24",
+      "base": "c03ab9795ae0ce7c761e0e645f53ad22fae81ba7",
+      "head": "91d428bba205ac18b0c6eaf8f2f4e94bfc67596e",
+      "name": "source-map-js",
+      "phase": "prepared",
+      "issue": null,
+      "pr": null
     }
   },
   "heldAfter": "nanoid"
