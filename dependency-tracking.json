@@ -48,8 +48,8 @@
     },
     "234": {
       "branch": "dependabot/npm_and_yarn/http-proxy-middleware-2.0.10",
-      "issue": null,
-      "status": "intent"
+      "issue": 246,
+      "status": "open"
     }
   }
 }
