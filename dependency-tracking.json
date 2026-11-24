@@ -90,6 +90,11 @@
       "branch": "dependabot/npm_and_yarn/jws-3.2.3",
       "issue": 262,
       "status": "open"
+    },
+    "259": {
+      "branch": "dependabot/npm_and_yarn/yaml-1.10.3",
+      "issue": null,
+      "status": "intent"
     }
   }
 }
