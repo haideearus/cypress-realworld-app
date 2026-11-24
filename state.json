@@ -4638,7 +4638,11 @@
       "approval": null,
       "criteriaHash": "45952281671750c15bc301c6a4cd432a86f2c595e91c744e7d1b25d1db27b1a9",
       "branch": "agent/native-dependency-refresh-recovery",
-      "ci": null
+      "ci": {
+        "requestId": "c01fb73d-776e-43d8-bcdb-300a5b3cbf41",
+        "head": "55bccb96fcf41af117a01e4eb4e3083a0527c612",
+        "runId": null
+      }
     }
   },
   "grants": {
