@@ -93,8 +93,8 @@
     },
     "259": {
       "branch": "dependabot/npm_and_yarn/yaml-1.10.3",
-      "issue": null,
-      "status": "intent"
+      "issue": 263,
+      "status": "open"
     }
   }
 }
