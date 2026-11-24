@@ -142,7 +142,7 @@
       "name": "brace-expansion",
       "day": "2026-11-23",
       "trackingReason": "no-common-candidate",
-      "phase": "ready",
+      "phase": "resolved",
       "issue": 177,
       "pr": 217,
       "candidate": "1.1.21",
@@ -160,7 +160,8 @@
           "result": "verified",
           "at": "2026-11-23T16:50:27.389Z"
         }
-      ]
+      ],
+      "resolvedAt": "2026-11-24T00:17:34.733Z"
     },
     "eeb6bada65c09ca9f536f244406cdb261aa414cff5895ce78d5242b8e57e5dd1": {
       "name": "braces",
