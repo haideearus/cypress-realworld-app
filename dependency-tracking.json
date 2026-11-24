@@ -64,7 +64,12 @@
     "247": {
       "branch": "dependabot/npm_and_yarn/uuid-14.0.0",
       "issue": 253,
-      "status": "open"
+      "status": "open",
+      "recovery": {
+        "c505120623970ef2f9ce125b90e0e81049060d61": {
+          "blocked": true
+        }
+      }
     },
     "248": {
       "branch": "dependabot/npm_and_yarn/ws-8.23.0",
