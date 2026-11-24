@@ -139,17 +139,27 @@
     },
     "254e7c10e28b3a7c9202fbdd2870c8f1cc32c140dc116bf36053e55d2c432aec": {
       "name": "@babel/plugin-transform-modules-systemjs",
-      "day": "2026-11-21",
+      "day": "2026-11-24",
       "trackingReason": "graph-held",
-      "phase": "tracking",
+      "phase": "issue",
       "issue": 167,
       "pr": null,
-      "recheck": {
-        "fingerprint": "c765ceaea37850e86dfb40a2e1b0d552a7f56e6326be7ddb1b05332d7398bfcc",
-        "reason": "graph-held",
-        "at": "2026-11-23T15:20:35.434Z",
-        "next": 0
-      }
+      "candidate": "7.29.4",
+      "base": "917fd8d36848c43679f41adb654920e51864007f",
+      "head": "3a7371d1f14029ae4bafa3d3a438ca838aa97099",
+      "wider": {
+        "manifestChanged": false,
+        "manifestHash": "e5ad7e36dd30bf27004609433f70ad2e12bc273315ec5d286bdc76ecbc09a7f1",
+        "lockHash": "852a698dee7ca4216b4c26aaa2bba5423af5ec23f0eeec2e9950ec7da3337a76",
+        "removed": false
+      },
+      "widerChecks": [
+        {
+          "fingerprint": "f7fc68c44cda5157fcb9cc4161f807cb2514e3903432a58b903db2ad4ed6de0c",
+          "result": "verified",
+          "at": "2026-11-24T20:50:32.719Z"
+        }
+      ]
     },
     "6c70011231315799791bee63b9af3c8907fab5dfa1c47548cd9bfa57eb825e4a": {
       "name": "@faker-js/faker",
