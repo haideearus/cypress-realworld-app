@@ -5,6 +5,7 @@ const { GitHub, Ledger, ROOT } = require("../factory/github.cjs");
 const { trackNativeDependencies } = require("../factory/dependency-tracking.cjs");
 const policy = require("../factory/policy.cjs");
 const lifecycle = require("../factory/dependency-policy.cjs");
+const wakes = require("../factory/wake-contract.cjs");
 const { GitHubFixture, context, vars } = require("./helpers/factory-fixtures.cjs");
 
 const label = "factory-dependency-ready";
@@ -42,6 +43,7 @@ async function setup() {
     labelWrites: 0,
     detailedReads: 0,
     ref: null,
+    wakes: null,
   };
   const gitRef = "/git/ref/heads/factory/dependency-tracking";
   const json = (data) => Response.json(data);
@@ -52,6 +54,14 @@ async function setup() {
     const { method } = request;
     if (method === "GET" && path === gitRef)
       return fixture.ref ? json({ object: { sha: fixture.ref } }) : missing();
+    if (method === "GET" && path === "/git/ref/heads/factory/wakes")
+      return fixture.wakes ? json({ object: { sha: "a".repeat(40) } }) : missing();
+    if (method === "GET" && path === "/contents/wakes.json")
+      return json({
+        type: "file",
+        encoding: "base64",
+        content: Buffer.from(JSON.stringify(fixture.wakes)).toString("base64"),
+      });
     if (method === "GET" && path === "/contents/dependency-tracking.json") {
       const commit = git.objects.get(url.searchParams.get("ref"));
       const tree = git.objects.get(commit.tree);
@@ -80,9 +90,12 @@ async function setup() {
       return json({ object: { sha: fixture.main } });
     if (method === "GET" && path.startsWith("/compare/")) {
       fixture.compareReads++;
+      const behind = fixture.staleHeads
+        ? Number(fixture.staleHeads.has(path.split("...").at(-1)))
+        : fixture.behind;
       return json({
-        behind_by: fixture.behind,
-        merge_base_commit: { sha: fixture.behind ? "e".repeat(40) : fixture.main },
+        behind_by: behind,
+        merge_base_commit: { sha: behind ? "e".repeat(40) : fixture.main },
       });
     }
     const comment = /^\/issues\/(\d+)\/comments$/.exec(path);
@@ -168,14 +181,15 @@ async function setup() {
   return {
     fixture,
     ledger,
-    track: (preview = false, refresh = false) =>
+    track: (preview = false, refresh = false, recoveryOnly = false) =>
       trackNativeDependencies(api, config, ctx, preview, {
+        recoveryOnly,
         refreshApi: refresh
           ? new GitHub({
               token: "owner-fixture",
               fetch(url, request) {
                 assert.equal(request.method, "POST");
-                assert.equal(url.pathname, `${ROOT}/issues/${native.number}/comments`);
+                assert.match(url.pathname, new RegExp(`^${ROOT}/issues/\\d+/comments$`));
                 assert.deepEqual(JSON.parse(request.body), { body: "@dependabot rebase" });
                 return git.fetch(url, request);
               },
@@ -341,6 +355,106 @@ test("a stale native head gets one refresh request and a tracking issue reason e
   assert.match(notice.body, /could not confirm/);
   assert.equal(fixture.comments.filter(({ number }) => number === 92).length, 1);
   assert.deepEqual(await ledger.read(), before);
+});
+
+test("recover a queued PR that went stale during another merge before unrelated tracked PRs", async () => {
+  const { fixture, ledger, track } = await setup();
+  const queued = structuredClone(native);
+  queued.number = 235;
+  queued.head = {
+    ...queued.head,
+    ref: "dependabot/npm_and_yarn/queued-1.2.3",
+    sha: "d".repeat(40),
+  };
+  fixture.pulls.push(queued);
+  await track();
+  const before = await ledger.read();
+  const receipt = wakes.createWake({
+    signal: {
+      kind: "dependency-ci",
+      lane: "dependency",
+      number: queued.number,
+      head: queued.head.sha,
+      criteriaHash: d.criteria(queued.number),
+      revision: fixture.main,
+      sourceRun: "45457390427",
+      sourceAttempt: 1,
+      actor: { login: native.user.login, id: native.user.id },
+    },
+    producer: {
+      runId: "45459070309",
+      runAttempt: 1,
+      workflowSha: fixture.main,
+      actor: owner,
+      event: "workflow_run",
+    },
+  });
+  fixture.wakes = wakes.emptyWakes();
+  fixture.wakes.receipts[receipt.id] = receipt;
+
+  fixture.pulls.push({ ...native, number: 244 });
+  fixture.main = "f".repeat(40);
+  fixture.behind = 1;
+  await track(false, true, true);
+  await track(false, true, true);
+  fixture.main = "1".repeat(40);
+  await track(false, true, true);
+  await track(false, true, true);
+
+  assert.deepEqual(
+    fixture.comments
+      .filter(({ body }) => body === "@dependabot rebase")
+      .map(({ number }) => number),
+    [235, 9, 235, 9]
+  );
+  assert.equal(fixture.issuePosts, 2);
+  assert.deepEqual(await ledger.read(), before);
+});
+
+test("a full queue of current PRs leaves an inspection slot for unrelated stale PRs", async () => {
+  const { fixture, track } = await setup();
+  fixture.wakes = wakes.emptyWakes();
+  for (let number = 235; number < 247; number++) {
+    const pr = structuredClone(native);
+    pr.number = number;
+    pr.head.sha = number.toString(16).padStart(40, "d");
+    pr.head.ref = `dependabot/npm_and_yarn/queued-${number}`;
+    fixture.pulls.push(pr);
+    const receipt = wakes.createWake({
+      signal: {
+        kind: "dependency-ci",
+        lane: "dependency",
+        number,
+        head: pr.head.sha,
+        criteriaHash: d.criteria(number),
+        revision: fixture.main,
+        sourceRun: String(number),
+        sourceAttempt: 1,
+        actor: { login: native.user.login, id: native.user.id },
+      },
+      producer: {
+        runId: "100",
+        runAttempt: 1,
+        workflowSha: fixture.main,
+        actor: owner,
+        event: "workflow_run",
+      },
+    });
+    fixture.wakes.receipts[receipt.id] = receipt;
+  }
+  await track();
+  await track();
+  await track();
+  assert.equal(fixture.issuePosts, 13);
+
+  fixture.staleHeads = new Set([native.head.sha]);
+  await track(false, true, true);
+  assert.deepEqual(
+    fixture.comments
+      .filter(({ body }) => body === "@dependabot rebase")
+      .map(({ number }) => number),
+    [9]
+  );
 });
 
 test("a failed dependency preparation gets one bound blocker notice without changing the ledger", async () => {

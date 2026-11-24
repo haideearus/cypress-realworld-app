@@ -139,10 +139,22 @@ async function verifySource(api, signal, bound, vars = {}) {
     }
     d.filesOK(await api.request("GET", `${ROOT}/pulls/${pr.number}/files?per_page=3`));
     const run = await verifiedRun(api, signal.sourceRun, signal.sourceAttempt, "factory-ci.yml");
+    // GitHub can drop CI's PR association after merge. A bound receipt already
+    // proves the original association and can only be used by its receiver.
+    const associationRemoved =
+      bound &&
+      pr.state === "closed" &&
+      pr.merged === true &&
+      d.SHA.test(pr.merge_commit_sha || "") &&
+      Array.isArray(run.pull_requests) &&
+      run.pull_requests.length === 0 &&
+      run.actor?.login === signal.actor.login &&
+      run.actor.id === signal.actor.id &&
+      run.head_branch === pr.head.ref;
     if (
       run.event !== "pull_request" ||
       run.head_sha !== signal.head ||
-      !run.pull_requests?.some((p) => p.number === pr.number)
+      (!associationRemoved && !run.pull_requests?.some((p) => p.number === pr.number))
     )
       throw Error("Wake CI source changed");
     const jobs = await api.pages(

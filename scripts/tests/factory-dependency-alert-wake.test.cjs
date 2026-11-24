@@ -363,6 +363,31 @@ test("only a bound, merged alert PR tolerates GitHub dropping the CI PR associat
   await assert.rejects(verifyWake(input), /CI identity/);
 });
 
+test("a native Dependency maintenance run keeps its bound CI identity after its verified merge", async () => {
+  const s = alertWake();
+  s.ci.actor = s.ci.triggering_actor = s.native.user;
+  s.ci.head_branch = s.native.head.ref;
+  s.ci.pull_requests = [{ number: s.native.number }];
+  const { receiptId } = await handleWake(s);
+  const input = receiverInput(s, receiptId);
+  await verifyWake(input);
+
+  s.ci.pull_requests = [];
+  await assert.rejects(verifyWake(input), /CI source changed/);
+  Object.assign(s.native, {
+    state: "closed",
+    merged: true,
+    merge_commit_sha: "e".repeat(40),
+  });
+  assert.equal((await verifyWake(input)).sourceActor, "dependabot[bot]");
+
+  s.ci.pull_requests = [{ number: 99 }];
+  await assert.rejects(verifyWake(input), /CI source changed/);
+  s.ci.pull_requests = [];
+  s.jobs[0].conclusion = "failure";
+  await assert.rejects(verifyWake(input), /native CI failed/);
+});
+
 test("the App CI wake accepts a wider proposal only with the exact receipt file scope", async () => {
   const s = alertWake();
   s.files.push({ filename: "package.json", status: "modified" });

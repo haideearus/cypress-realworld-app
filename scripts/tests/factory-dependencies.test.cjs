@@ -14,6 +14,19 @@ const cfg = policy.readConfig({
   FACTORY_GITHUB_APP_CLIENT_ID: "Iv123456789",
   FACTORY_GITHUB_APP_SLUG: "factory-example",
 });
+
+test("dependency refusal logs explain a known stale base without exposing arbitrary errors", () => {
+  const { refusalReason } = require("../factory/dependency-run.cjs");
+  assert.match(
+    refusalReason(Error("Dependency PR requires a current-main rebase")),
+    /requires a current-main rebase/
+  );
+  assert.match(
+    refusalReason(Error("Native review gate is pending or unavailable")),
+    /Native review gate is pending/
+  );
+  assert.doesNotMatch(refusalReason(Error("private response body")), /private response body/);
+});
 function pr() {
   return {
     number: 52,
@@ -860,6 +873,16 @@ test("workflow preserves preview, trusted source, readonly model and isolated cr
     "${{ secrets.FACTORY_DEPENDABOT_REBASE_TOKEN }}"
   );
   assert.doesNotMatch(JSON.stringify(w.jobs.select.steps.filter((s) => s !== track)), /secrets\./);
+  const afterMerge = w.jobs.track_after_merge;
+  assert.deepEqual(afterMerge.needs, ["select", "merge", "finalize"]);
+  assert.match(afterMerge.if, /always\(\).*needs\.merge\.outputs\.merged == 'true'/);
+  assert.equal(afterMerge.concurrency.group, "factory-ledger");
+  assert.deepEqual(afterMerge.permissions, w.jobs.select.permissions);
+  assert.deepEqual(afterMerge.steps.at(-1).env, {
+    ...track.env,
+    FACTORY_OPERATION: "dep_recover_tracked",
+  });
+  assert.doesNotMatch(JSON.stringify(afterMerge), /CLAUDE|APP_PRIVATE_KEY/);
   for (const [name, job] of Object.entries(w.jobs)) {
     if (name !== "preview" && name !== "finalize") {
       assert.match(job.if, /FACTORY_ENABLED/);
