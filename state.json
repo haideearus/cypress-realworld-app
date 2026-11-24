@@ -3931,12 +3931,12 @@
     },
     "220": {
       "coding": 0,
-      "reviews": 0,
+      "reviews": 1,
       "retries": 0,
       "origin": "dependency-pr",
       "head": "26d2d504c1c4cddf2421c0d628453b363df0c61c",
       "pr": 220,
-      "status": "new",
+      "status": "reviewing",
       "approval": null,
       "branch": "dependabot/npm_and_yarn/js-yaml-4.3.2",
       "criteriaHash": "551996c1b1b338d0ca35f4f1e742072b15e40942922760af4276b130559b2bd6",
@@ -6137,6 +6137,17 @@
       "status": "finished",
       "at": "2026-11-24T14:48:14.750Z",
       "outcome": "reviewed"
+    },
+    "b2634ff1-2231-420b-ab56-01f8dee4356c": {
+      "id": "b2634ff1-2231-420b-ab56-01f8dee4356c",
+      "ticket": 220,
+      "phase": "review",
+      "slot": "dependency",
+      "runId": "45441606903",
+      "runAttempt": 1,
+      "head": "26d2d504c1c4cddf2421c0d628453b363df0c61c",
+      "status": "reserved",
+      "at": "2026-11-24T16:59:46.698Z"
     }
   },
   "active": {
@@ -10074,6 +10085,16 @@
       "ticket": 220,
       "head": "26d2d504c1c4cddf2421c0d628453b363df0c61c",
       "runId": "45441606903",
+      "actor": "haideearus"
+    },
+    {
+      "at": "2026-11-24T16:59:46.698Z",
+      "event": "reserved",
+      "ticket": 220,
+      "grant": "b2634ff1-2231-420b-ab56-01f8dee4356c",
+      "phase": "review",
+      "runId": "45441606903",
+      "runAttempt": 1,
       "actor": "haideearus"
     }
   ]
