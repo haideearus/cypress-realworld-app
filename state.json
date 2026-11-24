@@ -4040,9 +4040,17 @@
       "reviews": 1,
       "retries": 0,
       "head": "f29e794b1d22afe3acc4074b764a7a05603f629d",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 238,
-      "approval": null,
+      "approval": {
+        "head": "f29e794b1d22afe3acc4074b764a7a05603f629d",
+        "pr": 238,
+        "grant": "f0d30d92-3841-415f-aed5-8c56e8357417",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/45401449953"
+      },
       "criteriaHash": "c01c17bda262cafc951d3779606f21e0a4c6169aab7182652d2cbb9e7bb7c004",
       "branch": "agent/fix-discovery-dependency-handoff",
       "ci": {
@@ -4050,7 +4058,8 @@
         "head": "f29e794b1d22afe3acc4074b764a7a05603f629d",
         "runId": 45401613477,
         "passed": true
-      }
+      },
+      "feedback": "{\"head\":\"f29e794b1d22afe3acc4074b764a7a05603f629d\",\"verdict\":\"pass\",\"summary\":\"Reviewed scripts/factory/wake-controller.cjs, scripts/factory/trusted-wake.cjs, scripts/factory/wake-contract.cjs and the accompanying regression tests in scripts/tests/factory-wake.test.cjs and scripts/tests/factory-dependency-alert-wake.test.cjs against ticket #239's criteria for PR #238. The new StaleWakeSource error class (wake-contract.cjs) lets verifySource distinguish genuinely stale evidence (closed PR/issue, changed head, stale base) from ambiguous/transient GitHub responses (missing identity fields, incomplete compare/main evidence), fixing a prior single-candidate `.find()` design that could get stuck on one flaky item forever. handleWake now scans up to MAX_DRAIN_SOURCE_CHECKS=20 pending candidates within a 60s budget, marks confirmed-stale ones \\\"observed\\\" and pushes transiently-unverifiable ones to the back of the receipts map (verified via object re-insertion) so later completions can reach good work, matching the \\\"stale requests skipped / temporary errors leave requests queued\\\" criteria. The full-replace branch reuses sourceKey-derived ids so a queued dependency-ci/alert-ci receipt is dispatched exactly once with its original PR number/head/CI run (confirmed via dependencyWakeTarget assertions in the new tests), while the ordinary app-pickup shortcut (drain.lane===\\\"app\\\" && queued.lane===\\\"app\\\") only marks matched app work \\\"observed\\\" without replacing the dispatched signal, preserving discovery completion's original app route when no dependency work is ready. Duplicate dispatch protection (alreadyDrained plus the atomic store.update's old-status check) and ledger immutability during this path are exercised directly by the new tests, and merge/ledger logic itself is untouched by the diff. I did not execute any code in this read-only session; the diff's test additions are evidence of coverage, and the context.json references an external CI run which I treat as supplied evidence rather than something I verified myself.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"scripts/factory/trusted-wake.cjs ~lines 58-65: for issue/monitor/finding signals, the added `if (!bound && issue.state === \\\"closed\\\") throw new c.StaleWakeSource(...)` always fires before the subsequent `(!bound && issue.state !== \\\"open\\\")` clause can ever be true (GitHub issue state is only open or closed), leaving that half of the OR dead. Harmless but worth a cleanup pass.\"}]}"
     }
   },
   "grants": {
@@ -5731,15 +5740,12 @@
       "runId": "45401449953",
       "runAttempt": 1,
       "head": "f29e794b1d22afe3acc4074b764a7a05603f629d",
-      "status": "reserved",
-      "at": "2026-11-24T13:15:26.061Z"
+      "status": "finished",
+      "at": "2026-11-24T13:15:26.061Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 239,
-    "runId": "45401449953",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -9521,6 +9527,14 @@
       "runId": "45401449953",
       "runAttempt": 1,
       "actor": "haideearus"
+    },
+    {
+      "at": "2026-11-24T13:32:16.348Z",
+      "event": "finished",
+      "ticket": 239,
+      "grant": "f0d30d92-3841-415f-aed5-8c56e8357417",
+      "status": "reviewed",
+      "head": "f29e794b1d22afe3acc4074b764a7a05603f629d"
     }
   ]
 }
