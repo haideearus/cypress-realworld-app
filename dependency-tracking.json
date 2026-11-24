@@ -18,8 +18,8 @@
     },
     "222": {
       "branch": "dependabot/npm_and_yarn/morgan-1.12.1",
-      "issue": null,
-      "status": "intent"
+      "issue": 229,
+      "status": "open"
     }
   }
 }
