@@ -124,7 +124,7 @@
     "husky": "7.0.4",
     "istanbul-lib-coverage": "3.2.2",
     "jsdom": "^22.1.0",
-    "js-yaml": "4.2.0",
+    "js-yaml": "4.3.2",
     "json": "11.0.0",
     "jwks-rsa": "2.0.5",
     "lowdb": "1.0.0",
