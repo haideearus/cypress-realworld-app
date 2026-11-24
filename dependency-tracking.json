@@ -33,8 +33,8 @@
     },
     "226": {
       "branch": "dependabot/npm_and_yarn/source-map-js-1.2.4",
-      "issue": null,
-      "status": "intent"
+      "issue": 243,
+      "status": "open"
     }
   }
 }
