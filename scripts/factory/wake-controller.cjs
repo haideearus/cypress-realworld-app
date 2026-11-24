@@ -7,6 +7,9 @@ const { verifyMonitorIssue } = require("./monitor-origin.cjs");
 const { MonitorStore } = require("./monitor-state.cjs");
 const slots = require("./active-tickets.cjs");
 const dependency = require("./dependency-contract.cjs");
+// Bound GitHub reads when a single completion encounters a backlog of receipts.
+const MAX_DRAIN_SOURCE_CHECKS = 20;
+const DRAIN_SOURCE_CHECK_WINDOW_MS = 60000;
 
 const alertWakeConfig = (vars) => ({
   alertRepair: vars.FACTORY_DEPENDENCY_ALERT_REPAIR_ENABLED === "true",
@@ -64,11 +67,18 @@ async function verifyAlertCI(api, pr, run, config, bound = false) {
     const compare = await api.request("GET", `${ROOT}/compare/${receipt.base}...${pr.head.sha}`);
     const main = await api.request("GET", `${ROOT}/git/ref/heads/main`);
     if (
-      main.object?.sha !== receipt.base ||
-      compare.behind_by !== 0 ||
-      compare.merge_base_commit?.sha !== receipt.base
+      !c.SHA.test(main?.object?.sha || "") ||
+      !c.SHA.test(compare?.merge_base_commit?.sha || "") ||
+      !Number.isSafeInteger(compare.behind_by) ||
+      compare.behind_by < 0
     )
-      throw Error("Dependency alert CI base is stale");
+      throw Error("Dependency alert CI base evidence unavailable");
+    if (
+      main.object.sha !== receipt.base ||
+      compare.behind_by !== 0 ||
+      compare.merge_base_commit.sha !== receipt.base
+    )
+      throw new c.StaleWakeSource("Dependency alert CI base is stale");
   }
   return receipt;
 }
@@ -357,29 +367,49 @@ async function handleWake({
         r.signal.sourceAttempt === drain.sourceAttempt &&
         r.status !== "pending"
     );
-  let pendingId, completedDrain;
-  if (drain) {
+  const observed = [];
+  const deferred = [];
+  const skipped = [];
+  let completedDrain;
+  if (drain && !busy) {
     const { state } = await store.read();
     if (alreadyDrained(state)) return { outcome: "duplicate" };
-    const pending = Object.values(state.receipts).find(
-      (r) => r.status === "pending" && r.signal.kind !== "drain"
-    );
-    if (pending) {
-      if (!busy && ["dependency-ci", "dependency-alert-ci"].includes(pending.signal.kind)) {
-        try {
-          await require("./trusted-wake.cjs").verifySource(api, pending.signal, false, vars);
-          completedDrain = c.createWake({ signal, producer });
-          signal = pending.signal;
-        } catch {
-          // Fall back to the ordinary drain when the queued CI proof is stale.
-        }
+    const pending = Object.values(state.receipts)
+      .filter(
+        (r) =>
+          r.status === "pending" &&
+          r.signal.kind !== "drain" &&
+          (drain.lane === "app" || r.signal.kind !== "finding")
+      )
+      .slice(0, MAX_DRAIN_SOURCE_CHECKS);
+    const deadline = Date.now() + DRAIN_SOURCE_CHECK_WINDOW_MS;
+    for (const queued of pending) {
+      if (Date.now() >= deadline) break;
+      try {
+        if (queued.signal.lane === "app" && controls.tickets[String(queued.signal.number)])
+          throw new c.StaleWakeSource("Wake issue already admitted");
+        await require("./trusted-wake.cjs").verifySource(api, queued.signal, false, vars);
+      } catch (error) {
+        const expired = error instanceof c.StaleWakeSource;
+        (expired ? observed : deferred).push(queued.id);
+        skipped.push({
+          kind: queued.signal.kind,
+          number: queued.signal.number,
+          reason: expired ? error.message : "Wake evidence could not be verified",
+        });
+        continue;
       }
-      if (!completedDrain) {
-        signal = { ...signal, lane: pending.signal.lane };
-        pendingId = pending.id;
+      // Ordinary app pickup selects its own priority work from the app queue.
+      if (drain.lane === "app" && queued.signal.lane === "app") {
+        observed.push(queued.id);
+        break;
       }
+      completedDrain = c.createWake({ signal: drain, producer });
+      signal = queued.signal;
+      break;
     }
   }
+  const diagnostics = skipped.length ? { skipped } : {};
   const receipt = c.createWake({ signal, producer });
   const claim = await store.update((state) => {
     c.validateWakes(state);
@@ -396,8 +426,16 @@ async function handleWake({
       state.receipts[receipt.id].producer = producer;
       if (completedDrain)
         state.receipts[completedDrain.id] = { ...completedDrain, status: "observed" };
-      if (pendingId && state.receipts[pendingId]?.status === "pending")
-        state.receipts[pendingId].status = "observed";
+      for (const id of observed) {
+        if (state.receipts[id]?.status === "pending") state.receipts[id].status = "observed";
+      }
+      // Move temporarily unverifiable receipts behind unchecked work for the next completion.
+      for (const id of deferred) {
+        const pending = state.receipts[id];
+        if (pending?.status !== "pending") continue;
+        delete state.receipts[id];
+        state.receipts[id] = pending;
+      }
     }
     return { state, duplicate: false };
   });
@@ -413,14 +451,14 @@ async function handleWake({
       inputs,
     });
   } catch {
-    return { outcome: "uncertain", receiptId: receipt.id };
+    return { outcome: "uncertain", receiptId: receipt.id, ...diagnostics };
   }
   await store.update((state) => {
     const r = state.receipts[receipt.id];
     if (r.status === "intent") r.status = "sent";
     return { state };
   });
-  return { outcome: "dispatched", lane: signal.lane, receiptId: receipt.id };
+  return { outcome: "dispatched", lane: signal.lane, receiptId: receipt.id, ...diagnostics };
 }
 module.exports = {
   classifySignal,

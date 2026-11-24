@@ -203,6 +203,21 @@ test("a generated CI wake cannot bind after the alert ticket loses readiness", a
   assert.equal(s.store.state.receipts[receiptId].receiver, null);
 });
 
+test("incomplete GitHub base evidence does not make a queued alert wake stale", async () => {
+  const s = alertWake();
+  s.ledger.state.active = { ticket: 9, runId: "701", runAttempt: 1 };
+  const pending = await handleWake(s);
+  const { signal } = s.store.state.receipts[pending.receiptId];
+  s.compare = { behind_by: 0 };
+  const { verifySource } = require("../factory/trusted-wake.cjs");
+  const { StaleWakeSource } = require("../factory/wake-contract.cjs");
+  await assert.rejects(
+    verifySource(s.api, signal, false, s.vars),
+    (error) =>
+      !(error instanceof StaleWakeSource) && /base evidence unavailable/.test(error.message)
+  );
+});
+
 test("capacity drain dispatches the original exact dependency CI receipt once", async () => {
   const s = alertWake();
   s.ledger.state.active = { ticket: 9, runId: "701", runAttempt: 1 };
