@@ -101,7 +101,7 @@
       "name": "nanoid",
       "day": "2026-11-24",
       "trackingReason": "major-held",
-      "phase": "ready",
+      "phase": "resolved",
       "issue": 164,
       "pr": 219,
       "candidate": "3.3.18",
@@ -119,7 +119,8 @@
           "result": "verified",
           "at": "2026-11-24T10:21:41.699Z"
         }
-      ]
+      ],
+      "resolvedAt": "2026-11-24T10:58:43.095Z"
     },
     "9b53f0a0dd39af50016265903ce3a581c2a9402647dae4b5840aa124b7664f92": {
       "candidate": "2.3.2",
