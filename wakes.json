@@ -1746,7 +1746,7 @@
         },
         "event": "workflow_run"
       },
-      "status": "pending",
+      "status": "observed",
       "receiver": null,
       "at": "2026-11-24T10:58:22.998Z"
     },
@@ -2139,6 +2139,36 @@
       "status": "sent",
       "receiver": null,
       "at": "2026-11-24T11:34:53.957Z"
+    },
+    "9aebe3bf3c99099dd9519ca1de06fe1849c9fce7f6fad830c234c912d1ff7c8a": {
+      "id": "9aebe3bf3c99099dd9519ca1de06fe1849c9fce7f6fad830c234c912d1ff7c8a",
+      "signal": {
+        "kind": "drain",
+        "lane": "dependency",
+        "number": 239,
+        "head": "61be0f06450e1916803c3050613e727a65400a1f",
+        "criteriaHash": "37b62cf22b69f012205b2d2c24186b9ce6f6e7287f4b6df3a856809a4b309c6f",
+        "revision": "1",
+        "sourceRun": "45401449953",
+        "sourceAttempt": 1,
+        "actor": {
+          "login": "haideearus",
+          "id": 101267861
+        }
+      },
+      "producer": {
+        "runId": "45404489966",
+        "runAttempt": 1,
+        "workflowSha": "61be0f06450e1916803c3050613e727a65400a1f",
+        "actor": {
+          "login": "haideearus",
+          "id": 101267861
+        },
+        "event": "workflow_run"
+      },
+      "status": "intent",
+      "receiver": null,
+      "at": "2026-11-24T13:33:01.939Z"
     }
   }
 }
