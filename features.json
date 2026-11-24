@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "records": {
+    "1b5b68f2ae6bbc7cef7077530e27fd734ea0f2c636ed809f69b0b6cdc0cca006": {
+      "week": "2026-11-23",
+      "producer": {
+        "mode": "pilot",
+        "head": "855b89710d6e3b2f16c25c9521748f756023e600",
+        "runId": "45463951116"
+      },
+      "proposal": {
+        "size": "minor",
+        "title": "Name the amount range clear action",
+        "problem": "The amount range popover labels its reset button Clear, without identifying the filter it clears.",
+        "benefit": "Screen reader and voice-control users can identify the amount range reset without changing the date filter.",
+        "evidence": {
+          "kind": "source",
+          "path": "src/components/TransactionListAmountRangeFilter.tsx",
+          "quote": "data-test=\"transaction-list-filter-amount-clear-button\""
+        },
+        "steps": [
+          {
+            "title": "Name the amount range clear action",
+            "scope": "Give the existing clear action an accessible name that identifies the amount range.",
+            "acceptance": [
+              "Users can find the reset as a button named Clear amount range.",
+              "Activating the button resets the amount filter and preserves a selected date range."
+            ]
+          }
+        ]
+      },
+      "parent": null,
+      "stages": [
+        null
+      ]
+    }
+  }
+}
