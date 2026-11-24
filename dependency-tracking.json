@@ -30,6 +30,11 @@
       "branch": "dependabot/npm_and_yarn/ip-address-10.7.6",
       "issue": 231,
       "status": "closed"
+    },
+    "226": {
+      "branch": "dependabot/npm_and_yarn/source-map-js-1.2.4",
+      "issue": null,
+      "status": "intent"
     }
   }
 }
