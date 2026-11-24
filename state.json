@@ -4136,7 +4136,15 @@
           "remainingBaseline": []
         }
       },
-      "feedback": "{\"head\":\"91d428bba205ac18b0c6eaf8f2f4e94bfc67596e\",\"verdict\":\"pass\",\"summary\":\"Reviewed the yarn.lock-only diff (no package.json change) that bumps the transitive dependency source-map-js from 1.2.1 to 1.2.2 under postcss's existing \\\"^1.2.1\\\" range at yarn.lock:11302-11305 (required via postcss@8.5.26, yarn.lock:10208-10215). Grep confirmed source-map-js is not declared directly in package.json, so this is a pure lockfile resolution refresh within the already-permitted semver range, not a policy change. The trusted dependencyFacts.registry entry shows the 1.2.2 tarball/integrity hash on registry.npmjs.org matches the lockfile exactly (integrityMatched: true), and advisorySummary confirms GHSA-68fv-2mgg-jv7q (affecting source-map-js 1.0.0 up to the 1.2.2 fix) is cleared by this bump with no new advisories introduced and no remainingBaseline issues left unresolved by it. upstreamReleases is empty, so there is no additional verified release history to ground any takeover-style claim, and none is warranted here. I verified via Glob that all four ciEvidence.testFiles (UserSettingsForm.test.tsx, auth.spec.ts, bankaccounts.spec.ts, user-settings.spec.ts) genuinely exist in the repo, corroborating that the cited CI run exercised real suite steps (types/lint/unit, API+UI regression) rather than fabricated evidence; this proves suite-level success, not per-test confirmation that source-map generation itself was exercised.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"The CI evidence's referenced test files (UserSettingsForm.test.tsx, auth/bankaccounts/user-settings cypress specs) are general UI/form regression tests and do not directly exercise postcss's source-map generation path that depends on source-map-js, so the passing suite is only indirect assurance; no test in the repo specifically validates CSS/source-map output for this bump.\"}]}"
+      "feedback": "{\"head\":\"91d428bba205ac18b0c6eaf8f2f4e94bfc67596e\",\"verdict\":\"pass\",\"summary\":\"Reviewed the yarn.lock-only diff (no package.json change) that bumps the transitive dependency source-map-js from 1.2.1 to 1.2.2 under postcss's existing \\\"^1.2.1\\\" range at yarn.lock:11302-11305 (required via postcss@8.5.26, yarn.lock:10208-10215). Grep confirmed source-map-js is not declared directly in package.json, so this is a pure lockfile resolution refresh within the already-permitted semver range, not a policy change. The trusted dependencyFacts.registry entry shows the 1.2.2 tarball/integrity hash on registry.npmjs.org matches the lockfile exactly (integrityMatched: true), and advisorySummary confirms GHSA-68fv-2mgg-jv7q (affecting source-map-js 1.0.0 up to the 1.2.2 fix) is cleared by this bump with no new advisories introduced and no remainingBaseline issues left unresolved by it. upstreamReleases is empty, so there is no additional verified release history to ground any takeover-style claim, and none is warranted here. I verified via Glob that all four ciEvidence.testFiles (UserSettingsForm.test.tsx, auth.spec.ts, bankaccounts.spec.ts, user-settings.spec.ts) genuinely exist in the repo, corroborating that the cited CI run exercised real suite steps (types/lint/unit, API+UI regression) rather than fabricated evidence; this proves suite-level success, not per-test confirmation that source-map generation itself was exercised.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"The CI evidence's referenced test files (UserSettingsForm.test.tsx, auth/bankaccounts/user-settings cypress specs) are general UI/form regression tests and do not directly exercise postcss's source-map generation path that depends on source-map-js, so the passing suite is only indirect assurance; no test in the repo specifically validates CSS/source-map output for this bump.\"}]}",
+      "merge": {
+        "status": "intent",
+        "head": "91d428bba205ac18b0c6eaf8f2f4e94bfc67596e",
+        "pr": 241,
+        "at": "2026-11-24T14:18:27.430Z",
+        "runId": "45409509152",
+        "runAttempt": 1
+      }
     },
     "242": {
       "coding": 0,
@@ -5868,7 +5876,11 @@
       "outcome": "reviewed"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 241,
+    "runId": "45409509152",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
