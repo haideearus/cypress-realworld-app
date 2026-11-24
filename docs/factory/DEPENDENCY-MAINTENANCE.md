@@ -355,12 +355,16 @@ outcomes under the original dependency attempt. If preparation stops here, no
 Claude reservation is created. Older attempts and all usage counters remain
 readable and keep their original values.
 
-A later tracking pass reports unresolved evidence and review holds on the linked
-native Dependabot issue. When immutable comparison proves that a native bot PR is
-behind `main`, the pass can post `@dependabot rebase` once for that commit. The
-tracking record preserves the request even if the response is lost. The PR
-becomes eligible again when Dependabot supplies a new eligible head. Successful
-comment delivery does not establish that Dependabot acted.
+A tracking pass reports unresolved evidence and review holds on the linked
+native Dependabot issue. After a confirmed dependency merge, a model-free pass
+checks tracked PRs for recovery, starting with PRs whose passing CI was queued.
+Scheduled tracking continues to check the rest of the queue within its usual
+limits. When immutable comparison proves a native PR is behind `main`, the
+factory can post `@dependabot rebase` once for each current head and base pair.
+It keeps at most five base receipts per head and retains requests even if the
+response is lost. The PR becomes eligible for fresh CI and review when
+Dependabot supplies a new eligible head. A delivered comment confirms the
+request, and the new commit confirms that Dependabot acted.
 
 Automatic refresh needs the optional `FACTORY_DEPENDABOT_REBASE_TOKEN` Actions
 secret. Create a fine-grained personal access token as the repository owner,
