@@ -4525,7 +4525,11 @@
       "approval": null,
       "criteriaHash": "db2f5914722df04723ea1a91d6a6b367d44a3b3351038686c7e57e20e94b4f65",
       "branch": "agent/feature-priority-turns",
-      "ci": null
+      "ci": {
+        "requestId": "6e34163c-83b8-4fc9-b0c8-646dfec7ab0c",
+        "head": "ca54357ad43d1ce43a61cf282bd1c90037bc2851",
+        "runId": null
+      }
     }
   },
   "grants": {
