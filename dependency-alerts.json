@@ -260,6 +260,14 @@
       "phase": "tracking",
       "issue": 214,
       "pr": null
+    },
+    "57f69732fbd8d98e10b6a1f4874a060850cd32490dbb0b1ac99f1bb594b392e1": {
+      "name": "sigstore",
+      "day": "2026-11-24",
+      "trackingReason": "major-held",
+      "phase": "tracking-intent",
+      "issue": null,
+      "pr": null
     }
   },
   "heldAfter": "brace-expansion"
