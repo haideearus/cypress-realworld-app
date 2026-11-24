@@ -4203,8 +4203,16 @@
       "origin": "dependency-pr",
       "head": "549a89a6136766298064e014d00fa5f8009fc574",
       "pr": 235,
-      "status": "reviewing",
-      "approval": null,
+      "status": "reviewed",
+      "approval": {
+        "head": "549a89a6136766298064e014d00fa5f8009fc574",
+        "pr": 235,
+        "grant": "4437c9cc-bb9d-4561-bd03-4120a7655611",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/45446718754"
+      },
       "branch": "dependabot/npm_and_yarn/humanfs/node-0.16.8",
       "criteriaHash": "43d8c0a56f517c6c371e5724297f2a15dbe0c393586f988862be19ba0192f58d",
       "dependency": {
@@ -4260,7 +4268,8 @@
           ],
           "remainingBaseline": []
         }
-      }
+      },
+      "feedback": "{\"head\":\"549a89a6136766298064e014d00fa5f8009fc574\",\"verdict\":\"pass\",\"summary\":\"Reviewed the yarn.lock-only diff (base 87af49ad → head 549a89a6) against package.json and dependencyFacts. The change bumps transitive devDependencies of eslint: @humanfs/node 0.16.6→0.16.8 (removes GHSA-p498-v437-472g per cleared advisory), @humanfs/core 0.19.1→0.19.2, adds @humanfs/types 0.15.0, and dedupes @humanwhocodes/retry onto the already-present 0.4.3. Confirmed via Grep in yarn.lock:2265-2296,6363-6367 that eslint's declared ranges (^0.16.6, ^0.4.2) still satisfy the new resolutions and package.json itself is untouched (no semver range widened). Registry entries in dependencyFacts show integrityMatched: true for all four added/retained packages, consistent with the diff's resolved URLs/integrity hashes. CI receipt (run 45447906655) shows yarn types/lint/test:unit:ci and the E2E regression job passed at this head, which exercises eslint (hence @humanfs/node) during lint and gives general app regression coverage via auth.spec.ts, bankaccounts.spec.ts, user-settings.spec.ts and UserSettingsForm.test.tsx, none of which specifically target this lockfile-only dependency since it's a build/lint-time tool, not runtime application code.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"The four referenced CI test files (UserSettingsForm.test.tsx, auth.spec.ts, bankaccounts.spec.ts, user-settings.spec.ts) are general application regression tests unrelated to @humanfs/*; no test specifically exercises the bumped eslint tooling dependency, so passing CI only confirms the lint/typecheck/build pipeline still runs, not that @humanfs/node's internal behavior change is otherwise validated.\"}]}"
     },
     "237": {
       "coding": 0,
@@ -6243,15 +6252,12 @@
       "runId": "45446718754",
       "runAttempt": 1,
       "head": "549a89a6136766298064e014d00fa5f8009fc574",
-      "status": "reserved",
-      "at": "2026-11-24T17:32:57.341Z"
+      "status": "finished",
+      "at": "2026-11-24T17:32:57.341Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 235,
-    "runId": "45446718754",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -10234,6 +10240,14 @@
       "actor": "github-actions[bot]",
       "wakeReceipt": "733b4250c7967661d169d7cc863089a4b299799f1ef39668ac4e4b94c1e719cd",
       "sourceActor": "dependabot[bot]"
+    },
+    {
+      "at": "2026-11-24T17:35:02.247Z",
+      "event": "finished",
+      "ticket": 235,
+      "grant": "4437c9cc-bb9d-4561-bd03-4120a7655611",
+      "status": "reviewed",
+      "head": "549a89a6136766298064e014d00fa5f8009fc574"
     }
   ]
 }
