@@ -103,8 +103,8 @@
     },
     "261": {
       "branch": "dependabot/npm_and_yarn/rollup-2.80.0",
-      "issue": null,
-      "status": "intent"
+      "issue": 265,
+      "status": "open"
     }
   }
 }
