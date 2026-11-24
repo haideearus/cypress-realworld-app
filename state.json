@@ -4511,7 +4511,7 @@
       "origin": "dependency-pr",
       "head": "785da08ec41f3c0cfd0d0b2531347db280f3e35a",
       "pr": 247,
-      "status": "new",
+      "status": "blocked",
       "approval": null,
       "branch": "dependabot/npm_and_yarn/uuid-14.0.0",
       "criteriaHash": "a423a2104e7c24fb1c9fb5d45bf62d380e9a177989629720b1c57b32b4fa4bdf",
@@ -6394,11 +6394,7 @@
       "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 247,
-    "runId": "45463570279",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -10467,6 +10463,13 @@
       "actor": "github-actions[bot]",
       "wakeReceipt": "ec36f1100428da2c1765f63cccaabc1f8896c6b8f8ecef2770c6547e3bea6bcf",
       "sourceActor": "dependabot[bot]"
+    },
+    {
+      "at": "2026-11-24T18:54:25.358Z",
+      "event": "dependency_preparation_blocked",
+      "ticket": 247,
+      "head": "785da08ec41f3c0cfd0d0b2531347db280f3e35a",
+      "runId": "45463570279"
     }
   ]
 }
