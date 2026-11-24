@@ -93,7 +93,7 @@
     },
     "249": {
       "branch": "dependabot/npm_and_yarn/babel/plugin-transform-modules-systemjs-7.29.15",
-      "status": "open",
+      "status": "closing",
       "issue": 255
     },
     "250": {
