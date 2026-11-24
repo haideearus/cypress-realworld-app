@@ -141,7 +141,8 @@
       247,
       222,
       259,
-      220
+      220,
+      235
     ]
   },
   "tickets": {
@@ -4195,6 +4196,38 @@
         "mergeCommit": "61be0f06450e1916803c3050613e727a65400a1f"
       }
     },
+    "235": {
+      "coding": 0,
+      "reviews": 0,
+      "retries": 0,
+      "origin": "dependency-pr",
+      "head": "549a89a6136766298064e014d00fa5f8009fc574",
+      "pr": 235,
+      "status": "new",
+      "approval": null,
+      "branch": "dependabot/npm_and_yarn/humanfs/node-0.16.8",
+      "criteriaHash": "43d8c0a56f517c6c371e5724297f2a15dbe0c393586f988862be19ba0192f58d",
+      "dependency": {
+        "version": 1,
+        "pr": 235,
+        "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-dependencies.yml@refs/heads/main",
+        "workflowSha": "87af49adb379b3614c1ecd46f1683eef5fc0f038",
+        "runId": "45446718754",
+        "runAttempt": 1,
+        "appSlug": "haideearus-software-factory",
+        "attempts": [
+          {
+            "head": "549a89a6136766298064e014d00fa5f8009fc574",
+            "base": "87af49adb379b3614c1ecd46f1683eef5fc0f038",
+            "runId": "45446718754",
+            "runAttempt": 1,
+            "workflowSha": "87af49adb379b3614c1ecd46f1683eef5fc0f038",
+            "at": "2026-11-24T17:18:47.409Z"
+          }
+        ]
+      },
+      "ci": null
+    },
     "237": {
       "coding": 0,
       "reviews": 0,
@@ -6169,7 +6202,11 @@
       "outcome": "reviewed"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 235,
+    "runId": "45446718754",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -10130,6 +10167,16 @@
       "runAttempt": 1,
       "outcome": "accepted",
       "mergeCommit": "87af49adb379b3614c1ecd46f1683eef5fc0f038"
+    },
+    {
+      "at": "2026-11-24T17:18:47.409Z",
+      "event": "dependency_metadata_admitted",
+      "ticket": 235,
+      "head": "549a89a6136766298064e014d00fa5f8009fc574",
+      "runId": "45446718754",
+      "actor": "github-actions[bot]",
+      "wakeReceipt": "733b4250c7967661d169d7cc863089a4b299799f1ef39668ac4e4b94c1e719cd",
+      "sourceActor": "dependabot[bot]"
     }
   ]
 }
