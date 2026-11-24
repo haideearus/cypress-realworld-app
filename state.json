@@ -4661,7 +4661,7 @@
       "reviews": 0,
       "retries": 0,
       "head": "98c77049cadd919705cf6c61c742cbc8ba503a02",
-      "status": "awaiting_review",
+      "status": "blocked",
       "pr": 274,
       "approval": null,
       "criteriaHash": "d6e6324e006d0e1293fc7e4dd9b1a14821fcf779c3c9a5cae025850b6f5ade36",
@@ -4687,7 +4687,8 @@
         "head": "98c77049cadd919705cf6c61c742cbc8ba503a02",
         "runId": 45477084054,
         "passed": true
-      }
+      },
+      "feedback": "Review unavailable, interrupted, or subscription quota exhausted"
     }
   },
   "grants": {
@@ -6493,11 +6494,7 @@
       "outcome": "awaiting_review"
     }
   },
-  "active": {
-    "ticket": 273,
-    "runId": "45476207342",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -10627,6 +10624,12 @@
       "grant": "b950a27c-a6cd-4132-9328-85e118bef50b",
       "status": "awaiting_review",
       "head": "98c77049cadd919705cf6c61c742cbc8ba503a02"
+    },
+    {
+      "at": "2026-11-24T20:15:49.113Z",
+      "event": "blocked",
+      "ticket": 273,
+      "reason": "Review unavailable, interrupted, or subscription quota exhausted"
     }
   ],
   "featureTurn": {
