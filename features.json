@@ -31,7 +31,10 @@
       },
       "parent": null,
       "stages": [
-        null
+        {
+          "phase": "intent",
+          "issue": null
+        }
       ]
     }
   }
