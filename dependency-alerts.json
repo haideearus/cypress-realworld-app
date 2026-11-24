@@ -99,11 +99,27 @@
     },
     "9a215060ce8ac8b42b957eebb2f4538550f0caf2c1072cdc16d0201655f615ab": {
       "name": "nanoid",
-      "day": "2026-11-21",
+      "day": "2026-11-24",
       "trackingReason": "major-held",
-      "phase": "tracking",
+      "phase": "issue",
       "issue": 164,
-      "pr": null
+      "pr": null,
+      "candidate": "3.3.18",
+      "base": "04a49eb82822f04dc2055b5d0b9cdfdf443be363",
+      "head": "4abf657bfa13d8ffb5a28af3abd4283b25b76af7",
+      "wider": {
+        "manifestChanged": true,
+        "manifestHash": "025a2aecea8bcc31f7b68ebbb57304791a1a6a6fe008106b9b1493d2581568c2",
+        "lockHash": "1d72b45c693d64d311470863feb452d272a310c1f8fe02f8f5fb2e76698d9d9a",
+        "removed": false
+      },
+      "widerChecks": [
+        {
+          "fingerprint": "605206ed76835282836b25607c1cb020a26ece0abda42161378a4d749dcd040f",
+          "result": "verified",
+          "at": "2026-11-24T10:21:41.699Z"
+        }
+      ]
     },
     "9b53f0a0dd39af50016265903ce3a581c2a9402647dae4b5840aa124b7664f92": {
       "candidate": "2.3.2",
