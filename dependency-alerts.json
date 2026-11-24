@@ -287,13 +287,5 @@
       "pr": null
     }
   },
-  "heldAfter": "nanoid",
-  "deferred": {
-    "base": "61be0f06450e1916803c3050613e727a65400a1f",
-    "fingerprint": "1b8a02a1153e8766fd2ca856f3ad90c471851345b8c54e23954c89b294d73f68",
-    "runs": [
-      "45383754950"
-    ],
-    "at": "2026-11-24T11:24:18.588Z"
-  }
+  "heldAfter": "nanoid"
 }
