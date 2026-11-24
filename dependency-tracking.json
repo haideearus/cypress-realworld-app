@@ -10,6 +10,11 @@
       "branch": "dependabot/npm_and_yarn/js-yaml-4.3.2",
       "issue": 227,
       "status": "open"
+    },
+    "221": {
+      "branch": "dependabot/npm_and_yarn/baseline-browser-mapping-2.11.39",
+      "issue": null,
+      "status": "intent"
     }
   }
 }
