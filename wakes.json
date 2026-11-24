@@ -2328,7 +2328,7 @@
         },
         "event": "workflow_run"
       },
-      "status": "pending",
+      "status": "observed",
       "receiver": null,
       "at": "2026-11-24T14:30:15.345Z"
     },
@@ -2358,7 +2358,7 @@
         },
         "event": "workflow_run"
       },
-      "status": "pending",
+      "status": "observed",
       "receiver": null,
       "at": "2026-11-24T14:30:31.388Z"
     },
@@ -2388,7 +2388,7 @@
         },
         "event": "workflow_run"
       },
-      "status": "pending",
+      "status": "observed",
       "receiver": null,
       "at": "2026-11-24T14:30:43.638Z"
     },
@@ -2418,7 +2418,7 @@
         },
         "event": "workflow_run"
       },
-      "status": "pending",
+      "status": "observed",
       "receiver": null,
       "at": "2026-11-24T14:30:56.969Z"
     },
@@ -2516,7 +2516,7 @@
         },
         "event": "workflow_run"
       },
-      "status": "pending",
+      "status": "observed",
       "receiver": null,
       "at": "2026-11-24T14:36:35.188Z"
     },
@@ -2546,7 +2546,7 @@
         },
         "event": "workflow_run"
       },
-      "status": "pending",
+      "status": "observed",
       "receiver": null,
       "at": "2026-11-24T14:36:55.241Z"
     },
@@ -2576,7 +2576,7 @@
         },
         "event": "workflow_run"
       },
-      "status": "pending",
+      "status": "observed",
       "receiver": null,
       "at": "2026-11-24T14:37:07.290Z"
     },
@@ -2878,7 +2878,7 @@
         },
         "event": "workflow_run"
       },
-      "status": "pending",
+      "status": "observed",
       "receiver": null,
       "at": "2026-11-24T15:10:32.920Z"
     },
@@ -2908,7 +2908,7 @@
         },
         "event": "workflow_run"
       },
-      "status": "pending",
+      "status": "observed",
       "receiver": null,
       "at": "2026-11-24T15:11:13.589Z"
     },
@@ -2938,7 +2938,7 @@
         },
         "event": "workflow_run"
       },
-      "status": "pending",
+      "status": "observed",
       "receiver": null,
       "at": "2026-11-24T15:11:19.519Z"
     },
@@ -2968,9 +2968,39 @@
         },
         "event": "workflow_run"
       },
-      "status": "pending",
+      "status": "observed",
       "receiver": null,
       "at": "2026-11-24T15:12:01.232Z"
+    },
+    "6a121f7448843e65fc22ecf0747e2ec5fe633483f0e9b8dd2e160efc421b828a": {
+      "id": "6a121f7448843e65fc22ecf0747e2ec5fe633483f0e9b8dd2e160efc421b828a",
+      "signal": {
+        "kind": "drain",
+        "lane": "dependency",
+        "number": 220,
+        "head": "6e8e495d97a4e1ff502a66921c9367c91707bfd9",
+        "criteriaHash": "3553cd1296af504ad441df517d8d5dc31278041cd13e0cdf504daa1abc26dc6e",
+        "revision": "1",
+        "sourceRun": "45441606903",
+        "sourceAttempt": 1,
+        "actor": {
+          "login": "haideearus",
+          "id": 101267861
+        }
+      },
+      "producer": {
+        "runId": "45444584009",
+        "runAttempt": 1,
+        "workflowSha": "87af49adb379b3614c1ecd46f1683eef5fc0f038",
+        "actor": {
+          "login": "haideearus",
+          "id": 101267861
+        },
+        "event": "workflow_run"
+      },
+      "status": "intent",
+      "receiver": null,
+      "at": "2026-11-24T17:05:33.108Z"
     }
   }
 }
