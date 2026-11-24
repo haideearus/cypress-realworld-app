@@ -4001,12 +4001,13 @@
       },
       "feedback": "{\"findings\":[{\"severity\":\"minor\",\"message\":\"Regression coverage for this bump is incidental: the CI evidence's testFiles (src/components/__tests__/UserSettingsForm.test.tsx, cypress/tests/ui/auth.spec.ts, bankaccounts.spec.ts, user-settings.spec.ts) exercise Formik/Yup form flows, not wait-on or joi. joi is only reached via wait-on's internal option validation (used by the precypress:run script in package.json), so there is no test that specifically exercises the new joi version's validation behavior; the suite passing is evidence the overall pipeline still runs, not a targeted regression check on this dependency.\"},{\"severity\":\"minor\",\"message\":\"dependencyFacts.upstreamReleases is empty for this change, so only the npm registry tarball/integrity record (not a verified changelog or release note) grounds the 17.13.9 artifact; the integrity hash in yarn.lock matches the registry fact exactly, which rules out a swapped/tampered tarball, but does not independently confirm joi's own release notes or behavior changes between 17.13.3 and 17.13.9.\"}],\"head\":\"0a7ad49f8fad625e3f816a10b76ef85b5b1419d0\",\"summary\":\"Reviewed the yarn.lock-only diff (package.json unchanged) that bumps joi from 17.13.3 to 17.13.9. joi is not imported anywhere in src/ (confirmed via Grep) — it is a transitive dependency pulled in only by the devDependency `wait-on` (package.json:148, used in the precypress:run script at package.json:173), via two lockfile ranges joi@^17.13.3 and joi@^17.4.0 (yarn.lock:8192, 12379, 12390), both satisfied by 17.13.9. The new integrity hash in yarn.lock matches dependencyFacts.registry exactly (integrityMatched: true), so the resolved tarball is the genuine npm-published artifact, not a hijacked package. dependencyFacts.advisories show the six cleared GHSA IDs all have \\\"fixed\\\" versions at or before 17.13.9, consistent with removing a vulnerable 17.13.3 and landing on a version the OSV records show as fixed; no remaining-baseline advisories apply to this package. The referenced CI run (45380010552) shows the full unit/lint/e2e suite passed, but the cited test files are unrelated Formik/Yup UI specs rather than targeted wait-on/joi tests, so coverage of this specific bump is incidental rather than direct — noted as a minor, non-blocking gap given joi has no direct app-code usage.\",\"verdict\":\"pass\"}",
       "merge": {
-        "status": "intent",
+        "status": "merged",
         "head": "0a7ad49f8fad625e3f816a10b76ef85b5b1419d0",
         "pr": 225,
-        "at": "2026-11-24T11:14:19.654Z",
+        "at": "2026-11-24T11:14:36.133Z",
         "runId": "45379539568",
-        "runAttempt": 1
+        "runAttempt": 1,
+        "mergeCommit": "61be0f06450e1916803c3050613e727a65400a1f"
       }
     }
   },
@@ -5669,11 +5670,7 @@
       "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 225,
-    "runId": "45379539568",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
