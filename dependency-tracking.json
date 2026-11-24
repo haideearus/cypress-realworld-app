@@ -119,8 +119,8 @@
     },
     "268": {
       "branch": "dependabot/npm_and_yarn/js-yaml-3.15.2",
-      "issue": null,
-      "status": "intent"
+      "issue": 270,
+      "status": "open"
     }
   }
 }
