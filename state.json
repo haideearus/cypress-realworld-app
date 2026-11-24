@@ -3929,12 +3929,12 @@
     },
     "222": {
       "coding": 0,
-      "reviews": 0,
+      "reviews": 1,
       "retries": 0,
       "origin": "dependency-pr",
       "head": "936c12b54d1aeb766d8691d46053b6983ee729a0",
       "pr": 222,
-      "status": "new",
+      "status": "reviewing",
       "approval": null,
       "branch": "dependabot/npm_and_yarn/morgan-1.12.1",
       "criteriaHash": "4199ee9676af69f32f919d9735252ed300dd187c221d3b44ce881fae2275d1eb",
@@ -5981,6 +5981,17 @@
       "status": "finished",
       "at": "2026-11-24T14:14:20.312Z",
       "outcome": "reviewed"
+    },
+    "3b44d3ba-e6b5-40bd-b481-5fed0e71bc30": {
+      "id": "3b44d3ba-e6b5-40bd-b481-5fed0e71bc30",
+      "ticket": 222,
+      "phase": "review",
+      "slot": "dependency",
+      "runId": "45415827820",
+      "runAttempt": 1,
+      "head": "936c12b54d1aeb766d8691d46053b6983ee729a0",
+      "status": "reserved",
+      "at": "2026-11-24T14:48:14.750Z"
     }
   },
   "active": {
@@ -9860,6 +9871,18 @@
       "ticket": 222,
       "head": "936c12b54d1aeb766d8691d46053b6983ee729a0",
       "runId": "45415827820",
+      "actor": "github-actions[bot]",
+      "wakeReceipt": "09237ca9e0ef190bdb4fb69f63619090b203f8f18e9b525a5ce4f604ab87122a",
+      "sourceActor": "dependabot[bot]"
+    },
+    {
+      "at": "2026-11-24T14:48:14.750Z",
+      "event": "reserved",
+      "ticket": 222,
+      "grant": "3b44d3ba-e6b5-40bd-b481-5fed0e71bc30",
+      "phase": "review",
+      "runId": "45415827820",
+      "runAttempt": 1,
       "actor": "github-actions[bot]",
       "wakeReceipt": "09237ca9e0ef190bdb4fb69f63619090b203f8f18e9b525a5ce4f604ab87122a",
       "sourceActor": "dependabot[bot]"
