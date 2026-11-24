@@ -36,7 +36,14 @@
       "trackingReason": "major-held",
       "phase": "tracking",
       "issue": 153,
-      "pr": null
+      "pr": null,
+      "widerChecks": [
+        {
+          "fingerprint": "1ae498c40f0b9edf2d0cc40ca491f2d5cb2ebbedc86e7e35e73ca0890d20af24",
+          "result": "wider-unavailable",
+          "at": "2026-11-24T00:17:34.733Z"
+        }
+      ]
     },
     "7296b1fc9baac95be109787c92fb99622c799c278a33135b7d6e4aec63493509": {
       "name": "vitest",
