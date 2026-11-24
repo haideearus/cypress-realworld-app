@@ -145,7 +145,8 @@
       235,
       266,
       221,
-      271
+      271,
+      273
     ]
   },
   "tickets": {
@@ -4653,6 +4654,33 @@
         "passed": true
       },
       "feedback": "{\"head\":\"fe29a799d5a453c101374c7364252b451a4dc321\",\"verdict\":\"pass\",\"summary\":\"Reviewed scripts/factory/dependency-tracking.cjs, dependency-run.cjs, trusted-wake.cjs, .github/workflows/factory-dependencies.yml, .github/actions/factory-control/action.yml, docs/factory/DEPENDENCY-MAINTENANCE.md, and the test additions in scripts/tests/factory-dependency-tracking.test.cjs, factory-dependencies.test.cjs and factory-dependency-alert-wake.test.cjs against ticket #271. The new track_after_merge job fires only when needs.merge.outputs.merged=='true' in the same run, wired through a new `merged` output on the factory-control action and the dep_merge result (DependencyMerger.merge already returns `merged`), satisfying \\\"run a model-free recovery check after a confirmed dependency merge.\\\" recoverTrackedPR's new recoveryBatch() reads WakeStore for pending/observed dependency-ci signals to prioritize PRs with queued CI, while reserving up to TRACKING_FALLBACK_INSPECTIONS slots for other tracked PRs so they are not starved; I hand-traced both new regression tests (\\\"recover a queued PR that went stale...\\\" and \\\"a full queue of current PRs leaves an inspection slot...\\\") against the implementation and the expected comment sequences/assert.deepEqual results match the code exactly, including the per-head/per-base bookkeeping (RECOVERY_BASES_PER_HEAD=5, validBases/validRecovery schema, backward-compatible handling of legacy single-shot receipts via the `!receipt?.refresh` branch). Recovery-only mode never touches the Ledger/ticket reservation state (confirmed via the test's `assert.deepEqual(await ledger.read(), before)`), only posts @dependabot rebase and a tracking note, so fresh CI/review/merge gating is unaffected. The trusted-wake.cjs change permits a bound dependency-ci wake to tolerate GitHub dropping a merged PR's run association, mirroring the existing dependency-alert-ci precedent and gated tightly (exact actor/head/branch match, pull_requests must be empty, PR must be closed+merged with a valid merge_commit_sha), which is exercised by the new alert-wake test. Workflow permissions/concurrency/env wiring for the new job match what the updated factory-dependencies.test.cjs asserts, and the \\\"queue: max\\\" concurrency key is an established convention already used by dozens of other jobs in this repo, not a newly introduced risk. Documentation accurately reflects the five-bases-per-head limit and prioritization behavior. Limitation: this is a static read-only review (no code executed); I relied on manual tracing of logic and the referenced CI run as external evidence I did not fetch, so I cannot independently confirm the test suite actually ran green, only that the added tests' expectations are internally consistent with the implementation as written.\",\"findings\":[]}"
+    },
+    "273": {
+      "coding": 1,
+      "origin": "factory",
+      "reviews": 0,
+      "retries": 0,
+      "head": "855b89710d6e3b2f16c25c9521748f756023e600",
+      "status": "coding",
+      "pr": null,
+      "approval": null,
+      "criteriaHash": "d6e6324e006d0e1293fc7e4dd9b1a14821fcf779c3c9a5cae025850b6f5ade36",
+      "automatic": {
+        "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-automatic.yml@refs/heads/main",
+        "workflowSha": "855b89710d6e3b2f16c25c9521748f756023e600",
+        "runId": "45476207342",
+        "runAttempt": 1,
+        "appSlug": "haideearus-software-factory"
+      },
+      "feature": {
+        "key": "1b5b68f2ae6bbc7cef7077530e27fd734ea0f2c636ed809f69b0b6cdc0cca006",
+        "index": 0,
+        "issue": 273,
+        "head": "855b89710d6e3b2f16c25c9521748f756023e600",
+        "runId": "45463951116",
+        "mode": "pilot",
+        "criteriaHash": "d6e6324e006d0e1293fc7e4dd9b1a14821fcf779c3c9a5cae025850b6f5ade36"
+      }
     }
   },
   "grants": {
@@ -6444,9 +6472,24 @@
       "status": "finished",
       "at": "2026-11-24T19:41:21.800Z",
       "outcome": "reviewed"
+    },
+    "b950a27c-a6cd-4132-9328-85e118bef50b": {
+      "id": "b950a27c-a6cd-4132-9328-85e118bef50b",
+      "ticket": 273,
+      "phase": "code",
+      "slot": "cycle1",
+      "runId": "45476207342",
+      "runAttempt": 1,
+      "head": "855b89710d6e3b2f16c25c9521748f756023e600",
+      "status": "reserved",
+      "at": "2026-11-24T20:01:31.143Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 273,
+    "runId": "45476207342",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -10556,6 +10599,18 @@
       "grant": "35733599-11de-43eb-86bd-7aec377904d5",
       "status": "reviewed",
       "head": "fe29a799d5a453c101374c7364252b451a4dc321"
+    },
+    {
+      "at": "2026-11-24T20:01:31.143Z",
+      "event": "reserved",
+      "ticket": 273,
+      "grant": "b950a27c-a6cd-4132-9328-85e118bef50b",
+      "phase": "code",
+      "runId": "45476207342",
+      "runAttempt": 1,
+      "actor": "github-actions[bot]",
+      "wakeReceipt": "b1b28cc05a025ec358cb88e71a980da5b0c7ae8700bae49af792654547ab27f8",
+      "sourceActor": "haideearus"
     }
   ],
   "featureTurn": {
@@ -10564,7 +10619,7 @@
     "at": "2026-11-24T18:54:44.684Z",
     "attemptAt": null,
     "retryAt": null,
-    "status": "waiting",
+    "status": "finished",
     "ticket": 273
   }
 }
