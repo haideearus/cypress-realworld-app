@@ -4007,12 +4007,13 @@
       },
       "feedback": "{\"verdict\":\"pass\",\"head\":\"936c12b54d1aeb766d8691d46053b6983ee729a0\",\"summary\":\"Reviewed the package.json/yarn.lock diff bumping morgan 1.10.0→1.12.1 and verified yarn.lock (lines ~5838-5865, ~9186-9192, ~9695-9718) matches the diff exactly. morgan is only used in backend/app.ts:74 via the built-in \\\"dev\\\" format string, so no custom-token compatibility risk. The bump clears all three morgan advisories (GHSA-4vj7-5mj6-jm8m, GHSA-9f6g-j8ch-79g4, GHSA-jxfw-x594-9x9m) per dependencyFacts, consistent with OSV fixed-version boundaries (<1.11.0, <1.12.1, <1.12.0) all satisfied by 1.12.1. The debug 4.4.0/4.4.1→4.4.3 dedup is incidental yarn-resolution housekeeping (no advisories either side, ms range unaffected). Confirmed via yarn.lock that the two remaining baseline advisories (GHSA-76c9-3jph-rj3q on-headers 1.0.2, GHSA-gxpj-cx7g-858c debug 4.2.0) persist because other dependents pin exact versions unrelated to morgan: express-session@1.18.0 (package.json:116) hard-pins on-headers \\\"~1.0.2\\\", and @cypress/instrument-cra@1.4.0 (package.json:65)/start-server-and-test@1.14.0 (package.json:140) pin debug \\\"4.2.0\\\"/\\\"4.3.2\\\" exactly — none of these are touched by this diff, so the bounded morgan bump correctly cannot and does not resolve them. CI evidence (run 45416192357) shows a verified green suite; cypress/tests/ui/auth.spec.ts exercises real backend requests (login, session cookie) through the Express app, which indirectly covers morgan's request-logging middleware (no requests failing), though no test asserts on log output directly — an acceptable, pre-existing gap not introduced by this change.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"The PR leaves two baseline OSV advisories unresolved (GHSA-76c9-3jph-rj3q on-headers 1.0.2 via express-session@1.18.0, and GHSA-gxpj-cx7g-858c debug 4.2.0 via @cypress/instrument-cra@1.4.0) because those packages pin exact transitive versions independent of morgan. This matches the ticket's 'bounded' scope and dependencyFacts.remainingBaseline, but is worth tracking in a follow-up since no test or CI signal in this PR addresses them.\"}]}",
       "merge": {
-        "status": "intent",
+        "status": "merged",
         "head": "936c12b54d1aeb766d8691d46053b6983ee729a0",
         "pr": 222,
-        "at": "2026-11-24T14:52:59.699Z",
+        "at": "2026-11-24T14:53:18.379Z",
         "runId": "45415827820",
-        "runAttempt": 1
+        "runAttempt": 1,
+        "mergeCommit": "6e8e495d97a4e1ff502a66921c9367c91707bfd9"
       }
     },
     "225": {
@@ -6012,11 +6013,7 @@
       "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 222,
-    "runId": "45415827820",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
