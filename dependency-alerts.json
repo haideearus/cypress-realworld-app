@@ -313,7 +313,7 @@
       "resolvedAt": "2026-11-24T14:29:01.935Z"
     }
   },
-  "heldAfter": "@graphql-tools/utils",
+  "heldAfter": "@babel/plugin-transform-modules-systemjs",
   "deferred": {
     "base": "917fd8d36848c43679f41adb654920e51864007f",
     "fingerprint": "111f730ca58eac8bcc8dffffc39538f81117ab5f7255730b09dc7b9a33b53051",
