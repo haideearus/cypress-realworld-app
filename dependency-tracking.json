@@ -19,7 +19,7 @@
     "222": {
       "branch": "dependabot/npm_and_yarn/morgan-1.12.1",
       "issue": 229,
-      "status": "closing"
+      "status": "merged"
     },
     "223": {
       "branch": "dependabot/npm_and_yarn/vitest-4.1.11",
