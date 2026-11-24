@@ -50,6 +50,11 @@
       "branch": "dependabot/npm_and_yarn/http-proxy-middleware-2.0.10",
       "issue": 246,
       "status": "open"
+    },
+    "235": {
+      "branch": "dependabot/npm_and_yarn/humanfs/node-0.16.8",
+      "issue": null,
+      "status": "intent"
     }
   }
 }
