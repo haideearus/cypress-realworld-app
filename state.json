@@ -4681,7 +4681,12 @@
         "mode": "pilot",
         "criteriaHash": "d6e6324e006d0e1293fc7e4dd9b1a14821fcf779c3c9a5cae025850b6f5ade36"
       },
-      "branch": "agent/factory-273"
+      "branch": "agent/factory-273",
+      "ci": {
+        "requestId": "0e8c8c8b-a3b2-47d4-879c-d78581ace199",
+        "head": "98c77049cadd919705cf6c61c742cbc8ba503a02",
+        "runId": null
+      }
     }
   },
   "grants": {
