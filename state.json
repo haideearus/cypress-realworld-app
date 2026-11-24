@@ -136,7 +136,8 @@
       225,
       237,
       239,
-      242
+      242,
+      241
     ]
   },
   "tickets": {
@@ -4062,6 +4063,38 @@
       },
       "feedback": "{\"head\":\"f29e794b1d22afe3acc4074b764a7a05603f629d\",\"verdict\":\"pass\",\"summary\":\"Reviewed scripts/factory/wake-controller.cjs, scripts/factory/trusted-wake.cjs, scripts/factory/wake-contract.cjs and the accompanying regression tests in scripts/tests/factory-wake.test.cjs and scripts/tests/factory-dependency-alert-wake.test.cjs against ticket #239's criteria for PR #238. The new StaleWakeSource error class (wake-contract.cjs) lets verifySource distinguish genuinely stale evidence (closed PR/issue, changed head, stale base) from ambiguous/transient GitHub responses (missing identity fields, incomplete compare/main evidence), fixing a prior single-candidate `.find()` design that could get stuck on one flaky item forever. handleWake now scans up to MAX_DRAIN_SOURCE_CHECKS=20 pending candidates within a 60s budget, marks confirmed-stale ones \\\"observed\\\" and pushes transiently-unverifiable ones to the back of the receipts map (verified via object re-insertion) so later completions can reach good work, matching the \\\"stale requests skipped / temporary errors leave requests queued\\\" criteria. The full-replace branch reuses sourceKey-derived ids so a queued dependency-ci/alert-ci receipt is dispatched exactly once with its original PR number/head/CI run (confirmed via dependencyWakeTarget assertions in the new tests), while the ordinary app-pickup shortcut (drain.lane===\\\"app\\\" && queued.lane===\\\"app\\\") only marks matched app work \\\"observed\\\" without replacing the dispatched signal, preserving discovery completion's original app route when no dependency work is ready. Duplicate dispatch protection (alreadyDrained plus the atomic store.update's old-status check) and ledger immutability during this path are exercised directly by the new tests, and merge/ledger logic itself is untouched by the diff. I did not execute any code in this read-only session; the diff's test additions are evidence of coverage, and the context.json references an external CI run which I treat as supplied evidence rather than something I verified myself.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"scripts/factory/trusted-wake.cjs ~lines 58-65: for issue/monitor/finding signals, the added `if (!bound && issue.state === \\\"closed\\\") throw new c.StaleWakeSource(...)` always fires before the subsequent `(!bound && issue.state !== \\\"open\\\")` clause can ever be true (GitHub issue state is only open or closed), leaving that half of the OR dead. Harmless but worth a cleanup pass.\"}]}"
     },
+    "241": {
+      "coding": 0,
+      "reviews": 0,
+      "retries": 0,
+      "origin": "dependency-pr",
+      "head": "91d428bba205ac18b0c6eaf8f2f4e94bfc67596e",
+      "pr": 241,
+      "status": "new",
+      "approval": null,
+      "branch": "agent/dependency-alert-2eb4bcd365ceff36691073a0880f83f4cbb7286fc7b70d89afa8350dbe0fd574",
+      "criteriaHash": "f73139ae5b389e01dea152b745886d7f7beade6959c9848b9993da71f003bf24",
+      "dependency": {
+        "version": 1,
+        "pr": 241,
+        "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-dependencies.yml@refs/heads/main",
+        "workflowSha": "c03ab9795ae0ce7c761e0e645f53ad22fae81ba7",
+        "runId": "45409509152",
+        "runAttempt": 1,
+        "appSlug": "haideearus-software-factory",
+        "attempts": [
+          {
+            "head": "91d428bba205ac18b0c6eaf8f2f4e94bfc67596e",
+            "base": "c03ab9795ae0ce7c761e0e645f53ad22fae81ba7",
+            "runId": "45409509152",
+            "runAttempt": 1,
+            "workflowSha": "c03ab9795ae0ce7c761e0e645f53ad22fae81ba7",
+            "at": "2026-11-24T14:02:13.157Z"
+          }
+        ]
+      },
+      "ci": null
+    },
     "242": {
       "coding": 0,
       "reviews": 0,
@@ -5780,7 +5813,11 @@
       "outcome": "discovery_complete"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 241,
+    "runId": "45409509152",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -9588,6 +9625,16 @@
       "grant": "3ff26f7d-1765-4179-a6ad-2c9ee03a43b1",
       "phase": "discover",
       "status": "discovery_complete"
+    },
+    {
+      "at": "2026-11-24T14:02:13.157Z",
+      "event": "dependency_metadata_admitted",
+      "ticket": 241,
+      "head": "91d428bba205ac18b0c6eaf8f2f4e94bfc67596e",
+      "runId": "45409509152",
+      "actor": "github-actions[bot]",
+      "wakeReceipt": "3ae356c19c3c92a4547082441e869de6608725189b2af611a3bc4ebac40f7f45",
+      "sourceActor": "haideearus-software-factory[bot]"
     }
   ]
 }
