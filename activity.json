@@ -277,6 +277,29 @@
       },
       "status": "intent",
       "commentId": null
+    },
+    "b32190e7785f61502860531d5a2901be245d906df979ff9455fb18eeb1da765d": {
+      "event": {
+        "id": "b32190e7785f61502860531d5a2901be245d906df979ff9455fb18eeb1da765d",
+        "producer": {
+          "runId": "45379812332",
+          "runAttempt": 1,
+          "workflow": "factory-discovery-intake.yml",
+          "workflowSha": "6acff5ac4a036d2df4ba85bafc043551c935e400",
+          "phase": "finding-replay",
+          "actor": "haideearus-software-factory[bot]"
+        },
+        "kind": "discovery",
+        "state": "skipped",
+        "subject": 45379812332,
+        "head": "6acff5ac4a036d2df4ba85bafc043551c935e400",
+        "summary": "Current-main sandbox replay job observed. This is not production or live-monitor coverage.",
+        "links": [
+          "https://github.com/haideearus/cypress-realworld-app/actions/runs/45379812332"
+        ]
+      },
+      "status": "intent",
+      "commentId": null
     }
   },
   "lastMonitor": {
