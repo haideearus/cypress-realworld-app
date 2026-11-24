@@ -3909,7 +3909,15 @@
           "remainingBaseline": []
         }
       },
-      "feedback": "{\"verdict\":\"pass\",\"head\":\"4abf657bfa13d8ffb5a28af3abd4283b25b76af7\",\"summary\":\"Reviewed the package.json/yarn.lock diff bumping shortid 2.2.16 -> 2.2.17 (which now depends on nanoid ^3.3.8 instead of ^2.1.0), fully removing the nanoid 2.1.11 line from yarn.lock while reusing the already-retained nanoid 3.3.18 entry. dependencyFacts confirm registry integrity matches for both nanoid 3.3.18 and shortid 2.2.17 (integrityMatched: true), and the four GHSA advisories tied to nanoid 2.1.11 (GHSA-28wg-ghj8-5hjv, GHSA-2v37-7h3g-55p8, GHSA-mwcw-c2x4-8c55, GHSA-xwg4-73v4-xw9w) are cleared with no new vulnerable versions selected (remainingBaseline: []). Checked every shortid call-site (backend/database.ts, backend/validators.ts, scripts/seedDataUtils.ts, src/utils/__tests__/transactionUtils.test.ts) and every shortIdValidation usage (backend/{user,transaction,notification,like,comment,bankaccount,contact}-routes.ts) to confirm the public shortid API (default export + isValid) is unchanged across this patch bump, so these call sites are unaffected at the signature level. CI evidence (verified head, passing yarn types/lint/test:unit:ci plus the API/browser regression run) indirectly exercises shortid-based ID generation via db seeding and isValid validation via cypress/tests/ui/{auth,bankaccounts,user-settings}.spec.ts, though none of the referenced tests (including UserSettingsForm.test.tsx) directly assert on ID shape/validity, so coverage of this specific change is incidental rather than targeted. The diff itself stays within the ticket's bounded-update scope with no unrelated code changes.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"No test in the referenced CI evidence (UserSettingsForm.test.tsx, auth/bankaccounts/user-settings.spec.ts) directly asserts shortid's generated ID format or isValid() behavior; coverage of the nanoid 2->3 internal swap inside shortid is only incidental via end-to-end flows in backend/database.ts and backend/validators.ts, so a future shortid/nanoid change altering ID shape could pass CI without a targeted test catching it.\"}]}"
+      "feedback": "{\"verdict\":\"pass\",\"head\":\"4abf657bfa13d8ffb5a28af3abd4283b25b76af7\",\"summary\":\"Reviewed the package.json/yarn.lock diff bumping shortid 2.2.16 -> 2.2.17 (which now depends on nanoid ^3.3.8 instead of ^2.1.0), fully removing the nanoid 2.1.11 line from yarn.lock while reusing the already-retained nanoid 3.3.18 entry. dependencyFacts confirm registry integrity matches for both nanoid 3.3.18 and shortid 2.2.17 (integrityMatched: true), and the four GHSA advisories tied to nanoid 2.1.11 (GHSA-28wg-ghj8-5hjv, GHSA-2v37-7h3g-55p8, GHSA-mwcw-c2x4-8c55, GHSA-xwg4-73v4-xw9w) are cleared with no new vulnerable versions selected (remainingBaseline: []). Checked every shortid call-site (backend/database.ts, backend/validators.ts, scripts/seedDataUtils.ts, src/utils/__tests__/transactionUtils.test.ts) and every shortIdValidation usage (backend/{user,transaction,notification,like,comment,bankaccount,contact}-routes.ts) to confirm the public shortid API (default export + isValid) is unchanged across this patch bump, so these call sites are unaffected at the signature level. CI evidence (verified head, passing yarn types/lint/test:unit:ci plus the API/browser regression run) indirectly exercises shortid-based ID generation via db seeding and isValid validation via cypress/tests/ui/{auth,bankaccounts,user-settings}.spec.ts, though none of the referenced tests (including UserSettingsForm.test.tsx) directly assert on ID shape/validity, so coverage of this specific change is incidental rather than targeted. The diff itself stays within the ticket's bounded-update scope with no unrelated code changes.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"No test in the referenced CI evidence (UserSettingsForm.test.tsx, auth/bankaccounts/user-settings.spec.ts) directly asserts shortid's generated ID format or isValid() behavior; coverage of the nanoid 2->3 internal swap inside shortid is only incidental via end-to-end flows in backend/database.ts and backend/validators.ts, so a future shortid/nanoid change altering ID shape could pass CI without a targeted test catching it.\"}]}",
+      "merge": {
+        "status": "intent",
+        "head": "4abf657bfa13d8ffb5a28af3abd4283b25b76af7",
+        "pr": 219,
+        "at": "2026-11-24T10:47:33.668Z",
+        "runId": "45375636507",
+        "runAttempt": 1
+      }
     }
   },
   "grants": {
@@ -5559,7 +5567,11 @@
       "outcome": "reviewed"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 219,
+    "runId": "45375636507",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
