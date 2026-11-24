@@ -265,8 +265,8 @@
       "name": "sigstore",
       "day": "2026-11-24",
       "trackingReason": "major-held",
-      "phase": "tracking-intent",
-      "issue": null,
+      "phase": "tracking",
+      "issue": 218,
       "pr": null
     }
   },
