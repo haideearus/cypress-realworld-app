@@ -108,8 +108,8 @@
     },
     "267": {
       "branch": "dependabot/npm_and_yarn/passport-0.6.0",
-      "issue": null,
-      "status": "intent"
+      "issue": 269,
+      "status": "open"
     }
   }
 }
