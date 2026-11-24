@@ -277,6 +277,29 @@
       },
       "status": "intent",
       "commentId": null
+    },
+    "627d3304852188314ff68fb214a9251a3bb6f592ddc54dfda1890e5a081a5525": {
+      "event": {
+        "id": "627d3304852188314ff68fb214a9251a3bb6f592ddc54dfda1890e5a081a5525",
+        "producer": {
+          "runId": "45325241506",
+          "runAttempt": 1,
+          "workflow": "factory-discovery-intake.yml",
+          "workflowSha": "04a49eb82822f04dc2055b5d0b9cdfdf443be363",
+          "phase": "finding-publish",
+          "actor": "haideearus"
+        },
+        "kind": "discovery",
+        "state": "skipped",
+        "subject": 45325241506,
+        "head": "04a49eb82822f04dc2055b5d0b9cdfdf443be363",
+        "summary": "Verified finding publication job observed; duplicate and quota decisions are in its receipts.",
+        "links": [
+          "https://github.com/haideearus/cypress-realworld-app/actions/runs/45325241506"
+        ]
+      },
+      "status": "intent",
+      "commentId": null
     }
   },
   "lastMonitor": {
