@@ -141,7 +141,7 @@
       "name": "@babel/plugin-transform-modules-systemjs",
       "day": "2026-11-24",
       "trackingReason": "graph-held",
-      "phase": "ready",
+      "phase": "resolved",
       "issue": 167,
       "pr": 275,
       "candidate": "7.29.4",
@@ -159,7 +159,8 @@
           "result": "verified",
           "at": "2026-11-24T20:50:32.719Z"
         }
-      ]
+      ],
+      "resolvedAt": "2026-11-24T21:28:50.318Z"
     },
     "6c70011231315799791bee63b9af3c8907fab5dfa1c47548cd9bfa57eb825e4a": {
       "name": "@faker-js/faker",
