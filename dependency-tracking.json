@@ -99,7 +99,12 @@
     "260": {
       "branch": "dependabot/npm_and_yarn/validator-13.15.35",
       "issue": 264,
-      "status": "open"
+      "status": "open",
+      "recovery": {
+        "6b70b95d50da3aa25b926a699cd3674c285814c3": {
+          "refresh": "attempted"
+        }
+      }
     },
     "261": {
       "branch": "dependabot/npm_and_yarn/rollup-2.80.0",
