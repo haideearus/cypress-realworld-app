@@ -398,6 +398,8 @@ class DependencyCoordinator {
       state = (await this.ledger.read()).state;
     }
     const target = require("./trusted-wake.cjs").dependencyWakeTarget(this.context);
+    const turns = require("./feature-turn.cjs");
+    if (turns.priority(state, this.config)) return { ready: false, reason: turns.WAITING };
     if (this.context.wake && !target)
       return { ready: false, reason: "No exact dependency CI wake for a new review" };
     let candidate, generated;

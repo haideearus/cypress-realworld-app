@@ -248,6 +248,12 @@ async function main(env = process.env, dependencies = {}) {
     output(r, env);
     return r;
   }
+  const turns = require("./feature-turn.cjs");
+  if (turns.priority(state, config, now)) {
+    const r = { outcome: "held", ready: false, modelCalls: 0, reason: turns.WAITING };
+    output(r, env);
+    return r;
+  }
   const tested = await testedMain(
     api,
     context,
@@ -322,7 +328,7 @@ async function main(env = process.env, dependencies = {}) {
       p.reserve(s, { ...request, quota: api.primaryQuota }, config)
     );
   } catch (error) {
-    if (error.code !== "DISCOVERY_HEADROOM") throw error;
+    if (error.code !== "DISCOVERY_HEADROOM" && error.message !== turns.WAITING) throw error;
     const held = { outcome: "held", ready: false, reason: error.message, modelCalls: 0 };
     output(held, env);
     return held;

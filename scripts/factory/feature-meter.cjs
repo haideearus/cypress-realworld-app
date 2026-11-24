@@ -6,14 +6,16 @@ const slots = require("./active-tickets.cjs");
 const UUID = /^[0-9a-f-]{36}$/;
 const REF = p.REPOSITORY + "/" + c.WORKFLOW + "@refs/heads/main";
 function assertContext(context) {
+  const owner = context.actor === p.OWNER && context.triggeringActor === p.OWNER;
+  const trusted =
+    (owner && ["workflow_dispatch", "schedule"].includes(context.event)) ||
+    (context.event === "workflow_run" && require("./feature-trigger.cjs").isContinuation(context));
   if (
     context.repository !== p.REPOSITORY ||
     context.ref !== "refs/heads/main" ||
     context.workflowRef !== REF ||
     !p.SHA.test(context.workflowSha || "") ||
-    context.actor !== p.OWNER ||
-    context.triggeringActor !== p.OWNER ||
-    !["workflow_dispatch", "schedule"].includes(context.event) ||
+    !trusted ||
     !c.RUN.test(context.runId || "") ||
     context.runAttempt !== 1
   )
@@ -127,8 +129,9 @@ async function terminalPlanner(api, grant) {
     run.head_branch !== "main" ||
     run.repository?.full_name !== p.REPOSITORY ||
     run.head_repository?.full_name !== p.REPOSITORY ||
-    run.actor?.login !== p.OWNER ||
-    !["workflow_dispatch", "schedule"].includes(run.event)
+    (run.event === "workflow_run"
+      ? !require("./feature-trigger.cjs").validActor(run)
+      : run.actor?.login !== p.OWNER || !["workflow_dispatch", "schedule"].includes(run.event))
   )
     throw Error("Reserved planner identity changed");
   return run.status === "completed";

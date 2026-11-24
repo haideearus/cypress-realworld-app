@@ -21,9 +21,9 @@ async function verifyFeatureIssue(api, issue, { mode, proof, allowClosed = false
   return !proof || c.digest(actual) === c.digest(proof) ? actual : null;
 }
 
-async function readyFeature(api, ledger, mode) {
+async function readyFeature(api, ledger, mode, registry) {
   if (!["pilot", "live"].includes(mode)) return null;
-  const { state } = await storeFor(api).read({ allowMissing: true });
+  const state = registry ?? (await storeFor(api).read({ allowMissing: true })).state;
   const available = Object.entries(state.records).flatMap(([key, row]) =>
     row.producer.mode === mode
       ? row.stages

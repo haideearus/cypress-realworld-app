@@ -9,7 +9,8 @@ const { PROBE_MODE: FUNCTIONAL_MODE } = require("./functional-discovery-contract
 const delayed = require("./delayed-retry.cjs");
 const { marked } = require("./feature-contract.cjs");
 const { readyFeature, verifyFeatureIssue } = require("./feature-origin.cjs");
-const { repairsWaiting } = require("./feature-priority.cjs");
+const { repairsWaiting, productionIncident } = require("./feature-priority.cjs");
+const turns = require("./feature-turn.cjs");
 
 const QUEUE_LABEL = "factory-ready";
 const MAX_QUEUE_PAGES = 5;
@@ -131,7 +132,7 @@ class AutomaticCoordinator {
     return eligibleIssue(issue);
   }
 
-  async delayedCandidate(state, { feature = false, priorityCheck = false } = {}) {
+  async delayedCandidate(state, { feature = false, priorityCheck = false, ticketNumber } = {}) {
     if (
       !this.config.priorityRetry ||
       (!priorityCheck &&
@@ -141,7 +142,9 @@ class AutomaticCoordinator {
     const candidates = Object.entries(state.tickets)
       .filter(
         ([id, ticket]) =>
-          Boolean(ticket.feature) === feature && delayed.due(state, ticket, Number(id), this.config)
+          (ticketNumber === undefined || Number(id) === ticketNumber) &&
+          Boolean(ticket.feature) === feature &&
+          delayed.due(state, ticket, Number(id), this.config)
       )
       .sort(
         ([left, a], [right, b]) =>
@@ -168,6 +171,8 @@ class AutomaticCoordinator {
 
   async reserveDelayed(issue, state, commit) {
     const ticket = issue.number;
+    const monitor = state.tickets[ticket].monitor;
+    const production = monitor && monitor.probeMode !== FUNCTIONAL_MODE;
     await this.controller.rejectDrillIssue(issue);
     const [main, ref, fresh] = await Promise.all([
       this.api.request("GET", `${ROOT}/branches/main`),
@@ -187,7 +192,7 @@ class AutomaticCoordinator {
         reason: "Delayed retry held after publication, issue or main changed",
       };
     // Read the ready queue again after the slower provenance and branch checks.
-    if (await this.candidate(state))
+    if (!(production && turns.priority(state, this.config)) && (await this.candidate(state)))
       return { ready: false, reason: "New work is ready; delayed retry remains queued" };
     if (
       state.tickets[ticket].feature &&
@@ -208,6 +213,7 @@ class AutomaticCoordinator {
       return { ready: false, reason: "Delayed retry issue changed before reservation" };
     const saved = await this.ledger.update(
       (current) => {
+        if (turns.priority(current, this.config) && !production) throw Error(turns.WAITING);
         return policy.reserve(
           current,
           {
@@ -362,7 +368,46 @@ class AutomaticCoordinator {
         reason: "Reconcile the pending automatic PR before admitting new work",
       };
 
-    let candidate = await this.candidate(state);
+    const turn = turns.priority(state, this.config);
+    let candidate;
+    if (turn) {
+      if (slots.usedCapacity(state))
+        return { ready: false, preview: dryRun, reason: turns.WAITING };
+      const incident = await productionIncident(this.api);
+      if (incident) {
+        if (!state.tickets[String(incident.issue)] && incident.issue) {
+          const issue = await this.api.request("GET", `${ROOT}/issues/${incident.issue}`);
+          if (queueIssue(issue) && (await verifyMonitorIssue(this.api, issue))) candidate = issue;
+        } else if (incident.issue) {
+          const due = await this.delayedCandidate(state, { ticketNumber: incident.issue });
+          if (due)
+            return dryRun
+              ? { ready: false, preview: true, ticket: due.number, delayedRetry: true }
+              : this.reserveDelayed(due, state, commit);
+        }
+      } else if (turn.ticket) {
+        const feature = await readyFeature(this.api, state, this.config.featureMode);
+        if (feature?.number === turn.ticket) {
+          if (
+            !this.context.wake ||
+            require("./trusted-wake.cjs").allowedModelBots(this.context, {
+              origin: "factory",
+              automatic: true,
+            })
+          )
+            candidate = feature;
+        } else if (!dryRun) {
+          await this.ledger.update((current) => {
+            turns.update(current, turn.runId, { status: "finished" });
+            return { state: current };
+          });
+          return { ready: false, reason: "Scheduled feature is no longer ready" };
+        }
+      }
+      if (!candidate) return { ready: false, preview: dryRun, reason: turns.WAITING };
+    } else {
+      candidate = await this.candidate(state);
+    }
     if (!candidate) {
       let due = await this.delayedCandidate(state);
       if (
@@ -410,7 +455,18 @@ class AutomaticCoordinator {
       const result = await this.controller.admit(candidate.number);
       return { ...result, kind: "ticket" };
     } catch (error) {
+      if (turn?.ticket === candidate.number && error.message === turns.TESTED_MAIN) {
+        await this.ledger.update((current) => {
+          turns.update(current, turn.runId, {
+            retryAt: turns.retryTime(new Date()),
+            attemptAt: null,
+          });
+          return { state: current };
+        });
+        return { ready: false, reason: turns.TESTED_MAIN };
+      }
       if (
+        error.message === turns.WAITING ||
         /limit reached|budget|Another active ticket|unfinished reservation|new ticket|already admitted|Pending automatic merge/i.test(
           error.message
         )

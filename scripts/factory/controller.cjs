@@ -136,6 +136,12 @@ class Controller {
     const saved = await this.ledger.update(async (state) => {
       const existing = state.tickets[String(ticket)];
       if (automatic && existing) throw new Error("Automatic ticket already admitted");
+      const turns = require("./feature-turn.cjs");
+      const turn = automatic ? turns.priority(state, this.config) : null;
+      const priorityFeature = feature && turn?.ticket === ticket;
+      const production =
+        monitor && monitor.probeMode !== require("./functional-discovery-contract.cjs").PROBE_MODE;
+      if (turn && !priorityFeature && !production) throw Error(turns.WAITING);
       if (feature) {
         const fresh = await this.issue(ticket);
         if (
@@ -145,16 +151,28 @@ class Controller {
           }))
         )
           throw Error("Feature origin changed before admission");
+        const { repairsWaiting, productionIncident } = require("./feature-priority.cjs");
         if (
-          slots.activeEntries(state).some((entry) => state.tickets[entry.ticket]?.feature) ||
-          (await require("./feature-priority.cjs").repairsWaiting(
-            this.api,
-            this.config,
-            this.context,
-            state
-          ))
+          priorityFeature
+            ? slots.usedCapacity(state) ||
+              slots.pendingIntent(state) ||
+              (await productionIncident(this.api))
+            : slots.activeEntries(state).some((entry) => state.tickets[entry.ticket]?.feature) ||
+              (await repairsWaiting(this.api, this.config, this.context, state))
         )
           throw Error("Another active ticket or ready repair precedes this feature");
+        if (priorityFeature) {
+          try {
+            const tested = await require("./discovery-run.cjs").testedMain(
+              this.api,
+              { workflowSha: this.context.workflowSha },
+              {}
+            );
+            if (tested.head !== main.commit?.sha) throw Error(turns.TESTED_MAIN);
+          } catch (error) {
+            throw new Error(turns.TESTED_MAIN, { cause: error });
+          }
+        }
       }
       if (monitor) {
         const current = await verifyMonitorIssue(this.api, issue, { proof: monitor });
@@ -206,6 +224,7 @@ class Controller {
       if (monitor) result.state.tickets[String(ticket)].monitor = monitor;
       if (finding) result.state.tickets[String(ticket)].finding = finding;
       if (feature) result.state.tickets[String(ticket)].feature = feature;
+      if (priorityFeature) turns.update(result.state, turn.runId, { status: "finished" });
       return result;
     });
     return this.result(saved.grant);

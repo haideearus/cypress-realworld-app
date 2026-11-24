@@ -553,10 +553,16 @@ class AutomaticMerger {
     if (terminal) return terminal;
     if (["merged", "closed"].includes(t.merge?.status))
       throw new Error("Terminal merge record disagrees with current PR state");
+    const currentFeatureParent =
+      t.automatic &&
+      t.automatic.runId === this.context.runId &&
+      t.automatic.runAttempt === this.context.runAttempt &&
+      t.automatic.workflowSha === this.context.workflowSha;
     if (
       t.feature &&
       (t.feature.mode !== this.config.featureMode ||
-        (!slots.activeFor(state, ticket) &&
+        (!currentFeatureParent &&
+          !slots.activeFor(state, ticket) &&
           (await require("./feature-priority.cjs").repairsWaiting(
             this.api,
             this.config,

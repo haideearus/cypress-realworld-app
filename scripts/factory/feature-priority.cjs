@@ -2,22 +2,31 @@ const { ROOT } = require("./github.cjs");
 const slots = require("./active-tickets.cjs");
 const { MonitorStore } = require("./monitor-state.cjs");
 
+async function productionIncident(api) {
+  const { state } = await new MonitorStore(api).read();
+  const incident = state.incidents[state.active];
+  return incident && !incident.recovered ? incident : null;
+}
+
+function pendingRepairMerge(state) {
+  return Object.values(state.tickets).some(
+    (ticket) =>
+      !ticket.feature &&
+      (ticket.automatic || ticket.dependency) &&
+      ticket.status === "reviewed" &&
+      !["merged", "closed"].includes(ticket.merge?.status)
+  );
+}
+
 async function repairsWaiting(api, config, context, state) {
   if (
     slots.pendingIntent(state) ||
     slots.activeEntries(state).some((entry) => !state.tickets[entry.ticket]?.feature) ||
-    Object.values(state.tickets).some(
-      (t) =>
-        !t.feature &&
-        (t.automatic || t.dependency) &&
-        t.status === "reviewed" &&
-        !["merged", "closed"].includes(t.merge?.status)
-    )
+    pendingRepairMerge(state)
   )
     return true;
 
-  const { state: monitor } = await new MonitorStore(api).read();
-  if (monitor.active && !monitor.incidents[monitor.active].recovered) return true;
+  if (await productionIncident(api)) return true;
   const { AutomaticCoordinator } = require("./automation.cjs");
   const automatic = new AutomaticCoordinator(api, config, context);
   if (
@@ -78,4 +87,4 @@ async function dependencyWaiting(api, config, context, state) {
   throw Error("Dependency priority exceeds bounded inspection");
 }
 
-module.exports = { repairsWaiting };
+module.exports = { repairsWaiting, productionIncident, pendingRepairMerge };

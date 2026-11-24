@@ -5,13 +5,24 @@ const meter = require("./feature-meter.cjs");
 const planner = require("./feature-planner.cjs");
 const { GitHub, Ledger, ROOT } = require("./github.cjs");
 const slots = require("./active-tickets.cjs");
-const { runtimeContext, output } = require("./controller.cjs");
+const { runtimeContext, output, readJson } = require("./controller.cjs");
 const { testedMain } = require("./discovery-run.cjs");
-const { repairsWaiting } = require("./feature-priority.cjs");
+const { productionIncident, pendingRepairMerge } = require("./feature-priority.cjs");
+const { verifyContinuation, validActor } = require("./feature-trigger.cjs");
+const turns = require("./feature-turn.cjs");
+const { readyFeature } = require("./feature-origin.cjs");
 const { storeFor, nextPart, publishPart, stageTicket } = require("./feature-publication.cjs");
 const { secretLike } = require("./artifacts.cjs");
 
-class FeatureHold extends Error {}
+const PRODUCTION_WAIT = "Feature turn is queued behind a production incident";
+const workStillActive = (state) =>
+  slots.usedCapacity(state) || slots.pendingIntent(state) || pendingRepairMerge(state);
+class FeatureHold extends Error {
+  constructor(message, retryAt) {
+    super(message);
+    this.retryAt = retryAt;
+  }
+}
 
 async function verifyRun(api, context) {
   meter.assertContext(context);
@@ -22,8 +33,9 @@ async function verifyRun(api, context) {
     run.path !== c.WORKFLOW ||
     run.head_branch !== "main" ||
     run.head_sha !== context.workflowSha ||
-    run.actor?.login !== p.OWNER ||
-    (run.triggering_actor && run.triggering_actor.login !== p.OWNER) ||
+    run.actor?.login !== context.actor ||
+    (run.triggering_actor && run.triggering_actor.login !== context.triggeringActor) ||
+    (context.event === "workflow_run" && !validActor(run)) ||
     run.repository?.full_name !== p.REPOSITORY ||
     run.head_repository?.full_name !== p.REPOSITORY ||
     run.event !== context.event ||
@@ -39,7 +51,7 @@ async function issues(api) {
     collected.push(...rows.filter((row) => !row.pull_request && typeof row.title === "string"));
     if (rows.length < 100) return collected;
   }
-  throw new FeatureHold("Open issue inventory exceeds the safe feature lookup");
+  throw Error("Open issue inventory exceeds the safe feature lookup");
 }
 
 async function featureCounts(api, state, ledger, week) {
@@ -73,7 +85,6 @@ async function featureCounts(api, state, ledger, week) {
 async function main(env = process.env, dependencies = {}) {
   const now = dependencies.now || (() => new Date());
   const context = runtimeContext(env);
-  meter.assertContext(context);
   p.assertSubscriptionEnv(env);
   if (env.CLAUDE_CODE_OAUTH_TOKEN)
     throw Error("Unexpected Claude credential outside planner action");
@@ -90,25 +101,41 @@ async function main(env = process.env, dependencies = {}) {
     output(values, env);
     return values;
   };
+  const continuation = context.event === "workflow_run";
+  let event, turn;
+  if (continuation) {
+    if (operation === "select" && !turns.pending((await ledger.read()).state, config, now()))
+      return result({ ready: false, reason: "No scheduled feature turn is waiting" });
+    event = dependencies.event || readJson(env.GITHUB_EVENT_PATH, 2000000);
+    await verifyContinuation(api, context, event);
+  }
+  meter.assertContext(context);
+  const changeTurn = async (change) => {
+    await ledger.update((state) => ({ state, changed: turns.update(state, turn.runId, change) }));
+  };
+  const tested = () => testedMain(api, { workflowSha: context.workflowSha }, {});
   const beforeWrite = async () => {
     const main = await api.request("GET", ROOT + "/branches/main");
     if (main.commit?.sha !== context.workflowSha || c.weekKey(now()) !== week)
       throw new FeatureHold("Main or the Bucharest week changed; use a fresh run");
     const { state } = await ledger.read();
     if (state.stop) throw new FeatureHold("Durable stop active");
-    if (
-      slots.activeEntries(state).length ||
-      (operation !== "prepare" && slots.reservedPlanners(state).length) ||
-      (await repairsWaiting(api, config, context, state))
-    )
-      throw new FeatureHold("Repairs or other active work take priority");
+    if (operation === "select" && turns.pending(state, config, now())?.runId !== turn?.runId)
+      throw new FeatureHold("Scheduled feature turn changed");
+    if (operation !== "prepare" && workStillActive(state))
+      throw new FeatureHold("Feature turn is queued until active work finishes");
+    if (operation === "select" && (await productionIncident(api)))
+      throw new FeatureHold(PRODUCTION_WAIT);
     if (
       p.dailyAdmissions(state, p.dayKey(now(), c.TIMEZONE)) >= config.daily &&
       operation !== "prepare"
     )
       throw new FeatureHold("Daily ticket limit reached");
     if (!meter.headroom(api.primaryQuota, now()))
-      throw new FeatureHold("GitHub API headroom not available");
+      throw new FeatureHold(
+        "GitHub API headroom not available",
+        turns.retryTime(now(), api.primaryQuota)
+      );
     return state;
   };
   const savePlan = async (proposals, head, mode, planWeek, openIssues) => {
@@ -176,8 +203,7 @@ async function main(env = process.env, dependencies = {}) {
       !config.automatic ||
       (mode === "pilot"
         ? operation !== "select" ||
-          context.event !== "workflow_dispatch" ||
-          input.operation !== "pilot"
+          (!continuation && (context.event !== "workflow_dispatch" || input.operation !== "pilot"))
         : mode !== "live" ||
           (operation === "select" &&
             context.event === "workflow_dispatch" &&
@@ -201,7 +227,7 @@ async function main(env = process.env, dependencies = {}) {
         throw new FeatureHold("Planner result unavailable");
       const value = JSON.parse(env.FACTORY_MODEL_RESULT);
       if (!c.exact(value, "proposals")) throw Error("Invalid planner artifact");
-      const { head } = await testedMain(api, context, {});
+      const { head } = await tested();
       const openIssues = await issues(api);
       p.assertNotStopped((await ledger.read()).state);
       if (!meter.headroom(api.primaryQuota, now()))
@@ -225,11 +251,38 @@ async function main(env = process.env, dependencies = {}) {
 
   try {
     if (operation === "select") {
-      const loaded = await ledger.read();
-      if (!loaded.state.stop) await meter.reconcile(api, ledger, loaded);
+      let loaded = await ledger.read();
+      if (loaded.state.stop) throw new FeatureHold("Durable stop active");
+      loaded = await meter.reconcile(api, ledger, loaded);
+      if (!continuation && !turns.pending(loaded.state, config, now())) {
+        const scheduled = await ledger.update((state) => {
+          p.assertNotStopped(state);
+          return { state, queued: turns.enqueue(state, config, context.runId, now()) };
+        });
+        loaded = scheduled;
+      }
+      turn = turns.pending(loaded.state, config, now());
+      if (!turn) return result({ ready: false, reason: "No scheduled feature turn is waiting" });
+      const mainCI =
+        event?.workflow_run?.path === ".github/workflows/factory-ci.yml" &&
+        event.workflow_run.conclusion === "success" &&
+        event.workflow_run.head_sha === context.workflowSha;
+      if (!turns.eligible(loaded.state, config, now(), { ignoreDelay: mainCI }))
+        throw new FeatureHold("Feature turn is waiting for its quota or daily budget");
+      if (!workStillActive(loaded.state)) await changeTurn({ attemptAt: now().toISOString() });
     }
-    const { head } = await testedMain(api, context, {});
     const state = await beforeWrite();
+    let head;
+    try {
+      ({ head } = await tested());
+    } catch (error) {
+      if (
+        operation !== "select" ||
+        !/Current main changed|current-main.*required/i.test(error.message)
+      )
+        throw error;
+      throw new FeatureHold(turns.TESTED_MAIN, turns.retryTime(now()));
+    }
     if (operation === "prepare") {
       meter.preflight(state, context, config, input.grant, now());
       const [openIssues, { state: registry }] = await Promise.all([issues(api), readStore()]);
@@ -263,6 +316,7 @@ async function main(env = process.env, dependencies = {}) {
           })
         ),
         claudeArgs: planner.modelArgs(config),
+        allowedBots: continuation && context.actor !== p.OWNER ? context.actor : "",
       });
     }
 
@@ -288,27 +342,47 @@ async function main(env = process.env, dependencies = {}) {
         )
       ),
     };
+    const ready = await readyFeature(api, state, mode, authorized);
+    if (ready) {
+      await changeTurn({ ticket: ready.number, retryAt: null, attemptAt: null });
+      return result({ ready: false, reason: `Feature #${ready.number} has priority for pickup` });
+    }
     const part = await nextPart(api, state, authorized, week, mode);
     if (part) {
       const publication = await publishPart({ api, store, beforeWrite }, part);
+      await changeTurn(
+        publication.phase === "ready"
+          ? { ticket: publication.issue, retryAt: null, attemptAt: null }
+          : { status: "finished" }
+      );
       return result({
         ready: false,
         issue: publication.issue,
         reason: "Feature publication advanced " + publication.phase,
       });
     }
-    if (mode !== "live" || state.featurePlans?.[week])
+    if (mode !== "live" || state.featurePlans?.[week]) {
+      await changeTurn({ status: "finished" });
       return result({
         ready: false,
         reason: "No feature publication ready and no new planning turn",
       });
+    }
     const saved = await ledger.update(async (current) => {
       await beforeWrite();
-      return meter.reserve(current, context, config, now());
+      const reservation = meter.reserve(current, context, config, now());
+      if (!turns.update(reservation.state, turn.runId, { status: "finished" }))
+        throw new FeatureHold("Scheduled feature turn changed");
+      return reservation;
     });
     return result({ ready: true, grant: saved.grant.id });
   } catch (error) {
-    if (!(error instanceof FeatureHold)) throw error;
+    const expected = error instanceof FeatureHold;
+    if (operation === "select" && turn && (error.retryAt || !expected))
+      await changeTurn({ retryAt: error.retryAt || turns.retryTime(now()), attemptAt: null });
+    if (!expected) throw error;
+    if (operation === "select" && turn && error.message === PRODUCTION_WAIT)
+      await changeTurn({ attemptAt: null });
     return result({ ready: false, reason: error.message });
   }
 }

@@ -123,6 +123,7 @@ function validateState(state) {
   const entries = active.validateActive(state);
   validateStop(state.stop);
   require("./feature-meter.cjs").validate(state.featurePlans);
+  require("./feature-turn.cjs").validate(state.featureTurn);
   for (const [day, ids] of Object.entries(state.days)) {
     if (
       !/^\d{4}-\d{2}-\d{2}$/.test(day) ||
