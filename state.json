@@ -4095,12 +4095,13 @@
       },
       "feedback": "{\"head\":\"2ed39c41038355420747b232f44afc0e23cd4e1c\",\"verdict\":\"pass\",\"summary\":\"Reviewed the yarn.lock-only diff bumping transitive dependency baseline-browser-mapping from 2.10.0 to 2.11.39 (required by browserslist@4.28.1 in yarn.lock, via its `baseline-browser-mapping \\\"^2.9.0\\\"` constraint at yarn.lock:5080; confirmed via package.json that this package is not a direct dependency). The new resolved tarball and integrity hash in yarn.lock match the trusted registry record exactly (sha512-Q9buOYhr2ggrEZpImICecZTJHCCd8yXkRUokFlUEQ8uiD6oP82F4W4jWnhOHZYV+wlvrC51V7Wy0ULyWjil5Wg==). Per dependencyFacts.advisories, GHSA-w5vr-8v7q-w6rv affects baseline-browser-mapping 2.0.0 up to (but not including) the fixed 2.11.0; the new 2.11.39 is past the fix boundary, so the cleared advisory claim is supported by the source data, and remainingBaseline/upstreamReleases show no other held vulnerable versions or anomalous release activity to suggest a package-takeover concern. Checked package.json's browserslist config (\\\">0.2%\\\", \\\"not dead\\\", \\\"not op_mini all\\\") and repo-wide grep for a `.browserslistrc` or \\\"baseline\\\" query syntax; none exist, so the updated baseline-data package is loaded by browserslist but not actively queried, minimizing build-output compatibility risk. The cited ciEvidence testFiles (UserSettingsForm.test.tsx, auth.spec.ts, bankaccounts.spec.ts, user-settings.spec.ts) are generic feature regression tests unrelated to the build tooling itself; they corroborate that the app still builds/runs at this head but are not targeted verification of browserslist/webpack output, which is a minor residual coverage gap given this is only a lockfile change within the already-permitted ^2.9.0 range.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"The ciEvidence test files (UserSettingsForm.test.tsx, auth.spec.ts, bankaccounts.spec.ts, user-settings.spec.ts) exercise unrelated UI/form features, not the build pipeline that actually consumes baseline-browser-mapping via browserslist/webpack/babel preset-env; there is no dedicated check confirming the generated browser target list or bundle output is unchanged after this transitive bump, beyond the implicit fact that the overall build/test suite passed.\"}]}",
       "merge": {
-        "status": "intent",
+        "status": "merged",
         "head": "2ed39c41038355420747b232f44afc0e23cd4e1c",
         "pr": 221,
-        "at": "2026-11-24T18:36:25.451Z",
+        "at": "2026-11-24T18:36:47.643Z",
         "runId": "45458310199",
-        "runAttempt": 1
+        "runAttempt": 1,
+        "mergeCommit": "855b89710d6e3b2f16c25c9521748f756023e600"
       }
     },
     "222": {
@@ -6385,11 +6386,7 @@
       "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 221,
-    "runId": "45458310199",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
