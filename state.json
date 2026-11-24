@@ -10476,9 +10476,9 @@
     "runId": "45463951116",
     "mode": "pilot",
     "at": "2026-11-24T18:54:44.684Z",
-    "attemptAt": "2026-11-24T18:54:47.691Z",
+    "attemptAt": null,
     "retryAt": null,
     "status": "waiting",
-    "ticket": null
+    "ticket": 273
   }
 }
