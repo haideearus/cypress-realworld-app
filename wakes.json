@@ -3667,6 +3667,36 @@
       "status": "sent",
       "receiver": null,
       "at": "2026-11-24T18:49:17.627Z"
+    },
+    "2882dc4def0c5ab7f5a2ce21b158d6ed52b41ff24d71cd612f88f91f321d34f8": {
+      "id": "2882dc4def0c5ab7f5a2ce21b158d6ed52b41ff24d71cd612f88f91f321d34f8",
+      "signal": {
+        "kind": "dependency-ci",
+        "lane": "dependency",
+        "number": 258,
+        "head": "083737a4edbb48ef7a2e0311c2cfc970a7f618d0",
+        "criteriaHash": "9085454eb67c1ed56adadba84c6bd174f8f89e9fb5246bb0aaaef01ffa74d49f",
+        "revision": "855b89710d6e3b2f16c25c9521748f756023e600",
+        "sourceRun": "45461891442",
+        "sourceAttempt": 1,
+        "actor": {
+          "login": "dependabot[bot]",
+          "id": 49699333
+        }
+      },
+      "producer": {
+        "runId": "45463643692",
+        "runAttempt": 1,
+        "workflowSha": "855b89710d6e3b2f16c25c9521748f756023e600",
+        "actor": {
+          "login": "dependabot[bot]",
+          "id": 49699333
+        },
+        "event": "workflow_run"
+      },
+      "status": "intent",
+      "receiver": null,
+      "at": "2026-11-24T18:49:55.195Z"
     }
   }
 }
