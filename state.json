@@ -3936,8 +3936,16 @@
       "origin": "dependency-pr",
       "head": "26d2d504c1c4cddf2421c0d628453b363df0c61c",
       "pr": 220,
-      "status": "reviewing",
-      "approval": null,
+      "status": "reviewed",
+      "approval": {
+        "head": "26d2d504c1c4cddf2421c0d628453b363df0c61c",
+        "pr": 220,
+        "grant": "b2634ff1-2231-420b-ab56-01f8dee4356c",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/45441606903"
+      },
       "branch": "dependabot/npm_and_yarn/js-yaml-4.3.2",
       "criteriaHash": "551996c1b1b338d0ca35f4f1e742072b15e40942922760af4276b130559b2bd6",
       "dependency": {
@@ -3997,7 +4005,8 @@
             "GHSA-mh29-5h37-fv8m"
           ]
         }
-      }
+      },
+      "feedback": "{\"verdict\":\"pass\",\"head\":\"26d2d504c1c4cddf2421c0d628453b363df0c61c\",\"summary\":\"Reviewed the package.json/yarn.lock diff bumping devDependency js-yaml 4.2.0->4.3.2 and confirmed via Read of package.json:127 and yarn.lock:8221-8227 that both the direct dep and the js-yaml@^4.1.0 range now dedupe to 4.3.2, removing the separate 4.1.0 resolution. Per dependencyFacts.advisories, 4.3.2 is >= the fix versions for all five listed GHSA IDs on the js-yaml 4.x line, so the two removed resolutions (4.2.0, 4.1.0) are no longer vulnerable; this matches the ticket's bounded scope. Grepped the repo and found js-yaml is only required in scripts/tests/factory-*.test.cjs (yaml.load against local .github/workflows/*.yml) and transitively via @istanbuljs/load-nyc-config (yarn.lock:2320, pulled by nyc) at version 3.14.1 (yarn.lock:8228-8234) — untouched by this diff and still within the vulnerable ranges for all five advisories, matching dependencyFacts' remainingBaseline/cleared:[] exactly. Checked .github/workflows/factory-ci.yml and confirmed `yarn test:factory` (line 73, which exercises yaml.load across ~20 factory-*.test.cjs files) runs sequentially before the two steps cited in ciEvidence.passedSteps within the same job with no continue-on-error flags, so its success is implied by the later steps passing — giving real (if indirect) coverage of the actual js-yaml call sites, beyond a bare suite-level receipt. The explicitly cited ciEvidence.testFiles (UserSettingsForm.test.tsx, auth/bankaccounts/user-settings.spec.ts) exist but test Formik/Yup forms and have no relation to js-yaml. No application runtime code uses js-yaml, limiting blast radius to local/CI tooling.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"The pre-existing js-yaml 3.14.1 resolution (yarn.lock:8228-8234), pulled in transitively via @istanbuljs/load-nyc-config (yarn.lock:2312-2320) which nyc depends on, remains unchanged by this diff and is still inside the vulnerable ranges for all five GHSA IDs per dependencyFacts (fixed in 3.14.2/3.15.0/3.15.1/3.15.2). This is consistent with the ticket's bounded scope (only the 4.x devDependency was targeted) but leaves known advisories unresolved in coverage tooling; worth a follow-up ticket.\"},{\"severity\":\"minor\",\"message\":\"dependencyFacts.ciEvidence.sourceReferences cites UserSettingsForm.test.tsx and auth/bankaccounts/user-settings.spec.ts as the 'immutable test source references' for this head, but these only cover Formik/Yup UI forms and never touch js-yaml. The evidence that actually exercises the changed dependency is the `yarn test:factory` step in .github/workflows/factory-ci.yml:73 (not explicitly named in passedSteps), whose success is only inferable from the sequential job structure rather than directly cited.\"}]}"
     },
     "222": {
       "coding": 0,
@@ -6146,15 +6155,12 @@
       "runId": "45441606903",
       "runAttempt": 1,
       "head": "26d2d504c1c4cddf2421c0d628453b363df0c61c",
-      "status": "reserved",
-      "at": "2026-11-24T16:59:46.698Z"
+      "status": "finished",
+      "at": "2026-11-24T16:59:46.698Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 220,
-    "runId": "45441606903",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -10096,6 +10102,14 @@
       "runId": "45441606903",
       "runAttempt": 1,
       "actor": "haideearus"
+    },
+    {
+      "at": "2026-11-24T17:02:58.134Z",
+      "event": "finished",
+      "ticket": 220,
+      "grant": "b2634ff1-2231-420b-ab56-01f8dee4356c",
+      "status": "reviewed",
+      "head": "26d2d504c1c4cddf2421c0d628453b363df0c61c"
     }
   ]
 }
