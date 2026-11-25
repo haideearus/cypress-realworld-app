@@ -179,6 +179,10 @@ authorized merge-only recovery must still pass fresh analysis, both native
 required checks, clean mergeability, limits and stop checks. Publication alone
 does not prove merge or authorize deployment.
 
+When the merger reruns the native review gate, it waits for the commit check and
+the job for that exact new workflow attempt to agree. It uses the same bounded
+wait for the final verification before sending the merge request.
+
 If a dependency merge stops before it sends GitHub a merge request, the ledger
 records the failed check and a safe reason. A confirmed temporary GitHub read
 failure can queue one merge-only retry for a later workflow, after at least five

@@ -106,6 +106,8 @@ class MergeFixture extends GitHubFixture {
     this.runStatuses = new Map();
     this.files = [{ filename: "src/example.ts", status: "modified" }];
     this.refreshCompletes = true;
+    this.onGateRefresh = null;
+    this.refreshedGateJob = null;
     this.mergeResponse = "success";
     this.mergeReply = null;
     this.putStarted = false;
@@ -147,9 +149,11 @@ class MergeFixture extends GitHubFixture {
       }
       const run = /^\/actions\/runs\/(\d+)$/.exec(path);
       if (method === "GET" && run) return reply(200, this.runs.get(Number(run[1])) || {});
-      const jobs = /^\/actions\/runs\/(\d+)\/jobs$/.exec(path);
+      const jobs = /^\/actions\/runs\/(\d+)(?:\/attempts\/(\d+))?\/jobs$/.exec(path);
       if (method === "GET" && jobs) {
         const id = Number(jobs[1]);
+        if (id === 502 && this.refreshedGateJob && (!jobs[2] || jobs[2] === "2"))
+          return reply(200, { jobs: [this.refreshedGateJob] });
         if (id === 503)
           return reply(200, {
             jobs: [{ name: "verify", status: "completed", conclusion: "success" }],
@@ -161,6 +165,7 @@ class MergeFixture extends GitHubFixture {
                 {
                   id: id + 200,
                   run_id: id,
+                  run_attempt: 1,
                   name: check.name,
                   check_run_url: `https://api.github.com${ROOT}/check-runs/${check.id}`,
                   status: check.status,
@@ -174,12 +179,8 @@ class MergeFixture extends GitHubFixture {
       if (method === "GET" && attempt)
         return reply(200, { status: this.runStatuses.get(attempt[1]) || "completed" });
       if (method === "POST" && path === "/actions/runs/502/rerun-failed-jobs") {
-        if (this.refreshCompletes) {
-          this.checks[1].conclusion = "success";
-          this.runs.get(502).conclusion = "success";
-          this.pr.mergeable = true;
-          this.pr.mergeable_state = "clean";
-        }
+        if (this.onGateRefresh) this.onGateRefresh();
+        else if (this.refreshCompletes) this.publishRefreshedGate();
         return reply(201, {});
       }
       if (method === "PUT" && path === "/pulls/20/merge") {
@@ -211,9 +212,36 @@ class MergeFixture extends GitHubFixture {
       head_repository: { full_name: policy.REPOSITORY },
       pull_requests: [copy(association)],
       check_suite_id: suite,
+      run_attempt: 1,
       status: "completed",
       conclusion: "success",
     };
+  }
+  startGateRefresh() {
+    Object.assign(this.runs.get(502), { run_attempt: 2, status: "in_progress", conclusion: null });
+    this.refreshedGateJob = {
+      id: 703,
+      run_id: 502,
+      run_attempt: 2,
+      head_sha: head,
+      name: "Factory review gate",
+      check_run_url: `https://api.github.com${ROOT}/check-runs/103`,
+      status: "in_progress",
+      conclusion: null,
+    };
+  }
+  publishRefreshedGate() {
+    if (!this.refreshedGateJob) this.startGateRefresh();
+    Object.assign(this.runs.get(502), { status: "completed", conclusion: "success" });
+    Object.assign(this.refreshedGateJob, { status: "completed", conclusion: "success" });
+    this.checks[1] = {
+      ...this.checks[1],
+      id: 103,
+      conclusion: "success",
+      details_url: `https://github.com/${policy.REPOSITORY}/actions/runs/502/job/703`,
+    };
+    this.pr.mergeable = true;
+    this.pr.mergeable_state = "clean";
   }
   mutations() {
     return this.extraCalls.filter((call) => call.method !== "GET");
@@ -758,6 +786,86 @@ test("metadata refresh has a bounded wait and never reruns model or unrelated ch
   );
   assert.equal((await ledger.read()).state.tickets["10"].merge, undefined);
   assert.equal((await ledger.read()).state.active, null);
+});
+test("merger waits when a refreshed gate job is visible before its check record", async () => {
+  const { fixture, merger } = await setup();
+  fixture.checks[1].conclusion = "failure";
+  fixture.runs.get(502).conclusion = "failure";
+  fixture.onGateRefresh = () => fixture.startGateRefresh();
+  fixture.onChecksRead = (count) => {
+    if (count === 4) {
+      assert.equal(fixture.putStarted, false);
+      fixture.publishRefreshedGate();
+    }
+  };
+  assert.equal((await merger.merge(10)).merged, true);
+  assert.equal(
+    fixture.mutations().filter((call) => call.path.endsWith("rerun-failed-jobs")).length,
+    1
+  );
+  assert.equal(fixture.mutations().filter((call) => call.method === "PUT").length, 1);
+  assert.ok(fixture.extraCalls.some((call) => call.path === "/actions/runs/502/attempts/2/jobs"));
+});
+
+test("an old passing snapshot cannot satisfy a requested gate rerun", async () => {
+  const { fixture, merger } = await setup();
+  fixture.checks[1].conclusion = "failure";
+  fixture.runs.get(502).conclusion = "failure";
+  fixture.onGateRefresh = () => {
+    fixture.checks[1].conclusion = "success";
+    fixture.runs.get(502).conclusion = "success";
+  };
+  await assert.rejects(merger.merge(10), /timed out.*gate refresh/i);
+  assert.equal(fixture.mutations().filter((call) => call.method === "PUT").length, 0);
+});
+
+test("merge rechecks the same refreshed attempt if the old check reappears before the write", async () => {
+  const { fixture, merger } = await setup();
+  fixture.checks[1].conclusion = "failure";
+  fixture.runs.get(502).conclusion = "failure";
+  const old = copy(fixture.checks[1]);
+  let fresh;
+  fixture.onChecksRead = (count) => {
+    if (count === 4) {
+      fresh = fixture.checks[1];
+      fixture.checks[1] = old;
+    }
+    if (count === 5) {
+      assert.equal(fixture.putStarted, false);
+      fixture.checks[1] = fresh;
+    }
+  };
+  assert.equal((await merger.merge(10)).merged, true);
+  assert.equal(fixture.mutations().filter((call) => call.method === "PUT").length, 1);
+});
+
+test("a passing refreshed gate waits for GitHub to report clean mergeability before writing", async () => {
+  const { fixture, merger } = await setup();
+  fixture.checks[1].conclusion = "failure";
+  fixture.runs.get(502).conclusion = "failure";
+  fixture.onChecksRead = (count) => {
+    if (count === 4) Object.assign(fixture.pr, { mergeable: null, mergeable_state: "unknown" });
+    if (count === 5) {
+      assert.equal(fixture.putStarted, false);
+      Object.assign(fixture.pr, { mergeable: true, mergeable_state: "clean" });
+    }
+  };
+  assert.equal((await merger.merge(10)).merged, true);
+  assert.equal(fixture.mutations().filter((call) => call.method === "PUT").length, 1);
+});
+
+test("a job that contradicts the refreshed attempt or reviewed commit cannot merge", async () => {
+  for (const corrupt of [{ run_attempt: 1 }, { head_sha: "f".repeat(40) }]) {
+    const { fixture, merger } = await setup();
+    fixture.checks[1].conclusion = "failure";
+    fixture.runs.get(502).conclusion = "failure";
+    fixture.onGateRefresh = () => {
+      fixture.publishRefreshedGate();
+      Object.assign(fixture.refreshedGateJob, corrupt);
+    };
+    await assert.rejects(merger.merge(10), /does not identify its current workflow job/);
+    assert.equal(fixture.mutations().filter((call) => call.method === "PUT").length, 0);
+  }
 });
 test("repeated successful ticks reconcile the closed merged PR without another PUT", async () => {
   const { fixture, merger } = await setup();
