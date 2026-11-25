@@ -196,7 +196,7 @@ test("dependency merge cannot use ordinary owner context or bypass its dedicated
   await assert.rejects(merger.merge(52), /context|Unauthorized/i);
 });
 
-const report = (stage = "analysis", now = new Date()) =>
+const report = (stage = "analysis", now = new Date(), runId = "100") =>
   reportFor(
     {
       repository: policy.REPOSITORY,
@@ -204,7 +204,7 @@ const report = (stage = "analysis", now = new Date()) =>
       base: head,
       head: pr().head.sha,
       workflowSha: head,
-      runId: "100",
+      runId,
       runAttempt: 1,
       stage,
       toolDigest: toolDigest(),
@@ -551,6 +551,241 @@ test("analysis, CI, one readonly review and native protected merge complete with
   assert.equal(s.tickets["52"].coding, 0);
   assert.equal(s.tickets["52"].reviews, 1);
   assert.equal(s.tickets["52"].merge.status, "merged");
+});
+
+function failFinalCheck(x, runContext, error) {
+  const merger = new DependencyMerger(
+    x.api,
+    cfg,
+    runContext,
+    report("premerge", new Date(), runContext.runId)
+  );
+  const checks = merger.checks.bind(merger);
+  let reads = 0;
+  merger.checks = (...args) => {
+    if (++reads === 2) throw error;
+    return checks(...args);
+  };
+  return merger.merge(52);
+}
+
+function retryProducer(x) {
+  const prior = x.f.route;
+  x.f.route = (p, ...args) => {
+    if (p === "/actions/runs/101")
+      return {
+        id: 101,
+        path: ".github/workflows/factory-dependencies.yml",
+        repository: { full_name: policy.REPOSITORY },
+        head_repository: { full_name: policy.REPOSITORY },
+        head_sha: head,
+        head_branch: "main",
+        event: "schedule",
+        actor: { login: policy.OWNER },
+        triggering_actor: { login: policy.OWNER },
+        run_attempt: 1,
+        status: "in_progress",
+      };
+    if (p === "/actions/runs/101/jobs")
+      return {
+        jobs: [{ name: "premerge", run_id: 101, status: "completed", conclusion: "success" }],
+      };
+    if (p === "/actions/runs/101/artifacts")
+      return {
+        artifacts: [
+          {
+            id: 24,
+            name: `dependency-premerge-101-1-52-${pr().head.sha}`,
+            expired: false,
+            size_in_bytes: 500,
+            workflow_run: { id: 101, head_sha: head },
+          },
+        ],
+      };
+    return prior(p, ...args);
+  };
+}
+
+test("a confirmed unsent GitHub read failure claims one delayed merge-only retry and retains its approval", async () => {
+  const x = await protectedMergeFixture();
+  const original = (await x.ledger.read()).state;
+  const error = Object.assign(Error("GitHub request failed (503)"), { status: 503, method: "GET" });
+  await assert.rejects(failFinalCheck(x, ctx, error), /503/);
+  const first = (await x.ledger.read()).state;
+  const t = first.tickets["52"];
+  assert.equal(t.dependencyMergeRetry.phase, "queued");
+  assert.equal(t.dependencyMergeRetry.failure.stage, "required-checks");
+  assert.equal(first.active, null);
+  assert.equal(t.merge, undefined);
+  assert.deepEqual(t.approval, original.tickets["52"].approval);
+  assert.deepEqual(t.ci, original.tickets["52"].ci);
+  assert.deepEqual(first.grants, original.grants);
+  const laterContext = { ...ctx, runId: "101" };
+  const later = new DependencyCoordinator(x.api, cfg, laterContext);
+  assert.equal((await later.select(false, new Date(t.dependencyMergeRetry.at))).ready, false);
+
+  const due = new Date(t.dependencyMergeRetry.retryAt);
+  const picks = await Promise.all([later.select(false, due), later.select(false, due)]);
+  assert.equal(picks.filter((p) => p.ready).length, 1);
+  assert.equal(picks.find((p) => p.ready).mode, "merge");
+  retryProducer(x);
+  await assert.rejects(failFinalCheck(x, laterContext, error), /503/);
+  const exhausted = (await x.ledger.read()).state;
+  assert.equal(exhausted.tickets["52"].dependencyMergeRetry.phase, "held");
+  assert.equal(exhausted.active, null);
+  assert.deepEqual(exhausted.grants, original.grants);
+  assert.equal(x.f.puts || 0, 0);
+  assert.equal((await later.select(false, due)).ready, false);
+  const admission = require("../factory/dependency-policy.cjs");
+  const other = pr();
+  other.number = 53;
+  assert.equal(
+    admission.claimDependency(exhausted, other, { ...ctx, runId: "102" }, cfg).active.ticket,
+    53
+  );
+});
+
+test("a claimed retry can merge with the same CI and review after all checks pass", async () => {
+  const x = await protectedMergeFixture();
+  const error = Object.assign(Error("GitHub request failed (503)"), { status: 503, method: "GET" });
+  await assert.rejects(failFinalCheck(x, ctx, error), /503/);
+  const before = (await x.ledger.read()).state;
+  const due = new Date(before.tickets["52"].dependencyMergeRetry.retryAt);
+  const run = { ...ctx, runId: "101" };
+  const coordinator = new DependencyCoordinator(x.api, cfg, run);
+  assert.equal((await coordinator.select(false, due)).mode, "merge");
+  retryProducer(x);
+  const result = await new DependencyMerger(
+    x.api,
+    cfg,
+    run,
+    report("premerge", new Date(), run.runId)
+  ).merge(52);
+  assert.equal(result.merged, true);
+  assert.equal(x.f.puts, 1);
+  const after = (await x.ledger.read()).state;
+  assert.deepEqual(after.grants, before.grants);
+  assert.deepEqual(after.tickets["52"].ci, before.tickets["52"].ci);
+  assert.equal(after.tickets["52"].merge.status, "merged");
+});
+
+test("a final check identity failure holds only its PR and provides a safe diagnostic", async () => {
+  const x = await protectedMergeFixture();
+  const error = Error("Missing native required check: verify");
+  await assert.rejects(failFinalCheck(x, ctx, error), (reported) => {
+    const { refusalReason } = require("../factory/dependency-run.cjs");
+    assert.match(
+      refusalReason(reported),
+      /required.checks.*Missing native required check: verify/i
+    );
+    return true;
+  });
+  const state = (await x.ledger.read()).state;
+  assert.equal(state.tickets["52"].dependencyMergeRetry.phase, "held");
+  assert.equal(state.tickets["52"].approval.verdict, "pass");
+  assert.equal(x.f.puts || 0, 0);
+});
+
+test("a verified GitHub read failure in the initial merge checks also schedules a safe retry", async () => {
+  const x = await protectedMergeFixture();
+  const merger = new DependencyMerger(x.api, cfg, ctx, report("premerge"));
+  merger.checks = async () => {
+    throw Object.assign(Error("GitHub request failed (502)"), { status: 502, method: "GET" });
+  };
+  await assert.rejects(merger.merge(52), /502/);
+  const s = (await x.ledger.read()).state;
+  assert.equal(s.tickets["52"].dependencyMergeRetry.phase, "queued");
+  assert.equal(s.tickets["52"].merge, undefined);
+  assert.equal(s.tickets["52"].reviews, 1);
+  assert.equal(x.f.puts || 0, 0);
+});
+
+test("a retry that ends in premerge releases its queue hold without a new review", async () => {
+  const x = await protectedMergeFixture();
+  const failure = Object.assign(Error("GitHub request failed (503)"), {
+    status: 503,
+    method: "GET",
+  });
+  await assert.rejects(failFinalCheck(x, ctx, failure), /503/);
+  const queued = (await x.ledger.read()).state.tickets["52"].dependencyMergeRetry;
+  const later = new DependencyCoordinator(x.api, cfg, { ...ctx, runId: "101" });
+  const due = new Date(queued.retryAt);
+  assert.equal((await later.select(false, due)).ready, true);
+  await later.finalize(52);
+  const s = (await x.ledger.read()).state;
+  assert.equal(s.tickets["52"].dependencyMergeRetry.phase, "held");
+  assert.equal(s.tickets["52"].approval.verdict, "pass");
+  assert.equal(s.tickets["52"].reviews, 1);
+  assert.equal(s.tickets["52"].merge, undefined);
+  assert.equal((await later.select(false, due)).ready, false);
+});
+
+test("a matching failed premerge report transfers an authenticated read failure to the retry ledger", async () => {
+  const x = await protectedMergeFixture();
+  const retry = require("../factory/dependency-merge-retry.cjs");
+  const error = Object.assign(Error("GitHub request failed (503)"), { status: 503, method: "GET" });
+  const premergeEvidence = JSON.stringify(retry.premergeEvidence(error));
+  const outcome = { premergeFailed: true, premergeEvidence, head: "c".repeat(40) };
+  await x.coordinator.finalize(52, outcome);
+  assert.equal((await x.ledger.read()).state.tickets["52"].dependencyMergeRetry, undefined);
+  await x.coordinator.finalize(52, { ...outcome, head: pr().head.sha });
+  const t = (await x.ledger.read()).state.tickets["52"];
+  assert.equal(t.dependencyMergeRetry.phase, "queued");
+  assert.deepEqual(t.dependencyMergeRetry.failure, {
+    stage: "premerge",
+    reason: "GitHub read failed (503)",
+  });
+  assert.equal(t.approval.verdict, "pass");
+});
+
+test("a quota retry waits for an authenticated reset and permission denials do not retry", () => {
+  const { premergeEvidence } = require("../factory/dependency-merge-retry.cjs");
+  const now = new Date("2026-11-25T12:00:00.000Z");
+  const denied = Object.assign(Error("GitHub request failed (403)"), {
+    status: 403,
+    method: "GET",
+  });
+  assert.equal(premergeEvidence(denied, now).retryAt, null);
+  denied.quotaResetAt = +now + 20 * 60_000;
+  assert.equal(premergeEvidence(denied, now).retryAt, "2026-11-25T12:20:00.000Z");
+  denied.method = "PUT";
+  assert.equal(premergeEvidence(denied, now).retryAt, null);
+});
+
+test("an uncertain send during a claimed retry keeps its intent through finalization", async () => {
+  const x = await protectedMergeFixture();
+  const failure = Object.assign(Error("GitHub request failed (503)"), {
+    status: 503,
+    method: "GET",
+  });
+  await assert.rejects(failFinalCheck(x, ctx, failure), /503/);
+  const queued = (await x.ledger.read()).state.tickets["52"].dependencyMergeRetry;
+  const run = { ...ctx, runId: "101" };
+  const later = new DependencyCoordinator(x.api, cfg, run);
+  const due = new Date(queued.retryAt);
+  await later.select(false, due);
+  retryProducer(x);
+  const previous = x.f.route;
+  x.f.route = (p, method, ...args) => {
+    if (p === "/pulls/52/merge" && method === "PUT") {
+      x.f.puts = (x.f.puts || 0) + 1;
+      throw Error("fixture transport lost the response");
+    }
+    return previous(p, method, ...args);
+  };
+  const merger = new DependencyMerger(x.api, cfg, run, report("premerge", new Date(), "101"), {
+    sleep: async () => {},
+    maxPolls: 1,
+  });
+  assert.equal((await merger.merge(52)).pending, true);
+  const before = await x.ledger.read();
+  await later.finalize(52);
+  assert.deepEqual(await x.ledger.read(), before);
+  assert.equal(before.state.tickets["52"].merge.status, "intent");
+  assert.equal(x.f.puts, 1);
+
+  const retry = require("../factory/dependency-merge-retry.cjs");
+  assert.equal(retry.permits(before.state.tickets["52"], run, new Date(+due + 26 * 60_000)), false);
 });
 
 test("dependency confirmation tolerates advanced main while matching PR closure is delayed", async () => {

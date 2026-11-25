@@ -14,7 +14,8 @@ function pendingRepairMerge(state) {
       !ticket.feature &&
       (ticket.automatic || ticket.dependency) &&
       ticket.status === "reviewed" &&
-      !["merged", "closed"].includes(ticket.merge?.status)
+      !["merged", "closed"].includes(ticket.merge?.status) &&
+      (!ticket.dependency || require("./dependency-merge-retry.cjs").blocksQueue(ticket))
   );
 }
 

@@ -195,6 +195,7 @@ function validateTicket(t, grants = []) {
     new Set(grants.map((g) => g.head)).size !== grants.length
   )
     throw new Error("Dependency grant provenance changed");
+  require("./dependency-merge-retry.cjs").validate(t, d.attempts, grants);
   return last;
 }
 function matches(t, c, config) {

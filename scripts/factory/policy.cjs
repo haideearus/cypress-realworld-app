@@ -183,7 +183,8 @@ function validateState(state) {
         deny("Invalid feature ticket provenance");
     }
     if (ticket.origin === "dependency-pr") dependency.validateTicket(ticket, grants);
-    else if (ticket.dependency !== undefined) deny("Invalid dependency ticket origin");
+    else if (ticket.dependency !== undefined || ticket.dependencyMergeRetry !== undefined)
+      deny("Invalid dependency ticket origin");
     if (ticket.origin === "drill") {
       const d = ticket.drill;
       const g = grants[0];

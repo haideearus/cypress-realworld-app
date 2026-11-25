@@ -1,4 +1,5 @@
 const { REPOSITORY } = require("./wake-contract.cjs");
+const mergeRetry = require("./dependency-merge-retry.cjs");
 
 const WEB = `https://github.com/${REPOSITORY}`;
 const NUMBER = /^[1-9]\d*$/;
@@ -10,6 +11,14 @@ function link(kind, id, title) {
 function nextAction(ticket, config) {
   if (ticket.merge?.status === "intent")
     return "Verify the recorded merge before another request is sent.";
+  const retry = mergeRetry.current(ticket);
+  if (retry) {
+    const reason = `${retry.failure.stage}: ${retry.failure.reason}.`;
+    if (retry.phase === "queued") return `${reason} Merge-only retry at or after ${retry.retryAt}.`;
+    if (retry.phase === "retrying" && mergeRetry.blocksQueue(ticket))
+      return `${reason} Merge-only retry claimed.`;
+    return `${reason} Merge held with approval retained. Other work can proceed.`;
+  }
   if (ticket.delayedRetry && !ticket.delayedRetry.parent && config.priorityRetry)
     return `Earliest retry ${ticket.delayedRetry.notBefore}, after new eligible work and subject to current proof and limits.`;
   if (ticket.dependency)
@@ -34,7 +43,10 @@ function nextAction(ticket, config) {
 
 function queueSummary(state, config) {
   const blocked = Object.entries(state.tickets).filter(
-    ([id, ticket]) => NUMBER.test(id) && ticket.status === "blocked"
+    ([id, ticket]) =>
+      NUMBER.test(id) &&
+      (ticket.status === "blocked" ||
+        (mergeRetry.current(ticket) && !["closed", "merged"].includes(ticket.merge?.status)))
   );
   if (!blocked.length) return "";
 
@@ -49,10 +61,12 @@ function queueSummary(state, config) {
     .slice(0, 12)
     .map(([id, ticket]) => {
       const latest = latestRuns.get(Number(id));
+      const retry = mergeRetry.current(ticket);
       const links = [
         ticket.dependency ? null : link("issues", id, `Issue #${id}`),
         link("pull", ticket.pr, `PR #${ticket.pr}`),
         link("actions/runs", latest?.runId, "last attempt"),
+        retry && link("actions/runs", retry.run?.runId ?? retry.sourceRun, "merge attempt"),
         link("actions/runs", ticket.ci?.runId, "saved CI"),
         ticket.publishedRecovery?.sourceCi.runId !== ticket.ci?.runId &&
           link("actions/runs", ticket.publishedRecovery?.sourceCi.runId, "original CI"),

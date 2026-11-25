@@ -1,7 +1,7 @@
 const slots = require("./active-tickets.cjs");
 const policy = require("./policy.cjs");
 const d = require("./dependency-contract.cjs");
-function pending(state, except) {
+function pending(state, except, now) {
   return Object.entries(state.tickets).some(
     ([id, t]) =>
       Number(id) !== except &&
@@ -9,7 +9,8 @@ function pending(state, except) {
       (!t.feature || t.merge?.status === "intent" || slots.activeFor(state, Number(id))) &&
       !t.findingApiRecovery &&
       t.status === "reviewed" &&
-      !["closed", "merged"].includes(t.merge?.status)
+      !["closed", "merged"].includes(t.merge?.status) &&
+      (!t.dependency || require("./dependency-merge-retry.cjs").blocksQueue(t, now))
   );
 }
 function claimDependency(original, pr, context, config, now = new Date(), alertReceipt) {
@@ -39,7 +40,7 @@ function claimDependency(original, pr, context, config, now = new Date(), alertR
   if (
     !slots.capacity(original, config.concurrent) ||
     slots.activeFor(original, pr.number) ||
-    pending(original, pr.number)
+    pending(original, pr.number, now)
   )
     throw new Error("An active ticket or pending merge holds the factory lock");
   const state = structuredClone(original),
@@ -103,6 +104,7 @@ function claimDependency(original, pr, context, config, now = new Date(), alertR
   t.approval = null;
   t.ci = null;
   delete t.analysis;
+  delete t.dependencyMergeRetry;
   slots.claimActive(
     state,
     { ticket: pr.number, runId: context.runId, runAttempt: context.runAttempt },

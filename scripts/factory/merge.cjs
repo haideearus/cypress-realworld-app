@@ -335,6 +335,7 @@ class AutomaticMerger {
       this.checkReceipt(state, ticket, t, record);
       const entry = slots.activeFor(state, ticket);
       if (record.status === "intent") {
+        this.authorizeNewIntent(t);
         const nextOwner = { ticket, runId: record.runId, runAttempt: record.runAttempt };
         if (entry && !slots.owns(entry, nextOwner)) {
           const parent = await this.api.request(
@@ -390,14 +391,27 @@ class AutomaticMerger {
   }
   async beforeWrite(ticket, expected, intent) {
     if (!this.enabled()) throw new Error("Automatic merge disabled");
-    const t = await this.current(ticket, expected);
-    if (!same(t.merge, intent)) throw new IntentHeld("Merge intent changed concurrently");
-    const pr = await this.pr(ticket, t);
-    await this.issue(ticket, t, { merged: pr.merged === true });
-    await this.ci(t);
+    const t = await this.recheck("ledger", async () => {
+      const current = await this.current(ticket, expected);
+      if (!same(current.merge, intent)) throw new IntentHeld("Merge intent changed concurrently");
+      return current;
+    });
+    const pr = await this.recheck("pr-identity", async () => {
+      const current = await this.pr(ticket, t);
+      await this.issue(ticket, t, { merged: current.merged === true });
+      return current;
+    });
+    await this.recheck("saved-ci", () => this.ci(t));
     return { t, pr };
   }
-  async release(ticket, expected, intent) {
+  async recheck(_stage, check) {
+    return check();
+  }
+  authorizeNewIntent(_ticket) {}
+  unsentFailure(_ticket, _intent, _error) {
+    return {};
+  }
+  async release(ticket, expected, intent, error) {
     await this.ledger.update((state) => {
       const t = this.stateTicket(state, ticket, expected);
       if (!same(t.merge, intent) || !this.mergeLock(state, ticket, intent))
@@ -410,6 +424,7 @@ class AutomaticMerger {
         event: "automatic_merge_not_sent",
         ticket,
         previousMergeIntent: t.merge,
+        ...this.unsentFailure(t, intent, error),
       });
       delete t.merge;
       return { state };
@@ -575,7 +590,7 @@ class AutomaticMerger {
       if (!dryRun && !slots.activeFor(state, ticket)) await this.restoreIntentOwnership(ticket, t);
       return this.confirm(ticket, t, { dryRun });
     }
-    const pr = await this.pr(ticket, t);
+    const pr = await this.recheck("pr-identity", () => this.pr(ticket, t));
     const terminal = await this.reconcile(ticket, t, pr, { dryRun });
     if (terminal) return terminal;
     if (["merged", "closed"].includes(t.merge?.status))
@@ -609,43 +624,46 @@ class AutomaticMerger {
           ))))
     )
       return { ticket, merged: false, reason: "Feature merge paused by mode or ready repairs" };
-    await this.issue(ticket, t);
-    await this.ci(t);
-    let gate = await this.checks(ticket, t, {
-      waitForVerify:
-        !dryRun &&
-        (t.origin === "factory" || !!require("./dependency-contract.cjs").alertKey(t.branch)),
+    await this.recheck("pr-identity", () => this.issue(ticket, t));
+    await this.recheck("saved-ci", () => this.ci(t));
+    const gate = await this.recheck("required-checks", async () => {
+      const proof = await this.checks(ticket, t, {
+        waitForVerify:
+          !dryRun &&
+          (t.origin === "factory" || !!require("./dependency-contract.cjs").alertKey(t.branch)),
+      });
+      if (!proof.passed && !proof.failed)
+        throw new Error("Native review gate is pending or unavailable");
+      if (proof.passed) {
+        const latest = proof.refreshedPR ?? pr;
+        if (latest.mergeable !== true || latest.mergeable_state !== "clean")
+          throw new Error("PR mergeability is not clean");
+      }
+      return proof;
     });
-    if (!gate.passed && !gate.failed)
-      throw new Error("Native review gate is pending or unavailable");
-    if (gate.passed) {
-      const latest = gate.refreshedPR ?? pr;
-      if (latest.mergeable !== true || latest.mergeable_state !== "clean")
-        throw new Error("PR mergeability is not clean");
-    }
     if (dryRun)
       return this.result(
         { ...t, number: ticket },
         { dryRun: true, wouldMerge: gate.passed, needsRefresh: gate.failed }
       );
-    if (!gate.passed) {
-      const current = await this.current(ticket, t);
-      await this.pr(ticket, current);
-      await this.issue(ticket, current);
-      await this.ci(current);
-      const latestGate = await this.checks(ticket, current);
-      if (!latestGate.failed || latestGate.runId !== gate.runId)
-        throw new Error("Native metadata gate identity changed before refresh");
-      // Only the native metadata job is safe to rerun: never CI, code, or review models.
-      await this.api.request("POST", `${ROOT}/actions/runs/${gate.runId}/rerun-failed-jobs`);
-      for (let poll = 0; poll < this.maxPolls; poll++) {
-        await this.sleep(5000);
-        await this.current(ticket, t);
-        gate = await this.checks(ticket, t);
-        if (gate.passed) break;
-      }
-      if (!gate.passed) throw new Error("Timed out waiting for the native review gate refresh");
-    }
+    if (!gate.passed)
+      await this.recheck("required-checks", async () => {
+        const current = await this.current(ticket, t);
+        await this.pr(ticket, current);
+        await this.issue(ticket, current);
+        await this.ci(current);
+        const latestGate = await this.checks(ticket, current);
+        if (!latestGate.failed || latestGate.runId !== gate.runId)
+          throw new Error("Native metadata gate identity changed before refresh");
+        // Refresh only the metadata job. The CI and model runs remain unchanged.
+        await this.api.request("POST", `${ROOT}/actions/runs/${gate.runId}/rerun-failed-jobs`);
+        for (let poll = 0; poll < this.maxPolls; poll++) {
+          await this.sleep(5000);
+          await this.current(ticket, t);
+          if ((await this.checks(ticket, t)).passed) return;
+        }
+        throw new Error("Timed out waiting for the native review gate refresh");
+      });
     const intent = this.record("intent", t);
     try {
       await this.persist(ticket, t, intent, t.merge);
@@ -658,12 +676,14 @@ class AutomaticMerger {
       const latest = await this.beforeWrite(ticket, t, intent);
       const completed = await this.reconcile(ticket, latest.t, latest.pr);
       if (completed) return completed;
-      gate = await this.checks(ticket, t);
-      if (!gate.passed || latest.pr.mergeable !== true || latest.pr.mergeable_state !== "clean")
-        throw new Error("Native checks or clean PR mergeability changed");
-      await this.permitWrite(ticket, t);
+      await this.recheck("required-checks", async () => {
+        const proof = await this.checks(ticket, t);
+        if (!proof.passed || latest.pr.mergeable !== true || latest.pr.mergeable_state !== "clean")
+          throw new Error("Native checks or clean PR mergeability changed");
+      });
+      await this.recheck("dependency-evidence", () => this.permitWrite(ticket, t));
     } catch (error) {
-      await this.release(ticket, t, intent);
+      await this.release(ticket, t, intent, error);
       if (error instanceof recovery.RecoveryStaleBase) return this.holdMovedBase(ticket, t, false);
       throw error;
     }

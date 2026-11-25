@@ -195,7 +195,8 @@ class Controller {
             (!other.feature || feature || slots.activeFor(state, Number(id))) &&
             !other.findingApiRecovery &&
             other.status === "reviewed" &&
-            !["merged", "closed"].includes(other.merge?.status)
+            !["merged", "closed"].includes(other.merge?.status) &&
+            (!other.dependency || require("./dependency-merge-retry.cjs").blocksQueue(other))
         )
       )
         throw new Error("Pending automatic merge must be reconciled");

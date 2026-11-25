@@ -6,6 +6,7 @@ const { runtimeContext, output, readJson } = require("./controller.cjs");
 const { DependencyCoordinator, DependencyMerger, expectedReport } = require("./dependencies.cjs");
 const { trackNativeDependencies } = require("./dependency-tracking.cjs");
 const { widerReceiptFor, verifyWiderContents } = require("./dependency-alert-repair.cjs");
+const { MergeCheckFailure, describe, premergeEvidence } = require("./dependency-merge-retry.cjs");
 const {
   inspectUpdate,
   queryOsv,
@@ -109,7 +110,14 @@ async function main(env = process.env) {
     });
   } else if (op === "dep_analysis" || op === "dep_premerge") {
     const stage = op === "dep_analysis" ? "analysis" : "premerge";
-    const report = await analyze(c, n, stage);
+    const report = await analyze(c, n, stage).catch((error) => {
+      if (stage === "premerge")
+        output(
+          { premergeEvidence: JSON.stringify(premergeEvidence(error)) },
+          { ...env, GITHUB_STEP_SUMMARY: undefined }
+        );
+      throw error;
+    });
     const dir = path.join(env.RUNNER_TEMP, "factory-dependencies");
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(path.join(dir, stage + ".json"), JSON.stringify(report));
@@ -168,7 +176,7 @@ async function main(env = process.env) {
       context,
       env.FACTORY_BUNDLE_PATH ? readJson(env.FACTORY_BUNDLE_PATH, 60000) : null
     ).merge(n);
-  else if (op === "dep_finalize") result = await c.finalize(n);
+  else if (op === "dep_finalize") result = await c.finalize(n, inputs);
   else throw new Error("Unknown dependency operation");
   const tracking = op === "dep_track" || op === "dep_recover_tracked";
   if (!tracking && !(op === "dep_select" && preview))
@@ -185,23 +193,35 @@ async function main(env = process.env) {
   }
   return result;
 }
-const safeRefusals = new Set([
-  "Dependency PR requires a current-main rebase",
-  "Native review gate is pending or unavailable",
-  "PR mergeability is not clean",
-  "Native checks or clean PR mergeability changed",
-  "Another merge intent holds the global merge writer",
-  "An active ticket holds the factory lock",
-]);
-
-function refusalReason(error) {
-  if (safeRefusals.has(error?.message)) return `Dependency operation refused. ${error.message}.`;
-  return "Dependency operation refused. Inspect bounded prerequisites and retained ledger history.";
+function refusalReason(error, operation) {
+  const knownStage = {
+    dep_analysis: "analysis",
+    dep_premerge: "premerge",
+    dep_merge: "merge",
+    dep_select: "selection",
+    dep_ci: "CI",
+    dep_evidence: "review evidence",
+    dep_assess: "assessment",
+    dep_reserve: "review reservation",
+  };
+  const { stage, reason } =
+    error instanceof MergeCheckFailure
+      ? error.diagnostic
+      : describe(
+          error,
+          Object.hasOwn(knownStage, operation) ? knownStage[operation] : "dependency operation"
+        );
+  return (
+    `Dependency operation refused at ${stage}. ${reason}.` +
+    (error instanceof MergeCheckFailure && error.ledgerDiagnostic
+      ? ` Could not record recovery in the ledger. ${error.ledgerDiagnostic.reason}.`
+      : "")
+  );
 }
 
 if (require.main === module)
   main().catch((error) => {
-    console.error(refusalReason(error));
+    console.error(refusalReason(error, process.env.FACTORY_OPERATION));
     process.exitCode = 1;
   });
 module.exports = { content, analyze, main, refusalReason };
