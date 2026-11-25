@@ -37,7 +37,12 @@
           "stale": "requested"
         },
         "c07212d00ef32473a3c6263edf2802c2353bb083": {
-          "blocked": true
+          "blocked": true,
+          "bases": {
+            "698447b11eba09155b6a8836c955ed8d8eb13bc0": {
+              "refresh": "attempted"
+            }
+          }
         }
       }
     },
