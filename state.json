@@ -162,6 +162,9 @@
       287,
       289,
       291
+    ],
+    "2026-11-26": [
+      294
     ]
   },
   "tickets": {
@@ -5265,6 +5268,28 @@
         "passed": true
       },
       "feedback": "{\"verdict\":\"pass\",\"head\":\"2b41f5c3f095501ccd77d6e192f118ea7f80895c\",\"summary\":\"Reviewed the diff against ticket #291 by reading the resulting source at HEAD: .github/workflows/factory-automatic.yml, .github/workflows/factory-activity.yml, scripts/factory/activity-observer.cjs, scripts/factory/wake-controller.cjs, scripts/factory/wake-queue.cjs (new), scripts/factory/wake-contract.cjs, scripts/factory/trusted-wake.cjs, scripts/factory/dependencies.cjs, scripts/factory/dependency-tracking.cjs, scripts/factory/active-tickets.cjs and scripts/factory/active-runs.cjs. The ten-minute shared pickup is implemented via the cron change to \\\"3,13,23,33,43,53\\\" and a new \\\"Hand off an idle app queue\\\" step gated on no app ticket being ready; the corresponding event-wake logic lives in the new wake-queue.cjs (nextDependency/terminalDependency/verifyQueueCheck), which reuses existing priority (pendingIntent), reservation (reservedPlanners/capacity), retry (dependency-merge-retry blocksQueue/due) and review (verifySource/classifySignal) machinery rather than duplicating it, and is wired into wake-controller.cjs's handleWake with a dedicated queue-check drain receipt to prevent re-dispatch for the same scheduled run. Deployment approval handling in activity-observer.cjs now emits one pending \\\"approval-required\\\" event on the in_progress observation and returns without polling, while the existing completed-run branch (now gated by `!deploymentStart`) records the owner approval/rejection and final outcome; activity-observer.cjs's sleep-loop was removed and factory-activity.yml's timeout dropped from 90 to 10 minutes, consistent with \\\"record one notice and exit.\\\" The new previewNativeRecovery in dependency-tracking.cjs only inspects (returns before any write) and recoverTrackedPR's new `sent`/`fresh` split explicitly preserves already-recorded rebase requests instead of re-sending them, matching \\\"preserve existing attempts... without opening duplicate PRs.\\\" The relaxed historical-run checks in dependencies.cjs' trustedRun are now gated by an explicit owner-login check or a call to the newly strict verifyPreparationOrigin (binds receiver run identity, head/base and bound receipt id), which is a tightening rather than a weakening of the previous \\\"github-actions[bot]\\\" bypass. All new helper functions I traced (slots.pendingIntent/reservedPlanners/activeEntries/capacity, active-runs.terminalParent, wake-contract OWNER_ID/BOT_ID, dependency-merge-retry.blocksQueue/due) exist and are exported as used, and new/changed tests in factory-activity-workflow, factory-automatic-workflow, factory-dependencies, factory-dependency-tracking and factory-wake-workflow test files exercise these exact paths (deployment single-notice behavior, idle-schedule handoff with duplicate suppression, historical preparation recovery via verifyPreparationOrigin, native-recovery queue skipping a Dependabot-blocked PR for another). Limits of this review: I did not execute the test suite or lint/type-check (read-only session, no shell access); correctness is inferred from static tracing of the diff, cross-referencing of called helpers, and the included test additions, not from an actual CI run output. Docs in docs/factory/EVENTS-AND-ACTIVITY.md were updated to match the new behavior and are consistent with the code I read. I found no violations of the stated boundaries (no new workflow_dispatch inputs, no new Claude/model invocation paths, no production policy changes, no credential handling changes).\",\"findings\":[]}"
+    },
+    "294": {
+      "coding": 0,
+      "reviews": 0,
+      "retries": 0,
+      "origin": "discovery-sweep",
+      "head": "e2e9c9bd96a486ef8dfecfad34162a35a0602b32",
+      "status": "discovering",
+      "pr": null,
+      "approval": null,
+      "discovery": {
+        "version": 1,
+        "head": "e2e9c9bd96a486ef8dfecfad34162a35a0602b32",
+        "ciRunId": "45698168953",
+        "charter": "functional-settings",
+        "day": "2026-11-26",
+        "key": "7a26516902ee3ba7f0db583cf6319c5fd6dfc1e42f285b16cb085178091ff24e",
+        "runId": "45713418528",
+        "runAttempt": 1,
+        "workflowSha": "e2e9c9bd96a486ef8dfecfad34162a35a0602b32",
+        "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-discovery.yml@refs/heads/main"
+      }
     }
   },
   "grants": {
@@ -7212,9 +7237,24 @@
       "status": "finished",
       "at": "2026-11-25T20:29:18.348Z",
       "outcome": "reviewed"
+    },
+    "939a01fa-9b06-4e58-b72a-dc8f14cab098": {
+      "id": "939a01fa-9b06-4e58-b72a-dc8f14cab098",
+      "ticket": 294,
+      "phase": "discover",
+      "slot": "discovery",
+      "runId": "45713418528",
+      "runAttempt": 1,
+      "head": "e2e9c9bd96a486ef8dfecfad34162a35a0602b32",
+      "status": "reserved",
+      "at": "2026-11-25T22:28:09.781Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 294,
+    "runId": "45713418528",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -11786,6 +11826,16 @@
       "ticket": 223,
       "head": "0f667145239f017770bc169e05fec48a5e2d250d",
       "runId": "45701395407"
+    },
+    {
+      "at": "2026-11-25T22:28:09.781Z",
+      "event": "reserved",
+      "ticket": 294,
+      "grant": "939a01fa-9b06-4e58-b72a-dc8f14cab098",
+      "phase": "discover",
+      "runId": "45713418528",
+      "runAttempt": 1,
+      "actor": "haideearus"
     }
   ],
   "featureTurn": {
