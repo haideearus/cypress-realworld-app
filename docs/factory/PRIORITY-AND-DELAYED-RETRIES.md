@@ -38,8 +38,11 @@ of starting another automatic coding cycle.
   reuses saved CI on the same commit. If `main` advanced, it asks GitHub to update
   the original branch, verifies the same patch, then requires fresh CI and review
   on the new commit. The prior CI, coding attempt, and any spent review remain in
-  the ledger. A conflict, changed patch, failed check, or exhausted allowance is
-  reported as a hold. Recovery does not send an unconfirmed update twice.
+  the ledger. If a successful recovery run reserved a review but GitHub skipped
+  the review job, pickup can continue once more after verifying the skipped job
+  and the saved CI. The next reservation counts under the same review limit. A
+  conflict, changed patch, failed check, or exhausted allowance is reported as a
+  hold. Recovery does not send an unconfirmed update twice.
 - **Dependency preparation ending before Claude.** Factory event wake checks the
   finished dependency attempt and its evidence, then can wake Dependency
   maintenance for a different candidate that already has current passing CI.

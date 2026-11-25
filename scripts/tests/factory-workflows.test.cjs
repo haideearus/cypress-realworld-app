@@ -118,6 +118,13 @@ test("review is a separate readonly-role job and publisher never executes model 
   );
   assert.ok(flow.jobs.review.needs.includes("reserve_review"));
 });
+test("cycle review can follow intentionally skipped coding when its reservation succeeds", () => {
+  const { review } = load("factory-cycle.yml").jobs;
+  assert.equal(
+    review.if,
+    "${{ !cancelled() && needs.reserve_review.result == 'success' && needs.reserve_review.outputs.ready == 'true' }}"
+  );
+});
 test("third-party actions are immutable and model workflows contain no paid or production secrets", () => {
   for (const name of [
     "factory-agents.yml",
