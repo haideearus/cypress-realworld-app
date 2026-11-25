@@ -112,7 +112,16 @@
     "258": {
       "branch": "dependabot/npm_and_yarn/jws-3.2.3",
       "issue": 262,
-      "status": "open"
+      "status": "open",
+      "recovery": {
+        "bc84f2ce00ed70629e3b45ed23d960c897dafcb3": {
+          "bases": {
+            "1ab033c7be9311e55deda7df373602ecbde08109": {
+              "refresh": "attempted"
+            }
+          }
+        }
+      }
     },
     "259": {
       "branch": "dependabot/npm_and_yarn/yaml-1.10.3",
