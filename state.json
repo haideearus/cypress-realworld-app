@@ -4217,7 +4217,7 @@
       "origin": "dependency-pr",
       "head": "0f667145239f017770bc169e05fec48a5e2d250d",
       "pr": 223,
-      "status": "new",
+      "status": "blocked",
       "approval": null,
       "branch": "dependabot/npm_and_yarn/vitest-4.1.11",
       "criteriaHash": "ddeac18b98029246e847bfa5fab0a6d8c78e4d92e05b3a8f546a09fd3179f62e",
@@ -7214,11 +7214,7 @@
       "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 223,
-    "runId": "45701395407",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -11783,6 +11779,13 @@
       "actor": "github-actions[bot]",
       "wakeReceipt": "6b1dcbf3de49f209e682069c89b06fc441ca694d640fc72a2deec71c877991bf",
       "sourceActor": "dependabot[bot]"
+    },
+    {
+      "at": "2026-11-25T21:09:00.829Z",
+      "event": "dependency_preparation_blocked",
+      "ticket": 223,
+      "head": "0f667145239f017770bc169e05fec48a5e2d250d",
+      "runId": "45701395407"
     }
   ],
   "featureTurn": {
