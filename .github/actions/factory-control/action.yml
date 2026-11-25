@@ -29,6 +29,9 @@ outputs:
   merged:
     value: ${{ steps.run.outputs.merged }}
     description: Protected merge was confirmed
+  reviewOnly:
+    value: ${{ steps.run.outputs.reviewOnly }}
+    description: Continue an already published repair at CI and independent review
   ready:
     value: ${{ steps.run.outputs.ready }}
     description: A durable reservation or publication is ready

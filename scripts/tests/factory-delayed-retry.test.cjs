@@ -126,7 +126,7 @@ test("priority work wins over an older ordinary issue, while the disabled flag l
   assert.equal((await legacy.candidate(state)).number, 121);
 });
 
-test("rechecks the queue before writing any retry reservation", async () => {
+async function delayedReservation({ unpublished = true, newer = true } = {}) {
   const { next } = blocked();
   const ready = issue(120);
   next.tickets[120].criteriaHash = criteriaHash(ready);
@@ -138,16 +138,26 @@ test("rechecks the queue before writing any retry reservation", async () => {
       if (route.endsWith("/issues/120")) return ready;
       if (route.endsWith("/git/ref/heads/agent/factory-120"))
         throw Object.assign(new Error("Missing branch"), { status: 404 });
+      if (route.includes("/pulls?state=all&per_page=1&head="))
+        return unpublished ? [] : [{ number: 121, state: "closed" }];
       throw Error("Unexpected request");
     },
   };
   const coordinator = new AutomaticCoordinator(api, config, context);
   coordinator.controller.rejectDrillIssue = async () => {};
   coordinator.ledger.update = async () => assert.fail("Retry must stay queued");
-  coordinator.candidate = async () => issue(121, true);
+  coordinator.candidate = async () => (newer ? issue(121, true) : null);
+  return coordinator.reserveDelayed(ready, next, oldHead);
+}
+
+test("rechecks the queue before writing any retry reservation", async () => {
+  assert.match((await delayedReservation()).reason, /New work is ready/);
+});
+
+test("a closed publication PR blocks delayed retry even after its branch is deleted", async () => {
   assert.match(
-    (await coordinator.reserveDelayed(ready, next, oldHead)).reason,
-    /New work is ready/
+    (await delayedReservation({ unpublished: false, newer: false })).reason,
+    /publication/
   );
 });
 

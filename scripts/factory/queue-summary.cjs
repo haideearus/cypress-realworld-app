@@ -14,6 +14,17 @@ function nextAction(ticket, config) {
     return `Earliest retry ${ticket.delayedRetry.notBefore}, after new eligible work and subject to current proof and limits.`;
   if (ticket.dependency)
     return "Check Dependency maintenance for the hold and whether a fresh candidate is eligible.";
+  if (ticket.publishedRecovery) {
+    const { STALE_REASON, INTERRUPTED_REASON } = require("./published-review-recovery.cjs");
+    if (!ticket.publishedRecovery.previousParent && ticket.feedback === STALE_REASON)
+      return "Waiting for tested main and a verified branch refresh before new CI and review.";
+    if (
+      !ticket.publishedRecovery.previousParent &&
+      ticket.feedback === INTERRUPTED_REASON &&
+      !ticket.reviews
+    )
+      return "Eligible to resume CI and review once after other ready work.";
+  }
   if (ticket.ci?.passed === false)
     return "CI failed. Open the saved CI run to inspect the failed checks.";
   if (ticket.pr)
@@ -43,6 +54,8 @@ function queueSummary(state, config) {
         link("pull", ticket.pr, `PR #${ticket.pr}`),
         link("actions/runs", latest?.runId, "last attempt"),
         link("actions/runs", ticket.ci?.runId, "saved CI"),
+        ticket.publishedRecovery?.sourceCi.runId !== ticket.ci?.runId &&
+          link("actions/runs", ticket.publishedRecovery?.sourceCi.runId, "original CI"),
         link("pull", ticket.delayedRetry?.fix?.pr, "verified harness fix"),
       ].filter(Boolean);
       const attempts = `${ticket.coding || 0} coding / ${ticket.reviews || 0} review / ${ticket.retries || 0} retries`;

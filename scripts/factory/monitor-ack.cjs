@@ -12,6 +12,7 @@ const { publisherFetch } = require("./app-checks-budget.cjs");
 const { verifyOwnerRecovery } = require("./monitor-blocked-recovery.cjs");
 const {
   REASON,
+  SCHEDULED_KIND,
   requireAck,
   assertAckContext,
   assertAckSettings,
@@ -81,7 +82,8 @@ async function acknowledge({
       validateAcknowledgment(incident.acknowledgment);
     } else {
       requireAck(
-        state.active === incident.id &&
+        incident.acknowledgment?.kind !== SCHEDULED_KIND &&
+          state.active === incident.id &&
           (issue.state === "open" ||
             (incident.acknowledgment?.phase === "intent" && issue.state_reason === "not_planned"))
       );

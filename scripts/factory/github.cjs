@@ -51,6 +51,7 @@ class GitHub {
     token,
     fetch: transport = globalThis.fetch,
     retryReads = false,
+    retryInternalReads = false,
     waitOnQuota = false,
     now = Date.now,
     sleep = delay,
@@ -60,6 +61,7 @@ class GitHub {
     this.token = token;
     this.fetch = transport;
     this.retryReads = retryReads;
+    this.retryInternalReads = retryInternalReads;
     this.waitOnQuota = waitOnQuota;
     this.now = now;
     this.sleep = sleep;
@@ -118,7 +120,8 @@ class GitHub {
       if (
         retryable &&
         gatewayAttempts < READ_BACKOFF_MS.length &&
-        TRANSIENT_GATEWAY.has(response.status)
+        (TRANSIENT_GATEWAY.has(response.status) ||
+          (this.retryInternalReads && response.status === 500))
       ) {
         await response.body?.cancel().catch(() => {});
         await this.sleep(READ_BACKOFF_MS[gatewayAttempts++]);

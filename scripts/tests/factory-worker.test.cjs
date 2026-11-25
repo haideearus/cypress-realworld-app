@@ -94,6 +94,71 @@ test("worker emits the named bot only for an active verified app wake reservatio
   await assert.rejects(worker.prepare(api, config, ctx, options), /stale model reservation/);
 });
 
+test("only the verified ordinary coding issue read can signal a pre-model hold for HTTP 500", async (t) => {
+  const app = repo(t);
+  const fixture = new FactoryFixture();
+  const ctx = {
+    ...context,
+    head: app.head,
+    workflowSha: app.head,
+    workflowRef: policy.AUTOMATIC_WORKFLOW_REF,
+    event: "schedule",
+  };
+  const config = policy.readConfig({
+    ...vars,
+    FACTORY_AUTOMATION_ENABLED: "true",
+    FACTORY_PRIORITY_RETRY_ENABLED: "true",
+    FACTORY_GITHUB_APP_SLUG: "fixture-factory",
+    FACTORY_GITHUB_APP_CLIENT_ID: "Iv1.fixture123456",
+  });
+  let failingPath;
+  let status = 500;
+  const api = new GitHub({
+    token: "fixture-only",
+    retryReads: true,
+    fetch: async (url, options) =>
+      failingPath && url.pathname.endsWith(failingPath)
+        ? new Response(null, { status })
+        : fixture.fetch(url, options),
+  });
+  const ledger = new Ledger(api);
+  await ledger.initialize();
+  const { grant, commit } = await ledger.update((original) => {
+    const reserved = policy.reserve(original, ctx, config);
+    const ticket = reserved.state.tickets[ctx.ticket];
+    ticket.criteriaHash = criteriaHash(fixture.issues.get(ctx.ticket));
+    ticket.automatic = {
+      workflowRef: ctx.workflowRef,
+      workflowSha: ctx.workflowSha,
+      runId: ctx.runId,
+      runAttempt: ctx.runAttempt,
+      appSlug: config.appSlug,
+    };
+    return reserved;
+  });
+  const options = { grantId: grant.id, cwd: app.cwd, environment: {} };
+
+  failingPath = `/issues/${ctx.ticket}`;
+  assert.deepEqual(await worker.prepare(api, config, ctx, options), { temporaryGateway: true });
+  assert.equal(fs.existsSync(path.join(app.cwd, ".factory-input/context.json")), false);
+  await assert.rejects(
+    worker.prepare(api, { ...config, priorityRetry: false }, ctx, options),
+    /GitHub request failed \(500\)/
+  );
+  await assert.rejects(
+    worker.prepare(api, config, { ...ctx, runAttempt: 2 }, options),
+    /reservation/
+  );
+
+  status = 403;
+  await assert.rejects(worker.prepare(api, config, ctx, options), /GitHub request failed \(403\)/);
+  failingPath = "/git/ref/heads/factory/state";
+  status = 500;
+  await assert.rejects(worker.prepare(api, config, ctx, options), /GitHub request failed \(500\)/);
+  failingPath = null;
+  assert.equal((await ledger.read()).commit, commit);
+});
+
 test("dependency worker supplies fresh exact-commit facts without adding model tools or rewriting history", async (t) => {
   const app = repo(t);
   const runGit = (...args) => execFileSync("git", args, { cwd: app.cwd, encoding: "utf8" }).trim();

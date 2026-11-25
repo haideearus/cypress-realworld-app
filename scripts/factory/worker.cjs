@@ -219,7 +219,27 @@ async function prepare(api, config, context, { grantId, cwd, environment = proce
   const drill = ticket.origin === "drill";
   const finding = !!ticket.finding;
   const feature = !!ticket.feature;
-  const issue = await api.request("GET", `${ROOT}/issues/${grant.ticket}`);
+  let issue;
+  try {
+    issue = await api.request("GET", `${ROOT}/issues/${grant.ticket}`);
+  } catch (error) {
+    // An HTTP 500 on this read has no publication or model side effects. The
+    // workflow's existing hold step records that Claude was skipped.
+    if (
+      error.status === 500 &&
+      config.priorityRetry &&
+      policy.isAutomaticContext(context) &&
+      grant.phase === "code" &&
+      grant.slot === "cycle1" &&
+      ticket.origin === "factory" &&
+      ticket.coding === 1 &&
+      !ticket.monitor &&
+      !finding &&
+      !feature
+    )
+      return { temporaryGateway: true };
+    throw error;
+  }
   if (ticket.origin !== "dependency-pr" && criteriaHash(issue) !== ticket.criteriaHash)
     throw new Error("Ticket criteria changed after admission");
   if (feature) {
@@ -326,6 +346,8 @@ async function prepare(api, config, context, { grantId, cwd, environment = proce
   }
   if (grant.phase === "review") {
     const recovery = require("./review-recovery.cjs");
+    const published = require("./published-review-recovery.cjs");
+    if (published.recoveryParent(ticket, context)) await published.assertRecoveryBase(api, ticket);
     const recovered =
       grant.slot === recovery.SLOT ? recovery.reviewEvidence(ticket, grant, context) : null;
     const ci = recovered ? recovered.ci : ticket.ci;

@@ -135,14 +135,57 @@ async function verifyProducer(api, context) {
     event: r.event,
   };
 }
-async function classifySignal({ api, event, context, vars = {}, ledger = new Ledger(api) }) {
+async function preparationDrain(api, state, run, store) {
+  const runId = String(run.id);
+  const runAttempt = run.run_attempt;
+  const tickets = Object.values(state.tickets).filter((ticket) => {
+    const attempt = ticket.dependency?.attempts.at(-1);
+    return attempt?.runId === runId && attempt.runAttempt === runAttempt;
+  });
+  if (tickets.length !== 1) return null;
+  const [ticket] = tickets;
+  const attempt = dependency.validateTicket(ticket);
+  if (
+    ticket.status !== "blocked" ||
+    ticket.merge ||
+    attempt.workflowSha !== run.head_sha ||
+    !state.audit.some(
+      (row) =>
+        row.event === "dependency_preparation_blocked" &&
+        row.runId === runId &&
+        row.ticket === ticket.pr &&
+        row.head === attempt.head
+    ) ||
+    !(await require("./trusted-wake.cjs").verifyPreparationOrigin(api, run, ticket, attempt, store))
+  )
+    return null;
+  return {
+    kind: "drain",
+    lane: "dependency",
+    number: ticket.pr,
+    head: run.head_sha,
+    criteriaHash: c.digest([attempt.head, attempt.base]),
+    revision: c.preparationRevision(runAttempt),
+    sourceRun: runId,
+    sourceAttempt: runAttempt,
+    actor: { login: run.actor.login, id: run.actor.id },
+  };
+}
+async function classifySignal({
+  api,
+  event,
+  context,
+  vars = {},
+  ledger = new Ledger(api),
+  store = new WakeStore(api),
+}) {
   if (event.repository?.full_name !== c.REPOSITORY) return null;
   const { state } = await ledger.read();
   if (context.event === "issues") {
     if (
       !["opened", "labeled", "reopened", "edited"].includes(event.action) ||
       event.sender?.login !== c.OWNER ||
-      event.sender?.id !== 101267861 ||
+      event.sender?.id !== c.OWNER_ID ||
       context.actor !== c.OWNER ||
       !Number.isSafeInteger(event.issue?.number)
     )
@@ -305,18 +348,21 @@ async function classifySignal({ api, event, context, vars = {}, ledger = new Led
     source.path.split("/").at(-1),
     { success: false }
   );
-  // Completion is a drain signal only if a real reservation finished and its slot was released.
+  // A completion can advance the queue once its lease is released.
   const grants = Object.values(state.grants).filter(
     (g) => g.runId === String(r.id) && g.runAttempt === r.run_attempt
   );
   if (
-    !grants.length ||
     grants.some((g) => g.status !== "finished") ||
     slots
       .activeEntries(state)
       .some((e) => e.runId === String(r.id) && e.runAttempt === r.run_attempt)
   )
     return null;
+  if (!grants.length)
+    return r.path === `.github/workflows/${c.LANES.dependency}`
+      ? preparationDrain(api, state, r, store)
+      : null;
   return {
     kind: "drain",
     lane: c.DRAIN_LANES[r.path],
@@ -346,7 +392,7 @@ async function handleWake({
     event.issue?.number === Number(vars.FACTORY_ACTIVITY_ISSUE_NUMBER)
   )
     return { outcome: "ignored" };
-  let signal = await classifySignal({ api, event, context, vars, ledger });
+  let signal = await classifySignal({ api, event, context, vars, ledger, store });
   if (!signal) return { outcome: "ignored" };
   c.validateSignal(signal);
   if (preview) return { outcome: "preview", lane: signal.lane, number: signal.number };
@@ -358,6 +404,7 @@ async function handleWake({
   if (![1, 2].includes(concurrent)) throw Error("Invalid wake capacity setting");
   const busy = !slots.capacity(controls, concurrent);
   const drain = signal.kind === "drain" ? signal : null;
+  const preparation = c.isPreparationDrain(signal);
   const alreadyDrained = (state) =>
     drain &&
     Object.values(state.receipts).some(
@@ -379,7 +426,9 @@ async function handleWake({
         (r) =>
           r.status === "pending" &&
           r.signal.kind !== "drain" &&
-          (drain.lane === "app" || r.signal.kind !== "finding")
+          (preparation
+            ? r.signal.lane === "dependency" && c.isDependencyCI(r.signal)
+            : drain.lane === "app" || r.signal.kind !== "finding")
       )
       .slice(0, MAX_DRAIN_SOURCE_CHECKS);
     const deadline = Date.now() + DRAIN_SOURCE_CHECK_WINDOW_MS;
@@ -388,6 +437,13 @@ async function handleWake({
       try {
         if (queued.signal.lane === "app" && controls.tickets[String(queued.signal.number)])
           throw new c.StaleWakeSource("Wake issue already admitted");
+        if (
+          preparation &&
+          controls.tickets[String(queued.signal.number)]?.dependency?.attempts.some(
+            (attempt) => attempt.head === queued.signal.head
+          )
+        )
+          throw new c.StaleWakeSource("Wake dependency head already attempted");
         await require("./trusted-wake.cjs").verifySource(api, queued.signal, false, vars);
       } catch (error) {
         const expired = error instanceof c.StaleWakeSource;
@@ -409,6 +465,8 @@ async function handleWake({
       break;
     }
   }
+  // Preparation completions only hand off a verified, targeted CI receipt.
+  const dispatch = !preparation || signal !== drain;
   const diagnostics = skipped.length ? { skipped } : {};
   const receipt = c.createWake({ signal, producer });
   const claim = await store.update((state) => {
@@ -422,7 +480,7 @@ async function handleWake({
       throw Error("Wake registry full; retained receipts require owner maintenance");
     state.receipts[receipt.id] = old || receipt;
     if (!busy) {
-      state.receipts[receipt.id].status = "intent";
+      state.receipts[receipt.id].status = dispatch ? "intent" : "observed";
       state.receipts[receipt.id].producer = producer;
       if (completedDrain)
         state.receipts[completedDrain.id] = { ...completedDrain, status: "observed" };
@@ -441,6 +499,7 @@ async function handleWake({
   });
   if (claim.duplicate) return { outcome: "duplicate", receiptId: receipt.id };
   if (busy) return { outcome: "busy", receiptId: receipt.id };
+  if (!dispatch) return { outcome: "observed", receiptId: receipt.id, ...diagnostics };
   const inputs = {
     wake_id: receipt.id,
     ...(signal.lane === "app" ? { dry_run: false } : { preview: false }),

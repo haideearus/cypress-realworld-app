@@ -60,6 +60,7 @@ jobs:
       grantId: ${{ steps.control.outputs.grantId }}
       head: ${{ steps.control.outputs.head }}
       ticket: ${{ steps.control.outputs.ticket }}
+      review_only: ${{ steps.control.outputs.reviewOnly }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -95,6 +96,7 @@ jobs:
       head: ${{ needs.pick.outputs.head }}
       slot: cycle1
       automatic: true
+      review_only: ${{ needs.pick.outputs.review_only == 'true' }}
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
       FACTORY_GITHUB_APP_PRIVATE_KEY: ${{ secrets.FACTORY_GITHUB_APP_PRIVATE_KEY }}

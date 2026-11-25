@@ -161,6 +161,7 @@ function validateState(state) {
       deny("Invalid ledger ticket counters");
     const grants = Object.values(state.grants).filter((g) => g?.ticket === Number(id));
     require("./review-recovery.cjs").validateReceipt(ticket, id, grants);
+    require("./published-review-recovery.cjs").validateRecovery(ticket, grants);
     if (ticket.delayedRetry !== undefined) require("./delayed-retry.cjs").validate(ticket, grants);
     if (ticket.origin === "discovery-sweep")
       require("./discovery-policy.cjs").validateTicket(ticket, grants);
@@ -442,6 +443,7 @@ function isAutomaticContext(request) {
 function matchesAutomaticRun(ticket, context, config) {
   const a = ticket?.automatic;
   const parent =
+    ticket?.publishedRecovery?.parent ||
     ticket?.delayedRetry?.parent ||
     ticket?.findingApiRecovery ||
     ticket?.findingOutputRecovery ||
@@ -450,6 +452,8 @@ function matchesAutomaticRun(ticket, context, config) {
     a;
   return Boolean(
     a &&
+      (!ticket.publishedRecovery?.parent ||
+        (context.phase === "review" && context.slot === "cycle1")) &&
       (!ticket.delayedRetry?.parent || config.priorityRetry) &&
       (!ticket.findingApiRecovery || (!config.discovery && !config.autoMerge)) &&
       a.workflowRef === context.workflowRef &&

@@ -7,6 +7,7 @@ const { secretLike } = require("./artifacts.cjs");
 const { verifyMonitorIssue } = require("./monitor-origin.cjs");
 const { PROBE_MODE: FUNCTIONAL_MODE } = require("./functional-discovery-contract.cjs");
 const delayed = require("./delayed-retry.cjs");
+const blocked = require("./blocked-retry.cjs");
 const { marked } = require("./feature-contract.cjs");
 const { readyFeature, verifyFeatureIssue } = require("./feature-origin.cjs");
 const { repairsWaiting, productionIncident } = require("./feature-priority.cjs");
@@ -169,22 +170,20 @@ class AutomaticCoordinator {
     return null;
   }
 
-  async reserveDelayed(issue, state, commit) {
+  async reserveDelayed(issue, state, commit, verifiedFailure) {
     const ticket = issue.number;
     const monitor = state.tickets[ticket].monitor;
     const production = monitor && monitor.probeMode !== FUNCTIONAL_MODE;
     await this.controller.rejectDrillIssue(issue);
-    const [main, ref, fresh] = await Promise.all([
+    const [main, unpublished, fresh] = await Promise.all([
       this.api.request("GET", `${ROOT}/branches/main`),
-      this.api.request("GET", `${ROOT}/git/ref/heads/agent/factory-${ticket}`).catch((error) => {
-        if (error.status === 404) return null;
-        throw error;
-      }),
+      blocked.hasNoPublication(this.api, ticket),
       this.api.request("GET", `${ROOT}/issues/${ticket}`),
     ]);
     if (
-      ref ||
+      !unpublished ||
       main.commit?.sha !== this.context.workflowSha ||
+      fresh.number !== ticket ||
       !(await this.verifyDelayedIssue(fresh, state.tickets[ticket]))
     )
       return {
@@ -199,21 +198,25 @@ class AutomaticCoordinator {
       (await repairsWaiting(this.api, this.config, this.context, state))
     )
       return { ready: false, reason: "A repair takes priority over the feature retry" };
-    const recovery = state.tickets[ticket].delayedRetry?.fix;
-    if (
-      recovery &&
-      !(await require("./blocked-retry.cjs").testedFixOnMain(this.api, this.context, recovery))
-    )
+    const recovery = verifiedFailure?.fix || state.tickets[ticket].delayedRetry?.fix;
+    if (recovery && !(await blocked.testedFixOnMain(this.api, this.context, recovery)))
       return {
         ready: false,
         reason: "Delayed retry awaits tested main with the recorded harness fix",
       };
     const unchanged = await this.api.request("GET", `${ROOT}/issues/${ticket}`);
-    if (!(await this.verifyDelayedIssue(unchanged, state.tickets[ticket])))
+    if (
+      unchanged.number !== ticket ||
+      !(await this.verifyDelayedIssue(unchanged, state.tickets[ticket]))
+    )
       return { ready: false, reason: "Delayed retry issue changed before reservation" };
     const saved = await this.ledger.update(
       (current) => {
         if (turns.priority(current, this.config) && !production) throw Error(turns.WAITING);
+        if (verifiedFailure) {
+          if (current.tickets[ticket].delayedRetry) throw Error("Blocked retry already recorded");
+          blocked.recordVerifiedRetry(current, ticket, verifiedFailure);
+        }
         return policy.reserve(
           current,
           {
@@ -284,6 +287,19 @@ class AutomaticCoordinator {
       };
     for (const entry of slots.activeEntries(state)) {
       const held = state.tickets[String(entry.ticket)];
+      if (!dryRun && held?.publishedRecovery) {
+        const saved = await require("./published-review-recovery.cjs").releaseTerminalRecovery(
+          this,
+          entry,
+          held,
+          commit
+        );
+        if (saved) {
+          state = saved.state;
+          commit = saved.commit;
+          continue;
+        }
+      }
       if (
         held?.feature &&
         held.feature.mode !== this.config.featureMode &&
@@ -438,8 +454,43 @@ class AutomaticCoordinator {
           };
         return this.reserveDelayed(due, state, commit);
       }
+      let recovery;
+      if (!candidate) {
+        recovery = await require("./published-review-recovery.cjs").resumePublishedReview(
+          this,
+          state,
+          commit,
+          dryRun
+        );
+        if (recovery?.ready || recovery?.preview) return recovery;
+        if (recovery && !dryRun) {
+          if (summaryPath) require("node:fs").appendFileSync(summaryPath, `\n${recovery.reason}\n`);
+          ({ state, commit } = await this.ledger.read());
+        }
+      }
+      if (!candidate) {
+        const known = await blocked.knownBlockedRetry(this, state);
+        if (known) {
+          if (dryRun)
+            return {
+              ready: false,
+              preview: true,
+              kind: "ticket",
+              ticket: known.issue.number,
+              delayedRetry: true,
+              reason: `Preview only; issue #${known.issue.number} is eligible for one delayed retry`,
+            };
+          return this.reserveDelayed(known.issue, state, commit, known.receipt);
+        }
+      }
       if (!candidate)
-        return { ready: false, preview: dryRun, reason: "No eligible issue in the bounded queue" };
+        return (
+          recovery ?? {
+            ready: false,
+            preview: dryRun,
+            reason: "No eligible issue in the bounded queue",
+          }
+        );
     }
     if (dryRun)
       return {
@@ -523,10 +574,11 @@ async function main(env = process.env) {
   let result;
   if (operation === "auto_pick") {
     if (blockedHandoff) {
-      result = await require("./blocked-retry.cjs").queueBlockedRetry(
-        new AutomaticCoordinator(api, config, context),
-        { ticket: Number(inputs.ticket), fixPr: Number(inputs.fix_pr), dryRun }
-      );
+      result = await blocked.queueBlockedRetry(new AutomaticCoordinator(api, config, context), {
+        ticket: Number(inputs.ticket),
+        fixPr: Number(inputs.fix_pr),
+        dryRun,
+      });
     } else if (findingHandoff) {
       if (inputs.wake_id) throw Error("Finding retry cannot use an event wake");
       result = await require("./finding-retry.cjs").retryFinding(api, config, context, {
