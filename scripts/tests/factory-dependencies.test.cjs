@@ -1092,7 +1092,7 @@ test("workflow preserves preview, trusted source, readonly model and isolated cr
   const w = file("workflows/factory-dependencies.yml");
   assert.equal(w.on.workflow_dispatch.inputs.preview.default, true);
   assert.match(w.jobs.preview.if, /workflow_dispatch.*&& inputs.preview/);
-  assert.match(w.jobs.select.if, /!\(.*inputs.preview\)/);
+  assert.match(w.jobs.select.if, /github\.event_name == 'workflow_dispatch' && !inputs\.preview/);
   assert.deepEqual(w.jobs.preview.permissions, {
     contents: "read",
     issues: "read",

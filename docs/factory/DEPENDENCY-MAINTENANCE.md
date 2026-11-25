@@ -371,6 +371,11 @@ readable and keep their original values.
 A tracking pass reports unresolved evidence and review holds on the linked
 native Dependabot issue. After a confirmed dependency merge, a model-free pass
 checks tracked PRs for recovery, starting with PRs whose passing CI was queued.
+Successful **Factory CI** for a push to current `main` also wakes the
+**Dependency maintenance** refresh job when event pickup is enabled. It checks
+the trusted owner or factory-app run and requests at most one stale tracked
+PR refresh per pass. The refresh job does not reserve Claude, dispatch CI,
+change usage history, or merge a PR.
 Scheduled tracking continues to check the rest of the queue within its usual
 limits. When immutable comparison proves a native PR is behind `main`, the
 factory can post `@dependabot rebase` once for each current head and base pair.
