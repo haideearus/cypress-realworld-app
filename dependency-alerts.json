@@ -314,13 +314,5 @@
       "resolvedAt": "2026-11-24T14:29:01.935Z"
     }
   },
-  "heldAfter": "@babel/plugin-transform-modules-systemjs",
-  "deferred": {
-    "base": "fecc67833148e98fdec387738e074e2f48d29945",
-    "fingerprint": "b3dc260de21c674a810bd713962fe6898c06a3673f10ba9a4b30612b97293676",
-    "runs": [
-      "45608644424"
-    ],
-    "at": "2026-11-25T11:54:41.230Z"
-  }
+  "heldAfter": "@babel/plugin-transform-modules-systemjs"
 }
