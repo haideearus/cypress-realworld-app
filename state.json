@@ -156,7 +156,8 @@
       279,
       233,
       280,
-      282
+      282,
+      285
     ]
   },
   "tickets": {
@@ -5044,6 +5045,19 @@
         "passed": true
       },
       "feedback": "{\"head\":\"f0bc8750abd26cad012acd1665309db114067ceb\",\"verdict\":\"pass\",\"summary\":\"Reviewed the PR #283 diff against ticket #282 (resuming factory review after an intentionally-skipped review job) at head f0bc8750abd26cad012acd1665309db114067ceb. Inspected .github/workflows/factory-cycle.yml, scripts/factory/published-review-recovery.cjs, docs/factory/PRIORITY-AND-DELAYED-RETRIES.md, and the two updated test files. The workflow change adds an explicit `needs.reserve_review.result == 'success'` guard to the `review` job's `if:`, matching the new factory-workflows.test.cjs assertion. The core fix is in published-review-recovery.cjs: eligible() now permits retryParent for INTERRUPTED_REASON regardless of reviews count (previously required reviews===0), and verifyOriginal/verifySkippedReview gate the actual grant via GitHub-verified evidence — exactly one blocked review grant matching the interrupted run's parent (runId/runAttempt/head), a passing CI receipt tied to that same head (re-validated via controller.validateCI), and a job list proving coding/publish/review were \\\"skipped\\\" while ci/reserve_review/assess were \\\"success\\\". Only when that proof succeeds is a one-time skippedPublishedReview record persisted (idempotent via ??=) and the \\\"needs a fresh head\\\" rule bypassed for that single resumption. The numeric bound (reviews < min(2, config.reviews) under retryParent) mathematically caps this to one use, since a second genuine reservation pushes reviews to 2, which then fails eligibility. validateRecovery was extended with matching shape/consistency checks for the new field, including correctly excluding the legitimate skipped grant from the pre-existing double-review-on-same-runId check while still catching genuine double spends. Merge protection is untouched: merge.cjs still requires ticket.status === \\\"reviewed\\\" before merging, and resumeOne only reaches \\\"awaiting_review\\\", so the real independent review must still execute and pass — this change gives the system another chance to run that review, it does not bypass it. Test coverage in factory-published-review-recovery.test.cjs exercises the happy path, a second branch refresh carrying the skip history forward, rejection when the review job actually ran or evidence is incomplete, CI-head mismatch, exhausted review allowance, and unverifiable CI metadata — all consistent with the code paths read. As a read-only reviewer I did not execute the test suite myself; I relied on the supplied CI run as evidence that these tests pass, and on static reading of the logic and fixtures for correctness. No blocking issues found.\",\"findings\":[]}"
+    },
+    "285": {
+      "coding": 0,
+      "origin": "owner-pr",
+      "reviews": 1,
+      "retries": 0,
+      "head": "6059d805cabe89bcacb81537cbaf6b086e4e68bd",
+      "status": "reviewing",
+      "pr": 286,
+      "approval": null,
+      "criteriaHash": "b08fa7d11a7ff21fa27d88054cba5275e6eba9efcd3423cba80ee871fa6b4251",
+      "branch": "agent/dependency-merge-retry",
+      "ci": null
     }
   },
   "grants": {
@@ -6931,9 +6945,24 @@
       "status": "finished",
       "at": "2026-11-25T13:47:08.196Z",
       "outcome": "reviewed"
+    },
+    "6b380f38-19fa-4aeb-b786-45d8b56ad99f": {
+      "id": "6b380f38-19fa-4aeb-b786-45d8b56ad99f",
+      "ticket": 285,
+      "phase": "review",
+      "slot": "existing",
+      "runId": "45634438740",
+      "runAttempt": 1,
+      "head": "6059d805cabe89bcacb81537cbaf6b086e4e68bd",
+      "status": "reserved",
+      "at": "2026-11-25T14:28:55.248Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 285,
+    "runId": "45634438740",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -11342,6 +11371,16 @@
         "runId": "45625030865",
         "runAttempt": 1
       }
+    },
+    {
+      "at": "2026-11-25T14:28:55.248Z",
+      "event": "reserved",
+      "ticket": 285,
+      "grant": "6b380f38-19fa-4aeb-b786-45d8b56ad99f",
+      "phase": "review",
+      "runId": "45634438740",
+      "runAttempt": 1,
+      "actor": "haideearus"
     }
   ],
   "featureTurn": {
