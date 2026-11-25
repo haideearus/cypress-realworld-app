@@ -4640,12 +4640,12 @@
     },
     "259": {
       "coding": 0,
-      "reviews": 0,
+      "reviews": 1,
       "retries": 0,
       "origin": "dependency-pr",
       "head": "867307adf1e1ebee7eab0d41d43e4244fe5aefaa",
       "pr": 259,
-      "status": "new",
+      "status": "reviewing",
       "approval": null,
       "branch": "dependabot/npm_and_yarn/yaml-1.10.3",
       "criteriaHash": "a93256e237f3394a5d1720e8e66f764f41fb3492d6b3cd248ffb5b25c59a0aa3",
@@ -6911,6 +6911,17 @@
       "status": "finished",
       "at": "2026-11-25T12:46:03.763Z",
       "outcome": "reviewed"
+    },
+    "edcc9ac6-a3c4-4f58-82bb-dc3dac46c732": {
+      "id": "edcc9ac6-a3c4-4f58-82bb-dc3dac46c732",
+      "ticket": 259,
+      "phase": "review",
+      "slot": "dependency",
+      "runId": "45625030865",
+      "runAttempt": 1,
+      "head": "867307adf1e1ebee7eab0d41d43e4244fe5aefaa",
+      "status": "reserved",
+      "at": "2026-11-25T13:47:08.196Z"
     }
   },
   "active": {
@@ -11290,6 +11301,18 @@
       "ticket": 259,
       "head": "867307adf1e1ebee7eab0d41d43e4244fe5aefaa",
       "runId": "45625030865",
+      "actor": "github-actions[bot]",
+      "wakeReceipt": "0e9b1ee201e715b17c13e6bf4959539c2aad35ef3f99c0f64bdc34afebf6993e",
+      "sourceActor": "dependabot[bot]"
+    },
+    {
+      "at": "2026-11-25T13:47:08.196Z",
+      "event": "reserved",
+      "ticket": 259,
+      "grant": "edcc9ac6-a3c4-4f58-82bb-dc3dac46c732",
+      "phase": "review",
+      "runId": "45625030865",
+      "runAttempt": 1,
       "actor": "github-actions[bot]",
       "wakeReceipt": "0e9b1ee201e715b17c13e6bf4959539c2aad35ef3f99c0f64bdc34afebf6993e",
       "sourceActor": "dependabot[bot]"
