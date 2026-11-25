@@ -4890,9 +4890,17 @@
       "reviews": 1,
       "retries": 0,
       "head": "8eb8b4ff9c3b414af178b49a51bd224ac0c37652",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 278,
-      "approval": null,
+      "approval": {
+        "head": "8eb8b4ff9c3b414af178b49a51bd224ac0c37652",
+        "pr": 278,
+        "grant": "24ffac4b-b64f-45a1-a2cf-3e7330c6e7f4",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/45602423350"
+      },
       "criteriaHash": "eeab021db1104e1a2084e6b7df7e5179319b6056dd0c53136ddd9ae80550a459",
       "branch": "agent/factory-stage-recovery",
       "ci": {
@@ -4900,7 +4908,8 @@
         "head": "8eb8b4ff9c3b414af178b49a51bd224ac0c37652",
         "runId": 45602567864,
         "passed": true
-      }
+      },
+      "feedback": "{\"head\":\"8eb8b4ff9c3b414af178b49a51bd224ac0c37652\",\"verdict\":\"pass\",\"summary\":\"Reviewed the base-to-head diff (29 changed files) and current state of scripts/factory/{blocked-retry,monitor-blocked-recovery,monitor-blocked-recovery-contract,monitor-scheduled-recovery,published-review-recovery,automation,wake-controller,trusted-wake,monitor,monitor-ack,merge}.cjs plus their tests (scripts/tests/factory-blocked-retry.test.cjs, factory-monitor-blocked-recovery.test.cjs, factory-published-review-recovery.test.cjs, factory-wake.test.cjs, factory-worker.test.cjs). Each criterion in the ticket maps to concrete, guarded code: (1) #109's one-time retry is enforced in blocked-retry.cjs (queueBlockedRetry throws \\\"not eligible\\\" on a second attempt; `eligible()` checks `!ticket.delayedRetry`) and asserted in the test \\\"queues a single retry ... /eligible/i\\\" plus grants/days snapshot equality. (2) scripts/factory/published-review-recovery.cjs:verifyOriginal re-checks the original coding job/CI success and a failed review reservation without invoking the model again, matching the #273/PR#274 resume-without-recoding pattern. (3) Branch refresh preserves the patch via verifyRefresh/patchIdentity (two-parent merge-commit and file-set hash check) and forces fresh CI/review by nulling `ci` and resetting status to \\\"awaiting_review\\\" in resumeOne. (4) automation.cjs:pick() calls published-review-recovery.cjs:releaseTerminalRecovery, which verifies the parent run is terminal before releasing the active slot and marking the grant finished/blocked. (5) #124's scheduled closure (monitor-scheduled-recovery.cjs:closeBlockedRepair) requires monitor-blocked-recovery-contract.cjs's two matching, min/max-gap, same-release observations verified via verifyRecovery/verifyScheduledObservation before PATCHing the issue, and never touches the factory ledger's grants/counters (test \\\"fresh owner acknowledgment ... retains usage and exact recovery evidence\\\" asserts ledger JSON equality). (6) wake-controller.cjs's new preparationDrain/pending-candidate loop in handleWake only hands off a queued dependency signal after trusted-wake.cjs:verifySource re-verifies a passing \\\"verify\\\" CI job for that candidate. (7) Stop-switch and approval invariants are checked throughout (policy.assertNotStopped in resumeOne/releaseTerminalRecovery/closeBlockedRepair; merge.cjs:holdMovedBase correctly nulls `t.approval` and records `previousApproval` in the audit log when a published recovery's base moves, requiring a fresh deployment approval). Supplied evidence includes a linked CI run (no pass/fail status given in context.json) which I treat only as a pointer, not confirmation, since this is a read-only review with no code execution; I did not run the test suite myself and relied on reading the referenced test files to confirm assertions match the implementation.\",\"findings\":[]}"
     }
   },
   "grants": {
@@ -6737,15 +6746,12 @@
       "runId": "45602423350",
       "runAttempt": 1,
       "head": "8eb8b4ff9c3b414af178b49a51bd224ac0c37652",
-      "status": "reserved",
-      "at": "2026-11-25T11:13:59.639Z"
+      "status": "finished",
+      "at": "2026-11-25T11:13:59.639Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 279,
-    "runId": "45602423350",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -11016,6 +11022,14 @@
       "runId": "45602423350",
       "runAttempt": 1,
       "actor": "haideearus"
+    },
+    {
+      "at": "2026-11-25T11:29:29.043Z",
+      "event": "finished",
+      "ticket": 279,
+      "grant": "24ffac4b-b64f-45a1-a2cf-3e7330c6e7f4",
+      "status": "reviewed",
+      "head": "8eb8b4ff9c3b414af178b49a51bd224ac0c37652"
     }
   ],
   "featureTurn": {
