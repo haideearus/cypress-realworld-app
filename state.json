@@ -4292,7 +4292,7 @@
       "origin": "dependency-pr",
       "head": "38e1d26f1dcee3980c166db5ee761ca135cb9bc1",
       "pr": 235,
-      "status": "new",
+      "status": "blocked",
       "approval": null,
       "branch": "dependabot/npm_and_yarn/humanfs/node-0.16.8",
       "criteriaHash": "43d8c0a56f517c6c371e5724297f2a15dbe0c393586f988862be19ba0192f58d",
@@ -4336,7 +4336,7 @@
         "head": "38e1d26f1dcee3980c166db5ee761ca135cb9bc1",
         "runId": null
       },
-      "feedback": "{\"head\":\"549a89a6136766298064e014d00fa5f8009fc574\",\"verdict\":\"pass\",\"summary\":\"Reviewed the yarn.lock-only diff (base 87af49ad → head 549a89a6) against package.json and dependencyFacts. The change bumps transitive devDependencies of eslint: @humanfs/node 0.16.6→0.16.8 (removes GHSA-p498-v437-472g per cleared advisory), @humanfs/core 0.19.1→0.19.2, adds @humanfs/types 0.15.0, and dedupes @humanwhocodes/retry onto the already-present 0.4.3. Confirmed via Grep in yarn.lock:2265-2296,6363-6367 that eslint's declared ranges (^0.16.6, ^0.4.2) still satisfy the new resolutions and package.json itself is untouched (no semver range widened). Registry entries in dependencyFacts show integrityMatched: true for all four added/retained packages, consistent with the diff's resolved URLs/integrity hashes. CI receipt (run 45447906655) shows yarn types/lint/test:unit:ci and the E2E regression job passed at this head, which exercises eslint (hence @humanfs/node) during lint and gives general app regression coverage via auth.spec.ts, bankaccounts.spec.ts, user-settings.spec.ts and UserSettingsForm.test.tsx, none of which specifically target this lockfile-only dependency since it's a build/lint-time tool, not runtime application code.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"The four referenced CI test files (UserSettingsForm.test.tsx, auth.spec.ts, bankaccounts.spec.ts, user-settings.spec.ts) are general application regression tests unrelated to @humanfs/*; no test specifically exercises the bumped eslint tooling dependency, so passing CI only confirms the lint/typecheck/build pipeline still runs, not that @humanfs/node's internal behavior change is otherwise validated.\"}]}",
+      "feedback": "Dependency preparation held; no model invocation",
       "analysis": {
         "version": 2,
         "repository": "haideearus/cypress-realworld-app",
@@ -6606,11 +6606,7 @@
       "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 235,
-    "runId": "45492491103",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -10814,6 +10810,13 @@
       "actor": "github-actions[bot]",
       "wakeReceipt": "fab0ac35c69157afec0f09e99b5ff7f0d98c16e8fd6e59d91274edc6f828d1c7",
       "sourceActor": "dependabot[bot]"
+    },
+    {
+      "at": "2026-11-25T02:44:26.102Z",
+      "event": "dependency_preparation_blocked",
+      "ticket": 235,
+      "head": "38e1d26f1dcee3980c166db5ee761ca135cb9bc1",
+      "runId": "45492491103"
     }
   ],
   "featureTurn": {
