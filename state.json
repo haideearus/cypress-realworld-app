@@ -4789,7 +4789,20 @@
           "remainingBaseline": []
         }
       },
-      "feedback": "{\"verdict\":\"pass\",\"head\":\"2cc5d967cff5c712c42bcd333bcbafbd13f50fbe\",\"summary\":\"PR #260 is a yarn.lock-only bump of the transitive `validator` package (pulled in solely by express-validator@6.15.0, per yarn.lock:6727-6733) from 13.12.0 to 13.15.35, within the declared ^13.9.0 range; package.json is unchanged. Per dependencyFacts, this clears GHSA-9965-vmph-33xx (fixed 13.15.20) and GHSA-vghf-hv5q-vc2g (fixed 13.15.22), both satisfied by 13.15.35, and registry integrity for the tarball matches. backend/validators.ts and backend/helpers.ts show validator.js functions (isURL, isNumeric, isIn, isInt, isBoolean) are used server-side for user/transaction/bankaccount validation; cypress/tests/api/api-users.spec.ts (not in the listed ciEvidence.testFiles but part of the \\\"API and browser regression tests\\\" CI step) exercises POST /users with avatar (URL) and balance (numeric) fields, giving indirect coverage of the validator.js code paths touched by this bump. The four ciEvidence.testFiles (UserSettingsForm.test.tsx, auth.spec.ts, bankaccounts.spec.ts, user-settings.spec.ts) primarily test frontend Yup/Formik validation, not the backend validator.js integration directly. The CI receipt (run 45639761174) proves the full suite steps passed, not per-assertion coverage of every validator.js edge case for the new version. No duplicate/hoisted validator versions exist in yarn.lock, and no \\\"resolutions\\\" conflicts.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"The ciEvidence.testFiles cited for this PR (UserSettingsForm.test.tsx, auth.spec.ts, bankaccounts.spec.ts, user-settings.spec.ts) validate frontend Yup/Formik logic, not the backend validator.js functions (isURL, isNumeric, isIn, isInt, isBoolean) in backend/validators.ts that actually depend on the bumped package; only the broader, unlisted cypress/tests/api/api-users.spec.ts exercises those backend paths (avatar URL, balance numeric), so coverage of the exact dependency behavior relies on that incidental suite rather than targeted tests for this change.\"}]}"
+      "feedback": "{\"verdict\":\"pass\",\"head\":\"2cc5d967cff5c712c42bcd333bcbafbd13f50fbe\",\"summary\":\"PR #260 is a yarn.lock-only bump of the transitive `validator` package (pulled in solely by express-validator@6.15.0, per yarn.lock:6727-6733) from 13.12.0 to 13.15.35, within the declared ^13.9.0 range; package.json is unchanged. Per dependencyFacts, this clears GHSA-9965-vmph-33xx (fixed 13.15.20) and GHSA-vghf-hv5q-vc2g (fixed 13.15.22), both satisfied by 13.15.35, and registry integrity for the tarball matches. backend/validators.ts and backend/helpers.ts show validator.js functions (isURL, isNumeric, isIn, isInt, isBoolean) are used server-side for user/transaction/bankaccount validation; cypress/tests/api/api-users.spec.ts (not in the listed ciEvidence.testFiles but part of the \\\"API and browser regression tests\\\" CI step) exercises POST /users with avatar (URL) and balance (numeric) fields, giving indirect coverage of the validator.js code paths touched by this bump. The four ciEvidence.testFiles (UserSettingsForm.test.tsx, auth.spec.ts, bankaccounts.spec.ts, user-settings.spec.ts) primarily test frontend Yup/Formik validation, not the backend validator.js integration directly. The CI receipt (run 45639761174) proves the full suite steps passed, not per-assertion coverage of every validator.js edge case for the new version. No duplicate/hoisted validator versions exist in yarn.lock, and no \\\"resolutions\\\" conflicts.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"The ciEvidence.testFiles cited for this PR (UserSettingsForm.test.tsx, auth.spec.ts, bankaccounts.spec.ts, user-settings.spec.ts) validate frontend Yup/Formik logic, not the backend validator.js functions (isURL, isNumeric, isIn, isInt, isBoolean) in backend/validators.ts that actually depend on the bumped package; only the broader, unlisted cypress/tests/api/api-users.spec.ts exercises those backend paths (avatar URL, balance numeric), so coverage of the exact dependency behavior relies on that incidental suite rather than targeted tests for this change.\"}]}",
+      "dependencyMergeRetry": {
+        "head": "2cc5d967cff5c712c42bcd333bcbafbd13f50fbe",
+        "grant": "265d8182-2e93-4708-8020-86f8dad0864b",
+        "at": "2026-11-25T15:12:29.239Z",
+        "phase": "held",
+        "failure": {
+          "stage": "required-checks",
+          "reason": "Native check does not identify its current workflow job: Factory review gate"
+        },
+        "retryAt": null,
+        "sourceRun": "45639351909",
+        "run": null
+      }
     },
     "266": {
       "coding": 0,
@@ -11520,6 +11533,19 @@
       "grant": "265d8182-2e93-4708-8020-86f8dad0864b",
       "status": "reviewed",
       "head": "2cc5d967cff5c712c42bcd333bcbafbd13f50fbe"
+    },
+    {
+      "at": "2026-11-25T15:12:29.239Z",
+      "event": "dependency_merge_preflight_held",
+      "ticket": 260,
+      "head": "2cc5d967cff5c712c42bcd333bcbafbd13f50fbe",
+      "runId": "45639351909",
+      "failure": {
+        "stage": "required-checks",
+        "reason": "Native check does not identify its current workflow job: Factory review gate"
+      },
+      "recovery": "held",
+      "retryAt": null
     }
   ],
   "featureTurn": {
