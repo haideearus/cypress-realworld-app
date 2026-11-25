@@ -47,6 +47,11 @@
           "fingerprint": "7c3a2edf0fd523cfee4fa1fc84c47f83aed4e154d05bad3f023cefedf72ba91e",
           "result": "wider-unavailable",
           "at": "2026-11-24T13:45:14.046Z"
+        },
+        {
+          "fingerprint": "48cd9d7769b72eca69b77476f773d5e354b883fafc63b40f0ed908983a0417ee",
+          "result": "wider-unavailable",
+          "at": "2026-11-25T12:07:47.909Z"
         }
       ]
     },
