@@ -358,6 +358,14 @@
       "issue": null,
       "pr": null,
       "hold": "stale-base"
+    },
+    "46f5cdbd15281c7c4dab86fae64c3cf2253ad1c6aeede08bf9818ed02224b8b1": {
+      "name": "vite",
+      "day": "2026-11-25",
+      "trackingReason": "graph-held",
+      "phase": "tracking-intent",
+      "issue": null,
+      "pr": null
     }
   },
   "heldAfter": "axios"
