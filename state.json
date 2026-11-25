@@ -150,7 +150,8 @@
       275
     ],
     "2026-11-25": [
-      223
+      223,
+      276
     ]
   },
   "tickets": {
@@ -4825,6 +4826,28 @@
         "runAttempt": 1,
         "mergeCommit": "435a39f759b896da8aff3e120d49f7999985e2bf"
       }
+    },
+    "276": {
+      "coding": 0,
+      "reviews": 0,
+      "retries": 0,
+      "origin": "discovery-sweep",
+      "head": "435a39f759b896da8aff3e120d49f7999985e2bf",
+      "status": "discovering",
+      "pr": null,
+      "approval": null,
+      "discovery": {
+        "version": 1,
+        "head": "435a39f759b896da8aff3e120d49f7999985e2bf",
+        "ciRunId": "45489676151",
+        "charter": "functional-directory",
+        "day": "2026-11-25",
+        "key": "f7032439942657a2812b6a3d8d8ec285ee180eb3fe1c6118e0938f144b137b99",
+        "runId": "45588610563",
+        "runAttempt": 1,
+        "workflowSha": "435a39f759b896da8aff3e120d49f7999985e2bf",
+        "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-discovery.yml@refs/heads/main"
+      }
     }
   },
   "grants": {
@@ -6640,9 +6663,24 @@
       "status": "finished",
       "at": "2026-11-24T21:13:32.098Z",
       "outcome": "reviewed"
+    },
+    "7905efdb-169b-4078-aaae-94fa488757c7": {
+      "id": "7905efdb-169b-4078-aaae-94fa488757c7",
+      "ticket": 276,
+      "phase": "discover",
+      "slot": "discovery",
+      "runId": "45588610563",
+      "runAttempt": 1,
+      "head": "435a39f759b896da8aff3e120d49f7999985e2bf",
+      "status": "reserved",
+      "at": "2026-11-25T09:46:57.163Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 276,
+    "runId": "45588610563",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -10868,6 +10906,16 @@
       "ticket": 223,
       "head": "c07212d00ef32473a3c6263edf2802c2353bb083",
       "runId": "45535059711"
+    },
+    {
+      "at": "2026-11-25T09:46:57.163Z",
+      "event": "reserved",
+      "ticket": 276,
+      "grant": "7905efdb-169b-4078-aaae-94fa488757c7",
+      "phase": "discover",
+      "runId": "45588610563",
+      "runAttempt": 1,
+      "actor": "haideearus"
     }
   ],
   "featureTurn": {
