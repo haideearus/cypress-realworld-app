@@ -330,8 +330,8 @@
       "name": "tmp",
       "day": "2026-11-25",
       "trackingReason": "metadata-held",
-      "phase": "tracking-intent",
-      "issue": null,
+      "phase": "tracking",
+      "issue": 284,
       "pr": null
     }
   },
