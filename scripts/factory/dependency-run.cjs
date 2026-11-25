@@ -93,11 +93,14 @@ async function main(env = process.env) {
   const preview =
     inputs.preview === undefined ? runtime.event === "workflow_dispatch" : inputs.preview;
   const api = new GitHub({ token: env.GH_TOKEN });
-  const context = await require("./trusted-wake.cjs").loadWakeContext(api, runtime, env, {
-    bind: op === "dep_select" && preview === false,
-  });
+  const afterMainCI = runtime.event === "workflow_run" && op === "dep_recover_tracked";
+  const context = afterMainCI
+    ? runtime
+    : await require("./trusted-wake.cjs").loadWakeContext(api, runtime, env, {
+        bind: op === "dep_select" && preview === false,
+      });
   const c = new DependencyCoordinator(api, config, context);
-  c.authorize();
+  if (!afterMainCI) c.authorize();
   const n = Number(inputs.ticket);
   let result;
   if (op === "dep_select") result = await c.select(preview);
@@ -107,6 +110,7 @@ async function main(env = process.env) {
     result = await trackNativeDependencies(api, config, context, preview, {
       refreshApi,
       recoveryOnly: op === "dep_recover_tracked",
+      mainCIEvent: afterMainCI ? readJson(env.GITHUB_EVENT_PATH, 2000000) : undefined,
     });
   } else if (op === "dep_analysis" || op === "dep_premerge") {
     const stage = op === "dep_analysis" ? "analysis" : "premerge";

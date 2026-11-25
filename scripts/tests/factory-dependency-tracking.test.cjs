@@ -15,6 +15,27 @@ const ctx = { ...context, workflowRef: d.WORKFLOW, workflowSha: "a".repeat(40) }
 const bot = { login: "github-actions[bot]", id: 41898282, type: "Bot" };
 const owner = { login: "haideearus", id: 101267861, type: "User" };
 const repo = { full_name: d.REPOSITORY };
+const ciPath = ".github/workflows/factory-ci.yml";
+const mainCIEvent = {
+  action: "completed",
+  repository: repo,
+  workflow: { id: 71, path: ciPath },
+  workflow_run: {
+    id: 701,
+    workflow_id: 71,
+    path: ciPath,
+    event: "push",
+    head_branch: "main",
+    head_sha: "c".repeat(40),
+    repository: repo,
+    head_repository: repo,
+    actor: owner,
+    triggering_actor: owner,
+    run_attempt: 1,
+    status: "completed",
+    conclusion: "success",
+  },
+};
 const native = {
   number: 9,
   state: "open",
@@ -45,6 +66,7 @@ async function setup() {
     detailedReads: 0,
     ref: null,
     wakes: null,
+    mainCIRun: structuredClone(mainCIEvent.workflow_run),
   };
   const gitRef = "/git/ref/heads/factory/dependency-tracking";
   const json = (data) => Response.json(data);
@@ -53,6 +75,7 @@ async function setup() {
     const path = url.pathname.slice(ROOT.length);
     const data = request.body && JSON.parse(request.body);
     const { method } = request;
+    if (method === "GET" && path === "/actions/runs/701/attempts/1") return json(fixture.mainCIRun);
     if (method === "GET" && path === gitRef)
       return fixture.ref ? json({ object: { sha: fixture.ref } }) : missing();
     if (method === "GET" && path === "/git/ref/heads/factory/wakes")
@@ -119,6 +142,7 @@ async function setup() {
       fixture.comments.push(created);
       if (data.body === "@dependabot rebase") {
         if (fixture.lostRefreshResponse) throw Error("lost comment response");
+        if (fixture.mainAfterRefresh) fixture.main = fixture.mainAfterRefresh;
         if (fixture.refreshHead) {
           fixture.pulls[0].head.sha = fixture.refreshHead;
           fixture.behind = 0;
@@ -183,9 +207,10 @@ async function setup() {
     api,
     fixture,
     ledger,
-    track: (preview = false, refresh = false, recoveryOnly = false) =>
-      trackNativeDependencies(api, config, ctx, preview, {
+    track: (preview = false, refresh = false, recoveryOnly = false, mainCI) =>
+      trackNativeDependencies(api, mainCI?.config || config, mainCI?.context || ctx, preview, {
         recoveryOnly,
+        mainCIEvent: mainCI?.event,
         refreshApi: refresh
           ? new GitHub({
               token: "owner-fixture",
@@ -200,6 +225,81 @@ async function setup() {
       }),
   };
 }
+
+test("successful current main CI requests one native refresh and preserves attempt history", async () => {
+  const { fixture, ledger, track } = await setup();
+  await track();
+  fixture.behind = 2;
+  const cfg = policy.readConfig({
+    ...vars,
+    FACTORY_AUTOMATION_ENABLED: "true",
+    FACTORY_GITHUB_APP_CLIENT_ID: "Iv123456789",
+    FACTORY_GITHUB_APP_SLUG: "factory-app-fixture",
+  });
+  await ledger.update((s) => ({ state: lifecycle.claimDependency(s, native, ctx, cfg) }));
+  await ledger.update((s) => ({ state: lifecycle.finishPreparation(s, native.number, ctx) }));
+  const before = await ledger.read();
+  const mainCI = {
+    context: { ...ctx, event: "workflow_run", workflowSha: fixture.main },
+    config: { ...config, eventPickup: true },
+    event: mainCIEvent,
+  };
+  const result = await track(false, true, true, mainCI);
+  assert.deepEqual(result.links, [{ pr: 9, issue: 92, status: "Dependabot refresh requested" }]);
+  await track(false, true, true, mainCI);
+  assert.equal(fixture.comments.filter(({ body }) => body === "@dependabot rebase").length, 1);
+  assert.equal(fixture.issuePosts, 1);
+  assert.deepEqual(await ledger.read(), before);
+});
+
+test("main CI recovery rejects other event sources and stops when main has advanced", async () => {
+  const { fixture, ledger, track } = await setup();
+  await track();
+  fixture.behind = 2;
+  const before = await ledger.read();
+  const mainCI = {
+    context: { ...ctx, event: "workflow_run", workflowSha: fixture.main },
+    config: { ...config, eventPickup: true },
+    event: mainCIEvent,
+  };
+  for (const fields of [
+    { event: "pull_request" },
+    { event: "workflow_dispatch" },
+    { conclusion: "failure" },
+    { head_repository: { full_name: "another/repo" } },
+    { head_branch: "topic" },
+    { head_sha: "d".repeat(40) },
+  ]) {
+    const event = { ...mainCIEvent, workflow_run: { ...mainCIEvent.workflow_run, ...fields } };
+    await assert.rejects(track(false, true, true, { ...mainCI, event }), /Untrusted main CI/);
+  }
+  await assert.rejects(track(false, true, false, mainCI), /Untrusted main CI/);
+  const disabled = { ...mainCI, config: { ...config, eventPickup: false } };
+  await assert.rejects(track(false, true, true, disabled), /Untrusted main CI/);
+  fixture.mainCIRun.conclusion = "failure";
+  await assert.rejects(track(false, true, true, mainCI), /Untrusted main CI/);
+  fixture.mainCIRun.conclusion = "success";
+  fixture.main = "d".repeat(40);
+  const result = await track(false, true, true, mainCI);
+  assert.match(result.reason, /main advanced/);
+  assert.deepEqual(fixture.comments, []);
+  assert.deepEqual(await ledger.read(), before);
+});
+
+test("an acknowledged refresh stays recorded if main advances during the rebase request", async () => {
+  const { fixture, track } = await setup();
+  await track();
+  fixture.behind = 2;
+  fixture.mainAfterRefresh = "d".repeat(40);
+  const result = await track(false, true, true, {
+    context: { ...ctx, event: "workflow_run", workflowSha: fixture.main },
+    config: { ...config, eventPickup: true },
+    event: mainCIEvent,
+  });
+  assert.deepEqual(result.links, [{ pr: 9, issue: 92, status: "Dependabot refresh requested" }]);
+  assert.equal(fixture.comments[0].body, "@dependabot rebase");
+  assert.match(fixture.comments[1].body, /GitHub accepted/);
+});
 
 test("one ready native ticket survives a head refresh without changing the protected usage ledger", async () => {
   const { fixture, ledger, track } = await setup();

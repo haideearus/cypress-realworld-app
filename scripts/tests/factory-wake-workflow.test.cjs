@@ -44,6 +44,46 @@ test("dependency jobs can read Actions provenance for a bound wake", () => {
   for (const name of ["analysis", "premerge", "finalize"])
     assert.equal(jobs[name].permissions.actions, "read");
 });
+test("main CI can only run the bounded dependency refresh job", () => {
+  const { on, jobs } = load("factory-dependencies");
+  assert.deepEqual(on.workflow_run, {
+    workflows: ["Factory CI"],
+    branches: ["main"],
+    types: ["completed"],
+  });
+  const { refresh_after_main_ci: refresh, select, preview } = jobs;
+  assert.match(
+    select.if,
+    /github\.event_name == 'schedule' \|\| \(github\.event_name == 'workflow_dispatch'/
+  );
+  assert.match(preview.if, /github\.event_name == 'workflow_dispatch'/);
+  for (const [name, job] of Object.entries(jobs)) {
+    if (!["preview", "select", "refresh_after_main_ci"].includes(name)) assert.ok(job.needs, name);
+  }
+  assert.match(refresh.if, /github\.event\.workflow_run\.event == 'push'/);
+  assert.match(refresh.if, /github\.event\.workflow_run\.conclusion == 'success'/);
+  assert.match(refresh.if, /github\.event\.workflow_run\.head_sha == github\.sha/);
+  assert.match(refresh.if, /FACTORY_EVENT_PICKUP_ENABLED == 'true'/);
+  assert.equal(refresh.concurrency.group, "factory-ledger");
+  const [checkout, , scan] = refresh.steps;
+  assert.equal(checkout.with.ref, "${{ github.workflow_sha }}");
+  assert.equal(checkout.with["persist-credentials"], false);
+  assert.equal(scan.run, "node scripts/factory/dependency-run.cjs");
+  assert.equal(scan.env.FACTORY_OPERATION, "dep_recover_tracked");
+  assert.deepEqual(
+    Object.entries(scan.env).filter(([, value]) => value.includes("secrets.")),
+    [["FACTORY_DEPENDABOT_REBASE_TOKEN", "${{ secrets.FACTORY_DEPENDABOT_REBASE_TOKEN }}"]]
+  );
+  for (const [workflow, job] of [
+    ["factory-dependency-alerts", "repair"],
+    ["factory-features", "select"],
+  ]) {
+    assert.match(
+      load(workflow).jobs[job].if,
+      /!\(github\.event\.workflow_run\.path == '\.github\/workflows\/factory-dependencies\.yml' &&\s+github\.event\.workflow_run\.event == 'workflow_run'\)/
+    );
+  }
+});
 test("idle completions, observer completions and owner harness CI cannot drain", async () => {
   for (const path of [
     ".github/workflows/factory-automatic.yml",

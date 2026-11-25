@@ -56,6 +56,8 @@ jobs:
           github.ref == 'refs/heads/main' && github.run_attempt == 1 &&
           vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' &&
           ((github.event_name == 'workflow_run' &&
+            !(github.event.workflow_run.path == '.github/workflows/factory-dependencies.yml' &&
+              github.event.workflow_run.event == 'workflow_run') &&
             github.event.workflow_run.repository.full_name == github.repository &&
             github.event.workflow_run.head_repository.full_name == github.repository &&
             (vars.FACTORY_FEATURE_MODE == 'pilot' || vars.FACTORY_FEATURE_MODE == 'live')) ||

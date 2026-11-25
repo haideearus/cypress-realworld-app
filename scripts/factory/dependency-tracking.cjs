@@ -6,6 +6,7 @@ const { MetadataStore } = require("./metadata-store.cjs");
 const { WakeStore } = require("./wake-store.cjs");
 
 const READY_LABEL = "factory-dependency-ready";
+const CI_WORKFLOW = ".github/workflows/factory-ci.yml";
 const LIMIT = 500;
 const RECOVERY_HEADS_PER_PR = 10;
 const RECOVERY_BASES_PER_HEAD = 5;
@@ -44,6 +45,50 @@ const ALLOW_MISSING = { allowMissing: true };
 const validNumber = (n) => Number.isSafeInteger(n) && n > 0;
 const empty = () => ({ version: 1, records: {} });
 class TrackingDeadline extends Error {}
+class MainCIStale extends Error {}
+
+async function verifyMainCI(api, config, context, event) {
+  const { actor, workflowSha: head } = context;
+  const source = event?.workflow_run;
+  const isMainPush = (run) =>
+    run?.path === CI_WORKFLOW &&
+    run.event === "push" &&
+    run.head_branch === "main" &&
+    run.head_sha === head &&
+    run.repository?.full_name === policy.REPOSITORY &&
+    run.head_repository?.full_name === policy.REPOSITORY &&
+    run.run_attempt === 1 &&
+    run.status === "completed" &&
+    run.conclusion === "success";
+  if (
+    context.repository !== policy.REPOSITORY ||
+    context.ref !== "refs/heads/main" ||
+    context.workflowRef !== dependency.WORKFLOW ||
+    !/^[1-9]\d*$/.test(context.runId || "") ||
+    context.runAttempt !== 1 ||
+    !policy.SHA.test(head || "") ||
+    context.triggeringActor !== actor ||
+    !(actor === policy.OWNER || (config.appSlug && actor === `${config.appSlug}[bot]`)) ||
+    event?.repository?.full_name !== policy.REPOSITORY ||
+    event.action !== "completed" ||
+    !validNumber(source?.id) ||
+    !validNumber(source.workflow_id) ||
+    event.workflow?.id !== source.workflow_id ||
+    event.workflow.path !== CI_WORKFLOW ||
+    !isMainPush(source)
+  )
+    throw Error("Untrusted main CI dependency recovery event");
+  const run = await api.request("GET", `${ROOT}/actions/runs/${source.id}/attempts/1`);
+  if (
+    !isMainPush(run) ||
+    run.id !== source.id ||
+    run.workflow_id !== source.workflow_id ||
+    run.actor?.login !== actor ||
+    run.triggering_actor?.login !== actor
+  )
+    throw Error("Untrusted main CI dependency recovery run");
+  return head;
+}
 
 function validRefresh(receipt) {
   return (
@@ -452,6 +497,7 @@ async function recoverTrackedPR({
   proposals,
   now,
   beforeWrite,
+  mainCIHead,
 }) {
   const eligible = [...proposals.values()].filter((pr) => {
     const row = state.records[pr.number];
@@ -464,13 +510,18 @@ async function recoverTrackedPR({
   });
   if (eligible.length === 0) return null;
   const { state: usage } = await ledger.read();
-  let main;
+  let main = mainCIHead;
+  const baseStillCurrent = async () => {
+    const current = (await currentMain(api)) === main;
+    if (!current && mainCIHead) throw new MainCIStale();
+    return current;
+  };
   for (const proposal of await recoveryBatch(api, eligible, now)) {
     if (!recoveryAllowed(usage, proposal)) continue;
     const number = proposal.number;
     let row = state.records[number];
     const receipt = row.recovery?.[proposal.head.sha];
-    const message = receipt?.blocked ? null : blocker(usage, proposal);
+    const message = mainCIHead || receipt?.blocked ? null : blocker(usage, proposal);
     main ??= await currentMain(api);
     // Older receipts did not record a base. Retain their one-request-per-head hold.
     const base = !receipt?.refresh && (refreshApi || receipt?.bases) ? main : undefined;
@@ -509,14 +560,17 @@ async function recoverTrackedPR({
     if (stale) {
       if (wantsRefresh) {
         refresh = "attempted";
-        if ((await currentMain(api)) !== main) continue;
+        if (!(await baseStillCurrent())) continue;
         row = await saveRecovery(store, pr, row, { refresh }, guard, base);
         await guard();
-        if ((await currentMain(api)) !== main) continue;
+        if (!(await baseStillCurrent())) continue;
         if (await postRecoveryComment(refreshApi, number, REFRESH_COMMAND, isOwner)) {
+          // Finalize the receipt for the original pair even if main moved during the POST.
           refresh = "confirmed";
           row = await saveRecovery(store, pr, row, { refresh }, beforeWrite, base);
         }
+      } else if (mainCIHead) {
+        await baseStillCurrent();
       }
       const kind = staleNoteKind(refresh);
       const { detail, status } = STALE_NOTES[kind];
@@ -547,9 +601,10 @@ async function recoverTrackedPR({
   return null;
 }
 
-async function track(api, refreshApi, preview, recoveryOnly, now, result, links) {
+async function track(api, refreshApi, preview, recoveryOnly, now, result, links, mainCIHead) {
   const ledger = new Ledger(api);
   const beforeWrite = async () => policy.assertNotStopped((await ledger.read()).state);
+  if (mainCIHead && (await currentMain(api)) !== mainCIHead) throw new MainCIStale();
   if ((await ledger.read()).state.stop)
     return "Factory stopped; native dependency tracking is paused";
   const store = new MetadataStore(api, "dependency-tracking", empty, validate);
@@ -565,6 +620,7 @@ async function track(api, refreshApi, preview, recoveryOnly, now, result, links)
       proposals,
       now,
       beforeWrite,
+      mainCIHead,
     });
     if (recovery) links.set(recovery.pr, recovery);
     return recovery;
@@ -708,11 +764,17 @@ async function trackNativeDependencies(
   config,
   context,
   preview,
-  { refreshApi, recoveryOnly = false } = {}
+  { refreshApi, recoveryOnly = false, mainCIEvent } = {}
 ) {
-  policy.authorize(context);
-  if (!dependency.contextOK(context) || typeof preview !== "boolean")
-    throw Error("Unauthorized native dependency tracking");
+  const afterMainCI = context.event === "workflow_run";
+  if (afterMainCI) {
+    if (!recoveryOnly || preview !== false || !config.eventPickup)
+      throw Error("Untrusted main CI dependency recovery operation");
+  } else {
+    policy.authorize(context);
+    if (!dependency.contextOK(context) || typeof preview !== "boolean")
+      throw Error("Unauthorized native dependency tracking");
+  }
   if (!preview && (!config.enabled || !config.automatic))
     return { reason: "Native dependency tracking is disabled" };
   const now = Date.now();
@@ -726,19 +788,26 @@ async function trackNativeDependencies(
   const links = new Map();
   let reason;
   try {
+    const client = bounded(api);
+    const mainCIHead = afterMainCI
+      ? await verifyMainCI(client, config, context, mainCIEvent)
+      : undefined;
     reason = await track(
-      bounded(api),
+      client,
       refreshApi && bounded(refreshApi),
       preview,
       recoveryOnly,
       now,
       result,
-      links
+      links,
+      mainCIHead
     );
   } catch (error) {
-    if (!(error instanceof TrackingDeadline)) throw error;
-    reason =
-      "Native dependency tracking reached its time budget. Unfinished receipts remain recorded.";
+    if (error instanceof MainCIStale) reason = "Skipped dependency refresh because main advanced.";
+    else if (error instanceof TrackingDeadline)
+      reason =
+        "Native dependency tracking reached its time budget. Unfinished receipts remain recorded.";
+    else throw error;
   }
   return {
     ...result,
