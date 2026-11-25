@@ -3,7 +3,10 @@ const assert = require("node:assert/strict");
 const d = require("../factory/dependency-contract.cjs");
 const { GitHub, Ledger, ROOT } = require("../factory/github.cjs");
 const { MetadataStore } = require("../factory/metadata-store.cjs");
-const { trackNativeDependencies } = require("../factory/dependency-tracking.cjs");
+const {
+  trackNativeDependencies,
+  previewNativeRecovery,
+} = require("../factory/dependency-tracking.cjs");
 const policy = require("../factory/policy.cjs");
 const lifecycle = require("../factory/dependency-policy.cjs");
 const wakes = require("../factory/wake-contract.cjs");
@@ -321,6 +324,41 @@ test("one ready native ticket survives a head refresh without changing the prote
   await track();
   assert.equal(fixture.issuePosts, 1);
   assert.deepEqual(await ledger.read(), before);
+});
+
+test("a native refresh awaiting Dependabot leaves other stale PRs available to the queue", async () => {
+  const { api, fixture, ledger, track } = await setup();
+  const later = structuredClone(native);
+  later.number = 10;
+  later.head.ref = "dependabot/npm_and_yarn/other-1.0.1";
+  later.head.sha = "d".repeat(40);
+  fixture.pulls.push(later);
+  await track();
+  const before = await ledger.read();
+  fixture.behind = 2;
+  fixture.rejectNote = true;
+  assert.equal(await previewNativeRecovery(api, { ledger }), 9);
+  assert.equal(fixture.comments.length, 0);
+  await track(false, true, true);
+  assert.equal(await previewNativeRecovery(api, { ledger }), 10);
+  assert.deepEqual(
+    fixture.comments
+      .filter(({ body }) => body === "@dependabot rebase")
+      .map(({ number }) => number),
+    [9]
+  );
+  assert.deepEqual(await ledger.read(), before);
+  await track(false, true, true);
+  assert.deepEqual(
+    fixture.comments
+      .filter(({ body }) => body === "@dependabot rebase")
+      .map(({ number }) => number),
+    [9, 10]
+  );
+  fixture.rejectNote = false;
+  await track(false, true, true);
+  await track(false, true, true);
+  assert.equal(await previewNativeRecovery(api, { ledger }), null);
 });
 
 test("a lost create acknowledgement cannot create another issue before reconciliation", async () => {

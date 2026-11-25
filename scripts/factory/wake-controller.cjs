@@ -392,8 +392,34 @@ async function handleWake({
     event.issue?.number === Number(vars.FACTORY_ACTIVITY_ISSUE_NUMBER)
   )
     return { outcome: "ignored" };
-  let signal = await classifySignal({ api, event, context, vars, ledger, store });
-  if (!signal) return { outcome: "ignored" };
+  const source = event.workflow_run;
+  const scheduled =
+    !preview &&
+    event.repository?.full_name === c.REPOSITORY &&
+    context.event === "workflow_run" &&
+    event.action === "completed" &&
+    source?.path === ".github/workflows/factory-automatic.yml" &&
+    source.event === "schedule" &&
+    source.conclusion === "success" &&
+    c.ID.test(String(source.id))
+      ? await require("./wake-queue.cjs").nextDependency({
+          api,
+          source,
+          context,
+          vars,
+          ledger,
+          store,
+          state: (await ledger.read()).state,
+        })
+      : null;
+  if (scheduled?.duplicate) return { outcome: "duplicate" };
+  let signal =
+    scheduled?.signal ?? (await classifySignal({ api, event, context, vars, ledger, store }));
+  if (!signal)
+    return {
+      outcome: "ignored",
+      ...(scheduled?.skipped?.length ? { skipped: scheduled.skipped } : {}),
+    };
   c.validateSignal(signal);
   if (preview) return { outcome: "preview", lane: signal.lane, number: signal.number };
   const controls = (await ledger.read()).state;
@@ -402,22 +428,33 @@ async function handleWake({
     return { outcome: "disabled" };
   const concurrent = Number(vars.FACTORY_MAX_CONCURRENT_TICKETS);
   if (![1, 2].includes(concurrent)) throw Error("Invalid wake capacity setting");
-  const busy = !slots.capacity(controls, concurrent);
-  const drain = signal.kind === "drain" ? signal : null;
+  const busy =
+    !slots.capacity(controls, concurrent) &&
+    (!scheduled?.terminal ||
+      (await require("./wake-queue.cjs").terminalDependency(
+        api,
+        controls,
+        vars.FACTORY_AUTOMERGE_ENABLED === "true"
+      )) !== scheduled.terminal);
+  const drain = signal.kind === "drain" && !c.isQueueCheckDrain(signal) ? signal : null;
+  const sourceDrain = scheduled?.queueCheck ?? drain;
   const preparation = c.isPreparationDrain(signal);
   const alreadyDrained = (state) =>
-    drain &&
+    sourceDrain &&
     Object.values(state.receipts).some(
       (r) =>
         r.signal.kind === "drain" &&
-        r.signal.sourceRun === drain.sourceRun &&
-        r.signal.sourceAttempt === drain.sourceAttempt &&
+        r.signal.sourceRun === sourceDrain.sourceRun &&
+        r.signal.sourceAttempt === sourceDrain.sourceAttempt &&
         r.status !== "pending"
     );
   const observed = [];
   const deferred = [];
-  const skipped = [];
-  let completedDrain;
+  const skipped = scheduled?.skipped || [];
+  let completedDrain =
+    !busy && scheduled?.queueCheck && scheduled.queueCheck !== signal
+      ? c.createWake({ signal: scheduled.queueCheck, producer })
+      : undefined;
   if (drain && !busy) {
     const { state } = await store.read();
     if (alreadyDrained(state)) return { outcome: "duplicate" };

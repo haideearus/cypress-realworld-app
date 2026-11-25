@@ -39,29 +39,13 @@ function expectedReport(ticket, context, stage) {
 function artifactName(stage, context, ticket) {
   return `dependency-${stage}-${context.runId}-${context.runAttempt}-${ticket.pr}-${ticket.head}`;
 }
-async function trustedRun(api, context, historical = false) {
-  if (!d.contextOK(context)) throw new Error("Unauthorized dependency context");
+async function trustedRun(api, context, historicalTicket = null) {
+  const historical = historicalTicket !== null;
+  if (!historical && !d.contextOK(context)) throw new Error("Unauthorized dependency context");
   const run = await api.request(
     "GET",
     `${ROOT}/actions/runs/${context.runId}${historical ? `/attempts/${context.runAttempt}` : ""}`
   );
-  if (historical && run.actor?.login === "github-actions[bot]") {
-    await require("./trusted-wake.cjs").loadWakeContext(
-      api,
-      {
-        repository: policy.REPOSITORY,
-        actor: run.actor.login,
-        triggeringActor: run.triggering_actor?.login,
-        ref: "refs/heads/main",
-        event: run.event,
-        workflowRef: d.WORKFLOW,
-        workflowSha: run.head_sha,
-        runId: String(run.id),
-        runAttempt: run.run_attempt,
-      },
-      {}
-    );
-  }
   if (
     run.id !== Number(context.runId) ||
     run.path !== ".github/workflows/factory-dependencies.yml" ||
@@ -69,7 +53,7 @@ async function trustedRun(api, context, historical = false) {
     run.head_branch !== "main" ||
     run.repository?.full_name !== policy.REPOSITORY ||
     run.head_repository?.full_name !== policy.REPOSITORY ||
-    ((!historical || run.actor?.login !== "github-actions[bot]") &&
+    (!historical &&
       (run.actor?.login !== context.actor ||
         run.triggering_actor?.login !== context.triggeringActor)) ||
     run.run_attempt !== context.runAttempt ||
@@ -78,6 +62,23 @@ async function trustedRun(api, context, historical = false) {
       : run.event === context.event)
   )
     throw new Error("Dependency producer run identity changed");
+  if (historical) {
+    const owner = [run.actor, run.triggering_actor].every((actor) => actor?.login === policy.OWNER);
+    if (!owner) {
+      const { verifyPreparationOrigin } = require("./trusted-wake.cjs");
+      const { WakeStore } = require("./wake-store.cjs");
+      if (
+        !(await verifyPreparationOrigin(
+          api,
+          run,
+          historicalTicket,
+          d.validateTicket(historicalTicket),
+          new WakeStore(api)
+        ))
+      )
+        throw new Error("Unauthorized dependency producer");
+    }
+  }
   return run;
 }
 async function producer(api, context, ticket, report, stage) {
@@ -378,7 +379,7 @@ class DependencyCoordinator {
           runId: attempt.runId,
           runAttempt: attempt.runAttempt,
         };
-        const run = await trustedRun(this.api, original, true);
+        const run = await trustedRun(this.api, original, t);
         if (run.status === "completed") {
           await this.ledger.update((s) => ({
             state: lifecycle.finishPreparation(s, t.pr, original),

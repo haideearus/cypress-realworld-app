@@ -209,6 +209,8 @@ async function verifySource(api, signal, bound, vars = {}) {
       throw Error("Wake native CI failed");
     return;
   }
+  if (c.isQueueCheckDrain(signal))
+    return require("./wake-queue.cjs").verifyQueueCheck(api, signal, bound);
   if (signal.kind !== "drain" || c.isPreparationDrain(signal)) throw Error("Unknown wake source");
   const { Ledger } = require("./github.cjs");
   const { state } = await new Ledger(api).read();
