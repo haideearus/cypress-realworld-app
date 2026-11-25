@@ -181,7 +181,7 @@ class AutomaticMerger {
       )
     );
   }
-  async nativeCheck(checks, name, file, ticket, t) {
+  async nativeCheck(checks, name, file, ticket, t, refresh) {
     // Check names alone do not establish an issuer, workflow, or PR identity.
     const candidates = checks.filter((check) => check.name === name);
     if (
@@ -234,15 +234,38 @@ class AutomaticMerger {
         !this.associated(run.pull_requests, association)
       )
         throw new Error(`Native check does not belong to its trusted PR workflow: ${name}`);
-      const jobs = await this.api.pages(`${ROOT}/actions/runs/${runId}/jobs?filter=latest`, "jobs");
-      const matching = jobs.filter(
+      const pendingRefresh = { passed: false, failed: false, pending: true, runId };
+      if (refresh) {
+        if (
+          runId !== refresh.runId ||
+          !Number.isSafeInteger(run.run_attempt) ||
+          run.run_attempt < 1 ||
+          run.run_attempt > refresh.runAttempt
+        )
+          throw new Error("Native review gate run or attempt changed during refresh");
+        if (run.run_attempt < refresh.runAttempt) return pendingRefresh;
+      }
+      const jobsPath = refresh
+        ? `${ROOT}/actions/runs/${runId}/attempts/${refresh.runAttempt}/jobs`
+        : `${ROOT}/actions/runs/${runId}/jobs?filter=latest`;
+      const jobs = await this.api.pages(jobsPath, "jobs").catch((error) => {
+        if (refresh && error.status === 404) return [];
+        throw error;
+      });
+      const advertised = jobs.filter((job) => job.id === Number(match[2]));
+      // During a requested rerun the commit check and the attempt's job list
+      // can arrive in either order. Never accept the earlier attempt's check.
+      if (refresh && advertised.length === 0) return pendingRefresh;
+      const matching = advertised.filter(
         (job) =>
-          job.id === Number(match[2]) &&
           job.run_id === runId &&
           job.name === name &&
+          (!refresh ||
+            (job.head_sha === t.head &&
+              (job.run_attempt === undefined || job.run_attempt === refresh.runAttempt))) &&
           job.check_run_url === `https://api.github.com${ROOT}/check-runs/${check.id}`
       );
-      if (matching.length !== 1)
+      if (advertised.length !== 1 || matching.length !== 1)
         throw new Error(`Native check does not identify its current workflow job: ${name}`);
       const job = matching[0];
       const passed =
@@ -266,11 +289,11 @@ class AutomaticMerger {
             ? item.conclusion === "success"
             : PENDING_CHECK_STATUSES.has(item.status)
         );
-      return { passed, failed, pending, runId };
+      return { passed, failed, pending, runId, runAttempt: run.run_attempt };
     }
     throw new Error(`Missing native required check: ${name}`);
   }
-  async checks(ticket, t, { waitForVerify = false } = {}) {
+  async checks(ticket, t, { waitForVerify = false, refresh } = {}) {
     let refreshedPR;
     for (let waits = 0; ; waits++) {
       if (waits > 0) {
@@ -291,7 +314,8 @@ class AutomaticMerger {
           "Factory review gate",
           "factory-review-status.yml",
           ticket,
-          t
+          t,
+          refresh
         );
         if (!refreshedPR || !gate.passed) return gate;
         if (refreshedPR.mergeable === true && refreshedPR.mergeable_state === "clean")
@@ -309,6 +333,34 @@ class AutomaticMerger {
       if (waits === 0) console.log("Waiting for native required verify on the reviewed PR head");
       await this.sleep(10000);
     }
+  }
+  async waitForRefreshedGate(ticket, expected, refresh, waitFirst = false) {
+    let waitingFor = "the native review gate refresh";
+    for (let wait = waitFirst; ; wait = true) {
+      if (wait) {
+        if (refresh.remainingPolls === 0) break;
+        refresh.remainingPolls--;
+        await this.sleep(5000);
+      }
+      const t = await this.current(ticket, expected);
+      const gate = await this.checks(ticket, t, { refresh });
+      if (gate.passed) {
+        const pr = await this.pr(ticket, t);
+        if (
+          pr.state !== "open" ||
+          pr.mergeable === false ||
+          (pr.mergeable !== null && !["blocked", "clean"].includes(pr.mergeable_state))
+        )
+          throw new Error("PR mergeability is not clean");
+        if (pr.mergeable === true && pr.mergeable_state === "clean") return;
+        waitingFor = "clean PR mergeability after the native review gate refresh";
+      } else {
+        if (gate.failed || !gate.pending)
+          throw new Error("Refreshed native review gate did not pass");
+        waitingFor = "the native review gate refresh";
+      }
+    }
+    throw new Error(`Timed out waiting for ${waitingFor}`);
   }
   async ci(t) {
     const ci = await this.controller.validateCI(t.ci?.runId, t.head, t.ci);
@@ -646,24 +698,33 @@ class AutomaticMerger {
         { ...t, number: ticket },
         { dryRun: true, wouldMerge: gate.passed, needsRefresh: gate.failed }
       );
-    if (!gate.passed)
-      await this.recheck("required-checks", async () => {
-        const current = await this.current(ticket, t);
-        await this.pr(ticket, current);
-        await this.issue(ticket, current);
-        await this.ci(current);
-        const latestGate = await this.checks(ticket, current);
-        if (!latestGate.failed || latestGate.runId !== gate.runId)
-          throw new Error("Native metadata gate identity changed before refresh");
-        // Refresh only the metadata job. The CI and model runs remain unchanged.
-        await this.api.request("POST", `${ROOT}/actions/runs/${gate.runId}/rerun-failed-jobs`);
-        for (let poll = 0; poll < this.maxPolls; poll++) {
-          await this.sleep(5000);
-          await this.current(ticket, t);
-          if ((await this.checks(ticket, t)).passed) return;
-        }
-        throw new Error("Timed out waiting for the native review gate refresh");
-      });
+    const refresh = gate.passed
+      ? undefined
+      : await this.recheck("required-checks", async () => {
+          const current = await this.current(ticket, t);
+          await this.pr(ticket, current);
+          await this.issue(ticket, current);
+          await this.ci(current);
+          const latestGate = await this.checks(ticket, current);
+          if (
+            !latestGate.failed ||
+            latestGate.runId !== gate.runId ||
+            latestGate.runAttempt !== gate.runAttempt ||
+            !Number.isSafeInteger(gate.runAttempt) ||
+            gate.runAttempt < 1 ||
+            !Number.isSafeInteger(gate.runAttempt + 1)
+          )
+            throw new Error("Native metadata gate identity changed before refresh");
+          const target = {
+            runId: gate.runId,
+            runAttempt: gate.runAttempt + 1,
+            remainingPolls: this.maxPolls,
+          };
+          // Refresh only the metadata job. The CI and model runs remain unchanged.
+          await this.api.request("POST", `${ROOT}/actions/runs/${gate.runId}/rerun-failed-jobs`);
+          await this.waitForRefreshedGate(ticket, t, target, true);
+          return target;
+        });
     const intent = this.record("intent", t);
     try {
       await this.persist(ticket, t, intent, t.merge);
@@ -677,8 +738,13 @@ class AutomaticMerger {
       const completed = await this.reconcile(ticket, latest.t, latest.pr);
       if (completed) return completed;
       await this.recheck("required-checks", async () => {
-        const proof = await this.checks(ticket, t);
-        if (!proof.passed || latest.pr.mergeable !== true || latest.pr.mergeable_state !== "clean")
+        if (refresh) return this.waitForRefreshedGate(ticket, t, refresh);
+        if (
+          !(await this.checks(ticket, t)).passed ||
+          latest.pr.state !== "open" ||
+          latest.pr.mergeable !== true ||
+          latest.pr.mergeable_state !== "clean"
+        )
           throw new Error("Native checks or clean PR mergeability changed");
       });
       await this.recheck("dependency-evidence", () => this.permitWrite(ticket, t));
