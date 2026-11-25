@@ -5223,7 +5223,11 @@
       "approval": null,
       "criteriaHash": "0a0c6e3590dc974f9a52f9d993bab2351aa28a466ba36ba6b76214f7db5e8774",
       "branch": "agent/activity-deployment-no-poll",
-      "ci": null
+      "ci": {
+        "requestId": "240dc01f-f0a0-4a07-bb52-d0846123d73a",
+        "head": "2b41f5c3f095501ccd77d6e192f118ea7f80895c",
+        "runId": null
+      }
     }
   },
   "grants": {
