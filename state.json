@@ -4689,7 +4689,7 @@
       "origin": "dependency-pr",
       "head": "f590269220defcb781a552694101604efd96ef41",
       "pr": 268,
-      "status": "new",
+      "status": "blocked",
       "approval": null,
       "branch": "dependabot/npm_and_yarn/js-yaml-3.15.2",
       "criteriaHash": "f6b23c6e692158af1690b3372d26e64f2abcb23664bd85e7deb808eeac055c78",
@@ -4712,7 +4712,8 @@
           }
         ]
       },
-      "ci": null
+      "ci": null,
+      "feedback": "Dependency preparation held; no model invocation"
     },
     "271": {
       "coding": 0,
@@ -6710,11 +6711,7 @@
       "outcome": "discovery_complete"
     }
   },
-  "active": {
-    "ticket": 268,
-    "runId": "45590837320",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -10968,6 +10965,13 @@
       "actor": "github-actions[bot]",
       "wakeReceipt": "9f114a0f06d4d3b9463ec256b40edd237b6137c91db64e6572887bb8a4763917",
       "sourceActor": "dependabot[bot]"
+    },
+    {
+      "at": "2026-11-25T10:02:48.076Z",
+      "event": "dependency_preparation_blocked",
+      "ticket": 268,
+      "head": "f590269220defcb781a552694101604efd96ef41",
+      "runId": "45590837320"
     }
   ],
   "featureTurn": {
