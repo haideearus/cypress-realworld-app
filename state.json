@@ -4900,7 +4900,7 @@
       "reviews": 1,
       "retries": 0,
       "head": "4a149213e60f0259200172271e710884f9c9b67b",
-      "status": "awaiting_review",
+      "status": "blocked",
       "pr": 274,
       "approval": null,
       "criteriaHash": "d6e6324e006d0e1293fc7e4dd9b1a14821fcf779c3c9a5cae025850b6f5ade36",
@@ -4927,7 +4927,7 @@
         "runId": 45697851922,
         "passed": true
       },
-      "feedback": "Published repair recovery stopped before assessment completed",
+      "feedback": "Main advanced; published repair requires fresh CI and review",
       "publishedRecovery": {
         "sourceCi": {
           "requestId": "0e8c8c8b-a3b2-47d4-879c-d78581ace199",
@@ -7206,11 +7206,7 @@
       "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 273,
-    "runId": "45697642899",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -11759,6 +11755,12 @@
       "pr": 274,
       "head": "4a149213e60f0259200172271e710884f9c9b67b",
       "runId": "45697642899"
+    },
+    {
+      "at": "2026-11-25T20:52:45.499Z",
+      "event": "blocked",
+      "ticket": 273,
+      "reason": "Main advanced; published repair requires fresh CI and review"
     }
   ],
   "featureTurn": {
