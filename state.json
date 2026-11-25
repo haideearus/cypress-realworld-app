@@ -4332,7 +4332,7 @@
       "origin": "dependency-pr",
       "head": "a395f09c4369563929a4fe671cd30129ac5e3a33",
       "pr": 233,
-      "status": "new",
+      "status": "blocked",
       "approval": null,
       "branch": "dependabot/npm_and_yarn/babel/core-7.29.6",
       "criteriaHash": "611722c5e328e314138424f17603591e0536ddb00d27617bc46c0baea06e1abc",
@@ -4355,7 +4355,8 @@
           }
         ]
       },
-      "ci": null
+      "ci": null,
+      "feedback": "Dependency preparation held; no model invocation"
     },
     "235": {
       "coding": 0,
@@ -6784,11 +6785,7 @@
       "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 233,
-    "runId": "45605006105",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -11077,6 +11074,13 @@
       "actor": "github-actions[bot]",
       "wakeReceipt": "3caf43ef2245177701c88fc748e8170b40f28ae195e0cf0e6704efde1e342405",
       "sourceActor": "dependabot[bot]"
+    },
+    {
+      "at": "2026-11-25T11:31:33.202Z",
+      "event": "dependency_preparation_blocked",
+      "ticket": 233,
+      "head": "a395f09c4369563929a4fe671cd30129ac5e3a33",
+      "runId": "45605006105"
     }
   ],
   "featureTurn": {
