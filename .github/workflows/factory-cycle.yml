@@ -151,7 +151,7 @@ jobs:
             {"ticket":"${{ inputs.ticket }}","ciId":"${{ needs.ci.outputs.runId }}","slot":"${{ inputs.slot }}"}
   review:
     needs: reserve_review
-    if: ${{ needs.reserve_review.outputs.ready == 'true' }}
+    if: ${{ !cancelled() && needs.reserve_review.result == 'success' && needs.reserve_review.outputs.ready == 'true' }}
     permissions:
       actions: read
       contents: read

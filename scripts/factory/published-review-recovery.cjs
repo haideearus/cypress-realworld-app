@@ -11,14 +11,34 @@ const RUN = /^[1-9]\d*$/;
 const UUID = /^[a-f0-9-]{36}$/;
 const positive = (n) => Number.isSafeInteger(n) && n > 0;
 const exact = (value, keys) => value && Object.keys(value).sort().join(",") === keys;
+const passingCiReceipt = (ci) =>
+  exact(ci, "head,passed,requestId,runId") &&
+  ci.passed === true &&
+  positive(ci.runId) &&
+  UUID.test(ci.requestId || "") &&
+  policy.SHA.test(ci.head || "");
 class RecoveryHold extends Error {}
 class RecoveryStaleBase extends Error {}
 
+function blockedReview(grant, parent) {
+  return (
+    parent &&
+    grant.phase === "review" &&
+    grant.slot === "cycle1" &&
+    grant.status === "finished" &&
+    grant.outcome === "blocked" &&
+    grant.runId === parent.runId &&
+    grant.runAttempt === parent.runAttempt &&
+    grant.head === parent.head
+  );
+}
+
 function validateRecovery(ticket, grants) {
   const r = ticket.publishedRecovery;
-  if (r === undefined) return;
-  const ci = r?.sourceCi;
+  const skipped = ticket.skippedPublishedReview;
+  if (r === undefined && skipped === undefined) return;
   const parents = r?.refreshes;
+  const interruptedParent = r?.previousParent ?? r?.parent;
   const owner = (p) =>
     exact(p, "head,runAttempt,runId,workflowSha") &&
     RUN.test(p.runId || "") &&
@@ -43,11 +63,13 @@ function validateRecovery(ticket, grants) {
     ticket.finding ||
     ticket.monitor ||
     ticket.delayedRetry ||
-    !exact(ci, "head,passed,requestId,runId") ||
-    ci.passed !== true ||
-    !positive(ci.runId) ||
-    !UUID.test(ci.requestId || "") ||
-    !policy.SHA.test(ci.head || "") ||
+    !passingCiReceipt(r.sourceCi) ||
+    (skipped !== undefined &&
+      (!exact(skipped, "ci,grant") ||
+        !UUID.test(skipped.grant || "") ||
+        !passingCiReceipt(skipped.ci) ||
+        skipped.ci.head !== interruptedParent?.head ||
+        !grants.some((g) => g.id === skipped.grant && blockedReview(g, interruptedParent)))) ||
     !Array.isArray(parents) ||
     parents.length > MAX_REFRESHES ||
     parents.some(
@@ -63,7 +85,10 @@ function validateRecovery(ticket, grants) {
         !r.parent ||
         r.previousParent.runId === r.parent.runId ||
         (r.previousParent.head === r.parent.head &&
-          grants.some((g) => g.phase === "review" && g.runId === r.previousParent.runId)))) ||
+          grants.some(
+            (g) =>
+              g.phase === "review" && g.runId === r.previousParent.runId && g.id !== skipped?.grant
+          )))) ||
     grants.some(
       (g) =>
         g.phase === "review" &&
@@ -92,7 +117,7 @@ function eligible(ticket, n, state, config, context) {
     !r.previousParent &&
     r.parent.runId !== context.runId &&
     ((ticket.feedback === STALE_REASON && r.parent.workflowSha !== context.workflowSha) ||
-      (ticket.feedback === INTERRUPTED_REASON && ticket.reviews === 0));
+      ticket.feedback === INTERRUPTED_REASON);
   return (
     ticket.status === "blocked" &&
     ticket.origin === "factory" &&
@@ -163,6 +188,58 @@ async function releaseTerminalRecovery(coordinator, entry, held, commit) {
   );
 }
 
+function completedCycleJobs(jobs, expected) {
+  return Object.entries(expected).every(([name, conclusion]) => {
+    const matching = jobs.filter((job) => job.name === `cycle1 / ${name}`);
+    return (
+      matching.length === 1 &&
+      matching[0].status === "completed" &&
+      matching[0].conclusion === conclusion
+    );
+  });
+}
+
+async function verifySkippedReview(coordinator, state, n, ticket, parent, run) {
+  const reason = "Earlier review cannot be verified as skipped with passing CI";
+  const saved = ticket.skippedPublishedReview;
+  const ci = saved?.ci ?? ticket.ci;
+  const grants = Object.values(state.grants).filter((g) => g.ticket === n && g.phase === "review");
+  const grant = grants[0];
+  if (
+    run.conclusion !== "success" ||
+    grants.length !== 1 ||
+    !blockedReview(grant, parent) ||
+    !UUID.test(grant.id || "") ||
+    (saved && saved.grant !== grant.id) ||
+    !passingCiReceipt(ci) ||
+    ci.head !== parent.head
+  )
+    throw new RecoveryHold(reason);
+
+  const { api, controller } = coordinator;
+  const [jobs, verified] = await Promise.all([
+    api.pages(`${ROOT}/actions/runs/${parent.runId}/attempts/${parent.runAttempt}/jobs`, "jobs"),
+    controller.validateCI(ci.runId, ci.head, ci).catch((error) => {
+      if (error.message === "CI does not cover the expected head or run attempt")
+        throw new RecoveryHold(reason);
+      throw error;
+    }),
+  ]);
+  if (
+    !verified.passed ||
+    !completedCycleJobs(jobs, {
+      coding: "skipped",
+      publish: "skipped",
+      ci: "success",
+      reserve_review: "success",
+      review: "skipped",
+      assess: "success",
+    })
+  )
+    throw new RecoveryHold(reason);
+  return { grant: grant.id, ci };
+}
+
 async function verifyOriginal(coordinator, state, n, ticket, ci) {
   const { api, controller } = coordinator;
   const source = ticket.automatic;
@@ -198,14 +275,7 @@ async function verifyOriginal(coordinator, state, n, ticket, ci) {
     run.head_sha !== source.workflowSha ||
     run.conclusion !== "failure" ||
     !verified.passed ||
-    Object.entries(expected).some(([name, conclusion]) => {
-      const matching = jobs.filter((job) => job.name === `cycle1 / ${name}`);
-      return (
-        matching.length !== 1 ||
-        matching[0].status !== "completed" ||
-        matching[0].conclusion !== conclusion
-      );
-    })
+    !completedCycleJobs(jobs, expected)
   )
     throw new RecoveryHold("Original run lacks passing CI and a failed review reservation");
   const parent = ticket.publishedRecovery?.parent;
@@ -215,8 +285,19 @@ async function verifyOriginal(coordinator, state, n, ticket, ci) {
     });
     if (previous.head_sha !== parent.workflowSha || previous.head_branch !== "main")
       throw new RecoveryHold("Earlier review recovery run identity changed");
+    if (ticket.feedback === INTERRUPTED_REASON && ticket.reviews === 1) {
+      const skippedReview = await verifySkippedReview(
+        coordinator,
+        state,
+        n,
+        ticket,
+        parent,
+        previous
+      );
+      return { originalBase: grant.head, skippedReview };
+    }
   }
-  return grant.head;
+  return { originalBase: grant.head };
 }
 
 async function readPR(api, t, config) {
@@ -315,7 +396,13 @@ async function resumeOne(coordinator, state, commit, n, dryRun, sleep, recordWri
   const { api, config, context, ledger } = coordinator;
   let t = state.tickets[n];
   const receipt = t.publishedRecovery ?? { sourceCi: t.ci, refreshes: [] };
-  const originalBase = await verifyOriginal(coordinator, state, n, t, receipt.sourceCi);
+  const { originalBase, skippedReview } = await verifyOriginal(
+    coordinator,
+    state,
+    n,
+    t,
+    receipt.sourceCi
+  );
   await verifyIssue(api, n, t, config);
   const { head: base } = await require("./discovery-run.cjs")
     .testedMain(api, context, undefined, { exactHead: true })
@@ -350,6 +437,7 @@ async function resumeOne(coordinator, state, commit, n, dryRun, sleep, recordWri
           throw new RecoveryHold("Published recovery state changed");
         const next = current.tickets[n];
         next.publishedRecovery ??= structuredClone(receipt);
+        if (skippedReview) next.skippedPublishedReview ??= structuredClone(skippedReview);
         mutate(next, current);
         return { state: current };
       },
@@ -438,7 +526,7 @@ async function resumeOne(coordinator, state, commit, n, dryRun, sleep, recordWri
     workflowSha: base,
     head: pr.head.sha,
   };
-  if (receipt.parent?.head === parent.head && t.reviews > 0)
+  if (receipt.parent?.head === parent.head && t.reviews > 0 && !skippedReview)
     throw new RecoveryHold("Review recovery needs a fresh head");
   await save((next, current) => {
     slots.claimActive(
