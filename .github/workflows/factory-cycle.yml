@@ -18,6 +18,10 @@ on:
         type: boolean
         required: false
         default: false
+      review_only:
+        type: boolean
+        required: false
+        default: false
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN:
         required: true
@@ -36,6 +40,7 @@ permissions:
   contents: read
 jobs:
   coding:
+    if: ${{ !inputs.review_only }}
     permissions:
       actions: read
       contents: read
@@ -94,7 +99,7 @@ jobs:
           github_token: ${{ inputs.automatic == false && github.token || steps.app.outputs.token }}
   ci:
     needs: publish
-    if: ${{ needs.publish.outputs.ready == 'true' }}
+    if: ${{ always() && !cancelled() && (needs.publish.outputs.ready == 'true' || (inputs.automatic && inputs.review_only)) }}
     runs-on: ubuntu-latest
     timeout-minutes: 110
     permissions:
@@ -117,7 +122,7 @@ jobs:
           parameters: ${{ toJSON(inputs) }}
   reserve_review:
     needs: [publish, ci]
-    if: ${{ needs.ci.outputs.passed == 'true' }}
+    if: ${{ always() && !cancelled() && needs.ci.outputs.passed == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 75
     permissions:

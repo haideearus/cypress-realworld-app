@@ -2,11 +2,13 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { GitHub, ROOT } = require("../factory/github.cjs");
 
-function client(statuses, retryReads = true) {
+function client(statuses, retryReads = true, retryInternalReads = false) {
   const calls = [];
   const api = new GitHub({
     token: "fixture-only",
     retryReads,
+    retryInternalReads,
+    sleep: async () => {},
     fetch: async (_url, options) => {
       calls.push(options.method);
       const status = statuses[calls.length - 1];
@@ -21,6 +23,21 @@ test("provenance GET recovers from 502 and 503 and returns the verified response
   const { api, calls } = client([502, 503, 200]);
   assert.deepEqual(await api.request("GET", ROOT + "/issues/96"), { fixture: true });
   assert.deepEqual(calls, ["GET", "GET", "GET"]);
+});
+
+test("review reservation can opt in to retrying HTTP 500 for reads only", async () => {
+  const retrying = client([500, 200], true, true);
+  assert.deepEqual(await retrying.api.request("GET", ROOT + "/issues/96"), { fixture: true });
+  assert.deepEqual(retrying.calls, ["GET", "GET"]);
+  for (const [method, optIn] of [
+    ["GET", false],
+    ["POST", true],
+    ["PUT", true],
+  ]) {
+    const single = client([500], true, optIn);
+    await assert.rejects(single.api.request(method, ROOT + "/issues/96"), { status: 500 });
+    assert.deepEqual(single.calls, [method]);
+  }
 });
 
 test("persistent gateway errors exhaust a bounded retry and retain their HTTP status", async () => {

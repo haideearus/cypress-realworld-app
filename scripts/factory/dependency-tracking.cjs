@@ -3,10 +3,12 @@ const dependency = require("./dependency-contract.cjs");
 const slots = require("./active-tickets.cjs");
 const { Ledger, ROOT } = require("./github.cjs");
 const { MetadataStore } = require("./metadata-store.cjs");
+const { WakeStore } = require("./wake-store.cjs");
 
 const READY_LABEL = "factory-dependency-ready";
 const LIMIT = 500;
 const RECOVERY_HEADS_PER_PR = 10;
+const RECOVERY_BASES_PER_HEAD = 5;
 const REFRESH_COMMAND = "@dependabot rebase";
 const STALE_NOTES = {
   manual: {
@@ -36,11 +38,42 @@ const EVIDENCE_BLOCKERS = {
 };
 const PUBLICATIONS_PER_RUN = 5;
 const INSPECTIONS_PER_RUN = 12;
+const TRACKING_FALLBACK_INSPECTIONS = 4;
 const BUDGET_MS = 60_000;
 const ALLOW_MISSING = { allowMissing: true };
 const validNumber = (n) => Number.isSafeInteger(n) && n > 0;
 const empty = () => ({ version: 1, records: {} });
 class TrackingDeadline extends Error {}
+
+function validRefresh(receipt) {
+  return (
+    (receipt.refresh === undefined || ["attempted", "confirmed"].includes(receipt.refresh)) &&
+    (receipt.stale === undefined ||
+      (Object.hasOwn(STALE_NOTES, receipt.stale) &&
+        (receipt.stale === "manual" ||
+          (receipt.stale === "requested" && receipt.refresh === "confirmed") ||
+          (receipt.stale === "unconfirmed" && receipt.refresh === "attempted"))))
+  );
+}
+
+function validBases(bases) {
+  return (
+    bases &&
+    typeof bases === "object" &&
+    !Array.isArray(bases) &&
+    Object.keys(bases).length <= RECOVERY_BASES_PER_HEAD &&
+    Object.entries(bases).every(
+      ([base, receipt]) =>
+        dependency.SHA.test(base) &&
+        receipt &&
+        typeof receipt === "object" &&
+        !Array.isArray(receipt) &&
+        Object.keys(receipt).length > 0 &&
+        Object.keys(receipt).every((key) => ["refresh", "stale"].includes(key)) &&
+        validRefresh(receipt)
+    )
+  );
+}
 
 function validRecovery(recovery) {
   return (
@@ -55,14 +88,12 @@ function validRecovery(recovery) {
         typeof receipt === "object" &&
         !Array.isArray(receipt) &&
         Object.keys(receipt).length > 0 &&
-        Object.keys(receipt).every((key) => ["refresh", "stale", "blocked"].includes(key)) &&
-        (receipt.refresh === undefined || ["attempted", "confirmed"].includes(receipt.refresh)) &&
+        Object.keys(receipt).every((key) =>
+          ["refresh", "stale", "blocked", "bases"].includes(key)
+        ) &&
+        validRefresh(receipt) &&
         (receipt.blocked === undefined || receipt.blocked === true) &&
-        (receipt.stale === undefined ||
-          (Object.hasOwn(STALE_NOTES, receipt.stale) &&
-            (receipt.stale === "manual" ||
-              (receipt.stale === "requested" && receipt.refresh === "confirmed") ||
-              (receipt.stale === "unconfirmed" && receipt.refresh === "attempted"))))
+        (receipt.bases === undefined || validBases(receipt.bases))
     )
   );
 }
@@ -153,11 +184,12 @@ async function openProposals(api) {
   return proposals;
 }
 
-function inspectionBatch(rows, now) {
-  if (rows.length <= INSPECTIONS_PER_RUN) return rows;
-  const batches = Math.ceil(rows.length / INSPECTIONS_PER_RUN);
-  const start = (Math.floor(now / 3_600_000) % batches) * INSPECTIONS_PER_RUN;
-  return rows.slice(start, start + INSPECTIONS_PER_RUN);
+function inspectionBatch(rows, now, limit = INSPECTIONS_PER_RUN) {
+  if (limit === 0) return [];
+  if (rows.length <= limit) return rows;
+  const batches = Math.ceil(rows.length / limit);
+  const start = (Math.floor(now / 3_600_000) % batches) * limit;
+  return rows.slice(start, start + limit);
 }
 
 async function recoveryIssues(api) {
@@ -310,9 +342,16 @@ function blocker(state, pr) {
   );
 }
 
-async function saveRecovery(store, pr, row, fields, beforeWrite) {
+async function saveRecovery(store, pr, row, fields, beforeWrite, base) {
   const head = pr.head.sha;
-  const recovery = { ...row.recovery, [head]: { ...row.recovery?.[head], ...fields } };
+  const previous = row.recovery?.[head];
+  const receipt = base
+    ? {
+        ...previous,
+        bases: { ...previous?.bases, [base]: { ...previous?.bases?.[base], ...fields } },
+      }
+    : { ...previous, ...fields };
+  const recovery = { ...row.recovery, [head]: receipt };
   return advance(store, pr.number, row, { ...row, recovery }, beforeWrite);
 }
 
@@ -349,8 +388,8 @@ async function postRecoveryComment(api, number, body, isAuthor) {
   }
 }
 
-async function publishRecoveryNote(api, pr, row, kind, message, beforeWrite) {
-  const marker = `<!-- factory-dependency-recovery:${pr.number}:${pr.head.sha}:${kind} -->`;
+async function publishRecoveryNote(api, pr, row, kind, message, beforeWrite, base) {
+  const marker = `<!-- factory-dependency-recovery:${pr.number}:${pr.head.sha}:${kind}${base ? `:${base}` : ""} -->`;
   const body = `${message}\n\n${marker}`;
   for (let page = 1; page <= 3; page++) {
     const comments = await api.request(
@@ -383,6 +422,27 @@ function staleNoteKind(refresh) {
   return "manual";
 }
 
+async function recoveryBatch(api, eligible, now) {
+  if (eligible.length < 2) return eligible;
+  const { state } = await new WakeStore(api).read(ALLOW_MISSING);
+  const byNumber = new Map(eligible.map((pr) => [pr.number, pr]));
+  const queued = new Set();
+  for (const receipt of Object.values(state.receipts)) {
+    const { signal } = receipt;
+    if (
+      signal.kind === "dependency-ci" &&
+      ["pending", "observed"].includes(receipt.status) &&
+      byNumber.get(signal.number)?.head.sha === signal.head
+    )
+      queued.add(byNumber.get(signal.number));
+  }
+  const ordinary = eligible.filter((pr) => !queued.has(pr));
+  const reserved = Math.min(ordinary.length, TRACKING_FALLBACK_INSPECTIONS);
+  const priority = inspectionBatch([...queued], now, INSPECTIONS_PER_RUN - reserved);
+  const fallback = inspectionBatch(ordinary, now, INSPECTIONS_PER_RUN - priority.length);
+  return [...priority, ...fallback];
+}
+
 async function recoverTrackedPR({
   api,
   refreshApi,
@@ -405,21 +465,26 @@ async function recoverTrackedPR({
   if (eligible.length === 0) return null;
   const { state: usage } = await ledger.read();
   let main;
-  for (const proposal of inspectionBatch(eligible, now)) {
+  for (const proposal of await recoveryBatch(api, eligible, now)) {
     if (!recoveryAllowed(usage, proposal)) continue;
     const number = proposal.number;
     let row = state.records[number];
     const receipt = row.recovery?.[proposal.head.sha];
     const message = receipt?.blocked ? null : blocker(usage, proposal);
-    let refresh = receipt?.refresh;
-    const wantsRefresh = Boolean(refreshApi && !refresh);
-    const wantsStaleNote = receipt?.stale !== staleNoteKind(refresh);
+    main ??= await currentMain(api);
+    // Older receipts did not record a base. Retain their one-request-per-head hold.
+    const base = !receipt?.refresh && (refreshApi || receipt?.bases) ? main : undefined;
+    const refreshReceipt = base ? receipt?.bases?.[base] : receipt;
+    let refresh = refreshReceipt?.refresh;
+    const canRecord =
+      !base || refreshReceipt || Object.keys(receipt?.bases || {}).length < RECOVERY_BASES_PER_HEAD;
+    const wantsRefresh = Boolean(canRecord && refreshApi && !refresh);
+    const wantsStaleNote = canRecord && refreshReceipt?.stale !== staleNoteKind(refresh);
     let stale = false;
     if (wantsRefresh || wantsStaleNote) {
       if (refresh) {
         stale = true;
       } else {
-        main ??= await currentMain(api);
         stale = await staleHead(api, proposal, main);
       }
     }
@@ -445,11 +510,12 @@ async function recoverTrackedPR({
       if (wantsRefresh) {
         refresh = "attempted";
         if ((await currentMain(api)) !== main) continue;
-        row = await saveRecovery(store, pr, row, { refresh }, guard);
+        row = await saveRecovery(store, pr, row, { refresh }, guard, base);
         await guard();
+        if ((await currentMain(api)) !== main) continue;
         if (await postRecoveryComment(refreshApi, number, REFRESH_COMMAND, isOwner)) {
           refresh = "confirmed";
-          row = await saveRecovery(store, pr, row, { refresh }, beforeWrite);
+          row = await saveRecovery(store, pr, row, { refresh }, beforeWrite, base);
         }
       }
       const kind = staleNoteKind(refresh);
@@ -460,9 +526,10 @@ async function recoverTrackedPR({
         row,
         kind,
         `Dependency commit \`${pr.head.sha}\` was behind \`main\`. ${detail} The factory keeps all previous attempts.`,
-        beforeWrite
+        beforeWrite,
+        base
       );
-      if (notified) await saveRecovery(store, pr, row, { stale: kind }, beforeWrite);
+      if (notified) await saveRecovery(store, pr, row, { stale: kind }, beforeWrite, base);
       return {
         pr: number,
         issue: row.issue,
@@ -480,7 +547,7 @@ async function recoverTrackedPR({
   return null;
 }
 
-async function track(api, refreshApi, preview, now, result, links) {
+async function track(api, refreshApi, preview, recoveryOnly, now, result, links) {
   const ledger = new Ledger(api);
   const beforeWrite = async () => policy.assertNotStopped((await ledger.read()).state);
   if ((await ledger.read()).state.stop)
@@ -488,6 +555,27 @@ async function track(api, refreshApi, preview, now, result, links) {
   const store = new MetadataStore(api, "dependency-tracking", empty, validate);
   const { state } = await store.read(ALLOW_MISSING);
   const proposals = await openProposals(api);
+  const recordRecovery = async () => {
+    const recovery = await recoverTrackedPR({
+      api,
+      refreshApi,
+      store,
+      ledger,
+      state,
+      proposals,
+      now,
+      beforeWrite,
+    });
+    if (recovery) links.set(recovery.pr, recovery);
+    return recovery;
+  };
+  if (recoveryOnly) {
+    if (preview) return "Post-merge dependency recovery is live only";
+    const recovery = await recordRecovery();
+    return recovery
+      ? `Dependency PR #${recovery.pr}. ${recovery.status}.`
+      : "No tracked native dependency needs recovery in this bounded scan.";
+  }
   const untracked = [...proposals.values()].filter((pr) => !state.records[pr.number]);
   const candidates = inspectionBatch(untracked, now);
   if (preview) {
@@ -606,17 +694,7 @@ async function track(api, refreshApi, preview, now, result, links) {
     }
     if (attempts === PUBLICATIONS_PER_RUN) break;
   }
-  const recovery = await recoverTrackedPR({
-    api,
-    refreshApi,
-    store,
-    ledger,
-    state,
-    proposals,
-    now,
-    beforeWrite,
-  });
-  if (recovery) links.set(recovery.pr, recovery);
+  await recordRecovery();
   for (const [number, row] of Object.entries(state.records)) {
     const pr = Number(number);
     if (links.size >= 10) break;
@@ -625,7 +703,13 @@ async function track(api, refreshApi, preview, now, result, links) {
   }
 }
 
-async function trackNativeDependencies(api, config, context, preview, { refreshApi } = {}) {
+async function trackNativeDependencies(
+  api,
+  config,
+  context,
+  preview,
+  { refreshApi, recoveryOnly = false } = {}
+) {
   policy.authorize(context);
   if (!dependency.contextOK(context) || typeof preview !== "boolean")
     throw Error("Unauthorized native dependency tracking");
@@ -646,6 +730,7 @@ async function trackNativeDependencies(api, config, context, preview, { refreshA
       bounded(api),
       refreshApi && bounded(refreshApi),
       preview,
+      recoveryOnly,
       now,
       result,
       links

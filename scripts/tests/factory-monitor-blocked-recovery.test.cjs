@@ -152,7 +152,7 @@ function blocked() {
   return f;
 }
 
-test("scheduled full health evidence surfaces owner action after two distinct runs with zero closure or usage writes", async () => {
+test("two distinct scheduled runs record evidence while the corroborating run is still in progress", async () => {
   const f = blocked();
   delete f.state.stop;
   const original = JSON.stringify(f.state);
@@ -165,11 +165,141 @@ test("scheduled full health evidence surfaces owner action after two distinct ru
     ["801", "802"]
   );
   assert.equal(ready.recovery.repair.grantId, f.grant.id);
-  assert.match(ready.nextAction, /Acknowledge recovered monitor incident/);
+  assert.match(ready.nextAction, /scheduled production monitor/);
   assert.equal(f.registry.active, f.incident.id);
   assert.equal(f.issue.state, "open");
   assert.equal(JSON.stringify(f.state), original);
   assert.ok(f.calls.every(({ method }) => ["GET", "SAVE"].includes(method)));
+});
+
+test("a healthy scheduled run closes an unpublished blocked incident after two completed scheduled observations", async () => {
+  const f = blocked();
+  delete f.state.stop;
+  const ledger = structuredClone(f.state);
+  await f.scheduled("801", firstAt);
+  await f.scheduled("802", secondAt);
+  assert.equal(f.issue.state, "open");
+
+  const result = await f.scheduled("803", "2026-11-16T09:30:00.000Z");
+  assert.equal(result.outcome, "blocked_repair_recovery_closed");
+  assert.equal(result.reason, "observed-recovered-no-code-repair");
+  assert.equal(f.issue.state, "closed");
+  assert.equal(f.issue.state_reason, "not_planned");
+  assert.equal(f.registry.active, null);
+  const closed = f.registry.incidents[f.incident.id];
+  assert.equal(closed.retirement, undefined);
+  assert.equal(closed.acknowledgment.kind, "scheduled-observed-recovery");
+  assert.equal(closed.acknowledgment.phase, "complete");
+  assert.equal(closed.acknowledgment.blockedRecovery.repair.grantId, f.grant.id);
+  assert.deepEqual(
+    closed.acknowledgment.blockedRecovery.observations.map(({ runId }) => runId),
+    ["801", "802"]
+  );
+  assert.deepEqual(f.state, ledger);
+  assert.equal((await f.scheduled("804", "2026-11-16T10:00:00.000Z")).outcome, "healthy");
+  assert.equal(f.calls.filter(({ method }) => method === "PATCH").length, 1);
+});
+
+test("automatic closure holds for an emergency stop, stale pair, failed run, or different live release", async () => {
+  for (const prepare of [
+    (f) => {
+      f.state.stop = blocked().state.stop;
+    },
+    (f) => {
+      f.invalidScheduledRun = 801;
+    },
+    (f) => {
+      f.invalidScheduledRun = 802;
+    },
+    (f) => {
+      const replacement = "e".repeat(40);
+      f.observation.release = replacement;
+      f.report.result.releases = { before: replacement, after: replacement };
+    },
+    () => "2026-11-16T10:31:00.000Z",
+  ]) {
+    const f = blocked();
+    delete f.state.stop;
+    await f.scheduled("801", firstAt);
+    await f.scheduled("802", secondAt);
+    const at = prepare(f) || "2026-11-16T09:30:00.000Z";
+    const result = await f.scheduled("803", at);
+    assert.equal(result.outcome, "blocked_repair_recovery_held");
+    assert.ok(result.reason);
+    assert.equal(f.issue.state, "open");
+    assert.equal(f.registry.active, f.incident.id);
+    assert.ok(!f.calls.some(({ method }) => method === "PATCH"));
+  }
+});
+
+test("manual dispatch or a new repair artifact cannot close the issue using a scheduled pair", async () => {
+  for (const prepare of [
+    (f) => ({
+      context: {
+        ...f.context,
+        runId: "803",
+        workflowRef: `${policy.REPOSITORY}/${monitorWorkflow}@refs/heads/main`,
+      },
+    }),
+    (f) => {
+      f.pulls = [{ number: 112 }];
+    },
+    (f) => {
+      f.branch = true;
+    },
+    (f) => {
+      f.issue.body = "Changed criteria";
+    },
+    (f) => {
+      Object.assign(f.issue, { state: "closed", state_reason: "not_planned" });
+    },
+  ]) {
+    const f = blocked();
+    delete f.state.stop;
+    await f.scheduled("801", firstAt);
+    await f.scheduled("802", secondAt);
+    const options = prepare(f) || {};
+    await f.scheduled("803", "2026-11-16T09:30:00.000Z", options);
+    assert.equal(f.registry.active, f.incident.id);
+    assert.equal(f.registry.incidents[f.incident.id].acknowledgment, undefined);
+    assert.ok(!f.calls.some(({ method }) => method === "PATCH"));
+  }
+});
+
+test("a later scheduled run confirms an ambiguous close without a second issue write", async () => {
+  const f = blocked();
+  delete f.state.stop;
+  await f.scheduled("801", firstAt);
+  await f.scheduled("802", secondAt);
+  f.failClose = true;
+  const held = await f.scheduled("803", "2026-11-16T09:30:00.000Z");
+  assert.equal(held.outcome, "blocked_repair_recovery_held");
+  assert.equal(f.registry.incidents[f.incident.id].acknowledgment.phase, "intent");
+  assert.equal(f.issue.state, "closed");
+  assert.equal(f.registry.active, f.incident.id);
+  f.failClose = false;
+
+  const complete = await f.scheduled("804", "2026-11-16T10:00:00.000Z");
+  assert.equal(complete.outcome, "blocked_repair_recovery_closed");
+  assert.equal(f.registry.active, null);
+  assert.equal(f.calls.filter(({ method }) => method === "PATCH").length, 1);
+});
+
+test("the emergency stop is checked again after saving a scheduled close intent", async () => {
+  const f = blocked();
+  const stop = f.state.stop;
+  delete f.state.stop;
+  await f.scheduled("801", firstAt);
+  await f.scheduled("802", secondAt);
+  f.afterIntent = () => {
+    f.state.stop = stop;
+  };
+  const held = await f.scheduled("803", "2026-11-16T09:30:00.000Z");
+  assert.equal(held.outcome, "blocked_repair_recovery_held");
+  assert.equal(f.registry.incidents[f.incident.id].acknowledgment.phase, "intent");
+  assert.equal(f.issue.state, "open");
+  assert.ok(!f.calls.some(({ method }) => method === "PATCH"));
+  await assert.rejects(f.ownerAck({ dryRun: false }));
 });
 
 test("fresh owner acknowledgment closes a terminal blocked repair as not planned and retains usage and exact recovery evidence", async () => {

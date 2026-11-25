@@ -2,9 +2,14 @@ const fs = require("node:fs");
 const { REPOSITORY, OWNER, SHA } = require("./policy.cjs");
 const { UUID, validateMonitorProof } = require("./monitor-proof.cjs");
 const { reportPath } = require("./app-checks-contract.cjs");
-const { sameRepair, validateBlockedRecovery } = require("./monitor-blocked-recovery-contract.cjs");
+const {
+  MAX_LATEST_AGE,
+  sameRepair,
+  validateBlockedRecovery,
+} = require("./monitor-blocked-recovery-contract.cjs");
 const WORKFLOW = ".github/workflows/factory-monitor-acknowledge.yml";
 const REASON = "observed-recovered-no-code-repair";
+const SCHEDULED_KIND = "scheduled-observed-recovery";
 const exact = (o, keys) =>
   o &&
   typeof o === "object" &&
@@ -148,7 +153,53 @@ function runIdentity(o) {
     SHA.test(o.workflowSha || "")
   );
 }
+function scheduledEvidence(receipt, { runId, runAttempt, workflowSha, at, release }, proof) {
+  const { observations } = validateBlockedRecovery(receipt);
+  requireAck(
+    runIdentity({ runId, runAttempt, workflowSha }) &&
+      runId !== proof.runId &&
+      runId !== receipt.repair.runId &&
+      iso(at) &&
+      SHA.test(release || "") &&
+      observations.length === 2 &&
+      observations.every(
+        (row) =>
+          row.release === release && row.runId !== runId && row.runId !== proof.runId && row.at < at
+      ) &&
+      Date.parse(at) - Date.parse(observations.at(-1).at) <= MAX_LATEST_AGE
+  );
+}
+function validateScheduledAcknowledgment(a) {
+  const complete = a.phase === "complete";
+  const refreshed = a.verification && Object.hasOwn(a.verification, "blockedRecovery");
+  const observationKeys = "runId,runAttempt,workflowSha,at,release";
+  requireAck(
+    exact(
+      a,
+      "version,kind,phase,operationId,reason,proof,request,blockedRecovery" +
+        (complete ? ",verification" : "")
+    ) &&
+      a.version === 1 &&
+      ["intent", "complete"].includes(a.phase) &&
+      UUID.test(a.operationId || "") &&
+      a.reason === REASON &&
+      validateMonitorProof(a.proof) &&
+      a.proof.probeMode === "feed-contract" &&
+      exact(a.request, observationKeys)
+  );
+  scheduledEvidence(a.blockedRecovery, a.request, a.proof);
+  if (complete) {
+    requireAck(
+      exact(a.verification, observationKeys + (refreshed ? ",blockedRecovery" : "")) &&
+        a.request.at <= a.verification.at &&
+        (!refreshed || sameRepair(a.blockedRecovery.repair, a.verification.blockedRecovery?.repair))
+    );
+    scheduledEvidence(a.verification.blockedRecovery || a.blockedRecovery, a.verification, a.proof);
+  }
+  return a;
+}
 function validateAcknowledgment(a) {
+  if (a?.kind === SCHEDULED_KIND) return validateScheduledAcknowledgment(a);
   const blockedRepair = a && Object.hasOwn(a, "blockedRecovery");
   const refreshed = a?.verification && Object.hasOwn(a.verification, "blockedRecovery");
   requireAck(
@@ -218,6 +269,7 @@ function validateAcknowledgment(a) {
 module.exports = {
   WORKFLOW,
   REASON,
+  SCHEDULED_KIND,
   requireAck,
   assertAckContext,
   assertAckSettings,

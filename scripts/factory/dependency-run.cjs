@@ -100,10 +100,13 @@ async function main(env = process.env) {
   const n = Number(inputs.ticket);
   let result;
   if (op === "dep_select") result = await c.select(preview);
-  else if (op === "dep_track") {
+  else if (op === "dep_track" || op === "dep_recover_tracked") {
     const token = env.FACTORY_DEPENDABOT_REBASE_TOKEN;
     const refreshApi = !preview && token ? new GitHub({ token }) : undefined;
-    result = await trackNativeDependencies(api, config, context, preview, { refreshApi });
+    result = await trackNativeDependencies(api, config, context, preview, {
+      refreshApi,
+      recoveryOnly: op === "dep_recover_tracked",
+    });
   } else if (op === "dep_analysis" || op === "dep_premerge") {
     const stage = op === "dep_analysis" ? "analysis" : "premerge";
     const report = await analyze(c, n, stage);
@@ -167,10 +170,11 @@ async function main(env = process.env) {
     ).merge(n);
   else if (op === "dep_finalize") result = await c.finalize(n);
   else throw new Error("Unknown dependency operation");
-  if (op !== "dep_track" && !(op === "dep_select" && preview))
+  const tracking = op === "dep_track" || op === "dep_recover_tracked";
+  if (!tracking && !(op === "dep_select" && preview))
     await require("./activity.cjs").recordResult(api, context, result, env);
   output(result, env);
-  if (op === "dep_track" && result.links?.length && env.GITHUB_STEP_SUMMARY) {
+  if (tracking && result.links?.length && env.GITHUB_STEP_SUMMARY) {
     const home = `https://github.com/${policy.REPOSITORY}`;
     const lines = result.links.map(({ pr, issue, status }) => {
       const proposal = `[PR #${pr}](${home}/pull/${pr})`;
@@ -181,11 +185,23 @@ async function main(env = process.env) {
   }
   return result;
 }
+const safeRefusals = new Set([
+  "Dependency PR requires a current-main rebase",
+  "Native review gate is pending or unavailable",
+  "PR mergeability is not clean",
+  "Native checks or clean PR mergeability changed",
+  "Another merge intent holds the global merge writer",
+  "An active ticket holds the factory lock",
+]);
+
+function refusalReason(error) {
+  if (safeRefusals.has(error?.message)) return `Dependency operation refused. ${error.message}.`;
+  return "Dependency operation refused. Inspect bounded prerequisites and retained ledger history.";
+}
+
 if (require.main === module)
-  main().catch(() => {
-    console.error(
-      "Dependency operation refused; inspect bounded prerequisites and retained ledger history"
-    );
+  main().catch((error) => {
+    console.error(refusalReason(error));
     process.exitCode = 1;
   });
-module.exports = { content, analyze, main };
+module.exports = { content, analyze, main, refusalReason };

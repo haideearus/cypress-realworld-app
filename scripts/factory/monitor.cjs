@@ -4,6 +4,7 @@ const { GitHub, ROOT } = require("./github.cjs");
 const { REPOSITORY, OWNER, SHA, assertSubscriptionEnv } = require("./policy.cjs");
 const { MonitorStore, MAX_INCIDENTS, MAX_CREATIONS_PER_DAY } = require("./monitor-state.cjs");
 const { MONITOR_WORKFLOW } = require("./monitor-origin.cjs");
+const { SCHEDULED_KIND } = require("./monitor-ack-contract.cjs");
 const { probeApp } = require("./monitor-probe.cjs");
 const { publisherFetch } = require("./app-checks-budget.cjs");
 const {
@@ -102,8 +103,29 @@ async function recordBlockedRecovery({
   issue,
   observation,
   at,
+  now,
 }) {
   if (incident.probeMode !== "feed-contract" || context.eventName !== "schedule") return null;
+  const closure = await require("./monitor-scheduled-recovery.cjs")
+    .closeBlockedRepair({
+      api,
+      context,
+      store,
+      state,
+      commit,
+      incident,
+      issue,
+      observation,
+      at,
+      now,
+    })
+    .catch(() => ({
+      outcome: "blocked_repair_recovery_held",
+      issue: incident.issue,
+      observation,
+      reason: "Scheduled recovery evidence changed or closure is unconfirmed",
+    }));
+  if (closure?.outcome) return closure;
   const recovery = await require("./monitor-blocked-recovery.cjs")
     .observeBlockedRepair({
       api,
@@ -114,22 +136,35 @@ async function recordBlockedRecovery({
       at,
     })
     .catch(() => null);
-  if (!recovery) return null;
-  if (recovery !== incident.blockedRecovery || !incident.recovered) {
+  const deferred = closure?.deferred;
+  if (!recovery && !deferred) return null;
+  if (recovery && (recovery !== incident.blockedRecovery || !incident.recovered)) {
     incident.recovered = true;
     incident.blockedRecovery = recovery;
     await store.save(state, commit);
   }
-  const ready = recovery.observations.length === 2;
+  if (deferred)
+    return {
+      outcome: "blocked_repair_recovery_held",
+      issue: incident.issue,
+      observation,
+      reason: deferred,
+      ...(recovery ? { recovery } : {}),
+    };
+  const ready = recovery?.observations.length === 2;
+  let nextAction = "Wait for another scheduled production monitor observation on the same release.";
+  if (ready)
+    nextAction =
+      incident.acknowledgment?.kind === "owner-observed-recovery"
+        ? "Rerun the owner acknowledgment with fresh evidence to complete the saved owner decision."
+        : "Wait for the scheduled production monitor to verify both completed runs on the live release.";
   return {
     outcome: ready ? "blocked_repair_recovery_ready" : "blocked_repair_recovery_observed",
     issue: incident.issue,
     incident: incident.id,
     observation,
     recovery,
-    nextAction: ready
-      ? "Owner: stop and idle the factory, then preview Acknowledge recovered monitor incident with Blocked repair selected for this issue."
-      : "Wait for another scheduled production monitor observation on the same release.",
+    nextAction,
   };
 }
 async function observeIncident({
@@ -177,6 +212,7 @@ async function observeIncident({
   if (active?.phase === "pending")
     return { outcome: "publication_needs_owner_recovery", incident: active.id, observation };
   if (active?.acknowledgment?.phase === "intent") {
+    const scheduled = active.acknowledgment.kind === SCHEDULED_KIND;
     if (active.acknowledgment.blockedRecovery) {
       if (!observation.healthy && active.blockedRecovery) {
         delete active.blockedRecovery;
@@ -185,7 +221,8 @@ async function observeIncident({
       } else if (
         context.eventName === "schedule" &&
         observation.healthy &&
-        (active.blockedRecovery?.observations.length !== 2 ||
+        (scheduled ||
+          active.blockedRecovery?.observations.length !== 2 ||
           active.blockedRecovery.observations.at(-1).release !== observation.release)
       ) {
         const issue = await api.request("GET", ROOT + "/issues/" + active.issue);
@@ -199,10 +236,18 @@ async function observeIncident({
           issue,
           observation,
           at,
+          now,
         });
         if (result) return result;
       }
     }
+    if (scheduled)
+      return {
+        outcome: "blocked_repair_recovery_held",
+        issue: active.issue,
+        observation,
+        reason: "Fresh scheduled feed-contract evidence or confirmed closure is unavailable",
+      };
     return { outcome: "acknowledgment_needs_owner_recovery", issue: active.issue, observation };
   }
   let issue;
@@ -268,6 +313,7 @@ async function observeIncident({
             issue,
             observation,
             at,
+            now,
           });
           if (recovery) return recovery;
           if (!held.recovered || (held.blockedRecovery && context.eventName === "schedule")) {

@@ -342,6 +342,187 @@ function queueNativeCI(s, number, runId, mode = "current") {
   return receipt.id;
 }
 
+async function dependencyPreparationFixture(event = "workflow_dispatch") {
+  const s = fixture();
+  const p = require("../factory/policy.cjs");
+  const d = require("../factory/dependency-contract.cjs");
+  const { claimDependency, finishPreparation } = require("../factory/dependency-policy.cjs");
+  const { verifyWake } = require("../factory/trusted-wake.cjs");
+  const fixtures = require("./helpers/factory-fixtures.cjs");
+  const config = p.readConfig({
+    ...fixtures.vars,
+    ...s.vars,
+    FACTORY_GITHUB_APP_CLIENT_ID: "Iv123456789",
+    FACTORY_GITHUB_APP_SLUG: "factory-example",
+  });
+  s.context.event = s.run.event = "workflow_run";
+  const fromWake = event === "workflow_dispatch";
+  const sourceReceipt = fromWake ? queueNativeCI(s, 268, 702) : null;
+  const actor = fromWake ? { login: "github-actions[bot]", id: 41898282 } : s.run.actor;
+  const run = {
+    ...s.run,
+    id: 850,
+    workflow_id: 85,
+    path: ".github/workflows/factory-dependencies.yml",
+    actor,
+    triggering_actor: actor,
+    event,
+    display_title: fromWake
+      ? `Dependency maintenance / wake ${sourceReceipt}`
+      : "Dependency maintenance",
+  };
+  const request = s.api.request;
+  s.api.request = async (method, path, body) => {
+    if (method === "GET" && path.endsWith("/actions/runs/850/attempts/1"))
+      return structuredClone(run);
+    if (method === "GET" && path.endsWith("/actions/workflows/factory-dependencies.yml"))
+      return { id: 85, path: run.path };
+    if (method === "GET" && path.endsWith("/pulls/268") && !fromWake) {
+      const repo = { full_name: s.context.repository };
+      return {
+        number: 268,
+        state: "open",
+        draft: false,
+        user: { login: "dependabot[bot]", id: 49699333, type: "Bot" },
+        head: { sha: "d".repeat(40), ref: "dependabot/npm_and_yarn/demo-268", repo },
+        base: { sha: s.context.workflowSha, ref: "main", repo },
+      };
+    }
+    return request(method, path, body);
+  };
+  const context = {
+    ...fixtures.context,
+    actor: actor.login,
+    triggeringActor: actor.login,
+    workflowRef: d.WORKFLOW,
+    workflowSha: run.head_sha,
+    runId: "850",
+    event,
+  };
+  if (fromWake) {
+    s.store.state.receipts[sourceReceipt].status = "sent";
+    context.wake = await verifyWake({
+      ...s,
+      context,
+      receiptId: sourceReceipt,
+      lane: "dependency",
+      bind: true,
+    });
+  }
+  const pr = await s.api.request("GET", "/pulls/268");
+  const active = claimDependency(p.emptyState(s.context.repository), pr, context, config);
+  s.ledger.state = finishPreparation(active, 268, context);
+  run.status = "completed";
+  run.conclusion = "failure";
+  s.event = { repository: run.repository, action: "completed", workflow_run: run };
+  return { ...s, run, sourceReceipt, active };
+}
+
+test("a released metadata-only dependency receiver hands off exactly one verified pending CI", async () => {
+  const s = await dependencyPreparationFixture();
+  const stale = queueNativeCI(s, 221, 703, "old-base");
+  const sameHead = queueNativeCI(s, 268, 705);
+  const first = queueNativeCI(s, 233, 706);
+  const second = queueNativeCI(s, 258, 707);
+  const before = structuredClone(s.ledger.state);
+
+  const outcomes = await Promise.all([wake.handleWake(s), wake.handleWake(s)]);
+  assert.deepEqual(outcomes.map((result) => result.outcome).sort(), ["dispatched", "duplicate"]);
+  assert.equal(outcomes.find((result) => result.outcome === "dispatched").receiptId, first);
+  assert.deepEqual(s.dispatches, [{ ref: "main", inputs: { wake_id: first, preview: false } }]);
+  assert.equal(s.store.state.receipts[stale].status, "observed");
+  assert.equal(s.store.state.receipts[sameHead].status, "observed");
+  assert.equal(s.store.state.receipts[second].status, "pending");
+  assert.deepEqual(s.ledger.state, before);
+});
+
+test("a scheduled owner preparation can hand off to pending dependency CI", async () => {
+  const s = await dependencyPreparationFixture("schedule");
+  const ready = queueNativeCI(s, 233, 706);
+  assert.equal((await wake.handleWake(s)).receiptId, ready);
+  assert.equal(s.dispatches.length, 1);
+});
+
+test("a rebase after lease release preserves the bound receiver's completion provenance", async () => {
+  const s = await dependencyPreparationFixture();
+  queueNativeCI(s, 268, 705, "stale");
+  const ready = queueNativeCI(s, 233, 706);
+  assert.equal((await wake.handleWake(s)).receiptId, ready);
+  assert.equal(s.dispatches.length, 1);
+});
+
+test("released dependency preparation with no eligible CI dispatches nothing", async () => {
+  const s = await dependencyPreparationFixture();
+  const stale = queueNativeCI(s, 221, 703, "stale");
+  const app = fixture();
+  app.store = s.store;
+  app.ledger.state.active = { ticket: 268, runId: "850", runAttempt: 1 };
+  const pending = await wake.handleWake(app);
+  const completion = await wake.handleWake(s);
+  assert.equal(completion.outcome, "observed");
+  const marker = s.store.state.receipts[completion.receiptId];
+  assert.equal(marker.signal.kind, "drain");
+  assert.throws(
+    () => require("../factory/wake-contract.cjs").validateReceipt({ ...marker, status: "sent" }),
+    /Invalid wake receipt/
+  );
+  assert.equal((await wake.handleWake(s)).outcome, "duplicate");
+  assert.equal(s.store.state.receipts[stale].status, "observed");
+  assert.equal(s.store.state.receipts[pending.receiptId].status, "pending");
+  assert.deepEqual(s.dispatches, []);
+});
+
+test("dependency completion needs a released attempt and exact trusted receiver", async (t) => {
+  for (const [label, change, rejection] of [
+    ["no durable preparation", (s) => (s.ledger.state.tickets = {})],
+    ["no recorded release", (s) => (s.ledger.state.audit = [])],
+    ["lease still held", (s) => (s.ledger.state = s.active)],
+    [
+      "receipt never bound",
+      (s) => {
+        const receipt = s.store.state.receipts[s.sourceReceipt];
+        receipt.receiver = null;
+        receipt.status = "sent";
+      },
+    ],
+    [
+      "bound to another run",
+      (s) => (s.store.state.receipts[s.sourceReceipt].receiver.runId = "851"),
+    ],
+    ["wrong receiver title", (s) => (s.run.display_title = "Dependency maintenance")],
+    [
+      "wrong triggering actor",
+      (s) => (s.run.triggering_actor = { login: "haideearus", id: 101267861 }),
+    ],
+    [
+      "wrong receiver actor ID",
+      (s) => (s.run.actor = { ...s.run.actor, id: 1 }),
+      /Wake receiver identity changed/,
+    ],
+    ["different workflow revision", (s) => (s.run.head_sha = "f".repeat(40))],
+    ["not terminal", (s) => (s.run.status = "in_progress"), /Untrusted source workflow run/],
+  ]) {
+    await t.test(label, async () => {
+      const s = await dependencyPreparationFixture();
+      const ready = queueNativeCI(s, 233, 706);
+      change(s);
+      if (rejection) await assert.rejects(wake.handleWake(s), rejection);
+      else assert.equal((await wake.handleWake(s)).outcome, "ignored");
+      assert.equal(s.store.state.receipts[ready].status, "pending");
+      assert.deepEqual(s.dispatches, []);
+    });
+  }
+});
+
+test("a stopped factory leaves dependency CI pending after preparation releases", async () => {
+  const s = await dependencyPreparationFixture();
+  const ready = queueNativeCI(s, 233, 706);
+  s.ledger.state.stop = { reason: "Owner stop" };
+  assert.equal((await wake.handleWake(s)).outcome, "stopped");
+  assert.equal(s.store.state.receipts[ready].status, "pending");
+  assert.deepEqual(s.dispatches, []);
+});
+
 test("discovery completion skips stale CI and binds the next dependency PR exactly once", async () => {
   const s = await discoveryDrainFixture();
   const stale = [220, 221, 222, 223, 224, 226].map((number) =>

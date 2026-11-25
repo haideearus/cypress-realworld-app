@@ -50,6 +50,46 @@ function allowedModelBots(context, ticket) {
   const { signalKind } = proofs.get(context.wake);
   return ["issue", "monitor", "drain"].includes(signalKind) ? c.BOT : "";
 }
+async function verifyPreparationOrigin(api, run, ticket, attempt, store) {
+  if (run.head_branch !== "main") return false;
+  if (run.event === "schedule")
+    return [run.actor, run.triggering_actor].every(
+      (actor) => actor?.login === c.OWNER && actor.id === c.OWNER_ID
+    );
+
+  const id = /^Dependency maintenance \/ wake ([a-f0-9]{64})$/.exec(run.display_title)?.[1];
+  if (run.event !== "workflow_dispatch" || !id) return false;
+  const context = {
+    repository: c.REPOSITORY,
+    actor: run.actor?.login,
+    triggeringActor: run.triggering_actor?.login,
+    ref: "refs/heads/main",
+    event: run.event,
+    workflowRef: require("./dependency-contract.cjs").WORKFLOW,
+    workflowSha: run.head_sha,
+    runId: String(run.id),
+    runAttempt: run.run_attempt,
+  };
+  if (!c.receiverIdentity(context, "dependency")) return false;
+  const receipt = (await store.read()).state.receipts[id];
+  if (
+    receipt?.status !== "bound" ||
+    receipt.receiver?.runId !== context.runId ||
+    receipt.receiver.runAttempt !== context.runAttempt ||
+    receipt.receiver.workflowSha !== context.workflowSha ||
+    !c.isDependencyCI(receipt.signal) ||
+    receipt.signal.lane !== "dependency" ||
+    receipt.signal.number !== ticket.pr ||
+    receipt.signal.criteriaHash !== ticket.criteriaHash ||
+    receipt.signal.head !== attempt.head ||
+    receipt.signal.revision !== attempt.base
+  )
+    return false;
+  // Binding already proved this CI source. The PR can change after release.
+  c.validateReceipt(receipt);
+  await verifyDispatchIdentity(api, context, receipt, "dependency", run);
+  return true;
+}
 async function verifySource(api, signal, bound, vars = {}) {
   const { criteriaHash } = require("./controller.cjs");
   const { eligibleIssue } = require("./automation.cjs");
@@ -67,7 +107,7 @@ async function verifySource(api, signal, bound, vars = {}) {
       signal.kind === "issue" &&
       ((!bound && !eligibleIssue(issue)) ||
         issue.user?.login !== c.OWNER ||
-        issue.user?.id !== 101267861 ||
+        issue.user?.id !== c.OWNER_ID ||
         (!bound && issue.updated_at !== signal.revision))
     )
       throw Error("Wake issue source changed");
@@ -139,10 +179,22 @@ async function verifySource(api, signal, bound, vars = {}) {
     }
     d.filesOK(await api.request("GET", `${ROOT}/pulls/${pr.number}/files?per_page=3`));
     const run = await verifiedRun(api, signal.sourceRun, signal.sourceAttempt, "factory-ci.yml");
+    // GitHub can drop CI's PR association after merge. A bound receipt already
+    // proves the original association and can only be used by its receiver.
+    const associationRemoved =
+      bound &&
+      pr.state === "closed" &&
+      pr.merged === true &&
+      d.SHA.test(pr.merge_commit_sha || "") &&
+      Array.isArray(run.pull_requests) &&
+      run.pull_requests.length === 0 &&
+      run.actor?.login === signal.actor.login &&
+      run.actor.id === signal.actor.id &&
+      run.head_branch === pr.head.ref;
     if (
       run.event !== "pull_request" ||
       run.head_sha !== signal.head ||
-      !run.pull_requests?.some((p) => p.number === pr.number)
+      (!associationRemoved && !run.pull_requests?.some((p) => p.number === pr.number))
     )
       throw Error("Wake CI source changed");
     const jobs = await api.pages(
@@ -157,7 +209,7 @@ async function verifySource(api, signal, bound, vars = {}) {
       throw Error("Wake native CI failed");
     return;
   }
-  if (signal.kind !== "drain") throw Error("Unknown wake source");
+  if (signal.kind !== "drain" || c.isPreparationDrain(signal)) throw Error("Unknown wake source");
   const { Ledger } = require("./github.cjs");
   const { state } = await new Ledger(api).read();
   const grants = Object.values(state.grants).filter(
@@ -202,6 +254,37 @@ async function verifySource(api, signal, bound, vars = {}) {
   )
     throw Error("Wake drain source changed");
 }
+async function verifyDispatchIdentity(api, context, receipt, lane, fetchedRun = null) {
+  const { verifiedRun } = require("./wake-controller.cjs");
+  const producer = await verifiedRun(api, receipt.producer.runId, 1, "factory-wake.yml", {
+    terminal: false,
+  });
+  if (
+    producer.head_branch !== "main" ||
+    producer.head_sha !== receipt.producer.workflowSha ||
+    producer.actor?.login !== receipt.producer.actor.login ||
+    producer.actor?.id !== receipt.producer.actor.id ||
+    producer.event !== receipt.producer.event
+  )
+    throw Error("Wake producer identity changed");
+  const receiver = await verifiedRun(api, context.runId, 1, c.LANES[lane], {
+    terminal: false,
+    success: false,
+    fetchedRun,
+  });
+  if (
+    receiver.event !== "workflow_dispatch" ||
+    receiver.head_branch !== "main" ||
+    receiver.head_sha !== context.workflowSha ||
+    receiver.actor?.login !== c.BOT ||
+    receiver.actor?.id !== c.BOT_ID ||
+    receiver.triggering_actor?.login !== c.BOT ||
+    receiver.triggering_actor?.id !== c.BOT_ID ||
+    receiver.display_title !==
+      `${lane === "app" ? "Automatic factory" : "Dependency maintenance"} / wake ${receipt.id}`
+  )
+    throw Error("Wake receiver identity changed");
+}
 async function verifyWake({
   api,
   context,
@@ -218,34 +301,7 @@ async function verifyWake({
   c.validateReceipt(receipt);
   if (receipt.signal.lane !== lane || !["intent", "sent", "bound"].includes(receipt.status))
     throw Error("Wake dispatch intent missing");
-  const { verifiedRun } = require("./wake-controller.cjs");
-  const producer = await verifiedRun(api, receipt.producer.runId, 1, "factory-wake.yml", {
-    terminal: false,
-  });
-  if (
-    producer.head_branch !== "main" ||
-    producer.head_sha !== receipt.producer.workflowSha ||
-    producer.actor?.login !== receipt.producer.actor.login ||
-    producer.actor?.id !== receipt.producer.actor.id ||
-    producer.event !== receipt.producer.event
-  )
-    throw Error("Wake producer identity changed");
-  const receiver = await verifiedRun(api, context.runId, 1, c.LANES[lane], {
-    terminal: false,
-    success: false,
-  });
-  if (
-    receiver.event !== "workflow_dispatch" ||
-    receiver.head_branch !== "main" ||
-    receiver.head_sha !== context.workflowSha ||
-    receiver.actor?.login !== c.BOT ||
-    receiver.actor?.id !== c.BOT_ID ||
-    receiver.triggering_actor?.login !== c.BOT ||
-    receiver.triggering_actor?.id !== c.BOT_ID ||
-    receiver.display_title !==
-      `${lane === "app" ? "Automatic factory" : "Dependency maintenance"} / wake ${receiptId}`
-  )
-    throw Error("Wake receiver identity changed");
+  await verifyDispatchIdentity(api, context, receipt, lane);
   await verifySource(api, receipt.signal, receipt.receiver !== null, vars);
   const expected = { runId: context.runId, runAttempt: 1, workflowSha: context.workflowSha };
   if (receipt.receiver && JSON.stringify(receipt.receiver) !== JSON.stringify(expected))
@@ -269,7 +325,7 @@ async function verifyWake({
     producerRun: receipt.producer.runId,
   });
   const { kind: signalKind, number, head } = receipt.signal;
-  const dependencyTarget = ["dependency-ci", "dependency-alert-ci"].includes(signalKind)
+  const dependencyTarget = c.isDependencyCI(receipt.signal)
     ? Object.freeze({ number, head })
     : null;
   proofs.set(proof, { ...expected, lane, signalKind, dependencyTarget });
@@ -303,6 +359,7 @@ module.exports = {
   PendingWakeBinding,
   isTrustedWakeContext,
   dependencyWakeTarget,
+  verifyPreparationOrigin,
   allowedModelBots,
   verifySource,
   verifyWake,

@@ -335,6 +335,8 @@ jobs:
     concurrency:
       group: factory-auto-merge
       cancel-in-progress: false
+    outputs:
+      merged: ${{ steps.control.outputs.merged }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -351,13 +353,15 @@ jobs:
           client-id: ${{ vars.FACTORY_GITHUB_APP_CLIENT_ID }}
           expected-slug: ${{ vars.FACTORY_GITHUB_APP_SLUG }}
           private-key: ${{ secrets.FACTORY_GITHUB_APP_PRIVATE_KEY }}
-      - uses: ./.github/actions/factory-control
+      - id: control
+        uses: ./.github/actions/factory-control
         with:
           operation: dep_merge
           github_token: ${{ steps.app.outputs.token }}
           variables_json: ${{ toJSON(vars) }}
           parameters: '{"ticket":"${{ needs.select.outputs.ticket }}"}'
           bundle_path: ${{ needs.select.outputs.mode != 'reconcile' && format('{0}/dependency-premerge/premerge.json', runner.temp) || '' }}
+
   finalize:
     needs: [select, analysis, ci, evidence, reserve, review, assess, premerge, merge]
     if: ${{ always() && !cancelled() && needs.select.outputs.ready == 'true' && needs.select.outputs.mode == 'review' }}
@@ -383,3 +387,35 @@ jobs:
           operation: dep_finalize
           variables_json: ${{ toJSON(vars) }}
           parameters: '{"ticket":"${{ needs.select.outputs.ticket }}"}'
+
+  track_after_merge:
+    needs: [select, merge, finalize]
+    if: ${{ always() && !cancelled() && needs.merge.outputs.merged == 'true' && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: read
+      actions: read
+    concurrency:
+      group: factory-ledger
+      cancel-in-progress: false
+      queue: max
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.20.0
+      - name: Recover stale native Dependabot proposals after the confirmed merge
+        run: node scripts/factory/dependency-run.cjs
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FACTORY_OPERATION: dep_recover_tracked
+          FACTORY_VARIABLES: ${{ toJSON(vars) }}
+          FACTORY_INPUTS: ${{ toJSON(inputs) }}
+          FACTORY_DEPENDABOT_REBASE_TOKEN: ${{ secrets.FACTORY_DEPENDABOT_REBASE_TOKEN }}
