@@ -370,29 +370,6 @@
       "status": "intent",
       "commentId": null
     },
-    "3e54f64fd69a972b0cc20639d30093cf08265b12dbb4245800de55139af6cf26": {
-      "event": {
-        "id": "3e54f64fd69a972b0cc20639d30093cf08265b12dbb4245800de55139af6cf26",
-        "producer": {
-          "runId": "45594297493",
-          "runAttempt": 1,
-          "workflow": "factory-monitor.yml",
-          "workflowSha": "435a39f759b896da8aff3e120d49f7999985e2bf",
-          "phase": "monitor-result",
-          "actor": "haideearus"
-        },
-        "kind": "monitor",
-        "state": "healthy",
-        "subject": 124,
-        "head": "4359cbdce5c64ad36d41bbda4dd88878f1fe5d5d",
-        "summary": "{\"outcome\":\"blocked_repair_recovery_ready\",\"observation\":{\"healthy\":true,\"checks\":{\"health\":\"ok\",\"readiness\":\"ok\",\"frontend\":\"ok\"},\"attempts\":1,\"release\":\"4359cbdce5c64ad36d41bbda4dd88878f1fe5d5d\",\"appChecks\":{\"healthy\":true,\"checks\":{\"login\":\"ok\",\"session\":\"ok\",\"feed\":\"ok\",\"logout\":\"ok\"},\"attempts\":3,\"feedContract\":\"ok\",\"releases\":{\"before\":\"4359cbdce5c64ad36d41bbda4dd88878f1fe5d5d\",\"after\":\"4359cbdce5c64ad36d41bbda4dd88878f1fe5d5d\"}}}}",
-        "links": [
-          "https://github.com/haideearus/cypress-realworld-app/actions/runs/45594297493"
-        ]
-      },
-      "status": "intent",
-      "commentId": null
-    },
     "3e0a97a7a84c803bc66d37f8d3dda46318bf1a0c815cdad63bcecce3f21a5f43": {
       "event": {
         "id": "3e0a97a7a84c803bc66d37f8d3dda46318bf1a0c815cdad63bcecce3f21a5f43",
