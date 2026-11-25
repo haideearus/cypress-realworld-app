@@ -4783,8 +4783,8 @@
       "origin": "factory",
       "reviews": 0,
       "retries": 0,
-      "head": "98c77049cadd919705cf6c61c742cbc8ba503a02",
-      "status": "blocked",
+      "head": "1b60c00c1fcda124900302d3f26c57bf967d9f46",
+      "status": "awaiting_review",
       "pr": 274,
       "approval": null,
       "criteriaHash": "d6e6324e006d0e1293fc7e4dd9b1a14821fcf779c3c9a5cae025850b6f5ade36",
@@ -4805,12 +4805,7 @@
         "criteriaHash": "d6e6324e006d0e1293fc7e4dd9b1a14821fcf779c3c9a5cae025850b6f5ade36"
       },
       "branch": "agent/factory-273",
-      "ci": {
-        "requestId": "0e8c8c8b-a3b2-47d4-879c-d78581ace199",
-        "head": "98c77049cadd919705cf6c61c742cbc8ba503a02",
-        "runId": 45477084054,
-        "passed": true
-      },
+      "ci": null,
       "feedback": "Review unavailable, interrupted, or subscription quota exhausted",
       "publishedRecovery": {
         "sourceCi": {
@@ -4824,7 +4819,13 @@
             "from": "98c77049cadd919705cf6c61c742cbc8ba503a02",
             "base": "fecc67833148e98fdec387738e074e2f48d29945"
           }
-        ]
+        ],
+        "parent": {
+          "runId": "45610806210",
+          "runAttempt": 1,
+          "workflowSha": "fecc67833148e98fdec387738e074e2f48d29945",
+          "head": "1b60c00c1fcda124900302d3f26c57bf967d9f46"
+        }
       }
     },
     "275": {
@@ -6834,7 +6835,11 @@
       "outcome": "discovery_complete"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 273,
+    "runId": "45610806210",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -11156,6 +11161,14 @@
       "pr": 274,
       "from": "98c77049cadd919705cf6c61c742cbc8ba503a02",
       "base": "fecc67833148e98fdec387738e074e2f48d29945"
+    },
+    {
+      "at": "2026-11-25T12:09:33.977Z",
+      "event": "published_review_resumed",
+      "ticket": 273,
+      "pr": 274,
+      "head": "1b60c00c1fcda124900302d3f26c57bf967d9f46",
+      "runId": "45610806210"
     }
   ],
   "featureTurn": {
