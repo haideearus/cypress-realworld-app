@@ -4995,9 +4995,17 @@
       "reviews": 1,
       "retries": 0,
       "head": "f0bc8750abd26cad012acd1665309db114067ceb",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 283,
-      "approval": null,
+      "approval": {
+        "head": "f0bc8750abd26cad012acd1665309db114067ceb",
+        "pr": 283,
+        "grant": "0acb3002-2292-4aca-a368-f6d48c841058",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/45616838729"
+      },
       "criteriaHash": "3f76142faf2cd9913e057e3d7298032c952ff9379d41b010bf99feb7afc7bdd5",
       "branch": "agent/factory-review-skip-recovery",
       "ci": {
@@ -5005,7 +5013,8 @@
         "head": "f0bc8750abd26cad012acd1665309db114067ceb",
         "runId": 45616992931,
         "passed": true
-      }
+      },
+      "feedback": "{\"head\":\"f0bc8750abd26cad012acd1665309db114067ceb\",\"verdict\":\"pass\",\"summary\":\"Reviewed the PR #283 diff against ticket #282 (resuming factory review after an intentionally-skipped review job) at head f0bc8750abd26cad012acd1665309db114067ceb. Inspected .github/workflows/factory-cycle.yml, scripts/factory/published-review-recovery.cjs, docs/factory/PRIORITY-AND-DELAYED-RETRIES.md, and the two updated test files. The workflow change adds an explicit `needs.reserve_review.result == 'success'` guard to the `review` job's `if:`, matching the new factory-workflows.test.cjs assertion. The core fix is in published-review-recovery.cjs: eligible() now permits retryParent for INTERRUPTED_REASON regardless of reviews count (previously required reviews===0), and verifyOriginal/verifySkippedReview gate the actual grant via GitHub-verified evidence — exactly one blocked review grant matching the interrupted run's parent (runId/runAttempt/head), a passing CI receipt tied to that same head (re-validated via controller.validateCI), and a job list proving coding/publish/review were \\\"skipped\\\" while ci/reserve_review/assess were \\\"success\\\". Only when that proof succeeds is a one-time skippedPublishedReview record persisted (idempotent via ??=) and the \\\"needs a fresh head\\\" rule bypassed for that single resumption. The numeric bound (reviews < min(2, config.reviews) under retryParent) mathematically caps this to one use, since a second genuine reservation pushes reviews to 2, which then fails eligibility. validateRecovery was extended with matching shape/consistency checks for the new field, including correctly excluding the legitimate skipped grant from the pre-existing double-review-on-same-runId check while still catching genuine double spends. Merge protection is untouched: merge.cjs still requires ticket.status === \\\"reviewed\\\" before merging, and resumeOne only reaches \\\"awaiting_review\\\", so the real independent review must still execute and pass — this change gives the system another chance to run that review, it does not bypass it. Test coverage in factory-published-review-recovery.test.cjs exercises the happy path, a second branch refresh carrying the skip history forward, rejection when the review job actually ran or evidence is incomplete, CI-head mismatch, exhausted review allowance, and unverifiable CI metadata — all consistent with the code paths read. As a read-only reviewer I did not execute the test suite myself; I relied on the supplied CI run as evidence that these tests pass, and on static reading of the logic and fixtures for correctness. No blocking issues found.\",\"findings\":[]}"
     }
   },
   "grants": {
@@ -6878,15 +6887,12 @@
       "runId": "45616838729",
       "runAttempt": 1,
       "head": "f0bc8750abd26cad012acd1665309db114067ceb",
-      "status": "reserved",
-      "at": "2026-11-25T12:46:03.763Z"
+      "status": "finished",
+      "at": "2026-11-25T12:46:03.763Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 282,
-    "runId": "45616838729",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -11244,6 +11250,14 @@
       "runId": "45616838729",
       "runAttempt": 1,
       "actor": "haideearus"
+    },
+    {
+      "at": "2026-11-25T13:01:16.308Z",
+      "event": "finished",
+      "ticket": 282,
+      "grant": "0acb3002-2292-4aca-a368-f6d48c841058",
+      "status": "reviewed",
+      "head": "f0bc8750abd26cad012acd1665309db114067ceb"
     }
   ],
   "featureTurn": {
