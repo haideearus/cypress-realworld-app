@@ -229,7 +229,14 @@
       "trackingReason": "metadata-held",
       "phase": "tracking",
       "issue": 189,
-      "pr": null
+      "pr": null,
+      "widerChecks": [
+        {
+          "fingerprint": "ff1170e6f3e9d955d6f548793786032cbaae9f965aa62ddd1ca066bb66acbda5",
+          "result": "wider-held",
+          "at": "2026-11-25T20:56:14.509Z"
+        }
+      ]
     },
     "1113b8b4ae7410c26c2dfd78c5fdda4c34261b65618f5e3317501b297978dd86": {
       "name": "extract-zip",
