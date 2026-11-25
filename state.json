@@ -157,7 +157,8 @@
       233,
       280,
       282,
-      285
+      285,
+      260
     ]
   },
   "tickets": {
@@ -4714,6 +4715,38 @@
         }
       }
     },
+    "260": {
+      "coding": 0,
+      "reviews": 0,
+      "retries": 0,
+      "origin": "dependency-pr",
+      "head": "2cc5d967cff5c712c42bcd333bcbafbd13f50fbe",
+      "pr": 260,
+      "status": "new",
+      "approval": null,
+      "branch": "dependabot/npm_and_yarn/validator-13.15.35",
+      "criteriaHash": "83af26fa9987b6c5227fa042cd399aac091a3ad0c4a7167610291843f7225b55",
+      "dependency": {
+        "version": 1,
+        "pr": 260,
+        "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-dependencies.yml@refs/heads/main",
+        "workflowSha": "698447b11eba09155b6a8836c955ed8d8eb13bc0",
+        "runId": "45639351909",
+        "runAttempt": 1,
+        "appSlug": "haideearus-software-factory",
+        "attempts": [
+          {
+            "head": "2cc5d967cff5c712c42bcd333bcbafbd13f50fbe",
+            "base": "698447b11eba09155b6a8836c955ed8d8eb13bc0",
+            "runId": "45639351909",
+            "runAttempt": 1,
+            "workflowSha": "698447b11eba09155b6a8836c955ed8d8eb13bc0",
+            "at": "2026-11-25T14:56:10.835Z"
+          }
+        ]
+      },
+      "ci": null
+    },
     "266": {
       "coding": 0,
       "origin": "owner-pr",
@@ -6965,7 +6998,11 @@
       "outcome": "reviewed"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 260,
+    "runId": "45639351909",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -11401,6 +11438,16 @@
       "observedHead": "867307adf1e1ebee7eab0d41d43e4244fe5aefaa",
       "grant": "edcc9ac6-a3c4-4f58-82bb-dc3dac46c732",
       "reason": "stale-base"
+    },
+    {
+      "at": "2026-11-25T14:56:10.835Z",
+      "event": "dependency_metadata_admitted",
+      "ticket": 260,
+      "head": "2cc5d967cff5c712c42bcd333bcbafbd13f50fbe",
+      "runId": "45639351909",
+      "actor": "github-actions[bot]",
+      "wakeReceipt": "15c98a7d387efb0f33bd3b5d692ddbc74449a2b5fa8747e8bc3c5354a5086fcb",
+      "sourceActor": "dependabot[bot]"
     }
   ],
   "featureTurn": {
