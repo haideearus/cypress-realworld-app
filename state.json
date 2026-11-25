@@ -5218,9 +5218,17 @@
       "reviews": 1,
       "retries": 0,
       "head": "2b41f5c3f095501ccd77d6e192f118ea7f80895c",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 292,
-      "approval": null,
+      "approval": {
+        "head": "2b41f5c3f095501ccd77d6e192f118ea7f80895c",
+        "pr": 292,
+        "grant": "f6b25963-3ed6-42f6-af12-154e02ef5ce0",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/45695334019"
+      },
       "criteriaHash": "0a0c6e3590dc974f9a52f9d993bab2351aa28a466ba36ba6b76214f7db5e8774",
       "branch": "agent/activity-deployment-no-poll",
       "ci": {
@@ -5228,7 +5236,8 @@
         "head": "2b41f5c3f095501ccd77d6e192f118ea7f80895c",
         "runId": 45695477474,
         "passed": true
-      }
+      },
+      "feedback": "{\"verdict\":\"pass\",\"head\":\"2b41f5c3f095501ccd77d6e192f118ea7f80895c\",\"summary\":\"Reviewed the diff against ticket #291 by reading the resulting source at HEAD: .github/workflows/factory-automatic.yml, .github/workflows/factory-activity.yml, scripts/factory/activity-observer.cjs, scripts/factory/wake-controller.cjs, scripts/factory/wake-queue.cjs (new), scripts/factory/wake-contract.cjs, scripts/factory/trusted-wake.cjs, scripts/factory/dependencies.cjs, scripts/factory/dependency-tracking.cjs, scripts/factory/active-tickets.cjs and scripts/factory/active-runs.cjs. The ten-minute shared pickup is implemented via the cron change to \\\"3,13,23,33,43,53\\\" and a new \\\"Hand off an idle app queue\\\" step gated on no app ticket being ready; the corresponding event-wake logic lives in the new wake-queue.cjs (nextDependency/terminalDependency/verifyQueueCheck), which reuses existing priority (pendingIntent), reservation (reservedPlanners/capacity), retry (dependency-merge-retry blocksQueue/due) and review (verifySource/classifySignal) machinery rather than duplicating it, and is wired into wake-controller.cjs's handleWake with a dedicated queue-check drain receipt to prevent re-dispatch for the same scheduled run. Deployment approval handling in activity-observer.cjs now emits one pending \\\"approval-required\\\" event on the in_progress observation and returns without polling, while the existing completed-run branch (now gated by `!deploymentStart`) records the owner approval/rejection and final outcome; activity-observer.cjs's sleep-loop was removed and factory-activity.yml's timeout dropped from 90 to 10 minutes, consistent with \\\"record one notice and exit.\\\" The new previewNativeRecovery in dependency-tracking.cjs only inspects (returns before any write) and recoverTrackedPR's new `sent`/`fresh` split explicitly preserves already-recorded rebase requests instead of re-sending them, matching \\\"preserve existing attempts... without opening duplicate PRs.\\\" The relaxed historical-run checks in dependencies.cjs' trustedRun are now gated by an explicit owner-login check or a call to the newly strict verifyPreparationOrigin (binds receiver run identity, head/base and bound receipt id), which is a tightening rather than a weakening of the previous \\\"github-actions[bot]\\\" bypass. All new helper functions I traced (slots.pendingIntent/reservedPlanners/activeEntries/capacity, active-runs.terminalParent, wake-contract OWNER_ID/BOT_ID, dependency-merge-retry.blocksQueue/due) exist and are exported as used, and new/changed tests in factory-activity-workflow, factory-automatic-workflow, factory-dependencies, factory-dependency-tracking and factory-wake-workflow test files exercise these exact paths (deployment single-notice behavior, idle-schedule handoff with duplicate suppression, historical preparation recovery via verifyPreparationOrigin, native-recovery queue skipping a Dependabot-blocked PR for another). Limits of this review: I did not execute the test suite or lint/type-check (read-only session, no shell access); correctness is inferred from static tracing of the diff, cross-referencing of called helpers, and the included test additions, not from an actual CI run output. Docs in docs/factory/EVENTS-AND-ACTIVITY.md were updated to match the new behavior and are consistent with the code I read. I found no violations of the stated boundaries (no new workflow_dispatch inputs, no new Claude/model invocation paths, no production policy changes, no credential handling changes).\",\"findings\":[]}"
     }
   },
   "grants": {
@@ -7173,15 +7182,12 @@
       "runId": "45695334019",
       "runAttempt": 1,
       "head": "2b41f5c3f095501ccd77d6e192f118ea7f80895c",
-      "status": "reserved",
-      "at": "2026-11-25T20:29:18.348Z"
+      "status": "finished",
+      "at": "2026-11-25T20:29:18.348Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 291,
-    "runId": "45695334019",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -11706,6 +11712,14 @@
       "runId": "45695334019",
       "runAttempt": 1,
       "actor": "haideearus"
+    },
+    {
+      "at": "2026-11-25T20:42:43.739Z",
+      "event": "finished",
+      "ticket": 291,
+      "grant": "f6b25963-3ed6-42f6-af12-154e02ef5ce0",
+      "status": "reviewed",
+      "head": "2b41f5c3f095501ccd77d6e192f118ea7f80895c"
     }
   ],
   "featureTurn": {
