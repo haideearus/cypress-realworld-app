@@ -4811,7 +4811,21 @@
         "runId": 45477084054,
         "passed": true
       },
-      "feedback": "Review unavailable, interrupted, or subscription quota exhausted"
+      "feedback": "Review unavailable, interrupted, or subscription quota exhausted",
+      "publishedRecovery": {
+        "sourceCi": {
+          "requestId": "0e8c8c8b-a3b2-47d4-879c-d78581ace199",
+          "head": "98c77049cadd919705cf6c61c742cbc8ba503a02",
+          "runId": 45477084054,
+          "passed": true
+        },
+        "refreshes": [
+          {
+            "from": "98c77049cadd919705cf6c61c742cbc8ba503a02",
+            "base": "fecc67833148e98fdec387738e074e2f48d29945"
+          }
+        ]
+      }
     },
     "275": {
       "coding": 0,
@@ -11134,6 +11148,14 @@
       "grant": "a162704b-eb1a-4dbf-99b3-d3430685111f",
       "phase": "discover",
       "status": "discovery_complete"
+    },
+    {
+      "at": "2026-11-25T12:09:21.913Z",
+      "event": "published_review_refresh_requested",
+      "ticket": 273,
+      "pr": 274,
+      "from": "98c77049cadd919705cf6c61c742cbc8ba503a02",
+      "base": "fecc67833148e98fdec387738e074e2f48d29945"
     }
   ],
   "featureTurn": {
