@@ -806,29 +806,6 @@
       },
       "status": "intent",
       "commentId": null
-    },
-    "f7b1ca3a359062af9d23638c544133383c271cf32943686c14bbbad3047171b9": {
-      "event": {
-        "id": "f7b1ca3a359062af9d23638c544133383c271cf32943686c14bbbad3047171b9",
-        "producer": {
-          "runId": "45695334019",
-          "runAttempt": 1,
-          "workflow": "factory-agents.yml",
-          "workflowSha": "ecc71a8d32ea1c44b2cef431d98a592c581f1135",
-          "phase": "job-139497012231-model",
-          "actor": "haideearus"
-        },
-        "kind": "review",
-        "state": "started",
-        "subject": 291,
-        "head": "2b41f5c3f095501ccd77d6e192f118ea7f80895c",
-        "summary": "GitHub reports the reserved model step started. This is not a review pass.",
-        "links": [
-          "https://github.com/haideearus/cypress-realworld-app/actions/runs/45695334019"
-        ]
-      },
-      "status": "intent",
-      "commentId": null
     }
   },
   "lastMonitor": {
