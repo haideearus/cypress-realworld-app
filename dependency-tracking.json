@@ -202,7 +202,16 @@
     "267": {
       "branch": "dependabot/npm_and_yarn/passport-0.6.0",
       "issue": 269,
-      "status": "open"
+      "status": "open",
+      "recovery": {
+        "ada74bff0f4489a7f67ddf8a6c7f2289c549d467": {
+          "bases": {
+            "e2e9c9bd96a486ef8dfecfad34162a35a0602b32": {
+              "refresh": "attempted"
+            }
+          }
+        }
+      }
     },
     "268": {
       "branch": "dependabot/npm_and_yarn/js-yaml-3.15.2",
