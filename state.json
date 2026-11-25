@@ -4805,7 +4805,11 @@
         "criteriaHash": "d6e6324e006d0e1293fc7e4dd9b1a14821fcf779c3c9a5cae025850b6f5ade36"
       },
       "branch": "agent/factory-273",
-      "ci": null,
+      "ci": {
+        "requestId": "c32d2a93-a41e-4fc2-b72e-db2d28b1ef10",
+        "head": "1b60c00c1fcda124900302d3f26c57bf967d9f46",
+        "runId": null
+      },
       "feedback": "Review unavailable, interrupted, or subscription quota exhausted",
       "publishedRecovery": {
         "sourceCi": {
