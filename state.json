@@ -4646,16 +4646,8 @@
       "origin": "dependency-pr",
       "head": "867307adf1e1ebee7eab0d41d43e4244fe5aefaa",
       "pr": 259,
-      "status": "reviewed",
-      "approval": {
-        "head": "867307adf1e1ebee7eab0d41d43e4244fe5aefaa",
-        "pr": 259,
-        "grant": "edcc9ac6-a3c4-4f58-82bb-dc3dac46c732",
-        "verdict": "pass",
-        "source": "claude-subscription",
-        "fixture": false,
-        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/45625030865"
-      },
+      "status": "blocked",
+      "approval": null,
       "branch": "dependabot/npm_and_yarn/yaml-1.10.3",
       "criteriaHash": "a93256e237f3394a5d1720e8e66f764f41fb3492d6b3cd248ffb5b25c59a0aa3",
       "dependency": {
@@ -11400,6 +11392,15 @@
       "grant": "6b380f38-19fa-4aeb-b786-45d8b56ad99f",
       "status": "reviewed",
       "head": "6059d805cabe89bcacb81537cbaf6b086e4e68bd"
+    },
+    {
+      "at": "2026-11-25T14:56:03.307Z",
+      "event": "dependency_stale_approval_retired",
+      "ticket": 259,
+      "head": "867307adf1e1ebee7eab0d41d43e4244fe5aefaa",
+      "observedHead": "867307adf1e1ebee7eab0d41d43e4244fe5aefaa",
+      "grant": "edcc9ac6-a3c4-4f58-82bb-dc3dac46c732",
+      "reason": "stale-base"
     }
   ],
   "featureTurn": {
