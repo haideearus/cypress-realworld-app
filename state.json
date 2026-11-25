@@ -5190,9 +5190,17 @@
       "reviews": 1,
       "retries": 0,
       "head": "3c711097d3643f977a8f50cf0d9598dbf8b94337",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 290,
-      "approval": null,
+      "approval": {
+        "head": "3c711097d3643f977a8f50cf0d9598dbf8b94337",
+        "pr": 290,
+        "grant": "c51be70b-9d10-472e-a606-d4bf882863c2",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/45675692074"
+      },
       "criteriaHash": "018067f9bcb2482c2adcae989b016268942d91b4641130030f610aaca9b2ca94",
       "branch": "agent/native-dependency-main-ci-wake",
       "ci": {
@@ -5200,7 +5208,8 @@
         "head": "3c711097d3643f977a8f50cf0d9598dbf8b94337",
         "runId": 45675834546,
         "passed": true
-      }
+      },
+      "feedback": "{\"head\":\"3c711097d3643f977a8f50cf0d9598dbf8b94337\",\"verdict\":\"pass\",\"summary\":\"Reviewed the diff adding a refresh-only \\\"refresh_after_main_ci\\\" job (.github/workflows/factory-dependencies.yml) plus supporting logic in scripts/factory/dependency-tracking.cjs (new verifyMainCI, MainCIStale, mainCIHead threading through recoverTrackedPR/track/trackNativeDependencies), scripts/factory/dependency-run.cjs (afterMainCI wiring, skipping DependencyCoordinator.authorize for this path), the exclusion guards added to factory-dependency-alerts.yml and factory-features.yml, and docs/factory/DEPENDENCY-MAINTENANCE.md. The job's YAML `if` mirrors the repo's existing workflow_run trust pattern (repo/ref/run_attempt, owner-or-app-bot actor, source path=factory-ci.yml, event=push, conclusion=success, head_sha match), and the script layer adds a second, server-side re-verification via a direct GET to /actions/runs/{id}/attempts/1, consistent with similar re-verification elsewhere in the codebase. Critically, the diff also tightens the pre-existing `select` job's `if` (schedule or non-preview workflow_dispatch only) — without this, adding workflow_run as a trigger would have let the new event accidentally run the full select/analysis/ci/merge pipeline on every main CI success; this is handled correctly and covered by an updated assertion in scripts/tests/factory-dependencies.test.cjs. recoverTrackedPR's mainCIHead branch only ever reaches the \\\"stale head\\\" code path (message is forced to null), so it cannot post blocker notes, reserve review grants, or touch the usage ledger — matching the ticket's \\\"refresh-only\\\" requirement; scripts/tests/factory-dependency-tracking.test.cjs adds targeted tests asserting the usage ledger is unchanged, untrusted/tampered workflow_run payloads are rejected, and the run aborts cleanly (no partial writes) if `main` advances mid-pass, including the edge case where a rebase request was already POSTed before main moved. scripts/tests/factory-wake-workflow.test.cjs verifies the job's permissions, concurrency group, secrets exposure, and the new cross-workflow wake-exclusion added to alerts/features. I did not execute any commands myself; the context.json-supplied CI run link is treated as reported evidence, not independently reproduced.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"The new refresh_after_main_ci step in .github/workflows/factory-dependencies.yml (around line 466-472) omits continue-on-error: true, unlike the analogous track_after_merge job's recovery step at line 423-431. Since trackNativeDependencies already swallows the expected MainCIStale/TrackingDeadline cases internally and this job has no downstream `needs`, an uncaught exception here will simply surface as a failed standalone Action run rather than cascading — likely intentional and not blocking, but worth confirming it was a deliberate choice rather than an oversight.\"}]}"
     }
   },
   "grants": {
@@ -7133,15 +7142,12 @@
       "runId": "45675692074",
       "runAttempt": 1,
       "head": "3c711097d3643f977a8f50cf0d9598dbf8b94337",
-      "status": "reserved",
-      "at": "2026-11-25T18:29:59.952Z"
+      "status": "finished",
+      "at": "2026-11-25T18:29:59.952Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 289,
-    "runId": "45675692074",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -11648,6 +11654,14 @@
       "runId": "45675692074",
       "runAttempt": 1,
       "actor": "haideearus"
+    },
+    {
+      "at": "2026-11-25T18:46:06.302Z",
+      "event": "finished",
+      "ticket": 289,
+      "grant": "c51be70b-9d10-472e-a606-d4bf882863c2",
+      "status": "reviewed",
+      "head": "3c711097d3643f977a8f50cf0d9598dbf8b94337"
     }
   ],
   "featureTurn": {
