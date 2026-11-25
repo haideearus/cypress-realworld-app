@@ -4344,7 +4344,7 @@
         },
         "event": "workflow_run"
       },
-      "status": "pending",
+      "status": "observed",
       "receiver": null,
       "at": "2026-11-24T21:35:09.364Z"
     },
@@ -4374,7 +4374,7 @@
         },
         "event": "workflow_run"
       },
-      "status": "pending",
+      "status": "observed",
       "receiver": null,
       "at": "2026-11-24T21:35:57.771Z"
     },
@@ -4404,7 +4404,7 @@
         },
         "event": "workflow_run"
       },
-      "status": "pending",
+      "status": "observed",
       "receiver": null,
       "at": "2026-11-24T21:36:50.402Z"
     },
@@ -4467,6 +4467,36 @@
       "status": "observed",
       "receiver": null,
       "at": "2026-11-25T11:29:59.339Z"
+    },
+    "a44c337914dae1db335e45afb72b1087de13d654c14318fa1a2b92a36877aa91": {
+      "id": "a44c337914dae1db335e45afb72b1087de13d654c14318fa1a2b92a36877aa91",
+      "signal": {
+        "kind": "drain",
+        "lane": "app",
+        "number": 280,
+        "head": "fecc67833148e98fdec387738e074e2f48d29945",
+        "criteriaHash": "8f66a40e271c1fbf016344909ceee291880851978a3de07092807e9e163b8519",
+        "revision": "1",
+        "sourceRun": "45608644424",
+        "sourceAttempt": 1,
+        "actor": {
+          "login": "haideearus",
+          "id": 101267861
+        }
+      },
+      "producer": {
+        "runId": "45610749441",
+        "runAttempt": 1,
+        "workflowSha": "fecc67833148e98fdec387738e074e2f48d29945",
+        "actor": {
+          "login": "haideearus",
+          "id": 101267861
+        },
+        "event": "workflow_run"
+      },
+      "status": "intent",
+      "receiver": null,
+      "at": "2026-11-25T12:07:39.452Z"
     }
   }
 }
