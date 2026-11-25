@@ -5162,9 +5162,17 @@
       "reviews": 1,
       "retries": 0,
       "head": "4f5cccb7707d00fdd21352ca51dd0b00a2302552",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 288,
-      "approval": null,
+      "approval": {
+        "head": "4f5cccb7707d00fdd21352ca51dd0b00a2302552",
+        "pr": 288,
+        "grant": "ef388ab1-f5bb-41ec-a3cd-ed0f45692d28",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/45648006629"
+      },
       "criteriaHash": "0541eb54c23ab5df317f6d518236610c44ccba2bc2c30789ece207adb668fdd9",
       "branch": "agent/native-gate-refresh-settle",
       "ci": {
@@ -5172,7 +5180,8 @@
         "head": "4f5cccb7707d00fdd21352ca51dd0b00a2302552",
         "runId": 45648169552,
         "passed": true
-      }
+      },
+      "feedback": "{\"head\":\"4f5cccb7707d00fdd21352ca51dd0b00a2302552\",\"verdict\":\"pass\",\"summary\":\"Reviewed the diff against scripts/factory/merge.cjs, scripts/factory/dependency-merge-retry.cjs, docs/factory/DEPENDENCY-MAINTENANCE.md, and scripts/tests/factory-merge.test.cjs at 4f5cccb7, plus the surrounding unmodified source (scripts/factory/dependencies.cjs, scripts/factory/github.cjs) to trace how the fix is wired into the real dependency-merge flow. nativeCheck() now carries a `refresh` context that pins the gate's run id, requires run_attempt to match (not overshoot) the requested new attempt, fetches jobs from `/actions/runs/{id}/attempts/{attempt}/jobs` instead of `filter=latest`, and rejects any job whose head_sha/run_attempt/check_run_url don't correspond to the exact new attempt — treating \\\"job not yet listed\\\" as pending rather than an error, which correctly tolerates out-of-order propagation between the commit check and the job list (meets \\\"give the commit check and job a bounded shared window to agree\\\"). The pre-write recheck reuses the same `refresh` object (with its shared, decrementing `remainingPolls` budget) via waitForRefreshedGate before issuing the PUT, satisfying \\\"confirm again before sending the merge request\\\" and sharing the polling budget with the mergeability wait, as the new DEPENDENCY-MAINTENANCE.md paragraph describes. All newly thrown error strings (\\\"Native review gate run or attempt changed during refresh\\\", \\\"Native metadata gate identity changed before refresh\\\", \\\"Refreshed native review gate did not pass\\\", and the two \\\"Timed out waiting for...\\\" messages) match verbatim the additions to REASONS in dependency-merge-retry.cjs, and DependencyMerger.merge() (scripts/factory/dependencies.cjs:708-739) delegates to the modified AutomaticMerger.merge(), so the fix actually reaches the dependency flow the ticket describes. The happy path (gate already passing) is untouched, preserving existing review/CI/counter behavior per the unmodified pre-existing tests. Five new regression tests cover delayed propagation (job visible before its check, and vice versa), a stale passing snapshot that never advances run_attempt, reversion of a stale check mid-wait, mergeability-wait sharing the budget, and hard rejection (not infinite retry) when a job's head_sha/run_attempt contradicts the requested attempt — directly matching the ticket's required coverage. I did not execute the test suite myself (read-only review); the linked CI run is treated as supporting evidence, not independently reproduced.\",\"findings\":[]}"
     }
   },
   "grants": {
@@ -7093,15 +7102,12 @@
       "runId": "45648006629",
       "runAttempt": 1,
       "head": "4f5cccb7707d00fdd21352ca51dd0b00a2302552",
-      "status": "reserved",
-      "at": "2026-11-25T15:41:58.081Z"
+      "status": "finished",
+      "at": "2026-11-25T15:41:58.081Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 287,
-    "runId": "45648006629",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -11590,6 +11596,14 @@
       "runId": "45648006629",
       "runAttempt": 1,
       "actor": "haideearus"
+    },
+    {
+      "at": "2026-11-25T15:54:27.234Z",
+      "event": "finished",
+      "ticket": 287,
+      "grant": "ef388ab1-f5bb-41ec-a3cd-ed0f45692d28",
+      "status": "reviewed",
+      "head": "4f5cccb7707d00fdd21352ca51dd0b00a2302552"
     }
   ],
   "featureTurn": {
