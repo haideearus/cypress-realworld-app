@@ -52,7 +52,8 @@
               "stale": "requested"
             },
             "e2e9c9bd96a486ef8dfecfad34162a35a0602b32": {
-              "refresh": "confirmed"
+              "refresh": "confirmed",
+              "stale": "requested"
             }
           }
         }
