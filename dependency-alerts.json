@@ -363,8 +363,8 @@
       "name": "vite",
       "day": "2026-11-25",
       "trackingReason": "graph-held",
-      "phase": "tracking-intent",
-      "issue": null,
+      "phase": "tracking",
+      "issue": 293,
       "pr": null
     }
   },
