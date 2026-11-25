@@ -4899,8 +4899,8 @@
       "origin": "factory",
       "reviews": 1,
       "retries": 0,
-      "head": "1b60c00c1fcda124900302d3f26c57bf967d9f46",
-      "status": "blocked",
+      "head": "4a149213e60f0259200172271e710884f9c9b67b",
+      "status": "awaiting_review",
       "pr": 274,
       "approval": null,
       "criteriaHash": "d6e6324e006d0e1293fc7e4dd9b1a14821fcf779c3c9a5cae025850b6f5ade36",
@@ -4921,12 +4921,7 @@
         "criteriaHash": "d6e6324e006d0e1293fc7e4dd9b1a14821fcf779c3c9a5cae025850b6f5ade36"
       },
       "branch": "agent/factory-273",
-      "ci": {
-        "requestId": "c32d2a93-a41e-4fc2-b72e-db2d28b1ef10",
-        "head": "1b60c00c1fcda124900302d3f26c57bf967d9f46",
-        "runId": 45611154606,
-        "passed": true
-      },
+      "ci": null,
       "feedback": "Published repair recovery stopped before assessment completed",
       "publishedRecovery": {
         "sourceCi": {
@@ -4946,6 +4941,12 @@
           }
         ],
         "parent": {
+          "runId": "45697642899",
+          "runAttempt": 1,
+          "workflowSha": "ecc71a8d32ea1c44b2cef431d98a592c581f1135",
+          "head": "4a149213e60f0259200172271e710884f9c9b67b"
+        },
+        "previousParent": {
           "runId": "45610806210",
           "runAttempt": 1,
           "workflowSha": "fecc67833148e98fdec387738e074e2f48d29945",
@@ -7200,7 +7201,11 @@
       "outcome": "reviewed"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 273,
+    "runId": "45697642899",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -11741,6 +11746,14 @@
       "pr": 274,
       "from": "1b60c00c1fcda124900302d3f26c57bf967d9f46",
       "base": "ecc71a8d32ea1c44b2cef431d98a592c581f1135"
+    },
+    {
+      "at": "2026-11-25T20:44:13.124Z",
+      "event": "published_review_resumed",
+      "ticket": 273,
+      "pr": 274,
+      "head": "4a149213e60f0259200172271e710884f9c9b67b",
+      "runId": "45697642899"
     }
   ],
   "featureTurn": {
