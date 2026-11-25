@@ -5167,7 +5167,11 @@
       "approval": null,
       "criteriaHash": "0541eb54c23ab5df317f6d518236610c44ccba2bc2c30789ece207adb668fdd9",
       "branch": "agent/native-gate-refresh-settle",
-      "ci": null
+      "ci": {
+        "requestId": "4ee589ce-3109-4afc-8556-d5940541612e",
+        "head": "4f5cccb7707d00fdd21352ca51dd0b00a2302552",
+        "runId": null
+      }
     }
   },
   "grants": {
