@@ -4206,7 +4206,7 @@
       "origin": "dependency-pr",
       "head": "c07212d00ef32473a3c6263edf2802c2353bb083",
       "pr": 223,
-      "status": "new",
+      "status": "blocked",
       "approval": null,
       "branch": "dependabot/npm_and_yarn/vitest-4.1.11",
       "criteriaHash": "ddeac18b98029246e847bfa5fab0a6d8c78e4d92e05b3a8f546a09fd3179f62e",
@@ -4229,7 +4229,8 @@
           }
         ]
       },
-      "ci": null
+      "ci": null,
+      "feedback": "Dependency preparation held; no model invocation"
     },
     "225": {
       "coding": 0,
@@ -6641,11 +6642,7 @@
       "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 223,
-    "runId": "45535059711",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -10864,6 +10861,13 @@
       "head": "c07212d00ef32473a3c6263edf2802c2353bb083",
       "runId": "45535059711",
       "actor": "haideearus"
+    },
+    {
+      "at": "2026-11-25T02:45:19.918Z",
+      "event": "dependency_preparation_blocked",
+      "ticket": 223,
+      "head": "c07212d00ef32473a3c6263edf2802c2353bb083",
+      "runId": "45535059711"
     }
   ],
   "featureTurn": {
