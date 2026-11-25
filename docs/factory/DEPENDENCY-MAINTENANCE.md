@@ -179,6 +179,15 @@ authorized merge-only recovery must still pass fresh analysis, both native
 required checks, clean mergeability, limits and stop checks. Publication alone
 does not prove merge or authorize deployment.
 
+If a dependency merge stops before it sends GitHub a merge request, the ledger
+records the failed check and a safe reason. A confirmed temporary GitHub read
+failure can queue one merge-only retry for a later workflow, after at least five
+minutes and any verified quota reset. The retry uses the existing CI and review
+for the same head and base and performs the normal merge checks again. A failed
+or expired retry leaves the approval and counters intact and lets unrelated
+work proceed. An uncertain merge request still requires confirmation before
+another send.
+
 ## Limits and holds
 
 - Native version proposals: Monday 06:15, Europe/Bucharest; one open version PR.

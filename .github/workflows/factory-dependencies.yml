@@ -292,6 +292,8 @@ jobs:
     if: ${{ always() && !cancelled() && needs.select.outputs.ready == 'true' && (needs.select.outputs.mode == 'merge' || needs.assess.outputs.reviewed == 'true') && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' && vars.FACTORY_AUTOMERGE_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 8
+    outputs:
+      failure_evidence: ${{ steps.control.outputs.premergeEvidence }}
     permissions:
       actions: read
       contents: read
@@ -364,7 +366,7 @@ jobs:
 
   finalize:
     needs: [select, analysis, ci, evidence, reserve, review, assess, premerge, merge]
-    if: ${{ always() && !cancelled() && needs.select.outputs.ready == 'true' && needs.select.outputs.mode == 'review' }}
+    if: ${{ always() && !cancelled() && needs.select.outputs.ready == 'true' && (needs.select.outputs.mode == 'review' || needs.select.outputs.mode == 'merge') }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -386,7 +388,11 @@ jobs:
         with:
           operation: dep_finalize
           variables_json: ${{ toJSON(vars) }}
-          parameters: '{"ticket":"${{ needs.select.outputs.ticket }}"}'
+          parameters: >-
+            {"ticket":${{ toJSON(needs.select.outputs.ticket) }},
+            "head":${{ toJSON(needs.select.outputs.head) }},
+            "premergeFailed":${{ toJSON(needs.premerge.result == 'failure') }},
+            "premergeEvidence":${{ toJSON(needs.premerge.outputs.failure_evidence) }}}
 
   track_after_merge:
     needs: [select, merge, finalize]

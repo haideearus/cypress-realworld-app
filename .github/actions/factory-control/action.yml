@@ -26,6 +26,9 @@ outputs:
   reviewed:
     value: ${{ steps.run.outputs.reviewed }}
     description: Independent review passed
+  premergeEvidence:
+    value: ${{ steps.run.outputs.premergeEvidence }}
+    description: Sanitized dependency premerge failure evidence
   merged:
     value: ${{ steps.run.outputs.merged }}
     description: Protected merge was confirmed

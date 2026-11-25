@@ -9,6 +9,7 @@ const { Controller } = require("./controller.cjs");
 const { AutomaticMerger } = require("./merge.cjs");
 const { validateReview } = require("./artifacts.cjs");
 const { ConfirmationUnavailable, readMergePR } = require("./merge-confirmation.cjs");
+const mergeRetry = require("./dependency-merge-retry.cjs");
 const {
   verifyAlertPR,
   AlertAdmissionHold,
@@ -133,7 +134,14 @@ class DependencyCoordinator {
     }
     return null;
   }
-  async pending(t, preview) {
+  async pending(t, preview, now = new Date()) {
+    if (!t.merge && mergeRetry.current(t)?.phase === "retrying")
+      return { ready: false, reason: "Dependency merge retry is already claimed" };
+    if (!preview && !t.merge && mergeRetry.due(t, now)) {
+      if (!(await mergeRetry.claim(this.ledger, t, this.context, this.config, now)))
+        return { ready: false, reason: "Dependency merge retry is already claimed or unavailable" };
+      return { ready: true, mode: "merge", ticket: t.pr, head: t.head };
+    }
     let observed;
     try {
       observed = d.prOK(
@@ -321,7 +329,7 @@ class DependencyCoordinator {
     }
     return base === pr.base.sha ? pr : { ...pr, base: { ...pr.base, sha: base } };
   }
-  async select(preview = true) {
+  async select(preview = true, now = new Date()) {
     this.authorize();
     if (typeof preview !== "boolean") throw new Error("Invalid dependency preview");
     if (!preview && (!this.config.enabled || !this.config.automatic))
@@ -344,10 +352,11 @@ class DependencyCoordinator {
         state.version === 2 &&
         t?.dependency &&
         t.status === "reviewed" &&
+        mergeRetry.blocksQueue(t, now) &&
         !["closed", "merged"].includes(t.merge?.status) &&
         (await terminalParent(this.api, entry))
       ) {
-        const result = await this.pending(t, preview);
+        const result = await this.pending(t, preview, now);
         if (result) return result;
         state = (await this.ledger.read()).state;
       }
@@ -386,6 +395,9 @@ class DependencyCoordinator {
         (!t.feature || slots.activeFor(state, t.feature.issue)) &&
         !t.findingApiRecovery &&
         t.status === "reviewed" &&
+        (!t.dependency ||
+          mergeRetry.blocksQueue(t, now) ||
+          (this.config.autoMerge && mergeRetry.due(t, now))) &&
         !["closed", "merged"].includes(t.merge?.status)
     );
     if (pending) {
@@ -393,7 +405,7 @@ class DependencyCoordinator {
         return { ready: false, reason: "Pending app merge must be reconciled" };
       if (state.version === 2 && slots.activeFor(state, pending.pr))
         return { ready: false, reason: "Reviewed dependency parent is still running" };
-      const result = await this.pending(pending, preview);
+      const result = await this.pending(pending, preview, now);
       if (result) return result;
       state = (await this.ledger.read()).state;
     }
@@ -589,15 +601,30 @@ class DependencyCoordinator {
     const gate = await this.controller.gate(number);
     return { reviewed: review.verdict === "pass" && gate.ok, ticket: number, head: t.head };
   }
-  async finalize(number) {
+  async finalize(number, outcome = {}) {
     this.authorize();
     const { state } = await this.ledger.read();
+    if (
+      outcome.premergeFailed === true &&
+      (await mergeRetry.premergeFailed(
+        this.ledger,
+        state.tickets[number],
+        this.context,
+        outcome.head,
+        outcome.premergeEvidence
+      ))
+    )
+      return {
+        reason: "Dependency premerge failed before sending a merge request; approval retained",
+      };
+    if (await mergeRetry.finish(this.ledger, state.tickets[number], this.context))
+      return { reason: "Dependency merge retry ended before a merge was sent; approval retained" };
     if (!slots.owns(slots.activeFor(state, number), { ...this.context, ticket: number }))
       return { reason: "No preparation lease owned by this run" };
     const t = state.tickets[String(number)];
-    d.matches(t, this.context, this.config);
     if (t.status === "reviewed" || t.merge)
       return { reason: "Reviewed or merge-intent history preserved" };
+    d.matches(t, this.context, this.config);
     if (Object.values(state.grants).some((g) => g.ticket === number && g.status === "reserved"))
       return this.controller.block(
         number,
@@ -645,6 +672,8 @@ class DependencyMerger extends AutomaticMerger {
     if (!(await heldMergeAllowed(this.api, t, state)))
       throw Error("Daily held dependency merge limit reached");
     analysis.validateReport(this.report, expectedReport(t, this.context, "premerge"));
+    if (!mergeRetry.permits(state.tickets[number], this.context))
+      throw Error("Dependency merge retry ownership or time window ended");
   }
   async pr(number, t, { confirmation = false } = {}) {
     const pr = await this.coordinator.pr(number, { closed: true, expected: t, confirmation });
@@ -653,23 +682,74 @@ class DependencyMerger extends AutomaticMerger {
       analysis.validateReport(this.report, expectedReport(t, this.context, "premerge"));
     return pr;
   }
+  async recheck(stage, check) {
+    try {
+      return await check();
+    } catch (error) {
+      throw new mergeRetry.MergeCheckFailure(stage, error);
+    }
+  }
+  authorizeNewIntent(ticket) {
+    if (!mergeRetry.permits(ticket, this.context))
+      throw Error("Dependency merge retry ownership or time window ended");
+  }
+  unsentFailure(ticket, intent, error) {
+    return mergeRetry.recordUnsent(ticket, intent, error);
+  }
+  async release(ticket, expected, intent, error) {
+    try {
+      return await super.release(ticket, expected, intent, error);
+    } catch (cause) {
+      if (!(error instanceof mergeRetry.MergeCheckFailure)) throw cause;
+      error.ledgerDiagnostic = mergeRetry.describe(cause, "ledger");
+      throw error;
+    }
+  }
   async merge(number, options) {
     this.authorize();
     if (!this.enabled()) return { merged: false, reason: "Dependency merge disabled" };
     const { state } = await this.ledger.read();
     const t = this.automaticTicket(state, number);
     if (t.merge?.status === "intent") return super.merge(number, options);
-    const pr = await this.coordinator.pr(number, { closed: true, expected: t });
-    if (pr.state === "open") {
-      if (!(await heldMergeAllowed(this.api, t, state)))
-        return {
-          ticket: number,
-          merged: false,
-          reason: "Daily held dependency merge limit reached",
-        };
-      await producer(this.api, this.context, t, this.report, "premerge");
+    let evidenceChecked = false;
+    try {
+      const pr = await this.recheck("pr-identity", () =>
+        this.coordinator.pr(number, { closed: true, expected: t })
+      );
+      if (pr.state === "open") {
+        if (!mergeRetry.permits(t, this.context))
+          return {
+            ticket: number,
+            merged: false,
+            reason: "Dependency merge retry is waiting or held",
+          };
+        if (
+          !(await this.recheck("dependency-evidence", () => heldMergeAllowed(this.api, t, state)))
+        )
+          return {
+            ticket: number,
+            merged: false,
+            reason: "Daily held dependency merge limit reached",
+          };
+        await this.recheck("dependency-evidence", () =>
+          producer(this.api, this.context, t, this.report, "premerge")
+        );
+        evidenceChecked = true;
+      }
+      return await super.merge(number, options);
+    } catch (error) {
+      if (!options?.dryRun && this.report && !error?.ledgerDiagnostic) {
+        try {
+          await mergeRetry.initialFailure(this.ledger, t, this.context, error, {
+            temporaryOnly: !evidenceChecked,
+          });
+        } catch (cause) {
+          if (!(error instanceof mergeRetry.MergeCheckFailure)) throw cause;
+          error.ledgerDiagnostic = mergeRetry.describe(cause, "ledger");
+        }
+      }
+      throw error;
     }
-    return super.merge(number, options);
   }
 }
 module.exports = {
