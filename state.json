@@ -4921,7 +4921,11 @@
         "criteriaHash": "d6e6324e006d0e1293fc7e4dd9b1a14821fcf779c3c9a5cae025850b6f5ade36"
       },
       "branch": "agent/factory-273",
-      "ci": null,
+      "ci": {
+        "requestId": "ef22055f-b660-48f3-b91a-8e65af035b65",
+        "head": "4a149213e60f0259200172271e710884f9c9b67b",
+        "runId": null
+      },
       "feedback": "Published repair recovery stopped before assessment completed",
       "publishedRecovery": {
         "sourceCi": {
