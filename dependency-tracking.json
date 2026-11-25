@@ -117,7 +117,16 @@
     "259": {
       "branch": "dependabot/npm_and_yarn/yaml-1.10.3",
       "issue": 263,
-      "status": "open"
+      "status": "open",
+      "recovery": {
+        "daec4acc45c2487a07b3766f997a3f18f8cca66a": {
+          "bases": {
+            "1ab033c7be9311e55deda7df373602ecbde08109": {
+              "refresh": "attempted"
+            }
+          }
+        }
+      }
     },
     "260": {
       "branch": "dependabot/npm_and_yarn/validator-13.15.35",
