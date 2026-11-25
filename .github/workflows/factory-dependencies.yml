@@ -1,8 +1,12 @@
 name: Dependency maintenance
-run-name: ${{ inputs.wake_id && format('Dependency maintenance / wake {0}', inputs.wake_id) || 'Dependency maintenance' }}
+run-name: ${{ github.event_name == 'workflow_run' && format('Dependency maintenance / refresh after CI {0}', github.event.workflow_run.id) || inputs.wake_id && format('Dependency maintenance / wake {0}', inputs.wake_id) || 'Dependency maintenance' }}
 on:
   schedule:
     - cron: "29 * * * *"
+  workflow_run:
+    workflows: [Factory CI]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
     inputs:
       wake_id:
@@ -47,7 +51,7 @@ jobs:
           parameters: "${{ toJSON(inputs) }}"
 
   select:
-    if: ${{ github.ref == 'refs/heads/main' && !(github.event_name == 'workflow_dispatch' && inputs.preview) && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' }}
+    if: ${{ github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && !inputs.preview)) && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -292,6 +296,8 @@ jobs:
     if: ${{ always() && !cancelled() && needs.select.outputs.ready == 'true' && (needs.select.outputs.mode == 'merge' || needs.assess.outputs.reviewed == 'true') && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' && vars.FACTORY_AUTOMERGE_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 8
+    outputs:
+      failure_evidence: ${{ steps.control.outputs.premergeEvidence }}
     permissions:
       actions: read
       contents: read
@@ -364,7 +370,7 @@ jobs:
 
   finalize:
     needs: [select, analysis, ci, evidence, reserve, review, assess, premerge, merge]
-    if: ${{ always() && !cancelled() && needs.select.outputs.ready == 'true' && needs.select.outputs.mode == 'review' }}
+    if: ${{ always() && !cancelled() && needs.select.outputs.ready == 'true' && (needs.select.outputs.mode == 'review' || needs.select.outputs.mode == 'merge') }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -386,7 +392,11 @@ jobs:
         with:
           operation: dep_finalize
           variables_json: ${{ toJSON(vars) }}
-          parameters: '{"ticket":"${{ needs.select.outputs.ticket }}"}'
+          parameters: >-
+            {"ticket":${{ toJSON(needs.select.outputs.ticket) }},
+            "head":${{ toJSON(needs.select.outputs.head) }},
+            "premergeFailed":${{ toJSON(needs.premerge.result == 'failure') }},
+            "premergeEvidence":${{ toJSON(needs.premerge.outputs.failure_evidence) }}}
 
   track_after_merge:
     needs: [select, merge, finalize]
@@ -418,4 +428,45 @@ jobs:
           FACTORY_OPERATION: dep_recover_tracked
           FACTORY_VARIABLES: ${{ toJSON(vars) }}
           FACTORY_INPUTS: ${{ toJSON(inputs) }}
+          FACTORY_DEPENDABOT_REBASE_TOKEN: ${{ secrets.FACTORY_DEPENDABOT_REBASE_TOKEN }}
+
+  refresh_after_main_ci:
+    if: >-
+      ${{ github.event_name == 'workflow_run' && github.repository == 'haideearus/cypress-realworld-app' &&
+          github.ref == 'refs/heads/main' && github.run_attempt == 1 &&
+          vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' &&
+          vars.FACTORY_EVENT_PICKUP_ENABLED == 'true' && github.triggering_actor == github.actor &&
+          (github.actor == 'haideearus' || (vars.FACTORY_GITHUB_APP_SLUG != '' &&
+            github.actor == format('{0}[bot]', vars.FACTORY_GITHUB_APP_SLUG))) &&
+          github.event.workflow_run.path == '.github/workflows/factory-ci.yml' &&
+          github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success' &&
+          github.event.workflow_run.run_attempt == 1 &&
+          github.event.workflow_run.repository.full_name == github.repository &&
+          github.event.workflow_run.head_repository.full_name == github.repository &&
+          github.event.workflow_run.head_sha == github.sha }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: read
+      actions: read
+    concurrency:
+      group: factory-ledger
+      cancel-in-progress: false
+      queue: max
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.20.0
+      - name: Recover stale native Dependabot proposals after main CI
+        run: node scripts/factory/dependency-run.cjs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FACTORY_OPERATION: dep_recover_tracked
+          FACTORY_VARIABLES: ${{ toJSON(vars) }}
           FACTORY_DEPENDABOT_REBASE_TOKEN: ${{ secrets.FACTORY_DEPENDABOT_REBASE_TOKEN }}

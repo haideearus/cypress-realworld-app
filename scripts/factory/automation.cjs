@@ -277,7 +277,10 @@ class AutomaticCoordinator {
     if (
       Object.values(state.tickets).some(
         (t) =>
-          t.dependency && t.status === "reviewed" && !["closed", "merged"].includes(t.merge?.status)
+          t.dependency &&
+          t.status === "reviewed" &&
+          !["closed", "merged"].includes(t.merge?.status) &&
+          require("./dependency-merge-retry.cjs").blocksQueue(t)
       )
     )
       return {

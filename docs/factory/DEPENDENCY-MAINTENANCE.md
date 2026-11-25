@@ -179,6 +179,19 @@ authorized merge-only recovery must still pass fresh analysis, both native
 required checks, clean mergeability, limits and stop checks. Publication alone
 does not prove merge or authorize deployment.
 
+When the merger reruns the native review gate, it waits for the commit check and
+the job for that exact new workflow attempt to agree. It uses the same bounded
+wait for the final verification before sending the merge request.
+
+If a dependency merge stops before it sends GitHub a merge request, the ledger
+records the failed check and a safe reason. A confirmed temporary GitHub read
+failure can queue one merge-only retry for a later workflow, after at least five
+minutes and any verified quota reset. The retry uses the existing CI and review
+for the same head and base and performs the normal merge checks again. A failed
+or expired retry leaves the approval and counters intact and lets unrelated
+work proceed. An uncertain merge request still requires confirmation before
+another send.
+
 ## Limits and holds
 
 - Native version proposals: Monday 06:15, Europe/Bucharest; one open version PR.
@@ -358,6 +371,11 @@ readable and keep their original values.
 A tracking pass reports unresolved evidence and review holds on the linked
 native Dependabot issue. After a confirmed dependency merge, a model-free pass
 checks tracked PRs for recovery, starting with PRs whose passing CI was queued.
+Successful **Factory CI** for a push to current `main` also wakes the
+**Dependency maintenance** refresh job when event pickup is enabled. It checks
+the trusted owner or factory-app run and requests at most one stale tracked
+PR refresh per pass. The refresh job does not reserve Claude, dispatch CI,
+change usage history, or merge a PR.
 Scheduled tracking continues to check the rest of the queue within its usual
 limits. When immutable comparison proves a native PR is behind `main`, the
 factory can post `@dependabot rebase` once for each current head and base pair.

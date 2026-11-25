@@ -131,9 +131,15 @@ class GitHub {
       if (!response.ok) {
         const error = new Error(`GitHub request failed (${response.status})`);
         error.status = response.status;
-        if (this.waitOnQuota) {
+        error.method = method;
+        if (this.waitOnQuota || method === "GET") {
           error.quotaResetAt = await quotaResetAt(response, this.now());
-          if (quotaSafeRequest(method, path) && (await this.waitForQuota(error))) continue;
+          if (
+            this.waitOnQuota &&
+            quotaSafeRequest(method, path) &&
+            (await this.waitForQuota(error))
+          )
+            continue;
         }
         throw error;
       }

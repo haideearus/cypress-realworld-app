@@ -8,10 +8,12 @@ const sourceBase = "a".repeat(40);
 const sourceHead = "b".repeat(40);
 const base = "c".repeat(40);
 const refreshedHead = "d".repeat(40);
+const laterBase = "1".repeat(40);
+const laterHead = "2".repeat(40);
 const repo = { full_name: policy.REPOSITORY };
 const branch = "agent/factory-300";
 
-function fixture({ behind = false, altered = false } = {}) {
+function fixture({ behind = false, altered = false, priorReviewJob } = {}) {
   const issue = {
     number: 300,
     state: "open",
@@ -97,6 +99,11 @@ function fixture({ behind = false, altered = false } = {}) {
     { filename: "src/components/Filter.tsx", status: "modified", sha: "e".repeat(40) },
   ];
   const calls = [];
+  const ciReads = [];
+  const updates = {
+    [base]: { from: sourceHead, to: refreshedHead, previousBase: sourceBase },
+    [laterBase]: { from: refreshedHead, to: laterHead, previousBase: base },
+  };
   const api = {
     async request(method, path, body) {
       const target = path.slice(ROOT.length);
@@ -129,9 +136,9 @@ function fixture({ behind = false, altered = false } = {}) {
           event: "schedule",
           path: ".github/workflows/factory-automatic.yml",
           status: "completed",
-          conclusion: "cancelled",
+          conclusion: priorReviewJob ? "success" : "cancelled",
           head_branch: "main",
-          head_sha: sourceBase,
+          head_sha: behind ? base : sourceBase,
           repository: repo,
           head_repository: repo,
         };
@@ -139,12 +146,15 @@ function fixture({ behind = false, altered = false } = {}) {
         return { id: 70, path: ".github/workflows/factory-automatic.yml" };
       if (target === `/git/commits/${refreshedHead}`)
         return { sha: refreshedHead, parents: [{ sha: sourceHead }, { sha: base }] };
+      if (target === `/git/commits/${laterHead}`)
+        return { sha: laterHead, parents: [{ sha: refreshedHead }, { sha: laterBase }] };
       if (target.startsWith("/compare/")) {
         const [left, right] = target.slice("/compare/".length).split("?")[0].split("...");
-        const stale = left === base && right === sourceHead;
+        const update = updates[left];
+        const stale = update?.from === right;
         return {
           behind_by: stale ? 1 : 0,
-          merge_base_commit: { sha: stale ? sourceBase : left },
+          merge_base_commit: { sha: stale ? update.previousBase : left },
           files:
             altered && right === refreshedHead
               ? [{ ...files[0], sha: "f".repeat(40) }]
@@ -152,9 +162,13 @@ function fixture({ behind = false, altered = false } = {}) {
         };
       }
       if (target === "/pulls/301/update-branch") {
-        assert.deepEqual(body, { expected_head_sha: sourceHead });
-        assert.equal(state.tickets[300].publishedRecovery.refreshes.length, 1);
-        pr.head.sha = refreshedHead;
+        const update = updates[context.workflowSha];
+        assert.deepEqual(body, { expected_head_sha: update.from });
+        assert.deepEqual(state.tickets[300].publishedRecovery.refreshes.at(-1), {
+          base: context.workflowSha,
+          from: update.from,
+        });
+        pr.head.sha = update.to;
         return {};
       }
       assert.fail(`Unexpected ${method} ${target}`);
@@ -177,6 +191,21 @@ function fixture({ behind = false, altered = false } = {}) {
       }
       if (path.includes("/746/"))
         return [{ name: "verify", head_sha: context.workflowSha, conclusion: "success" }];
+      if (path.includes("/800/attempts/1/jobs"))
+        return Object.entries({
+          coding: "skipped",
+          publish: "skipped",
+          ci: "success",
+          reserve_review: "success",
+          review: priorReviewJob,
+          assess: "success",
+        })
+          .filter(([, conclusion]) => conclusion !== "missing")
+          .map(([name, conclusion]) => ({
+            name: `cycle1 / ${name}`,
+            conclusion,
+            status: "completed",
+          }));
       assert.match(path, /700\/attempts\/1\/jobs/);
       return Object.entries({
         "coding / agent": "success",
@@ -202,11 +231,20 @@ function fixture({ behind = false, altered = false } = {}) {
     },
   };
   const controller = {
-    async validateCI() {
+    async validateCI(runId, head, receipt) {
+      ciReads.push({ runId, head, receipt });
       return { passed: true };
     },
   };
-  return { coordinator: { api, config, context, ledger, controller }, state, calls, ci, pr, issue };
+  return {
+    coordinator: { api, config, context, ledger, controller },
+    state,
+    calls,
+    ci,
+    pr,
+    issue,
+    ciReads,
+  };
 }
 
 test("recovery reuses the passing CI and claims a review-only slot with the coding grant preserved", async () => {
@@ -275,7 +313,114 @@ test("a terminal recovery keeps a spent review and does not repeat it on the sam
   assert.equal(state.grants.review.outcome, "blocked");
   assert.equal(state.tickets[300].reviews, 1);
   assert.equal(state.active, null);
+  assert.equal(
+    (await recovery.resumePublishedReview(coordinator, state, base, false))?.ready ?? false,
+    false
+  );
+});
+
+async function afterReviewSkip({ behind, priorReviewJob = "skipped" } = {}) {
+  const recovery = require("../factory/published-review-recovery.cjs");
+  const result = fixture({ behind, priorReviewJob });
+  const { coordinator, state } = result;
+  await recovery.resumePublishedReview(coordinator, state, base, false);
+  const ticket = state.tickets[300];
+  const savedCi = { ...result.ci, head: ticket.head, runId: 747 };
+  state.grants.review = {
+    ...state.active,
+    id: "00000000-0000-4000-8000-000000000002",
+    phase: "review",
+    slot: "cycle1",
+    head: ticket.head,
+    status: "finished",
+    outcome: "blocked",
+  };
+  Object.assign(ticket, {
+    status: "blocked",
+    feedback: recovery.INTERRUPTED_REASON,
+    ci: savedCi,
+    reviews: 1,
+  });
+  state.active = null;
+  coordinator.context.runId = "801";
+  return { ...result, recovery, savedCi };
+}
+
+test("a proven skipped review can resume once on the same head with saved CI and both counters intact", async () => {
+  const { coordinator, state, savedCi, recovery, ciReads, calls } = await afterReviewSkip();
+  const grants = structuredClone(state.grants);
+  assert.equal(
+    (await recovery.resumePublishedReview(coordinator, state, base, false))?.reviewOnly,
+    true
+  );
+  assert.deepEqual(state.tickets[300].ci, savedCi);
+  assert.equal(state.tickets[300].coding, 1);
+  assert.equal(state.tickets[300].reviews, 1);
+  assert.deepEqual(state.grants, grants);
+  assert.ok(ciReads.some((ci) => ci.runId === savedCi.runId && ci.head === sourceHead));
+  assert.ok(!calls.some(([method]) => method === "PUT"));
+  recovery.validateRecovery(state.tickets[300], Object.values(state.grants));
+  state.active = null;
+  state.tickets[300].status = "blocked";
   assert.equal(await recovery.resumePublishedReview(coordinator, state, base, false), null);
+});
+
+test("a skipped review whose base advanced carries saved CI history into a second verified branch refresh", async () => {
+  const { coordinator, state, savedCi, recovery } = await afterReviewSkip({ behind: true });
+  coordinator.context.workflowSha = laterBase;
+  const result = await recovery.resumePublishedReview(coordinator, state, base, false);
+  assert.equal(result?.head, laterHead);
+  assert.equal(state.tickets[300].ci, null);
+  assert.deepEqual(state.tickets[300].skippedPublishedReview.ci, savedCi);
+  assert.equal(state.tickets[300].publishedRecovery.refreshes.length, 2);
+  assert.equal(state.tickets[300].reviews, 1);
+  recovery.validateRecovery(state.tickets[300], Object.values(state.grants));
+});
+
+test("a review that ran or has incomplete evidence cannot spend another reservation", async () => {
+  for (const priorReviewJob of ["failure", "success", "missing"]) {
+    const { coordinator, state, recovery, calls } = await afterReviewSkip({ priorReviewJob });
+    coordinator.context.workflowSha = base;
+    const result = await recovery.resumePublishedReview(coordinator, state, base, false);
+    assert.match(result?.reason ?? "", /review.*skipped/i);
+    assert.equal(state.tickets[300].reviews, 1);
+    assert.equal(state.active, null);
+    assert.ok(!calls.some(([method]) => method === "PUT"));
+  }
+});
+
+test("skipped review recovery still requires passing CI for its reserved head and unused review allowance", async () => {
+  const wrongHead = await afterReviewSkip();
+  wrongHead.state.tickets[300].ci.head = refreshedHead;
+  const rejected = await wrongHead.recovery.resumePublishedReview(
+    wrongHead.coordinator,
+    wrongHead.state,
+    base,
+    false
+  );
+  assert.match(rejected.reason, /passing CI/);
+  assert.equal(wrongHead.state.active, null);
+
+  const spent = await afterReviewSkip();
+  spent.coordinator.config.reviews = 1;
+  assert.equal(
+    await spent.recovery.resumePublishedReview(spent.coordinator, spent.state, base, false),
+    null
+  );
+  assert.equal(spent.state.tickets[300].reviews, 1);
+});
+
+test("a saved CI run whose metadata no longer matches holds the recovery without stopping pickup", async () => {
+  const { coordinator, state, recovery, savedCi, calls } = await afterReviewSkip();
+  const validate = coordinator.controller.validateCI;
+  coordinator.controller.validateCI = async (id, ...args) => {
+    if (id === savedCi.runId) throw Error("CI does not cover the expected head or run attempt");
+    return validate(id, ...args);
+  };
+  const result = await recovery.resumePublishedReview(coordinator, state, base, false);
+  assert.match(result.reason, /skipped with passing CI/);
+  assert.equal(state.active, null);
+  assert.ok(!calls.some(([method]) => method === "PUT"));
 });
 
 test("when main advances after review, a bounded continuation uses a new head with the previous review retained", async () => {
