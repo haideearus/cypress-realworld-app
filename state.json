@@ -148,6 +148,9 @@
       271,
       273,
       275
+    ],
+    "2026-11-25": [
+      223
     ]
   },
   "tickets": {
@@ -4196,6 +4199,38 @@
         "mergeCommit": "6e8e495d97a4e1ff502a66921c9367c91707bfd9"
       }
     },
+    "223": {
+      "coding": 0,
+      "reviews": 0,
+      "retries": 0,
+      "origin": "dependency-pr",
+      "head": "c07212d00ef32473a3c6263edf2802c2353bb083",
+      "pr": 223,
+      "status": "new",
+      "approval": null,
+      "branch": "dependabot/npm_and_yarn/vitest-4.1.11",
+      "criteriaHash": "ddeac18b98029246e847bfa5fab0a6d8c78e4d92e05b3a8f546a09fd3179f62e",
+      "dependency": {
+        "version": 1,
+        "pr": 223,
+        "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-dependencies.yml@refs/heads/main",
+        "workflowSha": "435a39f759b896da8aff3e120d49f7999985e2bf",
+        "runId": "45535059711",
+        "runAttempt": 1,
+        "appSlug": "haideearus-software-factory",
+        "attempts": [
+          {
+            "head": "c07212d00ef32473a3c6263edf2802c2353bb083",
+            "base": "435a39f759b896da8aff3e120d49f7999985e2bf",
+            "runId": "45535059711",
+            "runAttempt": 1,
+            "workflowSha": "435a39f759b896da8aff3e120d49f7999985e2bf",
+            "at": "2026-11-25T02:44:33.805Z"
+          }
+        ]
+      },
+      "ci": null
+    },
     "225": {
       "coding": 0,
       "reviews": 1,
@@ -6606,7 +6641,11 @@
       "outcome": "reviewed"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 223,
+    "runId": "45535059711",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -10817,6 +10856,14 @@
       "ticket": 235,
       "head": "38e1d26f1dcee3980c166db5ee761ca135cb9bc1",
       "runId": "45492491103"
+    },
+    {
+      "at": "2026-11-25T02:44:33.805Z",
+      "event": "dependency_metadata_admitted",
+      "ticket": 223,
+      "head": "c07212d00ef32473a3c6263edf2802c2353bb083",
+      "runId": "45535059711",
+      "actor": "haideearus"
     }
   ],
   "featureTurn": {
