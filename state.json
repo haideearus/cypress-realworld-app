@@ -4924,7 +4924,8 @@
       "ci": {
         "requestId": "ef22055f-b660-48f3-b91a-8e65af035b65",
         "head": "4a149213e60f0259200172271e710884f9c9b67b",
-        "runId": null
+        "runId": 45697851922,
+        "passed": true
       },
       "feedback": "Published repair recovery stopped before assessment completed",
       "publishedRecovery": {
