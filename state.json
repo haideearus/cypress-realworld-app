@@ -155,7 +155,8 @@
       268,
       279,
       233,
-      280
+      280,
+      282
     ]
   },
   "tickets": {
@@ -4987,6 +4988,19 @@
         "workflowSha": "fecc67833148e98fdec387738e074e2f48d29945",
         "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-discovery.yml@refs/heads/main"
       }
+    },
+    "282": {
+      "coding": 0,
+      "origin": "owner-pr",
+      "reviews": 1,
+      "retries": 0,
+      "head": "f0bc8750abd26cad012acd1665309db114067ceb",
+      "status": "reviewing",
+      "pr": 283,
+      "approval": null,
+      "criteriaHash": "3f76142faf2cd9913e057e3d7298032c952ff9379d41b010bf99feb7afc7bdd5",
+      "branch": "agent/factory-review-skip-recovery",
+      "ci": null
     }
   },
   "grants": {
@@ -6850,9 +6864,24 @@
       "status": "finished",
       "at": "2026-11-25T12:18:59.722Z",
       "outcome": "blocked"
+    },
+    "0acb3002-2292-4aca-a368-f6d48c841058": {
+      "id": "0acb3002-2292-4aca-a368-f6d48c841058",
+      "ticket": 282,
+      "phase": "review",
+      "slot": "existing",
+      "runId": "45616838729",
+      "runAttempt": 1,
+      "head": "f0bc8750abd26cad012acd1665309db114067ceb",
+      "status": "reserved",
+      "at": "2026-11-25T12:46:03.763Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 282,
+    "runId": "45616838729",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -11200,6 +11229,16 @@
       "event": "blocked",
       "ticket": 273,
       "reason": "Published repair recovery stopped before assessment completed"
+    },
+    {
+      "at": "2026-11-25T12:46:03.763Z",
+      "event": "reserved",
+      "ticket": 282,
+      "grant": "0acb3002-2292-4aca-a368-f6d48c841058",
+      "phase": "review",
+      "runId": "45616838729",
+      "runAttempt": 1,
+      "actor": "haideearus"
     }
   ],
   "featureTurn": {
