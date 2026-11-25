@@ -151,7 +151,8 @@
     ],
     "2026-11-25": [
       223,
-      276
+      276,
+      268
     ]
   },
   "tickets": {
@@ -4681,6 +4682,38 @@
       },
       "feedback": "{\"head\":\"ca54357ad43d1ce43a61cf282bd1c90037bc2851\",\"verdict\":\"pass\",\"summary\":\"Reviewed the base-to-head diff and current source for PR #256 at ca54357 against ticket #266's criteria. .github/workflows/factory-features.yml now uses cron \\\"4 11,17 * * *\\\" Europe/Bucharest (schedule 11:04/17:04 confirmed, matching docs/factory/WEEKLY-FEATURES.md) and adds a workflow_run(completed) trigger gated to same-repo runs. New scripts/factory/feature-turn.cjs implements a single waiting 'featureTurn' record (enqueue/pending/eligible/priority/update) validated via policy.cjs's validateState, with a 24h expiry and a 5-minute selection lease. scripts/factory/feature-trigger.cjs verifies workflow_run completion events (verifyContinuation/validActor) before feature-run.cjs's continuation path can act on an existing turn; critically, enqueue() is only reachable on the non-continuation (schedule/dispatch) branch in feature-run.cjs, and the added test \\\"a completion cannot create a turn...\\\" (factory-feature-turn.test.cjs) confirms this, satisfying \\\"completion events cannot reserve Claude twice\\\". Production-incident priority is implemented via feature-priority.cjs's new productionIncident()/pendingRepairMerge() helpers, consumed in automation.cjs's pick() (incident candidate checked before turn.ticket) and feature-run.cjs's beforeWrite() (throws PRODUCTION_WAIT without a retry delay so the turn stays queued and is rechecked promptly, matching the updated docs). Running-job completion is respected via workStillActive()/slots.usedCapacity() checks before any turn action in both automation.cjs and feature-run.cjs. The weekly planner cap (one reservation per Bucharest week, feature-meter.cjs reserve()) and daily admission cap (policy.dailyAdmissions) are untouched and still enforced before meter.reserve/turns.eligible run. Merge protections in merge.cjs gain a narrow \\\"currentFeatureParent\\\" exemption (same runId/runAttempt/workflowSha) so only the admitting run's own feature ticket bypasses repairsWaiting, consistent with the documented \\\"executing stage can continue\\\" rule; other runs still defer. Ledger CAS semantics (github.cjs Ledger.update, pre-existing, unmodified) retry the whole mutator from fresh state on contention, preventing a double Claude reservation even if two workflow_run completions race for the same turn, since a losing retry sees status \\\"finished\\\" and throws before any commit. Test coverage is substantial: a new scripts/tests/factory-feature-turn.test.cjs (10 tests covering single-turn dedupe, quota/retry hold, selector-lease expiry, ledger validation, production-incident deferral, dependency yielding, and full workflow_run continuation flows) plus two new tests in factory-automatic-pickup.test.cjs and updated assertions in factory-feature-workflow.test.cjs for the cron/workflow_run wiring. I could not execute the test suite or fetch the linked GitHub Actions run in this read-only session; this assessment is based on static reading of scripts/factory/*.cjs, the workflow YAML, and the included diff/tests only.\",\"findings\":[]}"
     },
+    "268": {
+      "coding": 0,
+      "reviews": 0,
+      "retries": 0,
+      "origin": "dependency-pr",
+      "head": "f590269220defcb781a552694101604efd96ef41",
+      "pr": 268,
+      "status": "new",
+      "approval": null,
+      "branch": "dependabot/npm_and_yarn/js-yaml-3.15.2",
+      "criteriaHash": "f6b23c6e692158af1690b3372d26e64f2abcb23664bd85e7deb808eeac055c78",
+      "dependency": {
+        "version": 1,
+        "pr": 268,
+        "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-dependencies.yml@refs/heads/main",
+        "workflowSha": "435a39f759b896da8aff3e120d49f7999985e2bf",
+        "runId": "45590837320",
+        "runAttempt": 1,
+        "appSlug": "haideearus-software-factory",
+        "attempts": [
+          {
+            "head": "f590269220defcb781a552694101604efd96ef41",
+            "base": "435a39f759b896da8aff3e120d49f7999985e2bf",
+            "runId": "45590837320",
+            "runAttempt": 1,
+            "workflowSha": "435a39f759b896da8aff3e120d49f7999985e2bf",
+            "at": "2026-11-25T10:01:50.183Z"
+          }
+        ]
+      },
+      "ci": null
+    },
     "271": {
       "coding": 0,
       "origin": "owner-pr",
@@ -6677,7 +6710,11 @@
       "outcome": "discovery_complete"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 268,
+    "runId": "45590837320",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -10921,6 +10958,16 @@
       "grant": "7905efdb-169b-4078-aaae-94fa488757c7",
       "phase": "discover",
       "status": "discovery_complete"
+    },
+    {
+      "at": "2026-11-25T10:01:50.183Z",
+      "event": "dependency_metadata_admitted",
+      "ticket": 268,
+      "head": "f590269220defcb781a552694101604efd96ef41",
+      "runId": "45590837320",
+      "actor": "github-actions[bot]",
+      "wakeReceipt": "9f114a0f06d4d3b9463ec256b40edd237b6137c91db64e6572887bb8a4763917",
+      "sourceActor": "dependabot[bot]"
     }
   ],
   "featureTurn": {
