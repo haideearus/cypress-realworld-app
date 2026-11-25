@@ -254,10 +254,12 @@ metadata-only gate when proof already exists. Uncertain merge intents use the
 existing confirmation/reconciliation lane; never send another merge request
 solely because GitHub metadata is delayed. See [dependency recovery](DEPENDENCY-MAINTENANCE.md).
 
-An incident observed recovered without a code repair has a separate
-[owner acknowledgment path](MONITOR-ACKNOWLEDGMENT.md); it must not be represented
-as a verified shipped fix. Scope mismatch, exhausted budget, destructive data,
-or an uncertain publication/merge stays held for the appropriate owner decision.
+Production monitor can close a blocked, unpublished feed incident after it
+confirms recovery on the current live release. The acknowledgment record keeps
+the original attempt and shows that the incident recovered without a shipped fix.
+The [owner acknowledgment workflow](MONITOR-ACKNOWLEDGMENT.md) also remains
+available. Scope mismatch, exhausted budget, destructive data, and uncertain
+publication or merge stay held for the appropriate owner decision.
 
 ## Remaining scheduled acceptance and course handover
 

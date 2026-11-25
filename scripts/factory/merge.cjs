@@ -508,7 +508,34 @@ class AutomaticMerger {
       { pending: true, reason, ...(dryRun ? { dryRun: true, wouldMerge: false } : {}) }
     );
   }
-  async permitWrite() {}
+  async permitWrite(ticket, t) {
+    if (t.publishedRecovery?.parent)
+      await require("./published-review-recovery.cjs").assertRecoveryBase(this.api, t);
+  }
+  async holdMovedBase(ticket, expected, dryRun) {
+    const recovery = require("./published-review-recovery.cjs");
+    if (!dryRun) {
+      await this.ledger.update((state) => {
+        const t = this.stateTicket(state, ticket, expected);
+        if (t.merge || !t.publishedRecovery?.parent)
+          throw new IntentHeld("Published recovery changed before recording the stale base");
+        const entry = slots.activeFor(state, ticket);
+        if (entry && !slots.owns(entry, { ...t.publishedRecovery.parent, ticket }))
+          throw new IntentHeld("Another parent owns this published repair");
+        if (entry) slots.releaseActive(state, entry);
+        policy.audit(state, "published_review_base_changed", {
+          ticket,
+          head: t.head,
+          previousApproval: t.approval,
+        });
+        t.status = "blocked";
+        t.approval = null;
+        t.feedback = recovery.STALE_REASON;
+        return { state };
+      });
+    }
+    return { ticket, merged: false, reason: recovery.STALE_REASON };
+  }
   async restoreIntentOwnership(ticket, expected) {
     await this.ledger.update(async (state) => {
       const current = this.stateTicket(state, ticket, expected);
@@ -553,11 +580,22 @@ class AutomaticMerger {
     if (terminal) return terminal;
     if (["merged", "closed"].includes(t.merge?.status))
       throw new Error("Terminal merge record disagrees with current PR state");
+    const recovery = require("./published-review-recovery.cjs");
+    if (t.publishedRecovery?.parent) {
+      try {
+        await recovery.assertRecoveryBase(this.api, t);
+      } catch (error) {
+        if (error instanceof recovery.RecoveryStaleBase)
+          return this.holdMovedBase(ticket, t, dryRun);
+        throw error;
+      }
+    }
     const currentFeatureParent =
-      t.automatic &&
-      t.automatic.runId === this.context.runId &&
-      t.automatic.runAttempt === this.context.runAttempt &&
-      t.automatic.workflowSha === this.context.workflowSha;
+      recovery.recoveryParent(t, this.context) ||
+      (t.automatic &&
+        t.automatic.runId === this.context.runId &&
+        t.automatic.runAttempt === this.context.runAttempt &&
+        t.automatic.workflowSha === this.context.workflowSha);
     if (
       t.feature &&
       (t.feature.mode !== this.config.featureMode ||
@@ -626,6 +664,7 @@ class AutomaticMerger {
       await this.permitWrite(ticket, t);
     } catch (error) {
       await this.release(ticket, t, intent);
+      if (error instanceof recovery.RecoveryStaleBase) return this.holdMovedBase(ticket, t, false);
       throw error;
     }
     let receipt;

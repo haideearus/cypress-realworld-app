@@ -6,6 +6,12 @@ never entered the AI ledger. Blocked repair mode is for a production
 pagination-contract incident whose factory attempt ended blocked before
 publishing a branch or PR. Isolated drills use their own workflow.
 
+A scheduled **Production monitor** run can also close an eligible blocked feed
+incident after two completed healthy observations on the same live release and
+fresh production checks on that release. It records the outcome as observed
+recovery, preserves the blocked repair and its counters, and honors the durable
+factory stop. Issue #124 is an example of this scheduled recovery path.
+
 Issue #65 is the motivating example: sign-in checks failed, then passed in a later
 preview while the separate pagination defect remained. Its cause has not been
 established. The original issue and receipt must remain intact.

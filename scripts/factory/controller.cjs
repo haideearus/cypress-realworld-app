@@ -500,6 +500,8 @@ class Controller {
     policy.assertNotStopped(state);
     this.activeRun(state, ticket);
     await this.matchingPR(t);
+    const recovery = require("./published-review-recovery.cjs");
+    if (recovery.recoveryParent(t, this.context)) await recovery.assertRecoveryBase(this.api, t);
     const existing = t.ci?.head === t.head ? t.ci : null;
     const requestId = existing?.requestId ?? randomUUID();
     const branch = t.branch || `agent/factory-${ticket}`;
@@ -604,9 +606,10 @@ class Controller {
     this.authorize();
     const { ticket: t } = await this.currentTicket(ticket);
     await this.matchingPR(t);
+    const recovery = require("./published-review-recovery.cjs");
     const ci = await this.validateCI(ciId, t.head, t.ci);
     if (!ci.passed) throw new Error("CI failed; independent review not admitted");
-    const result = await this.ledger.update((state) => {
+    const result = await this.ledger.update(async (state) => {
       const current = state.tickets[String(ticket)];
       if (
         current.head !== t.head ||
@@ -616,6 +619,10 @@ class Controller {
         current.ci?.passed !== true
       )
         throw new Error("Ledger head or saved CI changed");
+      if (recovery.recoveryParent(current, this.context)) {
+        policy.assertNotStopped(state);
+        await recovery.assertRecoveryBase(this.api, current);
+      }
       return policy.reserve(
         state,
         identity(this.context, { ticket, phase: "review", slot, head: t.head }),
@@ -676,11 +683,27 @@ class Controller {
   }
   async assess(ticket, results, ciId, reviewGrantId, bundle, slot) {
     this.authorize();
+    const recovery = require("./published-review-recovery.cjs");
+    const recoveryTicket =
+      results.coding === "skipped" &&
+      results.publication === "skipped" &&
+      slot === "cycle1" &&
+      (await this.currentTicket(ticket)).ticket;
+    const resuming = recovery.recoveryParent(recoveryTicket, this.context);
+    if (resuming && results.review !== "success") {
+      try {
+        await recovery.assertRecoveryBase(this.api, recoveryTicket);
+      } catch (error) {
+        if (error instanceof recovery.RecoveryStaleBase)
+          return this.block(ticket, recovery.STALE_REASON);
+        throw error;
+      }
+    }
     if (
-      results.coding !== "success" ||
-      results.publication !== "success" ||
+      (!resuming && (results.coding !== "success" || results.publication !== "success")) ||
       results.ci !== "success"
     ) {
+      if (resuming) return this.block(ticket, recovery.INTERRUPTED_REASON);
       let gatewayJob;
       if (
         this.config.priorityRetry &&
@@ -709,7 +732,9 @@ class Controller {
       if (results.review !== "success")
         return this.block(
           ticket,
-          "Review unavailable, interrupted, or subscription quota exhausted"
+          resuming
+            ? recovery.INTERRUPTED_REASON
+            : "Review unavailable, interrupted, or subscription quota exhausted"
         );
       if (bundle?.kind !== "review" || bundle.grantId !== reviewGrantId || bundle.base !== t.head)
         throw new Error("Invalid review artifact identity");
@@ -721,7 +746,7 @@ class Controller {
           identity(this.context, { ticket, phase: "review", slot, head: t.head }),
           this.config
         );
-        const status = review.verdict === "pass" ? "reviewed" : "retry";
+        const status = review.verdict === "pass" ? "reviewed" : resuming ? "blocked" : "retry";
         const next = policy.finish(state, reviewGrantId, {
           status,
           head: t.head,
@@ -736,6 +761,10 @@ class Controller {
         await this.gate(t.pr);
         return { retry: false, reviewed: true, pr: t.pr, head: t.head };
       }
+      if (resuming)
+        return { retry: false, reason: "Independent review requested changes during recovery" };
+    } else if (resuming) {
+      return this.block(ticket, "Fresh CI failed during published repair recovery");
     } else {
       await this.ledger.update((original) => {
         const state = structuredClone(original);
@@ -936,9 +965,14 @@ async function main(env = process.env) {
   }
   const api = new GitHub({
     token: env.GH_TOKEN,
-    retryReads: ["publish", "saved_ci_review", "assess_saved_ci_review", "preflight_pr"].includes(
-      operation
-    ),
+    retryReads: [
+      "publish",
+      "review",
+      "saved_ci_review",
+      "assess_saved_ci_review",
+      "preflight_pr",
+    ].includes(operation),
+    retryInternalReads: operation === "review",
     waitOnQuota: QUOTA_WAIT_OPERATIONS.has(operation),
     onQuotaWait: (until) => console.log(`GitHub API quota exhausted; waiting until ${until}`),
   });

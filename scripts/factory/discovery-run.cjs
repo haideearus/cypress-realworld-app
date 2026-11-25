@@ -125,13 +125,14 @@ async function sourceFor(api, store, proof) {
   });
   return issue.number;
 }
-async function testedMain(api, context, event) {
+async function testedMain(api, context, event, { exactHead = false } = {}) {
   const branch = await api.request("GET", `${ROOT}/branches/main`);
   const head = branch.commit?.sha;
   if (!c.SHA.test(head) || head !== context.workflowSha)
     throw Error("Current main changed; fresh invocation required");
+  const query = `branch=main&event=push&status=success${exactHead ? `&head_sha=${head}` : ""}`;
   const runs = await api.pages(
-    `${ROOT}/actions/workflows/factory-ci.yml/runs?branch=main&event=push&status=success&per_page=100`,
+    `${ROOT}/actions/workflows/factory-ci.yml/runs?${query}&per_page=100`,
     "workflow_runs"
   );
   const run = runs.find(

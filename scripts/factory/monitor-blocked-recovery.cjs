@@ -15,6 +15,16 @@ const assertEvidence = (condition) => {
   if (!condition) throw Error("Blocked monitor recovery evidence unavailable");
 };
 
+function healthyFeedObservation(observation) {
+  return (
+    observation.healthy &&
+    observation.appChecks?.feedContract === "ok" &&
+    SHA.test(observation.release || "") &&
+    observation.appChecks.releases?.before === observation.release &&
+    observation.appChecks.releases.after === observation.release
+  );
+}
+
 function matchesRun(run, { workflow, runId, runAttempt, sha }) {
   return (
     run?.id === Number(runId) &&
@@ -149,21 +159,16 @@ async function verifyScheduledObservation(api, receipt) {
 }
 
 async function observeBlockedRepair({ api, context, incident, issue, observation, at }) {
-  const checked = observation.appChecks;
   const intent = incident.acknowledgment?.blockedRecovery;
   if (
     context.eventName !== "schedule" ||
-    !observation.healthy ||
+    !healthyFeedObservation(observation) ||
     issue.number !== incident.issue ||
     issue.pull_request ||
     (issue.state !== "open" &&
       !(intent && issue.state === "closed" && issue.state_reason === "not_planned")) ||
     incident.retirement ||
-    (incident.acknowledgment && !intent) ||
-    checked?.feedContract !== "ok" ||
-    !SHA.test(observation.release || "") ||
-    checked.releases.before !== observation.release ||
-    checked.releases.after !== observation.release
+    (incident.acknowledgment && !intent)
   )
     return null;
   require("./monitor.cjs").assertMonitorContext(context);
@@ -200,10 +205,10 @@ async function observeBlockedRepair({ api, context, incident, issue, observation
   return validateBlockedRecovery({ repair: repair.identity, observations });
 }
 
-async function verifyOwnerRecovery({ api, state, incident, release, now, runId }) {
+async function verifyRecovery({ api, state, incident, release, now, runId, ownerRetry = false }) {
   const intent = incident.acknowledgment?.blockedRecovery;
   const receipt = validateBlockedRecovery(incident.blockedRecovery);
-  const newEvidence = JSON.stringify(receipt) !== JSON.stringify(intent);
+  const newEvidence = !ownerRetry || JSON.stringify(receipt) !== JSON.stringify(intent);
   const { identity, finishedAt } = await verifyFailedRepair(api, state, incident);
   const last = receipt.observations.at(-1);
   assertEvidence(
@@ -220,4 +225,12 @@ async function verifyOwnerRecovery({ api, state, incident, release, now, runId }
   return receipt;
 }
 
-module.exports = { observeBlockedRepair, verifyOwnerRecovery };
+const verifyOwnerRecovery = (options) => verifyRecovery({ ...options, ownerRetry: true });
+
+module.exports = {
+  healthyFeedObservation,
+  observeBlockedRepair,
+  verifyFailedRepair,
+  verifyOwnerRecovery,
+  verifyRecovery,
+};
