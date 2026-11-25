@@ -4939,6 +4939,10 @@
           {
             "from": "98c77049cadd919705cf6c61c742cbc8ba503a02",
             "base": "fecc67833148e98fdec387738e074e2f48d29945"
+          },
+          {
+            "from": "1b60c00c1fcda124900302d3f26c57bf967d9f46",
+            "base": "ecc71a8d32ea1c44b2cef431d98a592c581f1135"
           }
         ],
         "parent": {
@@ -4946,6 +4950,15 @@
           "runAttempt": 1,
           "workflowSha": "fecc67833148e98fdec387738e074e2f48d29945",
           "head": "1b60c00c1fcda124900302d3f26c57bf967d9f46"
+        }
+      },
+      "skippedPublishedReview": {
+        "grant": "e6b05063-0927-490c-a03a-05dc3fb03ee5",
+        "ci": {
+          "requestId": "c32d2a93-a41e-4fc2-b72e-db2d28b1ef10",
+          "head": "1b60c00c1fcda124900302d3f26c57bf967d9f46",
+          "runId": 45611154606,
+          "passed": true
         }
       }
     },
@@ -11720,6 +11733,14 @@
       "grant": "f6b25963-3ed6-42f6-af12-154e02ef5ce0",
       "status": "reviewed",
       "head": "2b41f5c3f095501ccd77d6e192f118ea7f80895c"
+    },
+    {
+      "at": "2026-11-25T20:44:02.416Z",
+      "event": "published_review_refresh_requested",
+      "ticket": 273,
+      "pr": 274,
+      "from": "1b60c00c1fcda124900302d3f26c57bf967d9f46",
+      "base": "ecc71a8d32ea1c44b2cef431d98a592c581f1135"
     }
   ],
   "featureTurn": {
