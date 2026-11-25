@@ -158,7 +158,8 @@
       280,
       282,
       285,
-      260
+      260,
+      287
     ]
   },
   "tickets": {
@@ -5154,6 +5155,19 @@
         "passed": true
       },
       "feedback": "{\"findings\":[],\"head\":\"6059d805cabe89bcacb81537cbaf6b086e4e68bd\",\"summary\":\"Reviewed the dependency merge-retry recovery feature at scripts/factory/dependency-merge-retry.cjs (new) and its integration points in scripts/factory/dependencies.cjs (DependencyMerger.merge/finalize, DependencyCoordinator.pending/select), scripts/factory/merge.cjs (AutomaticMerger base hooks), scripts/factory/dependency-run.cjs (dep_merge/dep_finalize wiring, premergeEvidence output), scripts/factory/dependency-contract.cjs/policy.cjs (ledger shape validation), scripts/factory/queue-summary.cjs, feature-priority.cjs, automation.cjs, controller.cjs (blocksQueue call sites), and the workflow .github/workflows/factory-dependencies.yml. Traced the full lifecycle: a MergeCheckFailure caught before the PUT to /pulls/{n}/merge is diagnosed via describe()/safeReason() (bounded reason set, no leakage of raw GitHub error bodies), and holdBeforeIntent() atomically records a dependencyMergeRetry record (phase queued/held), releases the active slot, and leaves approval/ci/counters untouched (confirmed in tests at scripts/tests/factory-dependencies.test.cjs lines 609-789, e.g. reviews stays 1, ci/approval deepEqual to original). A confirmed temporary GET failure (readStatus+TEMPORARY set or quota-reset-bounded 403/429) produces a retryAt and phase \\\"queued\\\"; claim() uses a CAS ledger update gated on due()+phase===\\\"queued\\\" to grant exactly one \\\"retrying\\\" attempt (runAttempt===1 only, owner-scoped via owner()/permits()), and any second failure during that retry is forced to phase \\\"held\\\" rather than re-queued, enforcing a single retry. blocksQueue() correctly treats merge.status \\\"intent\\\" as always blocking (preserving existing confirmation/protected-merge checks for anything that may have reached GitHub — verified by the \\\"an uncertain send during a claimed retry keeps its intent through finalization\\\" test) while \\\"held\\\"/exhausted \\\"retrying\\\" records return false, freeing capacity for unrelated tickets (verified by claimDependency admitting ticket #53 after ticket #52 is exhausted). The dependencyMergeRetry record shape is strictly validated by validate() in dependency-merge-retry.cjs (called from dependency-contract.cjs validateTicket) and policy.cjs denies the field on non-dependency-origin tickets, matching the existing delayedRetry pattern already used elsewhere in the ledger. Documentation in docs/factory/DEPENDENCY-MAINTENANCE.md accurately reflects this behavior. I did not execute any code or tests myself (read-only review); I'm relying on the supplied CI run and the repository's own test suite at scripts/tests/factory-dependencies.test.cjs as evidence, and I did not independently verify every transitive caller of blocksQueue (e.g. no dedicated unit test exercises the automation.cjs/feature-priority.cjs call sites directly, though they reuse the same well-tested function with the same guard pattern as other call sites).\",\"verdict\":\"pass\"}"
+    },
+    "287": {
+      "coding": 0,
+      "origin": "owner-pr",
+      "reviews": 1,
+      "retries": 0,
+      "head": "4f5cccb7707d00fdd21352ca51dd0b00a2302552",
+      "status": "reviewing",
+      "pr": 288,
+      "approval": null,
+      "criteriaHash": "0541eb54c23ab5df317f6d518236610c44ccba2bc2c30789ece207adb668fdd9",
+      "branch": "agent/native-gate-refresh-settle",
+      "ci": null
     }
   },
   "grants": {
@@ -7065,9 +7079,24 @@
       "status": "finished",
       "at": "2026-11-25T15:08:08.281Z",
       "outcome": "reviewed"
+    },
+    "ef388ab1-f5bb-41ec-a3cd-ed0f45692d28": {
+      "id": "ef388ab1-f5bb-41ec-a3cd-ed0f45692d28",
+      "ticket": 287,
+      "phase": "review",
+      "slot": "existing",
+      "runId": "45648006629",
+      "runAttempt": 1,
+      "head": "4f5cccb7707d00fdd21352ca51dd0b00a2302552",
+      "status": "reserved",
+      "at": "2026-11-25T15:41:58.081Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 287,
+    "runId": "45648006629",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -11546,6 +11575,16 @@
       },
       "recovery": "held",
       "retryAt": null
+    },
+    {
+      "at": "2026-11-25T15:41:58.081Z",
+      "event": "reserved",
+      "ticket": 287,
+      "grant": "ef388ab1-f5bb-41ec-a3cd-ed0f45692d28",
+      "phase": "review",
+      "runId": "45648006629",
+      "runAttempt": 1,
+      "actor": "haideearus"
     }
   ],
   "featureTurn": {
