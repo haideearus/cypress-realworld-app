@@ -500,6 +500,17 @@
         "artifactDigest": "sha256:de3ea18e7a239d483c97d2eefc8ae1f482d9c9e4bbe5045cb662920a99ada8f5",
         "status": "completed"
       }
+    },
+    "a162704b-eb1a-4dbf-99b3-d3430685111f": {
+      "runId": "45608644424",
+      "evidenceHash": "8aa5533ff3bb11f4693cb0ef2b320225f2a06b11c4c86af6aa48b8da3386d533",
+      "findings": [],
+      "status": "complete",
+      "sweepClosure": {
+        "artifactId": 15019284219,
+        "artifactDigest": "sha256:eb2b190ca6c5ae19bd65b3e0b113663e99fc58b9e62882b69822063f385e975f",
+        "status": "pending"
+      }
     }
   }
 }
