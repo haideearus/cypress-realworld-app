@@ -340,6 +340,16 @@
       "phase": "tracking",
       "issue": 284,
       "pr": null
+    },
+    "860339f73683394e8dd3f9b52e2311ecc7ff408f5b35d56e977aa1296fc8d44b": {
+      "candidate": "13.15.22",
+      "day": "2026-11-25",
+      "base": "e14813f555d0809fea67ddb24957d23e05361ef6",
+      "head": "c929d43abfdffd3923b97cfb32a0a69894a64882",
+      "name": "validator",
+      "phase": "prepared",
+      "issue": null,
+      "pr": null
     }
   },
   "heldAfter": "axios"
