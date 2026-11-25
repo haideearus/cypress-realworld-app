@@ -41,13 +41,15 @@ const isDependencyCI = (signal) =>
 const preparationRevision = (attempt) => `preparation:${attempt}`;
 const isPreparationDrain = (signal) =>
   signal.kind === "drain" && signal.revision === preparationRevision(signal.sourceAttempt);
+const isQueueCheckDrain = (signal) =>
+  signal.kind === "drain" && signal.revision === `queue-check:${signal.sourceAttempt}`;
 function validateSignal(s) {
   if (
     !exact(s, "kind,lane,number,head,criteriaHash,revision,sourceRun,sourceAttempt,actor") ||
     (!["issue", "monitor", "finding", "drain"].includes(s.kind) && !isDependencyCI(s)) ||
     !LANES[s.lane] ||
     (s.kind === "dependency-alert-ci" && s.lane !== "dependency") ||
-    (isPreparationDrain(s) && s.lane !== "dependency") ||
+    ((isPreparationDrain(s) || isQueueCheckDrain(s)) && s.lane !== "dependency") ||
     !Number.isSafeInteger(s.number) ||
     s.number < 1 ||
     !SHA.test(s.head) ||
@@ -175,6 +177,7 @@ module.exports = {
   isDependencyCI,
   preparationRevision,
   isPreparationDrain,
+  isQueueCheckDrain,
   createWake,
   sourceKey,
   validateSignal,

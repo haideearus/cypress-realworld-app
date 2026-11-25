@@ -467,8 +467,8 @@ function staleNoteKind(refresh) {
   return "manual";
 }
 
-async function recoveryBatch(api, eligible, now) {
-  if (eligible.length < 2) return eligible;
+async function recoveryBatch(api, eligible, now, limit = INSPECTIONS_PER_RUN) {
+  if (eligible.length < 2) return inspectionBatch(eligible, now, limit);
   const { state } = await new WakeStore(api).read(ALLOW_MISSING);
   const byNumber = new Map(eligible.map((pr) => [pr.number, pr]));
   const queued = new Set();
@@ -482,9 +482,9 @@ async function recoveryBatch(api, eligible, now) {
       queued.add(byNumber.get(signal.number));
   }
   const ordinary = eligible.filter((pr) => !queued.has(pr));
-  const reserved = Math.min(ordinary.length, TRACKING_FALLBACK_INSPECTIONS);
-  const priority = inspectionBatch([...queued], now, INSPECTIONS_PER_RUN - reserved);
-  const fallback = inspectionBatch(ordinary, now, INSPECTIONS_PER_RUN - priority.length);
+  const reserved = Math.min(ordinary.length, TRACKING_FALLBACK_INSPECTIONS, limit);
+  const priority = inspectionBatch([...queued], now, limit - reserved);
+  const fallback = inspectionBatch(ordinary, now, limit - priority.length);
   return [...priority, ...fallback];
 }
 
@@ -498,6 +498,7 @@ async function recoverTrackedPR({
   now,
   beforeWrite,
   mainCIHead,
+  preview = false,
 }) {
   const eligible = [...proposals.values()].filter((pr) => {
     const row = state.records[pr.number];
@@ -510,22 +511,37 @@ async function recoverTrackedPR({
   });
   if (eligible.length === 0) return null;
   const { state: usage } = await ledger.read();
-  let main = mainCIHead;
+  const main = mainCIHead ?? (await currentMain(api));
   const baseStillCurrent = async () => {
     const current = (await currentMain(api)) === main;
     if (!current && mainCIHead) throw new MainCIStale();
     return current;
   };
-  for (const proposal of await recoveryBatch(api, eligible, now)) {
+  const hasRebaseRequest = (proposal) => {
+    const receipt = state.records[proposal.number].recovery?.[proposal.head.sha];
+    return Boolean(receipt?.refresh || receipt?.bases?.[main]?.refresh);
+  };
+  // A journal write that failed after a rebase request must not delay another rebase.
+  const sent = eligible.filter(hasRebaseRequest);
+  const fresh = await recoveryBatch(
+    api,
+    eligible.filter((proposal) => !hasRebaseRequest(proposal)),
+    now,
+    INSPECTIONS_PER_RUN - Number(sent.length > 0)
+  );
+  const batch = [...fresh, ...inspectionBatch(sent, now, INSPECTIONS_PER_RUN - fresh.length)];
+  for (const proposal of batch) {
     if (!recoveryAllowed(usage, proposal)) continue;
     const number = proposal.number;
     let row = state.records[number];
     const receipt = row.recovery?.[proposal.head.sha];
-    const message = mainCIHead || receipt?.blocked ? null : blocker(usage, proposal);
-    main ??= await currentMain(api);
+    const message = preview || mainCIHead || receipt?.blocked ? null : blocker(usage, proposal);
     // Older receipts did not record a base. Retain their one-request-per-head hold.
     const base = !receipt?.refresh && (refreshApi || receipt?.bases) ? main : undefined;
     const refreshReceipt = base ? receipt?.bases?.[base] : receipt;
+    // A queue check does not have the rebase credential. Leave already reported
+    // requests and manual holds alone until the base or head changes.
+    if (preview && (refreshReceipt?.stale || receipt?.stale === "manual")) continue;
     let refresh = refreshReceipt?.refresh;
     const canRecord =
       !base || refreshReceipt || Object.keys(receipt?.bases || {}).length < RECOVERY_BASES_PER_HEAD;
@@ -551,6 +567,7 @@ async function recoverTrackedPR({
     }
     const issue = await readExisting(api, `${ROOT}/issues/${row.issue}`);
     if (!issueOK(issue, number, row.issue) || issue.state !== "open") continue;
+    if (preview) return { pr: number };
 
     const guard = async () => {
       const { state: latest } = await ledger.read();
@@ -819,4 +836,24 @@ async function trackNativeDependencies(
   };
 }
 
-module.exports = { trackNativeDependencies };
+async function previewNativeRecovery(api, { ledger, now = Date.now() }) {
+  // Only inspect. Receiver-side native tracking revalidates the PR and records the request.
+  const store = new MetadataStore(api, "dependency-tracking", empty, validate);
+  const { state } = await store.read(ALLOW_MISSING);
+  const proposals = await openProposals(api);
+  const recovery = await recoverTrackedPR({
+    api,
+    store,
+    ledger,
+    state,
+    proposals,
+    now,
+    preview: true,
+  });
+  if (recovery) return recovery.pr;
+  const untracked = [...proposals.values()].filter((pr) => !state.records[pr.number]);
+  for (const pr of inspectionBatch(untracked, now)) if (await eligible(api, pr)) return pr.number;
+  return null;
+}
+
+module.exports = { trackNativeDependencies, previewNativeRecovery };

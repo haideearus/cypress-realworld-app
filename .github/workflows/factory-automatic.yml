@@ -2,7 +2,7 @@ name: Automatic factory
 run-name: ${{ inputs.wake_id && format('Automatic factory / wake {0}', inputs.wake_id) || 'Automatic factory' }}
 on:
   schedule:
-    - cron: "17,47 * * * *"
+    - cron: "3,13,23,33,43,53 * * * *"
   workflow_dispatch:
     inputs:
       operation:
@@ -80,6 +80,11 @@ jobs:
           github_token: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && github.token || steps.app.outputs.token }}
           variables_json: ${{ toJSON(vars) }}
           parameters: ${{ toJSON(inputs) }}
+      - name: Hand off an idle app queue to dependency maintenance
+        if: >-
+          ${{ github.event_name == 'schedule' && vars.FACTORY_EVENT_PICKUP_ENABLED == 'true' &&
+              steps.control.outputs.ready == 'false' && steps.control.outputs.ticket == '' }}
+        run: echo 'App pickup found no ticket. The event wake can inspect the dependency queue.'
   cycle1:
     needs: pick
     if: ${{ needs.pick.outputs.ready == 'true' && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' }}

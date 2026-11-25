@@ -190,6 +190,45 @@ test("terminal metadata-only preparation can be finalized without resetting its 
   assert.equal(s.tickets["52"].status, "blocked");
   assert.equal(Object.values(s.days).flat().length, 1);
 });
+test("a refreshed PR can recover an old terminal bot preparation using its bound receipt", async (t) => {
+  const x = await fixture();
+  await x.coordinator.select(false);
+  const oldHead = x.f.rows[0].head.sha;
+  x.f.rows[0].head.sha = "c".repeat(40);
+  const bot = { login: "github-actions[bot]", id: 41898282 };
+  x.f.route = (path) =>
+    path === "/actions/runs/100/attempts/1"
+      ? {
+          id: 100,
+          path: ".github/workflows/factory-dependencies.yml",
+          repository: { full_name: policy.REPOSITORY },
+          head_repository: { full_name: policy.REPOSITORY },
+          head_sha: head,
+          head_branch: "main",
+          event: "workflow_dispatch",
+          actor: bot,
+          triggering_actor: bot,
+          run_attempt: 1,
+          status: "completed",
+        }
+      : undefined;
+  const trusted = require("../factory/trusted-wake.cjs");
+  const verify = t.mock.method(trusted, "verifyPreparationOrigin", async (_api, run, ticket, a) => {
+    assert.equal(run.id, 100);
+    assert.equal(ticket.pr, 52);
+    assert.equal(a.head, oldHead);
+    return true;
+  });
+  const later = new DependencyCoordinator(x.api, cfg, { ...ctx, runId: "101" });
+  assert.equal((await later.select(false)).head, x.f.rows[0].head.sha);
+  assert.equal(verify.mock.callCount(), 1);
+  const state = (await x.ledger.read()).state;
+  assert.deepEqual(
+    state.tickets[52].dependency.attempts.map((attempt) => attempt.head),
+    [oldHead, x.f.rows[0].head.sha]
+  );
+  assert.equal(Object.keys(state.grants).length, 0);
+});
 test("dependency merge cannot use ordinary owner context or bypass its dedicated provenance", async () => {
   const x = await fixture();
   const merger = new DependencyMerger(x.api, cfg, context, null);

@@ -24,11 +24,10 @@ function producerFor(run, phase) {
     actor: run.actor.login,
   };
 }
-async function collectRunActivity({ run, jobs, ledger }) {
+async function collectRunActivity({ run, jobs, ledger, deploymentStart = false }) {
   const workflow = run.path.split("/").at(-1);
   if (!a.WORKFLOWS.includes(workflow) || workflow === "factory-activity.yml")
     throw Error("Unknown observed workflow");
-  const { state } = await ledger.read();
   const events = [];
   const emit = (kind, status, phase, subject, head, summary) =>
     events.push(
@@ -42,6 +41,20 @@ async function collectRunActivity({ run, jobs, ledger }) {
         links: [link(run.id)],
       })
     );
+  if (deploymentStart) {
+    const deployment = jobs.find((job) => job.name?.startsWith("Deploy tested commit "));
+    if (run.status !== "completed" && !["in_progress", "completed"].includes(deployment?.status))
+      emit(
+        "deployment",
+        "pending",
+        "approval-required",
+        run.id,
+        run.head_sha,
+        "Production deployment requires named human approval after preparation succeeds. See the linked run for its current status."
+      );
+    return events;
+  }
+  const { state } = await ledger.read();
   const kind =
     workflow === "factory-monitor.yml"
       ? "monitor"
@@ -180,6 +193,7 @@ async function observeRun({
   ledger = new Ledger(api),
   preview = false,
   triage = false,
+  deploymentStart = false,
 }) {
   const run = await api.request("GET", `${ROOT}/actions/runs/${runId}/attempts/${runAttempt}`);
   const probe = a.buildActivityEvent({
@@ -228,8 +242,8 @@ async function observeRun({
         "Harness maintenance ticket publication held. Check the durable activity receipt."
       );
   }
-  const events = await collectRunActivity({ run, jobs, ledger });
-  if (run.path === ".github/workflows/factory-deploy.yml") {
+  const events = await collectRunActivity({ run: trustedRun, jobs, ledger, deploymentStart });
+  if (!deploymentStart && run.path === ".github/workflows/factory-deploy.yml") {
     const approvals = await api.request("GET", `${ROOT}/actions/runs/${run.id}/approvals`);
     for (const review of approvals)
       if (
@@ -346,10 +360,7 @@ async function checkFreshness({
     });
   return { change };
 }
-async function main(
-  env = process.env,
-  { sleep = (ms) => new Promise((r) => setTimeout(r, ms)) } = {}
-) {
+async function main(env = process.env) {
   require("./policy.cjs").assertSubscriptionEnv(env);
   const context = runtimeContext(env),
     vars = JSON.parse(env.FACTORY_VARIABLES || "{}");
@@ -416,6 +427,7 @@ async function main(
       journalIssue,
       store,
       triage,
+      deploymentStart: deploymentProgress,
     });
   const terminalCI =
     context.event === "workflow_run" &&
@@ -464,16 +476,7 @@ async function main(
       links: [`https://github.com/${REPOSITORY}/issues/${issue.number}`],
     });
     await a.publishActivity({ api, event: current, journalIssue, store });
-  } else if (context.event === "workflow_run" && !terminalCI) {
-    // Only deployments need an early observer for the human approval gate.
-    // A separate completion delivery records the final result.
-    const max = deploymentProgress ? 240 : 1;
-    for (let n = 0; n < max; n++) {
-      const result = await observe(false);
-      if (result.status === "completed" || max === 1) break;
-      await sleep(20000);
-    }
-  }
+  } else if (context.event === "workflow_run" && !terminalCI) await observe(false);
   await checkFreshness({ api, context, journalIssue, store });
   return { outcome: "observed", modelCalls: 0 };
 }

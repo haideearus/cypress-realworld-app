@@ -13,6 +13,15 @@ It explicitly dispatches the existing automatic/dependency workflow on `main`.
 The existing cron paths remain available. Owner harness PR CI never requests an
 automatic Claude review.
 
+Every ten minutes the owner-scheduled **Automatic factory** checks the app queue,
+including due retries and recoverable PRs. When that job finds no app ticket,
+**Factory event wake** checks whether the shared slot is free. It can hand off
+one verified dependency CI receipt, an eligible merge recovery, or a model-free
+tracking and rebase scan. An acknowledged rebase comment stays recorded for
+its original head and base while later scans can handle other PRs. The hourly
+**Dependency maintenance** schedule remains a fallback for owner-run recovery.
+GitHub may delay the schedule, so new events still use immediate pickup.
+
 The receiver must be a real `github-actions[bot]` dispatch, verified against its
 GitHub run, workflow identity, main SHA, first attempt and a durable wake receipt.
 An arbitrary input string, label, public issue or bot username is insufficient.
@@ -131,9 +140,9 @@ events can still appear as skipped runs in Actions. GitHub skips the observer jo
 before allocating a runner or making API requests. Completion still publishes
 typed results such as failed checks, review verdicts, and protected merges.
 
-Production deployments also get an early observer so the journal can report
-waiting for human approval. That observer polls job status every 20 seconds in
-a bounded 80-minute window. Completion still records the deployment outcome.
+Production deployments get one early observation. The journal records that
+human approval is required after preparation, then the observer exits. A
+separate completion event records the approval and deployment outcome.
 Only allowlisted source workflows are observed. The wake and activity
 workflows are excluded, and issue comments never wake the factory.
 
