@@ -5052,9 +5052,17 @@
       "reviews": 1,
       "retries": 0,
       "head": "6059d805cabe89bcacb81537cbaf6b086e4e68bd",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 286,
-      "approval": null,
+      "approval": {
+        "head": "6059d805cabe89bcacb81537cbaf6b086e4e68bd",
+        "pr": 286,
+        "grant": "6b380f38-19fa-4aeb-b786-45d8b56ad99f",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/45634438740"
+      },
       "criteriaHash": "b08fa7d11a7ff21fa27d88054cba5275e6eba9efcd3423cba80ee871fa6b4251",
       "branch": "agent/dependency-merge-retry",
       "ci": {
@@ -5062,7 +5070,8 @@
         "head": "6059d805cabe89bcacb81537cbaf6b086e4e68bd",
         "runId": 45634591667,
         "passed": true
-      }
+      },
+      "feedback": "{\"findings\":[],\"head\":\"6059d805cabe89bcacb81537cbaf6b086e4e68bd\",\"summary\":\"Reviewed the dependency merge-retry recovery feature at scripts/factory/dependency-merge-retry.cjs (new) and its integration points in scripts/factory/dependencies.cjs (DependencyMerger.merge/finalize, DependencyCoordinator.pending/select), scripts/factory/merge.cjs (AutomaticMerger base hooks), scripts/factory/dependency-run.cjs (dep_merge/dep_finalize wiring, premergeEvidence output), scripts/factory/dependency-contract.cjs/policy.cjs (ledger shape validation), scripts/factory/queue-summary.cjs, feature-priority.cjs, automation.cjs, controller.cjs (blocksQueue call sites), and the workflow .github/workflows/factory-dependencies.yml. Traced the full lifecycle: a MergeCheckFailure caught before the PUT to /pulls/{n}/merge is diagnosed via describe()/safeReason() (bounded reason set, no leakage of raw GitHub error bodies), and holdBeforeIntent() atomically records a dependencyMergeRetry record (phase queued/held), releases the active slot, and leaves approval/ci/counters untouched (confirmed in tests at scripts/tests/factory-dependencies.test.cjs lines 609-789, e.g. reviews stays 1, ci/approval deepEqual to original). A confirmed temporary GET failure (readStatus+TEMPORARY set or quota-reset-bounded 403/429) produces a retryAt and phase \\\"queued\\\"; claim() uses a CAS ledger update gated on due()+phase===\\\"queued\\\" to grant exactly one \\\"retrying\\\" attempt (runAttempt===1 only, owner-scoped via owner()/permits()), and any second failure during that retry is forced to phase \\\"held\\\" rather than re-queued, enforcing a single retry. blocksQueue() correctly treats merge.status \\\"intent\\\" as always blocking (preserving existing confirmation/protected-merge checks for anything that may have reached GitHub — verified by the \\\"an uncertain send during a claimed retry keeps its intent through finalization\\\" test) while \\\"held\\\"/exhausted \\\"retrying\\\" records return false, freeing capacity for unrelated tickets (verified by claimDependency admitting ticket #53 after ticket #52 is exhausted). The dependencyMergeRetry record shape is strictly validated by validate() in dependency-merge-retry.cjs (called from dependency-contract.cjs validateTicket) and policy.cjs denies the field on non-dependency-origin tickets, matching the existing delayedRetry pattern already used elsewhere in the ledger. Documentation in docs/factory/DEPENDENCY-MAINTENANCE.md accurately reflects this behavior. I did not execute any code or tests myself (read-only review); I'm relying on the supplied CI run and the repository's own test suite at scripts/tests/factory-dependencies.test.cjs as evidence, and I did not independently verify every transitive caller of blocksQueue (e.g. no dedicated unit test exercises the automation.cjs/feature-priority.cjs call sites directly, though they reuse the same well-tested function with the same guard pattern as other call sites).\",\"verdict\":\"pass\"}"
     }
   },
   "grants": {
@@ -6959,15 +6968,12 @@
       "runId": "45634438740",
       "runAttempt": 1,
       "head": "6059d805cabe89bcacb81537cbaf6b086e4e68bd",
-      "status": "reserved",
-      "at": "2026-11-25T14:28:55.248Z"
+      "status": "finished",
+      "at": "2026-11-25T14:28:55.248Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 285,
-    "runId": "45634438740",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -11386,6 +11392,14 @@
       "runId": "45634438740",
       "runAttempt": 1,
       "actor": "haideearus"
+    },
+    {
+      "at": "2026-11-25T14:44:56.210Z",
+      "event": "finished",
+      "ticket": 285,
+      "grant": "6b380f38-19fa-4aeb-b786-45d8b56ad99f",
+      "status": "reviewed",
+      "head": "6059d805cabe89bcacb81537cbaf6b086e4e68bd"
     }
   ],
   "featureTurn": {
