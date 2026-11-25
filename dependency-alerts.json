@@ -317,6 +317,14 @@
       "issue": 240,
       "pr": 241,
       "resolvedAt": "2026-11-24T14:29:01.935Z"
+    },
+    "71ecd109f60d0649598090b4d0929f1c63d2fcb1cb6fe39803255da330ab9dfc": {
+      "name": "tar",
+      "day": "2026-11-25",
+      "trackingReason": "major-held",
+      "phase": "tracking-intent",
+      "issue": null,
+      "pr": null
     }
   },
   "heldAfter": "@babel/plugin-transform-modules-systemjs"
