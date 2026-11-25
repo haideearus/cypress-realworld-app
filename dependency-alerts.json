@@ -214,7 +214,14 @@
       "trackingReason": "major-held",
       "phase": "tracking",
       "issue": 183,
-      "pr": null
+      "pr": null,
+      "widerChecks": [
+        {
+          "fingerprint": "5c48c458a8b38123499919eaa91974ab5e679b1b90af68d8d6602c77f1090ee6",
+          "result": "wider-held",
+          "at": "2026-11-25T16:05:21.516Z"
+        }
+      ]
     },
     "7275a52778f2ddbfc305d295a924d9448763d426c85d5ee847ce9e945a94c3ca": {
       "name": "decode-uri-component",
