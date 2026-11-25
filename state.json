@@ -5000,7 +5000,11 @@
       "approval": null,
       "criteriaHash": "3f76142faf2cd9913e057e3d7298032c952ff9379d41b010bf99feb7afc7bdd5",
       "branch": "agent/factory-review-skip-recovery",
-      "ci": null
+      "ci": {
+        "requestId": "36475554-65b0-4e25-b578-e9f12deaeb8d",
+        "head": "f0bc8750abd26cad012acd1665309db114067ceb",
+        "runId": null
+      }
     }
   },
   "grants": {
