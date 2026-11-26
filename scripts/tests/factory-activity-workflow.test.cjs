@@ -25,6 +25,7 @@ test("activity workflow observes lifecycle and issue metadata without model, App
     "pull-requests": "read",
   });
   assert.ok(w.jobs.observe.if.includes("FACTORY_ACTIVITY_LOG_ENABLED"));
+  assert.doesNotMatch(w.jobs.observe.if, /Automatic factory \/ timer/);
   assert.equal(JSON.stringify(w).includes("secrets."), false);
   assert.equal(
     w.jobs.observe.steps.find((s) => s.uses?.startsWith("actions/checkout@")).with.ref,
@@ -232,6 +233,51 @@ test("run/job observations distinguish actual model starts, failures before mode
     false
   );
 });
+test("timer completions keep idle ticks quiet and report real coding and merge outcomes", async () => {
+  const { collectRunActivity } = require("../factory/activity-observer.cjs");
+  const timer = {
+    id: 801,
+    run_attempt: 1,
+    path: ".github/workflows/factory-automatic.yml",
+    head_sha: sha,
+    actor: { login: "haideearus" },
+    event: "workflow_dispatch",
+    display_title: "Automatic factory / timer 1795687380000",
+    status: "completed",
+    conclusion: "success",
+  };
+  const { ledger } = fixture();
+  const observe = (options = {}) =>
+    collectRunActivity({ run: timer, jobs: [], ledger, ...options });
+  assert.deepEqual(await observe(), []);
+
+  ledger.state.grants.g = {
+    id: "g",
+    ticket: 12,
+    phase: "code",
+    slot: "cycle1",
+    runId: String(timer.id),
+    runAttempt: 1,
+    head: sha,
+  };
+  const events = await observe({
+    jobs: [{ id: 82, name: "cycle1 / coding / agent", status: "completed", conclusion: "success" }],
+  });
+  assert.ok(events.some((e) => e.kind === "coding" && e.subject === 12));
+
+  delete ledger.state.grants.g;
+  ledger.state.tickets[12] = {
+    pr: 301,
+    merge: { status: "merged", runId: String(timer.id), runAttempt: 1, mergeCommit: sha },
+  };
+  const mergeEvents = await observe();
+  assert.ok(
+    mergeEvents.some((e) => e.kind === "merge" && e.state === "merged" && e.subject === 12)
+  );
+  ledger.state.tickets[12].merge.runAttempt = 2;
+  assert.deepEqual(await observe(), []);
+});
+
 test("notification enqueue failure preserves work result, usage and approval", async () => {
   const { recordResult } = require("../factory/activity.cjs");
   const s = fixture(),

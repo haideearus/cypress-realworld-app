@@ -399,7 +399,9 @@ async function handleWake({
     context.event === "workflow_run" &&
     event.action === "completed" &&
     source?.path === ".github/workflows/factory-automatic.yml" &&
-    source.event === "schedule" &&
+    (source.event === "schedule" ||
+      (vars.FACTORY_EXTERNAL_PICKUP_ENABLED === "true" &&
+        require("./pickup-timer.cjs").timerRun(source))) &&
     source.conclusion === "success" &&
     c.ID.test(String(source.id))
       ? await require("./wake-queue.cjs").nextDependency({

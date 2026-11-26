@@ -45,7 +45,10 @@ async function verifyContinuation(api, context, event) {
   });
   if (run.head_branch !== "main" || run.head_sha !== source.head_sha || !validActor(run))
     throw Error("Untrusted feature wake source");
+  const { pickupCompleted, timerRun, timerTitle } = require("./pickup-timer.cjs");
+  if (timerTitle(run) && (!timerRun(run) || !(await pickupCompleted(api, run)))) return false;
   verified.add(context);
+  return true;
 }
 
 module.exports = {

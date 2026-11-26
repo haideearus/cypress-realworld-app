@@ -102,14 +102,17 @@ function workflowFixture() {
     store: new MemoryStore(c.emptyRegistry()),
     now: () => now,
     event: { action: "completed", repository, workflow_run: structuredClone(source) },
+    pickupJobs: [],
   };
   fixture.api = {
     primaryQuota: { limit: 1000, remaining: 900, reset: now.getTime() + 1800000 },
     async request(method, url) {
       assert.equal(method, "GET");
       if (url.endsWith("/branches/main")) return { commit: { sha: head } };
-      if (url.endsWith("/actions/workflows/factory-dependencies.yml"))
+      if (url.endsWith(`/actions/workflows/${source.path.split("/").at(-1)}`))
         return { id: source.workflow_id, path: source.path };
+      if (url.endsWith(`/actions/runs/${source.id}/attempts/1/jobs?per_page=15`))
+        return { jobs: structuredClone(fixture.pickupJobs) };
       if (url.endsWith("/git/ref/heads/factory/monitor")) {
         if (!fixture.monitor) throw Object.assign(Error("No monitor registry"), { status: 404 });
         return { object: { sha: head } };
@@ -183,6 +186,54 @@ test("a completion cannot create a turn and foreign run evidence cannot resume o
   await assert.rejects(s.run(702), /untrusted source/i);
   assert.equal(s.ledger.state.featureTurn.status, "waiting");
   assert.equal(s.ledger.state.featurePlans, undefined);
+});
+
+test("a Cloudflare completion resumes the feature turn only after GitHub verifies pickup", async () => {
+  const s = workflowFixture();
+  const owner = { login: p.OWNER, id: 101267861 };
+  const tick = Date.parse("2026-11-24T09:03:00Z");
+  Object.assign(s.source, {
+    path: ".github/workflows/factory-automatic.yml",
+    actor: owner,
+    triggering_actor: owner,
+    created_at: new Date(tick + 1000).toISOString(),
+    display_title: `Automatic factory / timer ${tick}`,
+  });
+  s.event.workflow_run = structuredClone(s.source);
+  t.enqueue(s.ledger.state, config, "701", now);
+  const before = structuredClone(s.ledger.state);
+  const pickup = {
+    name: "pick",
+    run_id: s.source.id,
+    head_sha: s.source.head_sha,
+    steps: [{ name: "Select eligible factory work", conclusion: "success" }],
+  };
+
+  for (const jobs of [
+    [],
+    [{ ...pickup, steps: [{ ...pickup.steps[0], conclusion: "skipped" }] }],
+    [{ ...pickup, run_id: s.source.id + 1 }],
+    [{ ...pickup, head_sha: "f".repeat(40) }],
+  ]) {
+    s.pickupJobs = jobs;
+    assert.deepEqual(await s.run(702), {
+      ready: false,
+      reason: "Pickup timer did not select from the queue",
+    });
+    assert.deepEqual(s.ledger.state, before);
+    assert.equal(s.ledger.writes, 0);
+  }
+
+  s.pickupJobs = [pickup];
+  const resumed = await s.run(702);
+  assert.equal(resumed.ready, true);
+  assert.equal(s.ledger.state.featureTurn.status, "finished");
+  const plans = Object.values(s.ledger.state.featurePlans);
+  assert.equal(plans.length, 1);
+  assert.equal(plans[0].id, resumed.grant);
+  assert.equal(plans[0].runId, "702");
+  assert.equal((await s.run(702)).ready, false);
+  assert.deepEqual(Object.values(s.ledger.state.featurePlans), plans);
 });
 
 test("a low-quota scheduled turn defers without reserving a plan or blocking ordinary admission", async () => {
