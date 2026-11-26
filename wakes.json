@@ -5798,7 +5798,7 @@
         },
         "event": "workflow_run"
       },
-      "status": "intent",
+      "status": "sent",
       "receiver": null,
       "at": "2026-11-26T05:38:34.012Z"
     }
