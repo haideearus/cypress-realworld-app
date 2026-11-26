@@ -5952,20 +5952,15 @@
     "300": {
       "coding": 0,
       "origin": "owner-pr",
-      "reviews": 4,
+      "reviews": 5,
       "retries": 0,
       "head": "b6ced6e95818d63d4f84bf37006d848671ec6e4b",
-      "status": "blocked",
+      "status": "reviewing",
       "pr": 301,
       "approval": null,
       "criteriaHash": "c7ab92acde12dd62f10e5e012617d6faf4511631e5f6eb2ffbe5fad2f549f736",
       "branch": "agent/cloudflare-pickup-timer",
-      "ci": {
-        "requestId": "c5821b3c-be4d-429b-a89c-2b6dd14f96ec",
-        "head": "b6ced6e95818d63d4f84bf37006d848671ec6e4b",
-        "runId": 45819611576,
-        "passed": false
-      },
+      "ci": null,
       "feedback": "Owner PR CI or subscription review unavailable; no automatic retry"
     }
   },
@@ -8094,19 +8089,25 @@
       "status": "finished",
       "at": "2026-11-26T12:25:41.393Z",
       "outcome": "blocked"
+    },
+    "f6ef8b76-51e1-42f5-a17d-df7d69ee1d78": {
+      "id": "f6ef8b76-51e1-42f5-a17d-df7d69ee1d78",
+      "ticket": 300,
+      "phase": "review",
+      "slot": "existing",
+      "runId": "45822834336",
+      "runAttempt": 1,
+      "head": "b6ced6e95818d63d4f84bf37006d848671ec6e4b",
+      "status": "reserved",
+      "at": "2026-11-26T12:47:18.051Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 300,
+    "runId": "45822834336",
+    "runAttempt": 1
+  },
   "audit": [
-    {
-      "at": "2026-11-13T13:39:28.830Z",
-      "event": "reserved",
-      "ticket": 11,
-      "grant": "5aa1c6cc-a2dc-4f9e-97d2-3a09e8851f58",
-      "phase": "review",
-      "runId": "43433517715",
-      "runAttempt": 1
-    },
     {
       "at": "2026-11-13T13:42:48.489Z",
       "event": "finished",
@@ -13135,6 +13136,16 @@
           "reason": "Frozen pre-job controller rejects retained drill history before admission"
         }
       ]
+    },
+    {
+      "at": "2026-11-26T12:47:18.051Z",
+      "event": "reserved",
+      "ticket": 300,
+      "grant": "f6ef8b76-51e1-42f5-a17d-df7d69ee1d78",
+      "phase": "review",
+      "runId": "45822834336",
+      "runAttempt": 1,
+      "actor": "haideearus"
     }
   ],
   "featureTurn": {
