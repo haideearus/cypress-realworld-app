@@ -159,12 +159,36 @@ acknowledges them. It does not enable a previously disabled mode, alter monitori
 or limits, refund allowance, reset attempts or restart a blocked ticket. Changing
 one variable manually while the marker exists does not resume the factory.
 
-## Evidence still needed after merge
+## Active cancellation rehearsal before Claude starts
 
-Local unit/simulated HTTP tests prove refusal paths, redacted secret detection,
-deadline behavior and conservative lock handling. A preview is read-only and is
-not cancellation evidence. No live stop, resume, model session or timed kill test
-is part of preparing this PR. After independent Claude Pro review and merge, a
-separately authorized cloud trial must capture start/end UTC timestamps, run and
-attempt identities, cancellation acknowledgement, counters and marker evidence.
-Until then the one-minute control is implemented but **not demonstrated live**.
+Use a Markdown-only draft PR and an open, unlabeled review issue. Start the
+rehearsal only after separate owner authorization. Keep automatic pickup and
+automerging off, the concurrent ticket limit at `1`, and Claude Extra Usage
+off.
+
+1. Wait for **Factory CI / verify** to pass on the draft's current commit.
+   Confirm the stop preview reports `stopped: false`, `runIds: []`, and
+   `FACTORY_ENABLED=true`. Record the PR head, issue number, and the
+   issue's existing review count.
+2. Open **Factory agents → Run workflow**. Choose `main`, operation
+   `review`, and enter the rehearsal issue and draft PR numbers. After
+   `admit_pr` succeeds, record the parent run ID and attempt. Confirm that
+   the ledger shows this review as the active reservation and
+   `review_existing / ci` is still in progress.
+3. Run `node scripts/factory/stop.cjs --execute` while that CI step is in
+   progress. Record the start and finish times in UTC and retain the output.
+   Check for `stopped: true`, `withinMinute: true`, an empty
+   `pendingRunIds` list, and the review's parent run in `terminalRunIds`.
+4. Check that the Factory agents parent run concluded `cancelled` and the
+   Claude subscription step never started. Confirm the durable stop marker,
+   all three stop switches set to `false`, and a free factory slot. The new
+   review reservation should be finished and blocked, with its attempt
+   retained in the review count.
+5. Record the result on the rehearsal issue and keep the PR in draft during
+   evidence collection. Use the resume preview before restoring the saved
+   manual-review profile. That profile has `FACTORY_ENABLED=true` with
+   automatic pickup and merging both `false`.
+
+The rehearsal measures cancellation of an active factory parent before model
+execution. Record the actual model-step status if the review has already
+reached Claude when the stop takes effect.
