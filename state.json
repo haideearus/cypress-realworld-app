@@ -8164,14 +8164,6 @@
   },
   "audit": [
     {
-      "at": "2026-11-13T15:24:52.211Z",
-      "event": "finished",
-      "ticket": 28,
-      "grant": "22ec0afa-c84b-42e2-9d29-40b442e5bd3b",
-      "status": "blocked",
-      "head": "d38633d647c24443e09dcb39f489931f790a6715"
-    },
-    {
       "at": "2026-11-13T15:37:40.110Z",
       "event": "reserved",
       "ticket": 28,
@@ -13237,6 +13229,13 @@
       "runId": "45841045188",
       "runAttempt": 1,
       "actor": "haideearus"
+    },
+    {
+      "at": "2026-11-26T14:39:43.980Z",
+      "event": "factory-stop-requested",
+      "actor": "haideearus",
+      "commandId": "38e51416-0ec3-47de-826d-c0995cc73e6a",
+      "reason": "Owner emergency stop"
     }
   ],
   "featureTurn": {
@@ -13247,5 +13246,16 @@
     "retryAt": null,
     "status": "finished",
     "ticket": 273
+  },
+  "stop": {
+    "id": "38e51416-0ec3-47de-826d-c0995cc73e6a",
+    "at": "2026-11-26T14:39:42.812Z",
+    "actor": "haideearus",
+    "reason": "Owner emergency stop",
+    "previous": {
+      "FACTORY_AUTOMATION_ENABLED": "false",
+      "FACTORY_AUTOMERGE_ENABLED": "false",
+      "FACTORY_ENABLED": "true"
+    }
   }
 }
