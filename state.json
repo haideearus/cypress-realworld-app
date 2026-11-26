@@ -5719,7 +5719,7 @@
       "origin": "dependency-pr",
       "head": "171bbdc5b7c7ae433ed189ff43210901b82b759a",
       "pr": 299,
-      "status": "new",
+      "status": "blocked",
       "approval": null,
       "branch": "agent/dependency-alert-7687d0803a53020fdf3da65cba6e747472b02c50e3c96880000122fe87335083",
       "criteriaHash": "faf7c91dea4b17b99dd4af9d449be590d850cf6487b44d31b365330a49181d1d",
@@ -5742,7 +5742,8 @@
           }
         ]
       },
-      "ci": null
+      "ci": null,
+      "feedback": "Dependency preparation held; no model invocation"
     }
   },
   "grants": {
@@ -7800,11 +7801,7 @@
       "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 299,
-    "runId": "45769945087",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -12751,6 +12748,13 @@
       "actor": "github-actions[bot]",
       "wakeReceipt": "7cd7238f700f06eb59bce6ab34d647a255c302b720abaee1b8f7fe719487e26a",
       "sourceActor": "haideearus-software-factory[bot]"
+    },
+    {
+      "at": "2026-11-26T06:42:54.940Z",
+      "event": "dependency_preparation_blocked",
+      "ticket": 299,
+      "head": "171bbdc5b7c7ae433ed189ff43210901b82b759a",
+      "runId": "45769945087"
     }
   ],
   "featureTurn": {
