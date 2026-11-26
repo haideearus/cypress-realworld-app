@@ -5255,12 +5255,13 @@
         }
       },
       "merge": {
-        "status": "intent",
+        "status": "merged",
         "head": "8d25196d69ce5e616058127023ef3fba0aa2fbd9",
         "pr": 260,
-        "at": "2026-11-26T22:15:51.399Z",
+        "at": "2026-11-26T22:16:10.935Z",
         "runId": "45901937699",
-        "runAttempt": 1
+        "runAttempt": 1,
+        "mergeCommit": "bd881afb2cc8e315083cd0b74279047ee84f09c6"
       }
     },
     "261": {
@@ -8375,11 +8376,7 @@
       "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 260,
-    "runId": "45901937699",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-14T21:23:55.580Z",
