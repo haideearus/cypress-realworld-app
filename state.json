@@ -5428,8 +5428,8 @@
       "origin": "factory",
       "reviews": 1,
       "retries": 0,
-      "head": "4a149213e60f0259200172271e710884f9c9b67b",
-      "status": "blocked",
+      "head": "7ea82aeca5c823323344598fdddf969a45825622",
+      "status": "awaiting_review",
       "pr": 274,
       "approval": null,
       "criteriaHash": "d6e6324e006d0e1293fc7e4dd9b1a14821fcf779c3c9a5cae025850b6f5ade36",
@@ -5450,12 +5450,7 @@
         "criteriaHash": "d6e6324e006d0e1293fc7e4dd9b1a14821fcf779c3c9a5cae025850b6f5ade36"
       },
       "branch": "agent/factory-273",
-      "ci": {
-        "requestId": "ef22055f-b660-48f3-b91a-8e65af035b65",
-        "head": "4a149213e60f0259200172271e710884f9c9b67b",
-        "runId": 45697851922,
-        "passed": true
-      },
+      "ci": null,
       "feedback": "Main advanced; published repair requires fresh CI and review",
       "publishedRecovery": {
         "sourceCi": {
@@ -5479,10 +5474,10 @@
           }
         ],
         "parent": {
-          "runId": "45697642899",
+          "runId": "45883280983",
           "runAttempt": 1,
-          "workflowSha": "ecc71a8d32ea1c44b2cef431d98a592c581f1135",
-          "head": "4a149213e60f0259200172271e710884f9c9b67b"
+          "workflowSha": "69a289f5fa189283e300087467e54b2cdccd99cd",
+          "head": "7ea82aeca5c823323344598fdddf969a45825622"
         },
         "previousParent": {
           "runId": "45610806210",
@@ -8247,16 +8242,12 @@
       "outcome": "reviewed"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 273,
+    "runId": "45883280983",
+    "runAttempt": 1
+  },
   "audit": [
-    {
-      "at": "2026-11-13T22:21:38.497Z",
-      "event": "finished",
-      "ticket": 33,
-      "grant": "c8e93f8b-3368-4f87-a681-448f6b4e802d",
-      "status": "reviewed",
-      "head": "b3def7f07b3a6cd52e01938c81a6dc4ff0dfbc88"
-    },
     {
       "at": "2026-11-13T23:53:45.041Z",
       "event": "reserved",
@@ -13390,6 +13381,14 @@
       "pr": 274,
       "from": "4a149213e60f0259200172271e710884f9c9b67b",
       "base": "69a289f5fa189283e300087467e54b2cdccd99cd"
+    },
+    {
+      "at": "2026-11-26T19:25:32.906Z",
+      "event": "published_review_resumed",
+      "ticket": 273,
+      "pr": 274,
+      "head": "7ea82aeca5c823323344598fdddf969a45825622",
+      "runId": "45883280983"
     }
   ],
   "featureTurn": {
