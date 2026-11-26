@@ -5699,6 +5699,36 @@
       "status": "sent",
       "receiver": null,
       "at": "2026-11-26T05:33:33.411Z"
+    },
+    "a92c67de612f341c6bd41a818160d910e6d510c8335fd1bc05f5701e32dffdef": {
+      "id": "a92c67de612f341c6bd41a818160d910e6d510c8335fd1bc05f5701e32dffdef",
+      "signal": {
+        "kind": "dependency-alert-ci",
+        "lane": "dependency",
+        "number": 299,
+        "head": "d47b33c0fff3b413ee6b878c9f3fae15f0cdb66c",
+        "criteriaHash": "faf7c91dea4b17b99dd4af9d449be590d850cf6487b44d31b365330a49181d1d",
+        "revision": "4a3c5b7236d0885c8259778c9a66da68da78cc61",
+        "sourceRun": "45761344109",
+        "sourceAttempt": 1,
+        "actor": {
+          "login": "haideearus-software-factory[bot]",
+          "id": 356310548
+        }
+      },
+      "producer": {
+        "runId": "45762407093",
+        "runAttempt": 1,
+        "workflowSha": "4a3c5b7236d0885c8259778c9a66da68da78cc61",
+        "actor": {
+          "login": "haideearus-software-factory[bot]",
+          "id": 356310548
+        },
+        "event": "workflow_run"
+      },
+      "status": "pending",
+      "receiver": null,
+      "at": "2026-11-26T05:33:57.891Z"
     }
   }
 }
