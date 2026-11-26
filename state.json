@@ -4439,9 +4439,9 @@
       "reviews": 1,
       "retries": 0,
       "origin": "dependency-pr",
-      "head": "38e1d26f1dcee3980c166db5ee761ca135cb9bc1",
+      "head": "3e5b9855ae1af13a650ad7c7599fc3c351fdd2b9",
       "pr": 235,
-      "status": "blocked",
+      "status": "new",
       "approval": null,
       "branch": "dependabot/npm_and_yarn/humanfs/node-0.16.8",
       "criteriaHash": "43d8c0a56f517c6c371e5724297f2a15dbe0c393586f988862be19ba0192f58d",
@@ -4477,36 +4477,19 @@
             "runAttempt": 1,
             "workflowSha": "435a39f759b896da8aff3e120d49f7999985e2bf",
             "at": "2026-11-24T21:34:59.605Z"
+          },
+          {
+            "head": "3e5b9855ae1af13a650ad7c7599fc3c351fdd2b9",
+            "base": "b5fb79776935cfcc4b51765c8c2f22b39afd7268",
+            "runId": "45759345511",
+            "runAttempt": 1,
+            "workflowSha": "b5fb79776935cfcc4b51765c8c2f22b39afd7268",
+            "at": "2026-11-26T05:06:16.133Z"
           }
         ]
       },
-      "ci": {
-        "requestId": "4093874a-63f8-4183-aea2-3cf39dcda3a4",
-        "head": "38e1d26f1dcee3980c166db5ee761ca135cb9bc1",
-        "runId": null
-      },
-      "feedback": "Dependency preparation held; no model invocation",
-      "analysis": {
-        "version": 2,
-        "repository": "haideearus/cypress-realworld-app",
-        "pr": 235,
-        "base": "435a39f759b896da8aff3e120d49f7999985e2bf",
-        "head": "38e1d26f1dcee3980c166db5ee761ca135cb9bc1",
-        "workflowSha": "435a39f759b896da8aff3e120d49f7999985e2bf",
-        "runId": "45492491103",
-        "runAttempt": 1,
-        "stage": "analysis",
-        "toolDigest": "f280c92eeb2f5ac163b37bbe2d1cffa0ca85a8237161c40dced67f0c8f5dffb5",
-        "at": "2026-11-24T21:35:29.532Z",
-        "result": {
-          "changed": 6,
-          "candidateVersions": 4,
-          "cleared": [
-            "GHSA-p498-v437-472g"
-          ],
-          "remainingBaseline": []
-        }
-      }
+      "ci": null,
+      "feedback": "Dependency preparation held; no model invocation"
     },
     "237": {
       "coding": 0,
@@ -7563,7 +7546,11 @@
       "outcome": "reviewed"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 235,
+    "runId": "45759345511",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -12343,6 +12330,16 @@
       "ticket": 233,
       "head": "698eccf5ae03b5742815d25a20f172da1a501930",
       "runId": "45758608500"
+    },
+    {
+      "at": "2026-11-26T05:06:16.133Z",
+      "event": "dependency_metadata_admitted",
+      "ticket": 235,
+      "head": "3e5b9855ae1af13a650ad7c7599fc3c351fdd2b9",
+      "runId": "45759345511",
+      "actor": "github-actions[bot]",
+      "wakeReceipt": "33906139ff8e121eb850e04b4a732c6fe44bdd0ec5e8cf9451bbc78e78f3a2d9",
+      "sourceActor": "dependabot[bot]"
     }
   ],
   "featureTurn": {
