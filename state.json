@@ -5005,12 +5005,12 @@
     },
     "261": {
       "coding": 0,
-      "reviews": 0,
+      "reviews": 1,
       "retries": 0,
       "origin": "dependency-pr",
       "head": "84ad9020a39fcfc02ae7d4c8bb422896d10af78f",
       "pr": 261,
-      "status": "new",
+      "status": "reviewing",
       "approval": null,
       "branch": "dependabot/npm_and_yarn/rollup-2.80.0",
       "criteriaHash": "dae6e9ebc8b19d178f3abed281086ed327b395de93c45350fe74690523ed2377",
@@ -7682,6 +7682,17 @@
       "status": "finished",
       "at": "2026-11-26T05:17:48.369Z",
       "outcome": "reviewed"
+    },
+    "037b118f-3545-4b78-83cb-e6b21a34b565": {
+      "id": "037b118f-3545-4b78-83cb-e6b21a34b565",
+      "ticket": 261,
+      "phase": "review",
+      "slot": "dependency",
+      "runId": "45762932909",
+      "runAttempt": 1,
+      "head": "84ad9020a39fcfc02ae7d4c8bb422896d10af78f",
+      "status": "reserved",
+      "at": "2026-11-26T05:50:31.214Z"
     }
   },
   "active": {
@@ -12533,6 +12544,18 @@
       "ticket": 261,
       "head": "84ad9020a39fcfc02ae7d4c8bb422896d10af78f",
       "runId": "45762932909",
+      "actor": "github-actions[bot]",
+      "wakeReceipt": "9c5be6ea4302acbf33d70266bfcfae6c038a96909554075881e45078eeb2ae74",
+      "sourceActor": "dependabot[bot]"
+    },
+    {
+      "at": "2026-11-26T05:50:31.214Z",
+      "event": "reserved",
+      "ticket": 261,
+      "grant": "037b118f-3545-4b78-83cb-e6b21a34b565",
+      "phase": "review",
+      "runId": "45762932909",
+      "runAttempt": 1,
       "actor": "github-actions[bot]",
       "wakeReceipt": "9c5be6ea4302acbf33d70266bfcfae6c038a96909554075881e45078eeb2ae74",
       "sourceActor": "dependabot[bot]"
