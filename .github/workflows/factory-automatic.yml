@@ -1,5 +1,5 @@
 name: Automatic factory
-run-name: ${{ inputs.wake_id && format('Automatic factory / wake {0}', inputs.wake_id) || 'Automatic factory' }}
+run-name: ${{ inputs.timer_tick && format('Automatic factory / timer {0}', inputs.timer_tick) || inputs.wake_id && format('Automatic factory / wake {0}', inputs.wake_id) || 'Automatic factory' }}
 on:
   schedule:
     - cron: "3,13,23,33,43,53 * * * *"
@@ -30,6 +30,10 @@ on:
         description: Receipt from the trusted event bridge (never authorization by itself)
         type: string
         required: false
+        default: ""
+      timer_tick:
+        description: Scheduled UTC timestamp in milliseconds, supplied by the Cloudflare pickup timer
+        type: string
         default: ""
       dry_run:
         description: Preview the selected operation without reservations, model calls or merges
@@ -66,23 +70,42 @@ jobs:
         with:
           ref: ${{ github.workflow_sha }}
           persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        if: ${{ inputs.timer_tick || (github.event_name == 'schedule' && vars.FACTORY_EXTERNAL_PICKUP_ENABLED == 'true') }}
+        with:
+          node-version: 22.20.0
+      - name: Check the pickup timer
+        id: timer
+        if: ${{ inputs.timer_tick || (github.event_name == 'schedule' && vars.FACTORY_EXTERNAL_PICKUP_ENABLED == 'true') }}
+        run: node scripts/factory/pickup-timer.cjs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FACTORY_INPUTS: ${{ toJSON(inputs) }}
+          FACTORY_EXTERNAL_PICKUP_ENABLED: ${{ vars.FACTORY_EXTERNAL_PICKUP_ENABLED }}
+          FACTORY_MAX_CONCURRENT_TICKETS: ${{ vars.FACTORY_MAX_CONCURRENT_TICKETS }}
       - id: app
-        if: ${{ github.event_name != 'workflow_dispatch' || !inputs.dry_run }}
+        if: ${{ (steps.timer.outcome == 'skipped' || steps.timer.outputs.allowed == 'true') && (github.event_name != 'workflow_dispatch' || !inputs.dry_run) }}
         uses: ./.github/actions/factory-app-token
         with:
           client-id: ${{ vars.FACTORY_GITHUB_APP_CLIENT_ID }}
           expected-slug: ${{ vars.FACTORY_GITHUB_APP_SLUG }}
           private-key: ${{ secrets.FACTORY_GITHUB_APP_PRIVATE_KEY }}
-      - id: control
+      - name: Select eligible factory work
+        id: control
+        if: ${{ steps.timer.outcome == 'skipped' || steps.timer.outputs.allowed == 'true' }}
         uses: ./.github/actions/factory-control
         with:
           operation: auto_pick
           github_token: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && github.token || steps.app.outputs.token }}
           variables_json: ${{ toJSON(vars) }}
           parameters: ${{ toJSON(inputs) }}
+      - name: Record selected work for this timer check
+        if: ${{ steps.timer.outputs.allowed == 'true' && steps.control.outputs.ticket != '' }}
+        run: echo 'Pickup selected work for dispatch or merge recovery.' >> "$GITHUB_STEP_SUMMARY"
       - name: Hand off an idle app queue to dependency maintenance
         if: >-
-          ${{ github.event_name == 'schedule' && vars.FACTORY_EVENT_PICKUP_ENABLED == 'true' &&
+          ${{ (github.event_name == 'schedule' || steps.timer.outputs.allowed == 'true') &&
+              vars.FACTORY_EVENT_PICKUP_ENABLED == 'true' &&
               steps.control.outputs.ready == 'false' && steps.control.outputs.ticket == '' }}
         run: echo 'App pickup found no ticket. The event wake can inspect the dependency queue.'
   cycle1:

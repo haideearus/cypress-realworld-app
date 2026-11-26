@@ -281,6 +281,67 @@ test("an idle scheduled app run can hand off one model-free dependency recovery"
   assert.equal(s.dispatches.length, 2);
 });
 
+test("an idle Cloudflare tick needs a verified timer checkpoint to wake dependency recovery", async (t) => {
+  const s = fixture();
+  const tick = Date.UTC(2026, 10, 26, 10, 3);
+  const file = ".github/workflows/factory-automatic.yml";
+  const parent = {
+    ...s.run,
+    id: 701,
+    path: file,
+    workflow_id: 71,
+    event: "workflow_dispatch",
+    status: "completed",
+    conclusion: "success",
+    display_title: `Automatic factory / timer ${tick}`,
+    created_at: new Date(tick + 1000).toISOString(),
+  };
+  s.context.event = s.run.event = "workflow_run";
+  s.event = {
+    repository: { full_name: s.context.repository },
+    action: "completed",
+    workflow_run: parent,
+  };
+  const base = s.api.request;
+  s.api.request = (method, route, body) => {
+    if (route.endsWith("/actions/runs/701/attempts/1")) return structuredClone(parent);
+    if (route.endsWith("/actions/workflows/factory-automatic.yml")) return { id: 71, path: file };
+    if (route.includes("/factory-ci.yml/runs?")) return { workflow_runs: [] };
+    return base(method, route, body);
+  };
+  let checkpoint = "skipped";
+  s.api.pages = async () => [
+    {
+      name: "pick",
+      status: "completed",
+      conclusion: "success",
+      steps: [
+        { name: "Hand off an idle app queue to dependency maintenance", conclusion: "success" },
+        { name: "Check the pickup timer", conclusion: checkpoint },
+      ],
+    },
+  ];
+  const preview = t.mock.method(
+    require("../factory/dependency-tracking.cjs"),
+    "previewNativeRecovery",
+    async () => 259
+  );
+  assert.equal((await handleWake(s)).outcome, "ignored");
+  s.vars.FACTORY_EXTERNAL_PICKUP_ENABLED = "true";
+  assert.equal((await handleWake(s)).outcome, "ignored");
+  assert.equal(preview.mock.callCount(), 0);
+
+  checkpoint = "success";
+  const result = await handleWake(s);
+  assert.equal(result.outcome, "dispatched");
+  assert.equal(result.lane, "dependency");
+  const receipt = s.store.state.receipts[result.receiptId];
+  const queue = require("../factory/wake-contract.cjs");
+  assert.ok(queue.isQueueCheckDrain(receipt.signal));
+  assert.equal(queue.isDependencyCI(receipt.signal), false);
+  await require("../factory/trusted-wake.cjs").verifySource(s.api, receipt.signal, false, s.vars);
+});
+
 test("only a verified terminal dependency parent without a reserved model can recover a held slot", async () => {
   const { terminalDependency } = require("../factory/wake-queue.cjs");
   const s = fixture();

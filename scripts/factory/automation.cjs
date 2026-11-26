@@ -604,7 +604,8 @@ async function main(env = process.env) {
       dryRun,
     });
   }
-  if (!readOnlyPreview) await require("./activity.cjs").recordResult(api, context, result, env);
+  if (!readOnlyPreview && (!inputs.timer_tick || result.ticket))
+    await require("./activity.cjs").recordResult(api, context, result, env);
   output(result, env);
   return result;
 }

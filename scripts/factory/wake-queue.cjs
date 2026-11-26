@@ -3,18 +3,20 @@ const slots = require("./active-tickets.cjs");
 const { terminalParent } = require("./active-runs.cjs");
 const { ROOT } = require("./github.cjs");
 const mergeRetry = require("./dependency-merge-retry.cjs");
+const { timerRun, TIMER_STEP } = require("./pickup-timer.cjs");
 
 const AUTO_WORKFLOW = "factory-automatic.yml";
 const CI_WORKFLOW = "factory-ci.yml";
 const IDLE_STEP = "Hand off an idle app queue to dependency maintenance";
 const MAX_SOURCE_CHECKS = 4;
 
-async function verifyIdleSchedule(api, runId, attempt) {
+async function verifyIdlePickup(api, runId, attempt) {
   const { verifiedRun } = require("./wake-controller.cjs");
   if (attempt !== 1) return null;
   const run = await verifiedRun(api, runId, attempt, AUTO_WORKFLOW);
+  const external = timerRun(run);
   if (
-    run.event !== "schedule" ||
+    (run.event !== "schedule" && !external) ||
     run.head_branch !== "main" ||
     ![run.actor, run.triggering_actor].every((a) => a?.login === c.OWNER && a.id === c.OWNER_ID)
   )
@@ -25,7 +27,9 @@ async function verifyIdleSchedule(api, runId, attempt) {
       job.name === "pick" &&
       job.status === "completed" &&
       job.conclusion === "success" &&
-      job.steps?.some((step) => step.name === IDLE_STEP && step.conclusion === "success")
+      job.steps?.some((step) => step.name === IDLE_STEP && step.conclusion === "success") &&
+      (!external ||
+        job.steps.some((step) => step.name === TIMER_STEP && step.conclusion === "success"))
   )
     ? run
     : null;
@@ -48,7 +52,7 @@ function queueCheckFor(run, number) {
 }
 
 async function verifyQueueCheck(api, signal, bound) {
-  const run = await verifyIdleSchedule(api, signal.sourceRun, signal.sourceAttempt);
+  const run = await verifyIdlePickup(api, signal.sourceRun, signal.sourceAttempt);
   if (
     !run ||
     signal.head !== run.head_sha ||
@@ -114,7 +118,7 @@ async function nextDependency({ api, source, context, vars, ledger, store, state
   const full = !slots.capacity(state, Number(vars.FACTORY_MAX_CONCURRENT_TICKETS));
   const terminal = full ? await terminalDependency(api, state, autoMerge) : null;
   if (full && !terminal) return null;
-  const run = await verifyIdleSchedule(api, String(source.id), source.run_attempt);
+  const run = await verifyIdlePickup(api, String(source.id), source.run_attempt);
   if (!run || run.head_sha !== context.workflowSha) return null;
   const { state: wakes } = await store.read();
   if (

@@ -40,6 +40,8 @@ does not establish ongoing unattended operation. Later monitoring, dependency an
 production-deployment installations are recorded in the current acceptance index.
 The [weekly feature rollout guide](factory/WEEKLY-FEATURES.md) covers the
 read-only preview, guarded pilot and live planner controls.
+The [Cloudflare pickup setup](factory/CLOUDFLARE-PICKUP.md) covers the opt-in
+ten-minute queue check.
 
 ## Subscription and spending
 

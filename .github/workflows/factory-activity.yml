@@ -39,6 +39,9 @@ jobs:
       ${{ github.repository == 'haideearus/cypress-realworld-app' &&
       github.ref == 'refs/heads/main' && github.run_attempt == 1 &&
       (github.event_name == 'workflow_dispatch' || vars.FACTORY_ACTIVITY_LOG_ENABLED == 'true') &&
+      !(github.event_name == 'workflow_run' &&
+      github.event.workflow_run.path == '.github/workflows/factory-automatic.yml' &&
+      startsWith(github.event.workflow_run.display_title, 'Automatic factory / timer ')) &&
       (github.event_name != 'workflow_run' || github.event.action == 'completed' ||
       (github.event.action == 'in_progress' && github.event.workflow_run.path == '.github/workflows/factory-deploy.yml')) }}
     runs-on: ubuntu-latest
