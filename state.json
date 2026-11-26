@@ -5165,12 +5165,12 @@
     },
     "260": {
       "coding": 0,
-      "reviews": 1,
+      "reviews": 2,
       "retries": 0,
       "origin": "dependency-pr",
       "head": "8d25196d69ce5e616058127023ef3fba0aa2fbd9",
       "pr": 260,
-      "status": "new",
+      "status": "reviewing",
       "approval": null,
       "branch": "dependabot/npm_and_yarn/validator-13.15.35",
       "criteriaHash": "83af26fa9987b6c5227fa042cd399aac091a3ad0c4a7167610291843f7225b55",
@@ -8345,6 +8345,17 @@
       "status": "finished",
       "at": "2026-11-26T20:08:11.861Z",
       "outcome": "reviewed"
+    },
+    "577c7f85-2f76-4d66-9ab9-9f6c8f8d0857": {
+      "id": "577c7f85-2f76-4d66-9ab9-9f6c8f8d0857",
+      "ticket": 260,
+      "phase": "review",
+      "slot": "dependency",
+      "runId": "45901937699",
+      "runAttempt": 1,
+      "head": "8d25196d69ce5e616058127023ef3fba0aa2fbd9",
+      "status": "reserved",
+      "at": "2026-11-26T22:11:48.313Z"
     }
   },
   "active": {
@@ -8353,15 +8364,6 @@
     "runAttempt": 1
   },
   "audit": [
-    {
-      "at": "2026-11-14T21:00:37.301Z",
-      "event": "reserved",
-      "ticket": 39,
-      "grant": "ac50c8b8-b555-47f8-bcd8-e8615dd60a17",
-      "phase": "review",
-      "runId": "43640454121",
-      "runAttempt": 1
-    },
     {
       "at": "2026-11-14T21:12:31.655Z",
       "event": "finished",
@@ -13509,6 +13511,18 @@
       "ticket": 260,
       "head": "8d25196d69ce5e616058127023ef3fba0aa2fbd9",
       "runId": "45901937699",
+      "actor": "github-actions[bot]",
+      "wakeReceipt": "2814791f85398403b55eff5f305930b8cc25c14ee1ec90e6a2959fcc152b566e",
+      "sourceActor": "dependabot[bot]"
+    },
+    {
+      "at": "2026-11-26T22:11:48.313Z",
+      "event": "reserved",
+      "ticket": 260,
+      "grant": "577c7f85-2f76-4d66-9ab9-9f6c8f8d0857",
+      "phase": "review",
+      "runId": "45901937699",
+      "runAttempt": 1,
       "actor": "github-actions[bot]",
       "wakeReceipt": "2814791f85398403b55eff5f305930b8cc25c14ee1ec90e6a2959fcc152b566e",
       "sourceActor": "dependabot[bot]"
