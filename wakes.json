@@ -7094,8 +7094,12 @@
         },
         "event": "workflow_run"
       },
-      "status": "sent",
-      "receiver": null,
+      "status": "bound",
+      "receiver": {
+        "runId": "45904782455",
+        "runAttempt": 1,
+        "workflowSha": "bd881afb2cc8e315083cd0b74279047ee84f09c6"
+      },
       "at": "2026-11-26T22:26:08.881Z"
     },
     "2c3daf7c1599589f989c3f3e6d94e7f620a514b31550021e04c5a927bc3f5882": {
