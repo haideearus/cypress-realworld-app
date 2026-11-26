@@ -284,12 +284,13 @@
       "name": "js-yaml",
       "day": "2026-11-26",
       "trackingReason": "no-common-candidate",
-      "phase": "ready",
+      "phase": "resolved",
       "issue": 208,
       "pr": 297,
       "candidate": "3.15.2",
       "base": "c8b87ff6ffbbdee5ea525459b5d72628261ea9d8",
-      "head": "199c13fb93865fba3cfbd1d68deaa93d5087e0d7"
+      "head": "199c13fb93865fba3cfbd1d68deaa93d5087e0d7",
+      "resolvedAt": "2026-11-26T04:59:30.869Z"
     },
     "bd3f3038d28503129b336546c48546a3b3b709a4e95ca3fcadf61161fa3a4616": {
       "name": "jsonwebtoken",
