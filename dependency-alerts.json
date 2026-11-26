@@ -389,9 +389,14 @@
       "base": "3c5cf96ecbf21380005d8416aa1cb97918b019f5",
       "head": "de71235f0aceb642e58755c7c144aa1604a84b13",
       "name": "ws",
-      "phase": "ready",
+      "phase": "refresh",
       "issue": 298,
-      "pr": 299
+      "pr": 299,
+      "refresh": {
+        "base": "bd881afb2cc8e315083cd0b74279047ee84f09c6",
+        "head": "6ec5cac31d8d32ac29211d9208a3410724978a87",
+        "resume": "ready"
+      }
     }
   },
   "heldAfter": "@graphql-tools/utils",
