@@ -8161,14 +8161,6 @@
   "active": null,
   "audit": [
     {
-      "at": "2026-11-13T15:48:27.597Z",
-      "event": "finished",
-      "ticket": 28,
-      "grant": "5b02e932-483b-4f4a-b0a2-ceecbf987216",
-      "status": "reviewed",
-      "head": "91407deb97d7432c5c786d55ba6a555a46106745"
-    },
-    {
       "at": "2026-11-13T18:17:05.143Z",
       "event": "reserved",
       "ticket": 29,
@@ -13251,6 +13243,30 @@
       "inventoryComplete": true,
       "errorCount": 0,
       "elapsedMs": 33738
+    },
+    {
+      "at": "2026-11-26T14:42:03.987Z",
+      "event": "factory-resumed",
+      "actor": "haideearus",
+      "commandId": "38e51416-0ec3-47de-826d-c0995cc73e6a",
+      "restored": {
+        "FACTORY_AUTOMATION_ENABLED": "false",
+        "FACTORY_AUTOMERGE_ENABLED": "false",
+        "FACTORY_ENABLED": "true"
+      },
+      "quarantinedRunIds": [
+        43467058965
+      ],
+      "quarantinedRuns": [
+        {
+          "id": 43467058965,
+          "runAttempt": 1,
+          "status": "queued",
+          "head": "421553c2c108dc2704ef6cec7864582b8c63ead6",
+          "containmentTicket": 38,
+          "reason": "Frozen pre-job controller rejects retained drill history before admission"
+        }
+      ]
     }
   ],
   "featureTurn": {
@@ -13261,16 +13277,5 @@
     "retryAt": null,
     "status": "finished",
     "ticket": 273
-  },
-  "stop": {
-    "id": "38e51416-0ec3-47de-826d-c0995cc73e6a",
-    "at": "2026-11-26T14:39:42.812Z",
-    "actor": "haideearus",
-    "reason": "Owner emergency stop",
-    "previous": {
-      "FACTORY_AUTOMATION_ENABLED": "false",
-      "FACTORY_AUTOMERGE_ENABLED": "false",
-      "FACTORY_ENABLED": "true"
-    }
   }
 }
