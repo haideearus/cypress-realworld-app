@@ -4578,8 +4578,16 @@
       "origin": "dependency-pr",
       "head": "2cef0d71bca591d0a26277ef896e342b04a61293",
       "pr": 236,
-      "status": "reviewing",
-      "approval": null,
+      "status": "reviewed",
+      "approval": {
+        "head": "2cef0d71bca591d0a26277ef896e342b04a61293",
+        "pr": 236,
+        "grant": "ff0416f6-6a82-4f21-98d3-e9f2dbb46b1c",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/45812010313"
+      },
       "branch": "dependabot/npm_and_yarn/browserslist-4.29.6",
       "criteriaHash": "f749c593de69cd5f2a0b350b46201b6f1726e7f5434502d6a4acc948633b9b1a",
       "dependency": {
@@ -4636,7 +4644,8 @@
           ],
           "remainingBaseline": []
         }
-      }
+      },
+      "feedback": "{\"head\":\"2cef0d71bca591d0a26277ef896e342b04a61293\",\"verdict\":\"pass\",\"summary\":\"Inspected yarn.lock (sole changed file per dependencyFacts.changedFiles) and confirmed its on-disk content at head matches the diff exactly: three duplicated browserslist entries (4.24.3, 4.25.1, 4.28.1) satisfying ^4.24.0/^4.25.1/^4.28.1 are deduped into a single browserslist@4.29.6, with transitive caniuse-lite, electron-to-chromium, node-releases, update-browserslist-db, and baseline-browser-mapping ranges bumped consistently. package.json's root \\\"browserslist\\\" key (package.json:219-230) is only the query config, not a version pin, and was untouched, matching the ticket's \\\"bounded, lockfile-only\\\" scope. Registry integrity hashes for all 7 added/retained packages matched dependencyFacts.registry (integrityMatched: true for each), so no tampering or confusion risk. Both advisories GHSA-73wf-gq98-2v4g and GHSA-c83g-rgw3-j3cx (browserslist fixed at 4.28.7 per the OSV records) are correctly cleared since 4.29.6 is above the fix boundary, and none of the newly added/retained versions carry advisoryIds. ciEvidence shows a verified exact-head CI run with lint/types/unit tests plus full UI regression (cypress/tests/ui/auth.spec.ts, bankaccounts.spec.ts, user-settings.spec.ts, src/components/__tests__/UserSettingsForm.test.tsx — all confirmed present via Glob) passing, which exercises the build pipeline that consumes browserslist/caniuse-lite data, giving indirect confidence the bump didn't break builds, though none of these tests specifically target browserslist-consumer output (e.g., autoprefixer/babel target changes).\",\"findings\":[{\"severity\":\"minor\",\"message\":\"No test in the cited CI evidence (cypress/tests/ui/*.spec.ts, UserSettingsForm.test.tsx) specifically exercises browserslist-dependent build output (autoprefixer/babel target lists), so compatibility confidence rests on the overall app still building and passing unrelated UI/unit specs rather than a targeted check of the caniuse-lite/electron-to-chromium data bump's effect on bundled output.\"}]}"
     },
     "237": {
       "coding": 0,
@@ -8025,25 +8034,13 @@
       "runId": "45812010313",
       "runAttempt": 1,
       "head": "2cef0d71bca591d0a26277ef896e342b04a61293",
-      "status": "reserved",
-      "at": "2026-11-26T11:48:10.209Z"
+      "status": "finished",
+      "at": "2026-11-26T11:48:10.209Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 236,
-    "runId": "45812010313",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
-    {
-      "at": "2026-11-13T08:49:37.451Z",
-      "event": "reserved",
-      "ticket": 16,
-      "grant": "8dab7b9b-a092-459b-83ef-9933e56be868",
-      "phase": "review",
-      "runId": "43396239049",
-      "runAttempt": 1
-    },
     {
       "at": "2026-11-13T08:57:15.491Z",
       "event": "finished",
@@ -13039,6 +13036,14 @@
       "actor": "github-actions[bot]",
       "wakeReceipt": "f903f7ca6d4ea8db49a2d5543f137fd7c594908ff700105299c987000e2bc2ac",
       "sourceActor": "dependabot[bot]"
+    },
+    {
+      "at": "2026-11-26T11:50:28.068Z",
+      "event": "finished",
+      "ticket": 236,
+      "grant": "ff0416f6-6a82-4f21-98d3-e9f2dbb46b1c",
+      "status": "reviewed",
+      "head": "2cef0d71bca591d0a26277ef896e342b04a61293"
     }
   ],
   "featureTurn": {
