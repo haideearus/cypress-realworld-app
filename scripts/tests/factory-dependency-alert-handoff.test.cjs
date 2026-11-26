@@ -1132,6 +1132,70 @@ test("hosted preview stays read-only and alert publication is explicitly opt-in"
   );
 });
 
+test("the alert repair job skips Cloudflare completions and keeps ordinary wakes eligible", () => {
+  const fs = require("node:fs");
+  const yaml = require("js-yaml");
+  const { runInNewContext } = require("node:vm");
+  const workflow = yaml.load(
+    fs.readFileSync(
+      path.resolve(__dirname, "../../.github/workflows/factory-dependency-alerts.yml"),
+      "utf8"
+    )
+  );
+  const condition = workflow.jobs.repair.if.slice(3, -2);
+  const source = {
+    path: ".github/workflows/factory-automatic.yml",
+    event: "workflow_dispatch",
+    run_attempt: 1,
+    repository: repo,
+    head_repository: repo,
+    head_sha: head,
+    conclusion: "success",
+  };
+  const allowed = (workflowRun, eventName = "workflow_run") =>
+    runInNewContext(
+      condition,
+      {
+        github: {
+          event_name: eventName,
+          repository: d.REPOSITORY,
+          ref: "refs/heads/main",
+          run_attempt: 1,
+          actor: policy.OWNER,
+          triggering_actor: policy.OWNER,
+          sha: head,
+          event: { workflow_run: workflowRun },
+        },
+        vars: {
+          FACTORY_ENABLED: "true",
+          FACTORY_AUTOMATION_ENABLED: "true",
+          FACTORY_EVENT_PICKUP_ENABLED: "true",
+          FACTORY_DEPENDENCY_ALERT_REPAIR_ENABLED: "true",
+          FACTORY_GITHUB_APP_SLUG: app.appSlug,
+        },
+        startsWith: (value, prefix) => String(value).toLowerCase().startsWith(prefix.toLowerCase()),
+        format: (pattern, value) => pattern.replace("{0}", value),
+      },
+      { timeout: 1000 }
+    );
+
+  const timer = { ...source, display_title: "Automatic factory / timer 1795510980000" };
+  assert.equal(allowed(timer), false);
+  assert.equal(allowed({ ...source, display_title: "Automatic factory" }), true);
+  assert.equal(allowed({ ...source, display_title: "Automatic factory", event: "schedule" }), true);
+  assert.equal(allowed({ ...timer, path: ".github/workflows/factory-agents.yml" }), true);
+  assert.equal(
+    allowed({
+      ...source,
+      path: ".github/workflows/factory-ci.yml",
+      event: "push",
+      display_title: "Factory CI / main",
+    }),
+    true
+  );
+  assert.equal(allowed(undefined, "schedule"), true);
+});
+
 test("a refreshed alert proposal uses verified Git ancestry when the PR API reports its old base", async () => {
   const x = await pipeline();
   assert.equal((await x.run()).outcome, "published");
