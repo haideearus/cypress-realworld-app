@@ -921,6 +921,29 @@
       },
       "status": "intent",
       "commentId": null
+    },
+    "02ddb9facfc6399ccf4a3c2f0c51d6a8b393830e3f9fa9a1f255b132555fd1c2": {
+      "event": {
+        "id": "02ddb9facfc6399ccf4a3c2f0c51d6a8b393830e3f9fa9a1f255b132555fd1c2",
+        "producer": {
+          "runId": "45841045188",
+          "runAttempt": 1,
+          "workflow": "factory-agents.yml",
+          "workflowSha": "6940cc0aebfe8a5f0944accc8274d92ab8a3648e",
+          "phase": "grant-ed4adf5e-aefa-41ef-b2d5-86f41e820926",
+          "actor": "haideearus"
+        },
+        "kind": "review",
+        "state": "blocked",
+        "subject": 302,
+        "head": "6a7c473726fc60393244eab5e7ccecac837ab0c2",
+        "summary": "Review did not retain a passing approval; inspect the assessment before retrying.",
+        "links": [
+          "https://github.com/haideearus/cypress-realworld-app/actions/runs/45841045188"
+        ]
+      },
+      "status": "intent",
+      "commentId": null
     }
   },
   "lastMonitor": {
