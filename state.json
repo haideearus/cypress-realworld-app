@@ -165,7 +165,8 @@
     ],
     "2026-11-26": [
       294,
-      296
+      296,
+      297
     ]
   },
   "tickets": {
@@ -5352,6 +5353,38 @@
         "workflowSha": "c8b87ff6ffbbdee5ea525459b5d72628261ea9d8",
         "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-discovery.yml@refs/heads/main"
       }
+    },
+    "297": {
+      "coding": 0,
+      "reviews": 0,
+      "retries": 0,
+      "origin": "dependency-pr",
+      "head": "199c13fb93865fba3cfbd1d68deaa93d5087e0d7",
+      "pr": 297,
+      "status": "new",
+      "approval": null,
+      "branch": "agent/dependency-alert-5ccd5f1b7cd3c6b72c20b575da22a7c1fe18179b93b404fdd1e01302d01bc019",
+      "criteriaHash": "3e5afe77e36319faf9a7b7df0bae068aad21371f252abbbdae01a462e0bc10a6",
+      "dependency": {
+        "version": 1,
+        "pr": 297,
+        "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-dependencies.yml@refs/heads/main",
+        "workflowSha": "c8b87ff6ffbbdee5ea525459b5d72628261ea9d8",
+        "runId": "45752540202",
+        "runAttempt": 1,
+        "appSlug": "haideearus-software-factory",
+        "attempts": [
+          {
+            "head": "199c13fb93865fba3cfbd1d68deaa93d5087e0d7",
+            "base": "c8b87ff6ffbbdee5ea525459b5d72628261ea9d8",
+            "runId": "45752540202",
+            "runAttempt": 1,
+            "workflowSha": "c8b87ff6ffbbdee5ea525459b5d72628261ea9d8",
+            "at": "2026-11-26T04:01:45.468Z"
+          }
+        ]
+      },
+      "ci": null
     }
   },
   "grants": {
@@ -7349,7 +7382,11 @@
       "outcome": "discovery_complete"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 297,
+    "runId": "45752540202",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -12013,6 +12050,16 @@
       "grant": "600a4db6-1254-4ff7-83aa-6ffe62bb3617",
       "phase": "discover",
       "status": "discovery_complete"
+    },
+    {
+      "at": "2026-11-26T04:01:45.468Z",
+      "event": "dependency_metadata_admitted",
+      "ticket": 297,
+      "head": "199c13fb93865fba3cfbd1d68deaa93d5087e0d7",
+      "runId": "45752540202",
+      "actor": "github-actions[bot]",
+      "wakeReceipt": "23c98babdb9ae94b27a6216a5e1bbe8c0f0b5f52bb58b6e9c82131fd843bf227",
+      "sourceActor": "haideearus-software-factory[bot]"
     }
   ],
   "featureTurn": {
