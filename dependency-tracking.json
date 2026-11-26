@@ -106,7 +106,8 @@
         "4b1447b0e6edcc21e930f915c2dcb097da3735db": {
           "bases": {
             "bd881afb2cc8e315083cd0b74279047ee84f09c6": {
-              "refresh": "confirmed"
+              "refresh": "confirmed",
+              "stale": "requested"
             }
           }
         }
