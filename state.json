@@ -5429,9 +5429,17 @@
       "reviews": 2,
       "retries": 0,
       "head": "7ea82aeca5c823323344598fdddf969a45825622",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 274,
-      "approval": null,
+      "approval": {
+        "head": "7ea82aeca5c823323344598fdddf969a45825622",
+        "pr": 274,
+        "grant": "77233602-8627-4c0a-b2a4-0e2ee506f989",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/45883280983"
+      },
       "criteriaHash": "d6e6324e006d0e1293fc7e4dd9b1a14821fcf779c3c9a5cae025850b6f5ade36",
       "automatic": {
         "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-automatic.yml@refs/heads/main",
@@ -5456,7 +5464,7 @@
         "runId": 45883597309,
         "passed": true
       },
-      "feedback": "Main advanced; published repair requires fresh CI and review",
+      "feedback": "{\"findings\":[],\"head\":\"7ea82aeca5c823323344598fdddf969a45825622\",\"verdict\":\"pass\",\"summary\":\"Reviewed src/components/TransactionListAmountRangeFilter.tsx and the new src/components/__tests__/TransactionListAmountRangeFilter.test.tsx against ticket #273. The diff adds aria-label=\\\"Clear amount range\\\" to the existing Clear Button (line 88), giving it the accessible name required by the acceptance criteria; verified present in the checked-out source, matching the supplied diff exactly. The second acceptance criterion (clearing amount preserves the selected date range) is satisfied structurally: TransactionListFilters.tsx wires resetAmountRange to sendFilterEvent(\\\"AMOUNT_RESET\\\"), and transactionFiltersMachine.ts (parallel states for dateRange/amountRange) shows AMOUNT_RESET only triggers resetAmountRange, clearing amountMin/amountMax while dateRangeStart/dateRangeEnd remain untouched in the sibling dateRange region; this pre-existing isolation is unmodified by the diff, so the fix cannot regress it. The added test file follows the existing __tests__/vitest convention (consistent with NavBar.test.tsx, UserSettingsForm.test.tsx) and is picked up by the existing test:unit:ci script; it verifies the accessible name via getByRole and that clicking it calls resetAmountRange exactly once, reasonable component-level coverage given the date-range interaction lives in a separate component/machine not exercised by this unit test. No data-test attributes were removed, no production/credential/policy code was touched. Limitation: I did not execute the test suite myself (read-only review); I relied on static inspection of the state machine/component wiring plus the supplied CI link as evidence of test-framework compatibility.</summary>\\n</invoke>\\n\"}",
       "publishedRecovery": {
         "sourceCi": {
           "requestId": "0e8c8c8b-a3b2-47d4-879c-d78581ace199",
@@ -8254,24 +8262,13 @@
       "runId": "45883280983",
       "runAttempt": 1,
       "head": "7ea82aeca5c823323344598fdddf969a45825622",
-      "status": "reserved",
-      "at": "2026-11-26T19:35:50.081Z"
+      "status": "finished",
+      "at": "2026-11-26T19:35:50.081Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 273,
-    "runId": "45883280983",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
-    {
-      "at": "2026-11-14T00:06:04.035Z",
-      "event": "finished",
-      "ticket": 35,
-      "grant": "121e87bf-451b-473a-86b9-876ae52a1c4d",
-      "status": "reviewed",
-      "head": "4bc2ed6c5cbfd71f3367f7d6caa1c1629b565aa8"
-    },
     {
       "at": "2026-11-14T09:43:21.724Z",
       "event": "reserved",
@@ -13408,6 +13405,14 @@
       "actor": "github-actions[bot]",
       "wakeReceipt": "c5fc784feacdc87e70742eefdf9658028d75350af4c1ddfe88fafcd21a102859",
       "sourceActor": "haideearus"
+    },
+    {
+      "at": "2026-11-26T19:38:01.435Z",
+      "event": "finished",
+      "ticket": 273,
+      "grant": "77233602-8627-4c0a-b2a4-0e2ee506f989",
+      "status": "reviewed",
+      "head": "7ea82aeca5c823323344598fdddf969a45825622"
     }
   ],
   "featureTurn": {
