@@ -6025,7 +6025,11 @@
       "approval": null,
       "criteriaHash": "06839c4bb02b2f9189623808c5049c1a50f70e730077be03ef83a630ecce538b",
       "branch": "agent/273-review-only-continuation",
-      "ci": null
+      "ci": {
+        "requestId": "558ec4e1-d01f-4e1d-a438-07f5acb5ead4",
+        "head": "af1ca365d016e7d9fc92551b58ac75e81bc183fc",
+        "runId": null
+      }
     }
   },
   "grants": {
