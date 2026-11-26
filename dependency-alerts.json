@@ -368,5 +368,13 @@
       "pr": null
     }
   },
-  "heldAfter": "extract-zip"
+  "heldAfter": "extract-zip",
+  "deferred": {
+    "base": "c8b87ff6ffbbdee5ea525459b5d72628261ea9d8",
+    "fingerprint": "6f06be29accbde4b2412a54d6329691689c671705c0c1e9a43ee2f9d2318519d",
+    "runs": [
+      "45750275133"
+    ],
+    "at": "2026-11-26T03:39:55.631Z"
+  }
 }
