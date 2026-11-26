@@ -531,7 +531,7 @@
       "sweepClosure": {
         "artifactId": 15086200246,
         "artifactDigest": "sha256:e5d91fefeeb4e9823c0dca62ecca7cc7ca209de57fc203101fc268f32bf47f57",
-        "status": "pending"
+        "status": "completed"
       }
     }
   }
