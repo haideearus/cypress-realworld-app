@@ -107,7 +107,8 @@ async function main(env = process.env, dependencies = {}) {
     if (operation === "select" && !turns.pending((await ledger.read()).state, config, now()))
       return result({ ready: false, reason: "No scheduled feature turn is waiting" });
     event = dependencies.event || readJson(env.GITHUB_EVENT_PATH, 2000000);
-    await verifyContinuation(api, context, event);
+    if (!(await verifyContinuation(api, context, event)))
+      return result({ ready: false, reason: "Pickup timer did not select from the queue" });
   }
   meter.assertContext(context);
   const changeTurn = async (change) => {

@@ -1,6 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const policy = require("../factory/policy.cjs");
+const feature = require("../factory/feature-contract.cjs");
 const { criteriaHash } = require("../factory/controller.cjs");
 const { ROOT } = require("../factory/github.cjs");
 
@@ -10,18 +11,66 @@ const base = "c".repeat(40);
 const refreshedHead = "d".repeat(40);
 const laterBase = "1".repeat(40);
 const laterHead = "2".repeat(40);
+const finalBase = "3".repeat(40);
+const finalHead = "4".repeat(40);
 const repo = { full_name: policy.REPOSITORY };
-const branch = "agent/factory-300";
 
-function fixture({ behind = false, altered = false, priorReviewJob } = {}) {
+function featureFixture(number) {
+  const proposal = {
+    size: "minor",
+    title: "Name the amount range clear action",
+    problem: "The amount range clear button has a generic accessible name.",
+    benefit: "Users can identify the amount filter before clearing it.",
+    evidence: { kind: "issue", number: 8, quote: "Identify the filter being reset" },
+    steps: [
+      {
+        title: "Name the amount range clear action",
+        scope: "Give the reset button a distinct, filter-specific accessible name.",
+        acceptance: ["The clear button can be found by its filter-specific accessible name."],
+      },
+    ],
+  };
+  const key = feature.proposalKey(proposal);
+  const row = {
+    week: "2026-11-23",
+    producer: { mode: "pilot", head: sourceBase, runId: "15" },
+    proposal,
+    parent: null,
+    stages: [{ phase: "ready", issue: number }],
+  };
+  return {
+    issue: { ...feature.issueFields(key, row, 0), user: feature.BOT },
+    receipt: feature.receiptFor(key, row, 0),
+    file: {
+      type: "file",
+      encoding: "base64",
+      content: Buffer.from(JSON.stringify({ version: 1, records: { [key]: row } })).toString(
+        "base64"
+      ),
+    },
+  };
+}
+
+function fixture({
+  behind = false,
+  altered = false,
+  priorReviewJob,
+  number = 300,
+  prNumber = 301,
+  firstParentRun = "800",
+  fromFeature = false,
+} = {}) {
+  const branch = `agent/factory-${number}`;
+  const featureOrigin = fromFeature ? featureFixture(number) : null;
   const issue = {
-    number: 300,
+    number,
     state: "open",
     title: "Name the clear button",
     body: "Give the reset action a distinct accessible name.",
     user: { login: policy.OWNER },
     labels: [{ name: "factory-ready" }],
     created_at: "2026-11-24T18:54:00Z",
+    ...featureOrigin?.issue,
   };
   const config = {
     enabled: true,
@@ -29,6 +78,7 @@ function fixture({ behind = false, altered = false, priorReviewJob } = {}) {
     concurrent: 1,
     reviews: 2,
     appSlug: "factory-test",
+    featureMode: fromFeature ? "pilot" : "off",
   };
   const context = {
     repository: policy.REPOSITORY,
@@ -38,7 +88,7 @@ function fixture({ behind = false, altered = false, priorReviewJob } = {}) {
     event: "schedule",
     workflowRef: policy.AUTOMATIC_WORKFLOW_REF,
     workflowSha: behind ? base : sourceBase,
-    runId: "800",
+    runId: firstParentRun,
     runAttempt: 1,
   };
   const ci = {
@@ -53,7 +103,7 @@ function fixture({ behind = false, altered = false, priorReviewJob } = {}) {
     audit: [],
     grants: {
       coding: {
-        ticket: 300,
+        ticket: number,
         phase: "code",
         slot: "cycle1",
         runId: "700",
@@ -64,7 +114,7 @@ function fixture({ behind = false, altered = false, priorReviewJob } = {}) {
       },
     },
     tickets: {
-      300: {
+      [number]: {
         origin: "factory",
         automatic: {
           workflowRef: policy.AUTOMATIC_WORKFLOW_REF,
@@ -78,16 +128,17 @@ function fixture({ behind = false, altered = false, priorReviewJob } = {}) {
         reviews: 0,
         retries: 0,
         approval: null,
-        pr: 301,
+        pr: prNumber,
         branch,
         head: sourceHead,
         ci,
         criteriaHash: criteriaHash(issue),
+        ...(featureOrigin ? { feature: featureOrigin.receipt } : {}),
       },
     },
   };
   const pr = {
-    number: 301,
+    number: prNumber,
     state: "open",
     merged: false,
     draft: false,
@@ -103,13 +154,18 @@ function fixture({ behind = false, altered = false, priorReviewJob } = {}) {
   const updates = {
     [base]: { from: sourceHead, to: refreshedHead, previousBase: sourceBase },
     [laterBase]: { from: refreshedHead, to: laterHead, previousBase: base },
+    [finalBase]: { from: laterHead, to: finalHead, previousBase: laterBase },
   };
   const api = {
     async request(method, path, body) {
       const target = path.slice(ROOT.length);
       calls.push([method, target, body]);
-      if (target === "/issues/300") return issue;
-      if (target === "/pulls/301") return structuredClone(pr);
+      if (target === `/issues/${number}`) return issue;
+      if (target === `/pulls/${prNumber}`) return structuredClone(pr);
+      if (target === "/git/ref/heads/factory/features" && featureOrigin)
+        return { object: { sha: sourceBase } };
+      if (target === `/contents/features.json?ref=${sourceBase}` && featureOrigin)
+        return featureOrigin.file;
       if (target === "/branches/main") return { commit: { sha: context.workflowSha } };
       if (target === "/git/ref/heads/main") return { object: { sha: context.workflowSha } };
       if (target === "/actions/runs/700/attempts/1")
@@ -128,9 +184,9 @@ function fixture({ behind = false, altered = false, priorReviewJob } = {}) {
           actor: { login: policy.OWNER },
           triggering_actor: { login: policy.OWNER },
         };
-      if (target === "/actions/runs/800/attempts/1")
+      if (target === `/actions/runs/${firstParentRun}/attempts/1`)
         return {
-          id: 800,
+          id: Number(firstParentRun),
           run_attempt: 1,
           workflow_id: 70,
           event: "schedule",
@@ -148,6 +204,8 @@ function fixture({ behind = false, altered = false, priorReviewJob } = {}) {
         return { sha: refreshedHead, parents: [{ sha: sourceHead }, { sha: base }] };
       if (target === `/git/commits/${laterHead}`)
         return { sha: laterHead, parents: [{ sha: refreshedHead }, { sha: laterBase }] };
+      if (target === `/git/commits/${finalHead}`)
+        return { sha: finalHead, parents: [{ sha: laterHead }, { sha: finalBase }] };
       if (target.startsWith("/compare/")) {
         const [left, right] = target.slice("/compare/".length).split("?")[0].split("...");
         const update = updates[left];
@@ -161,10 +219,10 @@ function fixture({ behind = false, altered = false, priorReviewJob } = {}) {
               : structuredClone(files),
         };
       }
-      if (target === "/pulls/301/update-branch") {
+      if (target === `/pulls/${prNumber}/update-branch`) {
         const update = updates[context.workflowSha];
         assert.deepEqual(body, { expected_head_sha: update.from });
-        assert.deepEqual(state.tickets[300].publishedRecovery.refreshes.at(-1), {
+        assert.deepEqual(state.tickets[number].publishedRecovery.refreshes.at(-1), {
           base: context.workflowSha,
           from: update.from,
         });
@@ -191,7 +249,7 @@ function fixture({ behind = false, altered = false, priorReviewJob } = {}) {
       }
       if (path.includes("/746/"))
         return [{ name: "verify", head_sha: context.workflowSha, conclusion: "success" }];
-      if (path.includes("/800/attempts/1/jobs"))
+      if (path.includes(`/${firstParentRun}/attempts/1/jobs`))
         return Object.entries({
           coding: "skipped",
           publish: "skipped",
@@ -319,12 +377,12 @@ test("a terminal recovery keeps a spent review and does not repeat it on the sam
   );
 });
 
-async function afterReviewSkip({ behind, priorReviewJob = "skipped" } = {}) {
+async function afterReviewSkip({ priorReviewJob = "skipped", ...options } = {}) {
   const recovery = require("../factory/published-review-recovery.cjs");
-  const result = fixture({ behind, priorReviewJob });
+  const result = fixture({ priorReviewJob, ...options });
   const { coordinator, state } = result;
   await recovery.resumePublishedReview(coordinator, state, base, false);
-  const ticket = state.tickets[300];
+  const ticket = state.tickets[result.issue.number];
   const savedCi = { ...result.ci, head: ticket.head, runId: 747 };
   state.grants.review = {
     ...state.active,
@@ -465,4 +523,163 @@ test("an out-of-date published PR refreshes once and keeps its old CI as history
   assert.deepEqual(state.tickets[300].publishedRecovery.sourceCi, ci);
   assert.equal(calls.filter(([method]) => method === "PUT").length, 1);
   assert.equal(await resumePublishedReview(coordinator, state, base, false), null);
+});
+
+async function afterTwoRecoveries({
+  lastReviewJob = "skipped",
+  number = 273,
+  prNumber = 274,
+  firstParentRun = "45610806210",
+  failedParentRun = "45697642899",
+  fromFeature = true,
+} = {}) {
+  const result = await afterReviewSkip({
+    behind: true,
+    number,
+    prNumber,
+    firstParentRun,
+    fromFeature,
+  });
+  const { coordinator, state, recovery, ci } = result;
+  coordinator.context.runId = failedParentRun;
+  coordinator.context.workflowSha = laterBase;
+  assert.equal(
+    (await recovery.resumePublishedReview(coordinator, state, base, false)).head,
+    laterHead
+  );
+  const ticket = state.tickets[number];
+  Object.assign(ticket, {
+    status: "blocked",
+    feedback: recovery.STALE_REASON,
+    ci: { ...ci, head: laterHead, runId: 748 },
+  });
+  state.active = null;
+  coordinator.context.runId = "802";
+  coordinator.context.workflowSha = finalBase;
+  const { api } = coordinator;
+  const { request, pages } = api;
+  api.request = async (method, path, body) => {
+    if (path === `${ROOT}/actions/runs/${failedParentRun}/attempts/1`)
+      return {
+        id: Number(failedParentRun),
+        run_attempt: 1,
+        workflow_id: 70,
+        event: "workflow_dispatch",
+        path: ".github/workflows/factory-automatic.yml",
+        status: "completed",
+        conclusion: "failure",
+        head_branch: "main",
+        head_sha: laterBase,
+        repository: repo,
+        head_repository: repo,
+      };
+    return request(method, path, body);
+  };
+  api.pages = async (path) => {
+    if (path !== `${ROOT}/actions/runs/${failedParentRun}/attempts/1/jobs`) return pages(path);
+    return Object.entries({
+      coding: "skipped",
+      publish: "skipped",
+      ci: "success",
+      reserve_review: "failure",
+      review: lastReviewJob,
+      assess: "success",
+    }).map(([name, conclusion]) => ({
+      name: `cycle1 / ${name}`,
+      conclusion,
+      status: "completed",
+    }));
+  };
+  return result;
+}
+
+test("#273 can refresh and resume #274 once while keeping both older recovery runs", async () => {
+  const { coordinator, state, calls, recovery } = await afterTwoRecoveries();
+  const original = structuredClone(state);
+  const result = await recovery.resumePublishedReview(coordinator, state, base, false);
+  assert.deepEqual(
+    { reviewOnly: result?.reviewOnly, head: result?.head, ticket: result?.ticket },
+    { reviewOnly: true, head: finalHead, ticket: 273 }
+  );
+  const next = state.tickets[273];
+  const prior = original.tickets[273];
+  assert.equal(state.active.ticket, 273);
+  assert.equal(next.ci, null);
+  assert.equal(next.coding, 1);
+  assert.equal(next.reviews, 1);
+  assert.deepEqual(state.grants, original.grants);
+  assert.deepEqual(next.skippedPublishedReview, prior.skippedPublishedReview);
+  assert.deepEqual(next.feature, prior.feature);
+  assert.deepEqual(next.publishedRecovery.previousParent, prior.publishedRecovery.previousParent);
+  assert.deepEqual(next.publishedRecovery.finalContinuation, {
+    failedParent: prior.publishedRecovery.parent,
+    priorCi: prior.ci,
+  });
+  assert.deepEqual(next.publishedRecovery.sourceCi, prior.publishedRecovery.sourceCi);
+  assert.equal(calls.filter(([method]) => method === "PUT").length, 3);
+  recovery.validateRecovery(next, Object.values(state.grants));
+
+  state.active = null;
+  next.status = "blocked";
+  next.feedback = recovery.STALE_REASON;
+  coordinator.context.runId = "803";
+  coordinator.context.workflowSha = "5".repeat(40);
+  assert.equal(await recovery.resumePublishedReview(coordinator, state, base, false), null);
+  assert.equal(calls.filter(([method]) => method === "PUT").length, 3);
+});
+
+test("another published app PR can use the same evidence-based continuation", async () => {
+  const { coordinator, state, recovery } = await afterTwoRecoveries({
+    number: 390,
+    prNumber: 391,
+    firstParentRun: "879",
+    failedParentRun: "880",
+    fromFeature: false,
+  });
+  const grants = structuredClone(state.grants);
+  const result = await recovery.resumePublishedReview(coordinator, state, base, false);
+  assert.equal(result?.ticket, 390);
+  assert.equal(result?.reviewOnly, true);
+  assert.equal(state.tickets[390].publishedRecovery.finalContinuation.failedParent.runId, "880");
+  assert.deepEqual(state.grants, grants);
+  recovery.validateRecovery(state.tickets[390], Object.values(state.grants));
+});
+
+test("the extra continuation requires retained CI and a review skipped before reservation", async () => {
+  for (const options of [{ lastReviewJob: "success" }, { lastReviewJob: "missing" }]) {
+    const { coordinator, state, calls, recovery } = await afterTwoRecoveries(options);
+    const original = structuredClone(state);
+    const result = await recovery.resumePublishedReview(coordinator, state, base, false);
+    assert.equal(result?.ready ?? false, false);
+    assert.deepEqual(state, original);
+    assert.equal(calls.filter(([method]) => method === "PUT").length, 2);
+  }
+});
+
+test("a lost refresh response can be reconciled without sending another branch update", async () => {
+  const { coordinator, state, calls, recovery } = await afterTwoRecoveries();
+  const { api } = coordinator;
+  const { request } = api;
+  api.request = async (method, path, body) => {
+    const response = await request(method, path, body);
+    if (method === "PUT" && path.endsWith("/update-branch")) {
+      const error = new Error("Lost response after branch update");
+      error.status = 502;
+      throw error;
+    }
+    return response;
+  };
+  const priorCi = structuredClone(state.tickets[273].ci);
+  const held = await recovery.resumePublishedReview(coordinator, state, base, false);
+  assert.match(held.reason, /delivery is unconfirmed/);
+  assert.equal(state.active, null);
+  assert.deepEqual(state.tickets[273].publishedRecovery.finalContinuation.priorCi, priorCi);
+  recovery.validateRecovery(state.tickets[273], Object.values(state.grants));
+
+  coordinator.context.runId = "803";
+  const result = await recovery.resumePublishedReview(coordinator, state, base, false);
+  assert.equal(result?.reviewOnly, true);
+  assert.equal(result?.head, finalHead);
+  assert.equal(calls.filter(([method]) => method === "PUT").length, 3);
+  recovery.validateRecovery(state.tickets[273], Object.values(state.grants));
 });

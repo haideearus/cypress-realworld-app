@@ -116,6 +116,416 @@ test("idle completions, observer completions and owner harness CI cannot drain",
     assert.equal(await classifySignal(s), null);
   }
 });
+
+test("verified current-main CI wakes the app queue once and its idle check can hand off", async (t) => {
+  const s = fixture();
+  const contract = require("../factory/wake-contract.cjs");
+  const trusted = require("../factory/trusted-wake.cjs");
+  const ci = {
+    ...s.run,
+    id: 701,
+    workflow_id: 71,
+    path: ".github/workflows/factory-ci.yml",
+    event: "push",
+    status: "completed",
+    conclusion: "success",
+  };
+  s.context.event = s.run.event = "workflow_run";
+  s.event = { repository: ci.repository, action: "completed", workflow_run: ci };
+  let currentMain = sha;
+  const request = s.api.request;
+  s.api.request = (method, path, body) => {
+    if (path.endsWith("/actions/runs/701/attempts/1")) return structuredClone(ci);
+    if (path.endsWith("/actions/workflows/factory-ci.yml")) return { id: 71, path: ci.path };
+    if (path.endsWith("/git/ref/heads/main")) return { object: { sha: currentMain } };
+    return request(method, path, body);
+  };
+  let conclusion = "failure";
+  s.api.pages = async () => [
+    { name: "verify", run_id: 701, head_sha: sha, status: "completed", conclusion },
+  ];
+  assert.equal((await handleWake(s)).outcome, "ignored");
+  assert.deepEqual(s.dispatches, []);
+
+  conclusion = "success";
+  s.ledger.state.active = { ticket: 9, runId: "9", runAttempt: 1 };
+  assert.equal((await handleWake(s)).outcome, "busy");
+  assert.deepEqual(s.dispatches, []);
+  s.ledger.state.active = null;
+  const result = await handleWake(s);
+  assert.equal(result.outcome, "dispatched");
+  assert.equal(result.lane, "app");
+  assert.deepEqual(s.dispatches, [
+    { ref: "main", inputs: { wake_id: result.receiptId, dry_run: false } },
+  ]);
+  const receipt = s.store.state.receipts[result.receiptId];
+  assert.equal(contract.isMainQueueCheck(receipt.signal), true);
+  await trusted.verifySource(s.api, receipt.signal, false);
+  assert.equal((await handleWake(s)).outcome, "duplicate");
+
+  const bot = { login: contract.BOT, id: contract.BOT_ID };
+  const receiver = {
+    ...ci,
+    id: 702,
+    workflow_id: 72,
+    path: ".github/workflows/factory-automatic.yml",
+    event: "workflow_dispatch",
+    display_title: `Automatic factory / wake ${receipt.id}`,
+    actor: bot,
+    triggering_actor: bot,
+  };
+  const mainRequest = s.api.request;
+  const mainJobs = s.api.pages;
+  s.api.request = (method, path, body) => {
+    if (path.endsWith("/actions/runs/702/attempts/1")) return structuredClone(receiver);
+    if (path.endsWith("/actions/workflows/factory-automatic.yml"))
+      return { id: 72, path: receiver.path };
+    if (path.includes("/factory-ci.yml/runs?")) return { workflow_runs: [] };
+    return mainRequest(method, path, body);
+  };
+  s.api.pages = async (path) =>
+    path.includes("/runs/702/")
+      ? [
+          {
+            name: "pick",
+            status: "completed",
+            conclusion: "success",
+            steps: [
+              {
+                name: "Hand off an idle app queue to dependency maintenance",
+                conclusion: "success",
+              },
+            ],
+          },
+        ]
+      : mainJobs(path);
+  t.mock.method(
+    require("../factory/dependency-tracking.cjs"),
+    "previewNativeRecovery",
+    async () => 260
+  );
+  const completion = { ...s, event: { ...s.event, workflow_run: receiver } };
+  assert.equal((await handleWake(completion)).outcome, "ignored");
+  const context = {
+    ...s.context,
+    runId: "702",
+    actor: bot.login,
+    triggeringActor: bot.login,
+    event: "workflow_dispatch",
+    workflowRef: `${s.context.repository}/${receiver.path}@refs/heads/main`,
+  };
+  const wake = await trusted.verifyWake({
+    api: s.api,
+    context,
+    receiptId: receipt.id,
+    lane: "app",
+    bind: true,
+    store: s.store,
+  });
+  assert.equal(trusted.isTrustedWakeContext({ ...context, wake }, "app"), true);
+  assert.equal((await handleWake(completion)).lane, "dependency");
+  assert.equal((await handleWake(completion)).outcome, "duplicate");
+
+  currentMain = "c".repeat(40);
+  await assert.rejects(trusted.verifySource(s.api, receipt.signal, false), /main.*changed/i);
+  assert.equal((await handleWake(s)).outcome, "ignored");
+  assert.equal(s.dispatches.length, 2);
+});
+
+test("an idle owner-started app run can hand off to Dependency maintenance", async (t) => {
+  const s = fixture();
+  const contract = require("../factory/wake-contract.cjs");
+  t.mock.method(
+    require("../factory/dependency-tracking.cjs"),
+    "previewNativeRecovery",
+    async () => 260
+  );
+  const run = {
+    ...s.run,
+    id: 702,
+    workflow_id: 72,
+    path: ".github/workflows/factory-automatic.yml",
+    event: "workflow_dispatch",
+    display_title: "Automatic factory",
+    status: "completed",
+    conclusion: "success",
+  };
+  s.context.event = s.run.event = "workflow_run";
+  s.event = { repository: run.repository, action: "completed", workflow_run: run };
+  const base = s.api.request;
+  s.api.request = (method, path, body) => {
+    if (path.endsWith("/actions/runs/702/attempts/1")) return structuredClone(run);
+    if (path.endsWith("/actions/workflows/factory-automatic.yml"))
+      return { id: 72, path: run.path };
+    if (path.includes("/factory-ci.yml/runs?")) return { workflow_runs: [] };
+    return base(method, path, body);
+  };
+  let conclusion = "skipped";
+  s.api.pages = async () => [
+    {
+      name: "pick",
+      status: "completed",
+      conclusion: "success",
+      steps: [{ name: "Hand off an idle app queue to dependency maintenance", conclusion }],
+    },
+  ];
+  assert.equal((await handleWake(s)).outcome, "ignored");
+  conclusion = "success";
+  const result = await handleWake(s);
+  assert.equal(result.outcome, "dispatched");
+  assert.equal(result.lane, "dependency");
+  assert.equal(contract.isQueueCheckDrain(s.store.state.receipts[result.receiptId].signal), true);
+  assert.equal((await handleWake(s)).outcome, "duplicate");
+  assert.equal(s.dispatches.length, 1);
+});
+
+test("an idle scheduled app run can hand off one model-free dependency recovery", async (t) => {
+  const s = fixture();
+  const queue = require("../factory/wake-contract.cjs");
+  const trusted = require("../factory/trusted-wake.cjs");
+  let candidate = 259;
+  const preview = t.mock.method(
+    require("../factory/dependency-tracking.cjs"),
+    "previewNativeRecovery",
+    async () => candidate
+  );
+  const file = ".github/workflows/factory-automatic.yml";
+  const parent = {
+    ...s.run,
+    id: 701,
+    path: file,
+    workflow_id: 71,
+    event: "schedule",
+    status: "completed",
+    conclusion: "success",
+  };
+  s.context.event = s.run.event = "workflow_run";
+  s.event = {
+    repository: { full_name: s.context.repository },
+    action: "completed",
+    workflow_run: parent,
+  };
+  const base = s.api.request;
+  s.api.request = (method, route, body) => {
+    if (route.endsWith("/actions/runs/701/attempts/1")) return structuredClone(parent);
+    if (route.endsWith("/actions/workflows/factory-automatic.yml")) return { id: 71, path: file };
+    if (route.includes("/factory-ci.yml/runs?")) return { workflow_runs: [] };
+    return base(method, route, body);
+  };
+  let checkpoint = "success";
+  s.api.pages = async () => [
+    {
+      name: "pick",
+      status: "completed",
+      conclusion: "success",
+      steps: [
+        { name: "Hand off an idle app queue to dependency maintenance", conclusion: checkpoint },
+      ],
+    },
+  ];
+  s.ledger.state.active = { ticket: 9, runId: "9", runAttempt: 1 };
+  assert.equal((await handleWake(s)).outcome, "ignored");
+  assert.equal(preview.mock.callCount(), 0);
+
+  s.ledger.state.active = null;
+  checkpoint = "skipped";
+  assert.equal((await handleWake(s)).outcome, "ignored");
+  assert.equal(preview.mock.callCount(), 0);
+
+  checkpoint = "success";
+  const result = await handleWake(s);
+  assert.equal(result.outcome, "dispatched");
+  assert.equal(result.lane, "dependency");
+  const receipt = s.store.state.receipts[result.receiptId];
+  assert.ok(queue.isQueueCheckDrain(receipt.signal));
+  assert.equal(receipt.signal.number, 259);
+  assert.equal(queue.isDependencyCI(receipt.signal), false);
+  await trusted.verifySource(s.api, receipt.signal, false, s.vars);
+  candidate = 260;
+  assert.equal((await handleWake(s)).outcome, "duplicate");
+  assert.equal(s.dispatches.length, 1);
+  const workflow = ".github/workflows/factory-dependencies.yml";
+  const receiver = {
+    ...s.run,
+    id: 900,
+    workflow_id: 90,
+    path: workflow,
+    event: "workflow_dispatch",
+    actor: { login: queue.BOT, id: queue.BOT_ID },
+    triggering_actor: { login: queue.BOT, id: queue.BOT_ID },
+    display_title: `Dependency maintenance / wake ${receipt.id}`,
+  };
+  const request = s.api.request;
+  s.api.request = (method, route, body) => {
+    if (route.endsWith("/actions/runs/900/attempts/1")) return structuredClone(receiver);
+    if (route.endsWith("/actions/workflows/factory-dependencies.yml"))
+      return { id: 90, path: workflow };
+    return request(method, route, body);
+  };
+  const context = {
+    ...s.context,
+    runId: "900",
+    actor: queue.BOT,
+    triggeringActor: queue.BOT,
+    event: "workflow_dispatch",
+    workflowRef: `${s.context.repository}/${workflow}@refs/heads/main`,
+  };
+  const wake = await trusted.verifyWake({
+    api: s.api,
+    context,
+    store: s.store,
+    receiptId: receipt.id,
+    lane: "dependency",
+    bind: true,
+    vars: s.vars,
+  });
+  assert.equal(trusted.isTrustedWakeContext({ ...context, wake }, "dependency"), true);
+  assert.equal(trusted.dependencyWakeTarget({ ...context, wake }), null);
+  checkpoint = "skipped";
+  await assert.rejects(trusted.verifySource(s.api, receipt.signal, false, s.vars), /Untrusted/);
+
+  checkpoint = "success";
+  parent.id = 702;
+  const bot = { login: "dependabot[bot]", type: "Bot", id: 49699333 };
+  const prs = [221, 222, 223].map((number) => ({
+    number,
+    state: "open",
+    draft: false,
+    user: bot,
+    head: {
+      ref: `dependabot/npm_and_yarn/example-${number}`,
+      sha: number.toString(16).padStart(40, "0"),
+      repo: { full_name: s.context.repository },
+    },
+    base: { ref: "main", sha, repo: { full_name: s.context.repository } },
+  }));
+  const runs = prs.map((pr) => ({
+    ...parent,
+    id: pr.number + 500,
+    workflow_id: 73,
+    path: ".github/workflows/factory-ci.yml",
+    event: "pull_request",
+    head_sha: pr.head.sha,
+    actor: bot,
+    pull_requests: [{ number: pr.number }],
+  }));
+  const checkRequest = s.api.request;
+  s.api.request = (method, route, body) => {
+    if (route.endsWith("/actions/runs/702/attempts/1")) return structuredClone(parent);
+    if (route.includes("/factory-ci.yml/runs?")) return { workflow_runs: runs };
+    if (route.endsWith("/actions/workflows/factory-ci.yml")) return { id: 73, path: runs[0].path };
+    const run = runs.find((r) => route.endsWith(`/actions/runs/${r.id}/attempts/1`));
+    if (run) return structuredClone(run);
+    const pr = prs.find((p) => route.endsWith(`/pulls/${p.number}`));
+    if (pr) return structuredClone(pr);
+    if (route.endsWith("/pulls/221/files?per_page=3"))
+      return [{ filename: "scripts/factory/dependencies.cjs", status: "modified" }];
+    if (route.includes("/files?per_page=3")) return [{ filename: "yarn.lock", status: "modified" }];
+    if (route.includes("/compare/"))
+      return route.includes(prs[1].head.sha)
+        ? { behind_by: 2, merge_base_commit: { sha: "f".repeat(40) } }
+        : { behind_by: 0, merge_base_commit: { sha } };
+    return checkRequest(method, route, body);
+  };
+  const originalPages = s.api.pages;
+  s.api.pages = async (route) =>
+    runs.some((r) => route.includes(`/runs/${r.id}/`))
+      ? [{ name: "verify", status: "completed", conclusion: "success" }]
+      : originalPages();
+  const recovered = await handleWake(s);
+  assert.equal(recovered.outcome, "dispatched");
+  const selected = s.store.state.receipts[recovered.receiptId].signal;
+  assert.equal(selected.kind, "dependency-ci");
+  assert.equal(selected.number, 223);
+  assert.equal(selected.sourceRun, "723");
+  runs.shift();
+  assert.equal((await handleWake(s)).outcome, "duplicate");
+  assert.equal(s.dispatches.length, 2);
+});
+
+test("an idle Cloudflare tick needs a verified timer checkpoint to wake dependency recovery", async (t) => {
+  const s = fixture();
+  const tick = Date.UTC(2026, 10, 26, 10, 3);
+  const file = ".github/workflows/factory-automatic.yml";
+  const parent = {
+    ...s.run,
+    id: 701,
+    path: file,
+    workflow_id: 71,
+    event: "workflow_dispatch",
+    status: "completed",
+    conclusion: "success",
+    display_title: `Automatic factory / timer ${tick}`,
+    created_at: new Date(tick + 1000).toISOString(),
+  };
+  s.context.event = s.run.event = "workflow_run";
+  s.event = {
+    repository: { full_name: s.context.repository },
+    action: "completed",
+    workflow_run: parent,
+  };
+  const base = s.api.request;
+  s.api.request = (method, route, body) => {
+    if (route.endsWith("/actions/runs/701/attempts/1")) return structuredClone(parent);
+    if (route.endsWith("/actions/workflows/factory-automatic.yml")) return { id: 71, path: file };
+    if (route.includes("/factory-ci.yml/runs?")) return { workflow_runs: [] };
+    return base(method, route, body);
+  };
+  let checkpoint = "skipped";
+  s.api.pages = async () => [
+    {
+      name: "pick",
+      status: "completed",
+      conclusion: "success",
+      steps: [
+        { name: "Hand off an idle app queue to dependency maintenance", conclusion: "success" },
+        { name: "Check the pickup timer", conclusion: checkpoint },
+      ],
+    },
+  ];
+  const preview = t.mock.method(
+    require("../factory/dependency-tracking.cjs"),
+    "previewNativeRecovery",
+    async () => 259
+  );
+  assert.equal((await handleWake(s)).outcome, "ignored");
+  s.vars.FACTORY_EXTERNAL_PICKUP_ENABLED = "true";
+  assert.equal((await handleWake(s)).outcome, "ignored");
+  assert.equal(preview.mock.callCount(), 0);
+
+  checkpoint = "success";
+  const result = await handleWake(s);
+  assert.equal(result.outcome, "dispatched");
+  assert.equal(result.lane, "dependency");
+  const receipt = s.store.state.receipts[result.receiptId];
+  const queue = require("../factory/wake-contract.cjs");
+  assert.ok(queue.isQueueCheckDrain(receipt.signal));
+  assert.equal(queue.isDependencyCI(receipt.signal), false);
+  await require("../factory/trusted-wake.cjs").verifySource(s.api, receipt.signal, false, s.vars);
+});
+
+test("only a verified terminal dependency parent without a reserved model can recover a held slot", async () => {
+  const { terminalDependency } = require("../factory/wake-queue.cjs");
+  const s = fixture();
+  const state = s.ledger.state;
+  state.active = { ticket: 259, runId: "81", runAttempt: 1 };
+  state.tickets[259] = { dependency: {}, head: sha };
+  let runStatus = "in_progress";
+  s.api.request = async (method, route) => {
+    assert.equal(method, "GET");
+    assert.match(route, /\/actions\/runs\/81\/attempts\/1$/);
+    return { id: 81, run_attempt: 1, status: runStatus };
+  };
+  assert.equal(await terminalDependency(s.api, state, false), null);
+  runStatus = "completed";
+  assert.equal(await terminalDependency(s.api, state, false), 259);
+  state.grants.g = { ticket: 259, head: sha, status: "reserved" };
+  assert.equal(await terminalDependency(s.api, state, false), null);
+  state.grants.g.status = "finished";
+  assert.equal(await terminalDependency(s.api, state, false), null);
+  state.tickets[259].merge = { status: "intent" };
+  assert.equal(await terminalDependency(s.api, state, false), 259);
+});
 test("successful exact-head native Dependabot CI selects the dependency lane; failed or stale CI cannot", async () => {
   for (const mode of ["ok", "failed", "stale", "fork"]) {
     const s = fixture();
