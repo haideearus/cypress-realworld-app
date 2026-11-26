@@ -829,6 +829,29 @@
       },
       "status": "intent",
       "commentId": null
+    },
+    "5aaa6fed6ac9505fb5e8d9a26ac5570d33a16f964fc34be7afec2e6bbc6c684a": {
+      "event": {
+        "id": "5aaa6fed6ac9505fb5e8d9a26ac5570d33a16f964fc34be7afec2e6bbc6c684a",
+        "producer": {
+          "runId": "45755347145",
+          "runAttempt": 1,
+          "workflow": "factory-deploy.yml",
+          "workflowSha": "2f86b1864301d21032396aabbf0ce64d225ad0b0",
+          "phase": "run",
+          "actor": "haideearus-software-factory[bot]"
+        },
+        "kind": "deployment",
+        "state": "cancelled",
+        "subject": 45755347145,
+        "head": "2f86b1864301d21032396aabbf0ce64d225ad0b0",
+        "summary": "Workflow factory-deploy.yml is cancelled. Check the linked run for authoritative evidence.",
+        "links": [
+          "https://github.com/haideearus/cypress-realworld-app/actions/runs/45755347145"
+        ]
+      },
+      "status": "intent",
+      "commentId": null
     }
   },
   "lastMonitor": {
