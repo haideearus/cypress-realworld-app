@@ -5992,7 +5992,9 @@
             "evidence": [
               {
                 "at": "2026-11-26T20:07:39.904Z",
-                "status": "started"
+                "status": "ready",
+                "digest": "17be31d05f899f70e6b0aa940b6137c15461cea7204a6e89d8f2fa36f7a270b7",
+                "finishedAt": "2026-11-26T20:07:47.667Z"
               }
             ]
           }
