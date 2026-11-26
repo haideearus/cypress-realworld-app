@@ -242,7 +242,7 @@
     "268": {
       "branch": "dependabot/npm_and_yarn/js-yaml-3.15.2",
       "issue": 270,
-      "status": "closing",
+      "status": "closed",
       "recovery": {
         "f590269220defcb781a552694101604efd96ef41": {
           "blocked": true
