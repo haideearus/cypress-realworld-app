@@ -5450,7 +5450,11 @@
         "criteriaHash": "d6e6324e006d0e1293fc7e4dd9b1a14821fcf779c3c9a5cae025850b6f5ade36"
       },
       "branch": "agent/factory-273",
-      "ci": null,
+      "ci": {
+        "requestId": "fbe174d9-b717-434d-ad82-f0f55d6eb33b",
+        "head": "7ea82aeca5c823323344598fdddf969a45825622",
+        "runId": null
+      },
       "feedback": "Main advanced; published repair requires fresh CI and review",
       "publishedRecovery": {
         "sourceCi": {
