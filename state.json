@@ -171,7 +171,8 @@
       261,
       299,
       300,
-      258
+      258,
+      236
     ]
   },
   "tickets": {
@@ -4570,6 +4571,38 @@
         "mergeCommit": "4a3c5b7236d0885c8259778c9a66da68da78cc61"
       }
     },
+    "236": {
+      "coding": 0,
+      "reviews": 0,
+      "retries": 0,
+      "origin": "dependency-pr",
+      "head": "2cef0d71bca591d0a26277ef896e342b04a61293",
+      "pr": 236,
+      "status": "new",
+      "approval": null,
+      "branch": "dependabot/npm_and_yarn/browserslist-4.29.6",
+      "criteriaHash": "f749c593de69cd5f2a0b350b46201b6f1726e7f5434502d6a4acc948633b9b1a",
+      "dependency": {
+        "version": 1,
+        "pr": 236,
+        "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-dependencies.yml@refs/heads/main",
+        "workflowSha": "6354a0b9c8723006b4deea39437ea528de095af0",
+        "runId": "45812010313",
+        "runAttempt": 1,
+        "appSlug": "haideearus-software-factory",
+        "attempts": [
+          {
+            "head": "2cef0d71bca591d0a26277ef896e342b04a61293",
+            "base": "6354a0b9c8723006b4deea39437ea528de095af0",
+            "runId": "45812010313",
+            "runAttempt": 1,
+            "workflowSha": "6354a0b9c8723006b4deea39437ea528de095af0",
+            "at": "2026-11-26T11:36:13.093Z"
+          }
+        ]
+      },
+      "ci": null
+    },
     "237": {
       "coding": 0,
       "reviews": 0,
@@ -7950,17 +7983,12 @@
       "outcome": "blocked"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 236,
+    "runId": "45812010313",
+    "runAttempt": 1
+  },
   "audit": [
-    {
-      "at": "2026-11-13T08:17:03.723Z",
-      "event": "reserved",
-      "ticket": 11,
-      "grant": "2b3030da-263c-432e-9069-3f38d0778248",
-      "phase": "code",
-      "runId": "43391969547",
-      "runAttempt": 1
-    },
     {
       "at": "2026-11-13T08:25:09.177Z",
       "event": "blocked",
@@ -12949,6 +12977,16 @@
       "grant": "19c6ecde-a818-48b5-8163-e07329831c31",
       "status": "blocked",
       "head": "4f8823a3675de9b9b5fd9fc2d017dbf9205b7aec"
+    },
+    {
+      "at": "2026-11-26T11:36:13.093Z",
+      "event": "dependency_metadata_admitted",
+      "ticket": 236,
+      "head": "2cef0d71bca591d0a26277ef896e342b04a61293",
+      "runId": "45812010313",
+      "actor": "github-actions[bot]",
+      "wakeReceipt": "f903f7ca6d4ea8db49a2d5543f137fd7c594908ff700105299c987000e2bc2ac",
+      "sourceActor": "dependabot[bot]"
     }
   ],
   "featureTurn": {
