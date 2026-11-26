@@ -4832,9 +4832,9 @@
       "reviews": 0,
       "retries": 0,
       "origin": "dependency-pr",
-      "head": "7105dee5015cc1ef7b85fb6435da52a39c9512e9",
+      "head": "f2aa3ba633f2cdb6a5dc67c050e3b0030f58263e",
       "pr": 247,
-      "status": "blocked",
+      "status": "new",
       "approval": null,
       "branch": "dependabot/npm_and_yarn/uuid-14.0.0",
       "criteriaHash": "a423a2104e7c24fb1c9fb5d45bf62d380e9a177989629720b1c57b32b4fa4bdf",
@@ -4870,6 +4870,14 @@
             "runAttempt": 1,
             "workflowSha": "435a39f759b896da8aff3e120d49f7999985e2bf",
             "at": "2026-11-24T21:30:24.277Z"
+          },
+          {
+            "head": "f2aa3ba633f2cdb6a5dc67c050e3b0030f58263e",
+            "base": "33f5f85eb3b5a388fc896f50496384c93a836205",
+            "runId": "45820458251",
+            "runAttempt": 1,
+            "workflowSha": "33f5f85eb3b5a388fc896f50496384c93a836205",
+            "at": "2026-11-26T12:31:59.272Z"
           }
         ]
       },
@@ -8088,14 +8096,12 @@
       "outcome": "blocked"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 247,
+    "runId": "45820458251",
+    "runAttempt": 1
+  },
   "audit": [
-    {
-      "at": "2026-11-13T11:43:57.299Z",
-      "event": "blocked",
-      "ticket": 11,
-      "reason": "Agent, publication, or CI infrastructure failed; no automatic model retry"
-    },
     {
       "at": "2026-11-13T13:07:38.473Z",
       "event": "reserved",
@@ -13094,6 +13100,16 @@
       "event": "blocked",
       "ticket": 300,
       "reason": "Owner PR CI or subscription review unavailable; no automatic retry"
+    },
+    {
+      "at": "2026-11-26T12:31:59.272Z",
+      "event": "dependency_metadata_admitted",
+      "ticket": 247,
+      "head": "f2aa3ba633f2cdb6a5dc67c050e3b0030f58263e",
+      "runId": "45820458251",
+      "actor": "github-actions[bot]",
+      "wakeReceipt": "f298a6097c2d351d6ef96efa89258b68a9412dab579d88855263ab693f98e3bf",
+      "sourceActor": "dependabot[bot]"
     }
   ],
   "featureTurn": {
