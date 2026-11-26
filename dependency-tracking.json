@@ -118,7 +118,16 @@
     "232": {
       "branch": "dependabot/npm_and_yarn/faker-js/faker-10.5.0",
       "issue": 244,
-      "status": "open"
+      "status": "open",
+      "recovery": {
+        "2ebe285098eb7a828d0b8fbc26e5174d1c566ea4": {
+          "bases": {
+            "3c5cf96ecbf21380005d8416aa1cb97918b019f5": {
+              "refresh": "attempted"
+            }
+          }
+        }
+      }
     },
     "233": {
       "branch": "dependabot/npm_and_yarn/babel/core-7.29.6",
