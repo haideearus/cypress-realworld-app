@@ -89,7 +89,8 @@
           "blocked": true,
           "bases": {
             "33f5f85eb3b5a388fc896f50496384c93a836205": {
-              "refresh": "confirmed"
+              "refresh": "confirmed",
+              "stale": "requested"
             }
           }
         }
