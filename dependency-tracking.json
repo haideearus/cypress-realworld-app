@@ -94,7 +94,12 @@
     "233": {
       "branch": "dependabot/npm_and_yarn/babel/core-7.29.6",
       "issue": 245,
-      "status": "open"
+      "status": "open",
+      "recovery": {
+        "13883e44c85d55e19dcd5d7fd9d64b75a68c06e1": {
+          "blocked": true
+        }
+      }
     },
     "234": {
       "branch": "dependabot/npm_and_yarn/http-proxy-middleware-2.0.10",
