@@ -4271,9 +4271,9 @@
       "reviews": 0,
       "retries": 0,
       "origin": "dependency-pr",
-      "head": "b6bad87e1a4c2f282a9c55e0ba8cf7f913560662",
+      "head": "f2a4a85cd2091336745194f2efe754550a2481b3",
       "pr": 223,
-      "status": "blocked",
+      "status": "new",
       "approval": null,
       "branch": "dependabot/npm_and_yarn/vitest-4.1.11",
       "criteriaHash": "ddeac18b98029246e847bfa5fab0a6d8c78e4d92e05b3a8f546a09fd3179f62e",
@@ -4325,6 +4325,14 @@
             "runAttempt": 1,
             "workflowSha": "33f5f85eb3b5a388fc896f50496384c93a836205",
             "at": "2026-11-26T12:01:28.153Z"
+          },
+          {
+            "head": "f2a4a85cd2091336745194f2efe754550a2481b3",
+            "base": "bd881afb2cc8e315083cd0b74279047ee84f09c6",
+            "runId": "45906268125",
+            "runAttempt": 1,
+            "workflowSha": "bd881afb2cc8e315083cd0b74279047ee84f09c6",
+            "at": "2026-11-26T22:41:04.430Z"
           }
         ]
       },
@@ -8413,16 +8421,12 @@
       "outcome": "discovery_complete"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 223,
+    "runId": "45906268125",
+    "runAttempt": 1
+  },
   "audit": [
-    {
-      "at": "2026-11-14T23:06:07.524Z",
-      "event": "finished",
-      "ticket": 42,
-      "grant": "13ab0205-0add-4b70-b038-889adaddd658",
-      "status": "reviewed",
-      "head": "1bbae9ee648845f65a5a3a9585818752f975715f"
-    },
     {
       "at": "2026-11-14T23:39:11.546Z",
       "event": "reserved",
@@ -13580,6 +13584,16 @@
       "grant": "f020e57b-c4a7-4fa2-a15a-ff2144b6003d",
       "phase": "discover",
       "status": "discovery_complete"
+    },
+    {
+      "at": "2026-11-26T22:41:04.430Z",
+      "event": "dependency_metadata_admitted",
+      "ticket": 223,
+      "head": "f2a4a85cd2091336745194f2efe754550a2481b3",
+      "runId": "45906268125",
+      "actor": "github-actions[bot]",
+      "wakeReceipt": "31b4ed7421031b558ec0bdff79d65d727de9ba77da5fefab0c55fabe37e514fa",
+      "sourceActor": "dependabot[bot]"
     }
   ],
   "featureTurn": {
