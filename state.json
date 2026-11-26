@@ -6006,7 +6006,11 @@
       "approval": null,
       "criteriaHash": "e2aa090012c716c3a739284d8e31cf714e517701f6cc6bc74760563849eb8ac9",
       "branch": "agent/kill-switch-markdown-rehearsal",
-      "ci": null
+      "ci": {
+        "requestId": "b740cceb-2bab-4a20-a03a-a7f3df5bdb89",
+        "head": "6a7c473726fc60393244eab5e7ccecac837ab0c2",
+        "runId": null
+      }
     }
   },
   "grants": {
