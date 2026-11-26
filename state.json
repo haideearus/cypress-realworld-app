@@ -5983,7 +5983,7 @@
       "reviews": 1,
       "retries": 0,
       "head": "6a7c473726fc60393244eab5e7ccecac837ab0c2",
-      "status": "reviewing",
+      "status": "blocked",
       "pr": 303,
       "approval": null,
       "criteriaHash": "dd1d5613fa7193a5ecebc4dd4199765f3e954feff613f44739fe972dea511d3d",
@@ -8141,25 +8141,13 @@
       "runId": "45838326407",
       "runAttempt": 1,
       "head": "6a7c473726fc60393244eab5e7ccecac837ab0c2",
-      "status": "reserved",
-      "at": "2026-11-26T14:22:47.005Z"
+      "status": "finished",
+      "at": "2026-11-26T14:22:47.005Z",
+      "outcome": "blocked"
     }
   },
-  "active": {
-    "ticket": 302,
-    "runId": "45838326407",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
-    {
-      "at": "2026-11-13T15:00:11.803Z",
-      "event": "reserved",
-      "ticket": 26,
-      "grant": "938dcb06-4966-4383-8185-778aa5c13f6e",
-      "phase": "code",
-      "runId": "43448103135",
-      "runAttempt": 1
-    },
     {
       "at": "2026-11-13T15:07:06.552Z",
       "event": "owner-canceled",
@@ -13189,6 +13177,33 @@
       "actor": "haideearus",
       "commandId": "fc17dad8-3fe8-4c8b-8d8b-c9453edd7aa4",
       "reason": "Owner emergency stop"
+    },
+    {
+      "at": "2026-11-26T14:23:42.298Z",
+      "event": "factory-stop-result",
+      "actor": "haideearus",
+      "commandId": "fc17dad8-3fe8-4c8b-8d8b-c9453edd7aa4",
+      "terminalRunIds": [
+        45838326407
+      ],
+      "quarantinedRunIds": [
+        43467058965
+      ],
+      "quarantinedRuns": [
+        {
+          "id": 43467058965,
+          "runAttempt": 1,
+          "status": "queued",
+          "head": "421553c2c108dc2704ef6cec7864582b8c63ead6",
+          "containmentTicket": 38,
+          "reason": "Frozen pre-job controller rejects retained drill history before admission"
+        }
+      ],
+      "pendingRunIds": [],
+      "switchesOff": true,
+      "inventoryComplete": true,
+      "errorCount": 0,
+      "elapsedMs": 35214
     }
   ],
   "featureTurn": {
