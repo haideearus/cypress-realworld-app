@@ -77,7 +77,8 @@
         "14e6cbf552173a65cd18ae6a0784b45a03d55beb": {
           "bases": {
             "4a3c5b7236d0885c8259778c9a66da68da78cc61": {
-              "refresh": "confirmed"
+              "refresh": "confirmed",
+              "stale": "requested"
             }
           }
         }
