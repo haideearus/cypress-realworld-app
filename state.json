@@ -12422,6 +12422,17 @@
       "grant": "b0423876-9bfe-42dd-a84b-d631de896d85",
       "status": "reviewed",
       "head": "3e5b9855ae1af13a650ad7c7599fc3c351fdd2b9"
+    },
+    {
+      "at": "2026-11-26T05:21:28.225Z",
+      "event": "automatic_merge_api_result",
+      "ticket": 235,
+      "pr": 235,
+      "head": "3e5b9855ae1af13a650ad7c7599fc3c351fdd2b9",
+      "runId": "45759345511",
+      "runAttempt": 1,
+      "outcome": "accepted",
+      "mergeCommit": "4a3c5b7236d0885c8259778c9a66da68da78cc61"
     }
   ],
   "featureTurn": {
