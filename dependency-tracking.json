@@ -145,7 +145,7 @@
     "236": {
       "branch": "dependabot/npm_and_yarn/browserslist-4.29.6",
       "issue": 252,
-      "status": "open"
+      "status": "closing"
     },
     "247": {
       "branch": "dependabot/npm_and_yarn/uuid-14.0.0",
