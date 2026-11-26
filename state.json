@@ -5959,9 +5959,9 @@
       "reviews": 0,
       "retries": 0,
       "origin": "dependency-pr",
-      "head": "171bbdc5b7c7ae433ed189ff43210901b82b759a",
+      "head": "de71235f0aceb642e58755c7c144aa1604a84b13",
       "pr": 299,
-      "status": "blocked",
+      "status": "new",
       "approval": null,
       "branch": "agent/dependency-alert-7687d0803a53020fdf3da65cba6e747472b02c50e3c96880000122fe87335083",
       "criteriaHash": "faf7c91dea4b17b99dd4af9d449be590d850cf6487b44d31b365330a49181d1d",
@@ -5981,6 +5981,14 @@
             "runAttempt": 1,
             "workflowSha": "0eca54cde2480d5a59b4657b8093996dcc84bbf2",
             "at": "2026-11-26T06:41:57.758Z"
+          },
+          {
+            "head": "de71235f0aceb642e58755c7c144aa1604a84b13",
+            "base": "3c5cf96ecbf21380005d8416aa1cb97918b019f5",
+            "runId": "45887404616",
+            "runAttempt": 1,
+            "workflowSha": "3c5cf96ecbf21380005d8416aa1cb97918b019f5",
+            "at": "2026-11-26T19:57:20.703Z"
           }
         ]
       },
@@ -8276,25 +8284,12 @@
       "outcome": "reviewed"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 299,
+    "runId": "45887404616",
+    "runAttempt": 1
+  },
   "audit": [
-    {
-      "at": "2026-11-14T09:43:21.724Z",
-      "event": "reserved",
-      "ticket": 38,
-      "grant": "2e9200c0-e2b6-4684-ae37-80ddd128504a",
-      "phase": "code",
-      "runId": "43581712040",
-      "runAttempt": 1
-    },
-    {
-      "at": "2026-11-14T09:46:10.644Z",
-      "event": "finished",
-      "ticket": 38,
-      "grant": "2e9200c0-e2b6-4684-ae37-80ddd128504a",
-      "status": "drill_complete",
-      "head": "63ce8d08c28977125333fc0ba4d0f0b879dd71f6"
-    },
     {
       "at": "2026-11-14T19:55:57.030Z",
       "event": "reserved",
@@ -13433,6 +13428,16 @@
       "runAttempt": 1,
       "outcome": "accepted",
       "mergeCommit": "3c5cf96ecbf21380005d8416aa1cb97918b019f5"
+    },
+    {
+      "at": "2026-11-26T19:57:20.703Z",
+      "event": "dependency_metadata_admitted",
+      "ticket": 299,
+      "head": "de71235f0aceb642e58755c7c144aa1604a84b13",
+      "runId": "45887404616",
+      "actor": "github-actions[bot]",
+      "wakeReceipt": "18a9ce44ffb9aa386e93ddb1061a872fa952b7175d238f761deea1f8450b2260",
+      "sourceActor": "haideearus-software-factory[bot]"
     }
   ],
   "featureTurn": {
