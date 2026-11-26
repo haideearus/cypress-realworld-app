@@ -169,7 +169,8 @@
       297,
       250,
       261,
-      299
+      299,
+      300
     ]
   },
   "tickets": {
@@ -5744,6 +5745,19 @@
       },
       "ci": null,
       "feedback": "Dependency preparation held; no model invocation"
+    },
+    "300": {
+      "coding": 0,
+      "origin": "owner-pr",
+      "reviews": 1,
+      "retries": 0,
+      "head": "2accb21e7caf2fe0141488e42703cd9fb0ede2e5",
+      "status": "reviewing",
+      "pr": 301,
+      "approval": null,
+      "criteriaHash": "c7ab92acde12dd62f10e5e012617d6faf4511631e5f6eb2ffbe5fad2f549f736",
+      "branch": "agent/cloudflare-pickup-timer",
+      "ci": null
     }
   },
   "grants": {
@@ -7799,9 +7813,24 @@
       "status": "finished",
       "at": "2026-11-26T06:19:22.397Z",
       "outcome": "reviewed"
+    },
+    "89b9d0a7-8063-460a-b869-ed0acc5a2e3f": {
+      "id": "89b9d0a7-8063-460a-b869-ed0acc5a2e3f",
+      "ticket": 300,
+      "phase": "review",
+      "slot": "existing",
+      "runId": "45801270269",
+      "runAttempt": 1,
+      "head": "2accb21e7caf2fe0141488e42703cd9fb0ede2e5",
+      "status": "reserved",
+      "at": "2026-11-26T10:26:23.556Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 300,
+    "runId": "45801270269",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -12755,6 +12784,16 @@
       "ticket": 299,
       "head": "171bbdc5b7c7ae433ed189ff43210901b82b759a",
       "runId": "45769945087"
+    },
+    {
+      "at": "2026-11-26T10:26:23.556Z",
+      "event": "reserved",
+      "ticket": 300,
+      "grant": "89b9d0a7-8063-460a-b869-ed0acc5a2e3f",
+      "phase": "review",
+      "runId": "45801270269",
+      "runAttempt": 1,
+      "actor": "haideearus"
     }
   ],
   "featureTurn": {
