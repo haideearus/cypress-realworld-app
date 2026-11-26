@@ -5980,19 +5980,15 @@
     "302": {
       "coding": 0,
       "origin": "owner-pr",
-      "reviews": 1,
+      "reviews": 2,
       "retries": 0,
       "head": "6a7c473726fc60393244eab5e7ccecac837ab0c2",
-      "status": "blocked",
+      "status": "reviewing",
       "pr": 303,
       "approval": null,
       "criteriaHash": "dd1d5613fa7193a5ecebc4dd4199765f3e954feff613f44739fe972dea511d3d",
       "branch": "agent/kill-switch-markdown-rehearsal",
-      "ci": {
-        "requestId": "b7204e5b-0e91-426d-a4a9-7b4afd8ca1bc",
-        "head": "6a7c473726fc60393244eab5e7ccecac837ab0c2",
-        "runId": null
-      }
+      "ci": null
     }
   },
   "grants": {
@@ -8144,19 +8140,25 @@
       "status": "finished",
       "at": "2026-11-26T14:22:47.005Z",
       "outcome": "blocked"
+    },
+    "ed4adf5e-aefa-41ef-b2d5-86f41e820926": {
+      "id": "ed4adf5e-aefa-41ef-b2d5-86f41e820926",
+      "ticket": 302,
+      "phase": "review",
+      "slot": "existing",
+      "runId": "45841045188",
+      "runAttempt": 1,
+      "head": "6a7c473726fc60393244eab5e7ccecac837ab0c2",
+      "status": "reserved",
+      "at": "2026-11-26T14:38:52.682Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 302,
+    "runId": "45841045188",
+    "runAttempt": 1
+  },
   "audit": [
-    {
-      "at": "2026-11-13T15:12:22.899Z",
-      "event": "reserved",
-      "ticket": 28,
-      "grant": "22ec0afa-c84b-42e2-9d29-40b442e5bd3b",
-      "phase": "review",
-      "runId": "43450187294",
-      "runAttempt": 1
-    },
     {
       "at": "2026-11-13T15:24:52.211Z",
       "event": "finished",
@@ -13221,6 +13223,16 @@
           "reason": "Frozen pre-job controller rejects retained drill history before admission"
         }
       ]
+    },
+    {
+      "at": "2026-11-26T14:38:52.682Z",
+      "event": "reserved",
+      "ticket": 302,
+      "grant": "ed4adf5e-aefa-41ef-b2d5-86f41e820926",
+      "phase": "review",
+      "runId": "45841045188",
+      "runAttempt": 1,
+      "actor": "haideearus"
     }
   ],
   "featureTurn": {
