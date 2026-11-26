@@ -6254,7 +6254,7 @@
         },
         "event": "workflow_run"
       },
-      "status": "pending",
+      "status": "observed",
       "receiver": null,
       "at": "2026-11-26T06:35:06.933Z"
     },
@@ -6284,7 +6284,7 @@
         },
         "event": "workflow_run"
       },
-      "status": "pending",
+      "status": "observed",
       "receiver": null,
       "at": "2026-11-26T06:35:17.538Z"
     },
@@ -6505,16 +6505,16 @@
         }
       },
       "producer": {
-        "runId": "45808449505",
+        "runId": "45811960016",
         "runAttempt": 1,
         "workflowSha": "6354a0b9c8723006b4deea39437ea528de095af0",
         "actor": {
-          "login": "dependabot[bot]",
-          "id": 49699333
+          "login": "haideearus",
+          "id": 101267861
         },
         "event": "workflow_run"
       },
-      "status": "pending",
+      "status": "intent",
       "receiver": null,
       "at": "2026-11-26T11:12:36.965Z"
     },
@@ -6547,6 +6547,36 @@
       "status": "pending",
       "receiver": null,
       "at": "2026-11-26T11:19:25.605Z"
+    },
+    "6e6fae7ceb29498dd2e7a8384f039cda8a3dda7b3c1512ba90abf599d26fb830": {
+      "id": "6e6fae7ceb29498dd2e7a8384f039cda8a3dda7b3c1512ba90abf599d26fb830",
+      "signal": {
+        "kind": "drain",
+        "lane": "app",
+        "number": 300,
+        "head": "6354a0b9c8723006b4deea39437ea528de095af0",
+        "criteriaHash": "7ab693fb35a041f3472c3a4deaf6aa3f9ec826165156007cae171bd0af484268",
+        "revision": "1",
+        "sourceRun": "45809414914",
+        "sourceAttempt": 1,
+        "actor": {
+          "login": "haideearus",
+          "id": 101267861
+        }
+      },
+      "producer": {
+        "runId": "45811960016",
+        "runAttempt": 1,
+        "workflowSha": "6354a0b9c8723006b4deea39437ea528de095af0",
+        "actor": {
+          "login": "haideearus",
+          "id": 101267861
+        },
+        "event": "workflow_run"
+      },
+      "status": "observed",
+      "receiver": null,
+      "at": "2026-11-26T11:35:41.468Z"
     }
   }
 }
