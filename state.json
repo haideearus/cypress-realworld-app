@@ -167,7 +167,8 @@
       294,
       296,
       297,
-      250
+      250,
+      261
     ]
   },
   "tickets": {
@@ -5002,6 +5003,38 @@
         "run": null
       }
     },
+    "261": {
+      "coding": 0,
+      "reviews": 0,
+      "retries": 0,
+      "origin": "dependency-pr",
+      "head": "84ad9020a39fcfc02ae7d4c8bb422896d10af78f",
+      "pr": 261,
+      "status": "new",
+      "approval": null,
+      "branch": "dependabot/npm_and_yarn/rollup-2.80.0",
+      "criteriaHash": "dae6e9ebc8b19d178f3abed281086ed327b395de93c45350fe74690523ed2377",
+      "dependency": {
+        "version": 1,
+        "pr": 261,
+        "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-dependencies.yml@refs/heads/main",
+        "workflowSha": "4a3c5b7236d0885c8259778c9a66da68da78cc61",
+        "runId": "45762932909",
+        "runAttempt": 1,
+        "appSlug": "haideearus-software-factory",
+        "attempts": [
+          {
+            "head": "84ad9020a39fcfc02ae7d4c8bb422896d10af78f",
+            "base": "4a3c5b7236d0885c8259778c9a66da68da78cc61",
+            "runId": "45762932909",
+            "runAttempt": 1,
+            "workflowSha": "4a3c5b7236d0885c8259778c9a66da68da78cc61",
+            "at": "2026-11-26T05:38:59.094Z"
+          }
+        ]
+      },
+      "ci": null
+    },
     "266": {
       "coding": 0,
       "origin": "owner-pr",
@@ -7617,7 +7650,11 @@
       "outcome": "reviewed"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 261,
+    "runId": "45762932909",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -12455,6 +12492,16 @@
       "ticket": 233,
       "head": "c97554b95572ff9f6d36765239a5efecaacbd0e2",
       "runId": "45762256098"
+    },
+    {
+      "at": "2026-11-26T05:38:59.094Z",
+      "event": "dependency_metadata_admitted",
+      "ticket": 261,
+      "head": "84ad9020a39fcfc02ae7d4c8bb422896d10af78f",
+      "runId": "45762932909",
+      "actor": "github-actions[bot]",
+      "wakeReceipt": "9c5be6ea4302acbf33d70266bfcfae6c038a96909554075881e45078eeb2ae74",
+      "sourceActor": "dependabot[bot]"
     }
   ],
   "featureTurn": {
