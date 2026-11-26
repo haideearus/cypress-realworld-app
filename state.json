@@ -4779,12 +4779,13 @@
       },
       "feedback": "{\"verdict\":\"pass\",\"head\":\"ccd3a24622d634b2c149019d422085f45d2c7d0f\",\"summary\":\"Reviewed the yarn.lock-only diff at head ccd3a246 bumping the transitive dependency @tootallnate/once from 2.0.0 to 2.0.1 (resolved via http-proxy-agent@^5.0.0, itself pulled in by dev/build tooling such as jsdom and make-fetch-happen per yarn.lock lines ~7574-7581, 8378-8390, 9021-9029). package.json has no direct reference to this package (grep returned no matches), so no manifest range change was needed; the lockfile's existing \\\"@tootallnate/once@2\\\" range already permits 2.0.1. dependencyFacts confirms the new tarball's integrity hash matches the current npmjs.org registry record (integrityMatched: true) and that GHSA-vpq2-c234-7xj6 (affecting versions 0 to <2.0.1) is cleared by this bump, with the remaining-baseline advisory list empty and no suspicious upstreamReleases entries suggesting takeover. ciEvidence shows a verified passing suite-level CI receipt at this exact head (yarn types/lint/test:unit:ci plus API/browser regression), but the cited testFiles (UserSettingsForm.test.tsx, auth/bankaccounts/user-settings Cypress specs) exercise Formik/Yup form flows, not the proxy-agent code path, so they provide general regression confidence rather than targeted coverage of this dependency. Given this is a patch-level fix to a deeply transitive dev/build-only dependency, same semver range, matched integrity, and no direct app code touched, the change is low-risk and consistent with the ticket's bounded-update intent.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"The CI test files cited in ciEvidence (UserSettingsForm.test.tsx, auth.spec.ts, bankaccounts.spec.ts, user-settings.spec.ts) exercise Formik/Yup UI flows and do not specifically exercise the http-proxy-agent/@tootallnate-once code path, so there is no targeted regression test demonstrating the proxy-agent dependency still behaves correctly post-bump; this is an inherent coverage gap for transitive build-tooling dependency bumps rather than a defect in this PR.\"}]}",
       "merge": {
-        "status": "intent",
+        "status": "merged",
         "head": "ccd3a24622d634b2c149019d422085f45d2c7d0f",
         "pr": 250,
-        "at": "2026-11-26T04:49:07.140Z",
+        "at": "2026-11-26T04:49:27.184Z",
         "runId": "45756096197",
-        "runAttempt": 1
+        "runAttempt": 1,
+        "mergeCommit": "b5fb79776935cfcc4b51765c8c2f22b39afd7268"
       }
     },
     "259": {
@@ -7554,11 +7555,7 @@
       "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 250,
-    "runId": "45756096197",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
