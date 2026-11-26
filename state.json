@@ -4389,9 +4389,9 @@
       "reviews": 0,
       "retries": 0,
       "origin": "dependency-pr",
-      "head": "a395f09c4369563929a4fe671cd30129ac5e3a33",
+      "head": "13883e44c85d55e19dcd5d7fd9d64b75a68c06e1",
       "pr": 233,
-      "status": "blocked",
+      "status": "new",
       "approval": null,
       "branch": "dependabot/npm_and_yarn/babel/core-7.29.6",
       "criteriaHash": "611722c5e328e314138424f17603591e0536ddb00d27617bc46c0baea06e1abc",
@@ -4411,6 +4411,14 @@
             "runAttempt": 1,
             "workflowSha": "435a39f759b896da8aff3e120d49f7999985e2bf",
             "at": "2026-11-25T11:30:34.753Z"
+          },
+          {
+            "head": "13883e44c85d55e19dcd5d7fd9d64b75a68c06e1",
+            "base": "2f86b1864301d21032396aabbf0ce64d225ad0b0",
+            "runId": "45755411893",
+            "runAttempt": 1,
+            "workflowSha": "2f86b1864301d21032396aabbf0ce64d225ad0b0",
+            "at": "2026-11-26T04:30:08.756Z"
           }
         ]
       },
@@ -7450,7 +7458,11 @@
       "outcome": "reviewed"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 233,
+    "runId": "45755411893",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -12155,6 +12167,16 @@
       "runAttempt": 1,
       "outcome": "accepted",
       "mergeCommit": "2f86b1864301d21032396aabbf0ce64d225ad0b0"
+    },
+    {
+      "at": "2026-11-26T04:30:08.756Z",
+      "event": "dependency_metadata_admitted",
+      "ticket": 233,
+      "head": "13883e44c85d55e19dcd5d7fd9d64b75a68c06e1",
+      "runId": "45755411893",
+      "actor": "github-actions[bot]",
+      "wakeReceipt": "f35634259b506cdaa17ad47334348bc5a7641b33de120514ff05754829429873",
+      "sourceActor": "dependabot[bot]"
     }
   ],
   "featureTurn": {
