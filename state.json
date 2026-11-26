@@ -5955,9 +5955,17 @@
       "reviews": 5,
       "retries": 0,
       "head": "b6ced6e95818d63d4f84bf37006d848671ec6e4b",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 301,
-      "approval": null,
+      "approval": {
+        "head": "b6ced6e95818d63d4f84bf37006d848671ec6e4b",
+        "pr": 301,
+        "grant": "f6ef8b76-51e1-42f5-a17d-df7d69ee1d78",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/45822834336"
+      },
       "criteriaHash": "c7ab92acde12dd62f10e5e012617d6faf4511631e5f6eb2ffbe5fad2f549f736",
       "branch": "agent/cloudflare-pickup-timer",
       "ci": {
@@ -5966,7 +5974,7 @@
         "runId": 45822988541,
         "passed": true
       },
-      "feedback": "Owner PR CI or subscription review unavailable; no automatic retry"
+      "feedback": "{\"head\":\"b6ced6e95818d63d4f84bf37006d848671ec6e4b\",\"verdict\":\"pass\",\"summary\":\"Reviewed the diff against ticket #300 by reading the current repository state of .github/workflows/factory-automatic.yml, .github/workflows/factory-dependency-alerts.yml, scripts/factory/pickup-timer.cjs (new), wake-contract.cjs, wake-queue.cjs, wake-controller.cjs, feature-trigger.cjs, feature-run.cjs, activity-observer.cjs, automation.cjs, worker.mjs/wrangler.toml, and docs/factory/CLOUDFLARE-PICKUP.md, plus the associated test files. The opt-in gate (FACTORY_EXTERNAL_PICKUP_ENABLED) correctly leaves native schedule/event-wake behavior untouched when unset (the \\\"Check the pickup timer\\\" step's own `if` is false, so it is skipped and downstream steps run exactly as before). When opted in, pickup-timer.cjs's checkPickupTick enforces owner/branch/workflowRef/run-attempt identity, binds the dispatch's claimed timer_tick to the fetched run's actual created_at window, and deduplicates native-cron vs Cloudflare-timer checks in the same 10-minute window by querying sibling runs and requiring evidence of a completed \\\"Select eligible factory work\\\" step before admitting a new check — satisfying the \\\"deduplicate using completed pickup evidence\\\" criterion. The shared single-ticket lock and existing gates are preserved: wake-queue.cjs's verifyIdlePickup now also demands a successful \\\"Check the pickup timer\\\" step for timer-sourced idle hand-offs before waking dependency maintenance, and feature-trigger.cjs's verifyContinuation returns false (rather than resuming) for timer-titled sources that aren't a verified, completed timer run. factory-dependency-alerts.yml additionally excludes timer-titled completions from re-triggering alert repair, avoiding 6x/hour duplicate nudges on top of its own cron. The Cloudflare worker is scoped to one hardcoded repo/workflow, validates tick alignment, disables auto-retry, and the docs provide concrete setup/verification/pause steps with least-privilege token scoping. New/updated tests (factory-pickup-timer.test.cjs, and updates to factory-feature-turn, factory-wake-workflow, factory-activity-workflow, factory-dependency-alert-handoff tests) are model-free and exercise the dedup, gating, and quiet-tick activity suppression logic consistently with the implementation. I could not execute these tests or inspect real CI output — the task context states owner PR CI/subscription review was unavailable for this PR — so this assessment rests on static code reading rather than run evidence.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"scripts/factory/pickup-timer.cjs's pickupCompleted() hardcodes the GitHub Jobs API path to '/attempts/1/jobs' instead of using the run's actual run_attempt. This is currently safe only because every caller (wake-queue.cjs verifyIdlePickup, feature-trigger.cjs verifyContinuation, and checkPickupTick's own overlap loop) first filters to ownerRun()/timerRun() runs which already require run_attempt === 1. If a future caller reuses pickupCompleted without that precondition, it would silently read evidence from the wrong attempt.\"}]}"
     }
   },
   "grants": {
@@ -8103,24 +8111,13 @@
       "runId": "45822834336",
       "runAttempt": 1,
       "head": "b6ced6e95818d63d4f84bf37006d848671ec6e4b",
-      "status": "reserved",
-      "at": "2026-11-26T12:47:18.051Z"
+      "status": "finished",
+      "at": "2026-11-26T12:47:18.051Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 300,
-    "runId": "45822834336",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
-    {
-      "at": "2026-11-13T13:42:48.489Z",
-      "event": "finished",
-      "ticket": 11,
-      "grant": "5aa1c6cc-a2dc-4f9e-97d2-3a09e8851f58",
-      "status": "reviewed",
-      "head": "118c97133cffdf1b955fa89ead61750eb5e66534"
-    },
     {
       "at": "2026-11-13T14:07:49.270Z",
       "event": "reserved",
@@ -13151,6 +13148,14 @@
       "runId": "45822834336",
       "runAttempt": 1,
       "actor": "haideearus"
+    },
+    {
+      "at": "2026-11-26T13:02:37.483Z",
+      "event": "finished",
+      "ticket": 300,
+      "grant": "f6ef8b76-51e1-42f5-a17d-df7d69ee1d78",
+      "status": "reviewed",
+      "head": "b6ced6e95818d63d4f84bf37006d848671ec6e4b"
     }
   ],
   "featureTurn": {
