@@ -166,7 +166,8 @@
     "2026-11-26": [
       294,
       296,
-      297
+      297,
+      250
     ]
   },
   "tickets": {
@@ -4703,6 +4704,38 @@
       "ci": null,
       "feedback": "Dependency preparation held; no model invocation"
     },
+    "250": {
+      "coding": 0,
+      "reviews": 0,
+      "retries": 0,
+      "origin": "dependency-pr",
+      "head": "ccd3a24622d634b2c149019d422085f45d2c7d0f",
+      "pr": 250,
+      "status": "new",
+      "approval": null,
+      "branch": "dependabot/npm_and_yarn/tootallnate/once-2.0.1",
+      "criteriaHash": "a15a869fa112a29b833dcac299c867d14a835bcfbeb45bf688d7052bd0e2fea4",
+      "dependency": {
+        "version": 1,
+        "pr": 250,
+        "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-dependencies.yml@refs/heads/main",
+        "workflowSha": "2f86b1864301d21032396aabbf0ce64d225ad0b0",
+        "runId": "45756096197",
+        "runAttempt": 1,
+        "appSlug": "haideearus-software-factory",
+        "attempts": [
+          {
+            "head": "ccd3a24622d634b2c149019d422085f45d2c7d0f",
+            "base": "2f86b1864301d21032396aabbf0ce64d225ad0b0",
+            "runId": "45756096197",
+            "runAttempt": 1,
+            "workflowSha": "2f86b1864301d21032396aabbf0ce64d225ad0b0",
+            "at": "2026-11-26T04:34:59.571Z"
+          }
+        ]
+      },
+      "ci": null
+    },
     "259": {
       "coding": 0,
       "reviews": 1,
@@ -7458,7 +7491,11 @@
       "outcome": "reviewed"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 250,
+    "runId": "45756096197",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -12180,6 +12217,16 @@
       "ticket": 233,
       "head": "13883e44c85d55e19dcd5d7fd9d64b75a68c06e1",
       "runId": "45755411893"
+    },
+    {
+      "at": "2026-11-26T04:34:59.571Z",
+      "event": "dependency_metadata_admitted",
+      "ticket": 250,
+      "head": "ccd3a24622d634b2c149019d422085f45d2c7d0f",
+      "runId": "45756096197",
+      "actor": "github-actions[bot]",
+      "wakeReceipt": "f46e415855f18fb002310870e2e8b914ba111416e6b4157c0d5963bb632e7f63",
+      "sourceActor": "dependabot[bot]"
     }
   ],
   "featureTurn": {
