@@ -4488,7 +4488,9 @@
             "evidence": [
               {
                 "at": "2026-11-26T05:17:20.475Z",
-                "status": "started"
+                "status": "ready",
+                "digest": "bfab59d6a702aabb51d62e538e77b55fc966ad3468923fbe25e6d6a14e54b55f",
+                "finishedAt": "2026-11-26T05:17:26.599Z"
               }
             ]
           }
