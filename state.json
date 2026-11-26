@@ -5960,7 +5960,11 @@
       "approval": null,
       "criteriaHash": "c7ab92acde12dd62f10e5e012617d6faf4511631e5f6eb2ffbe5fad2f549f736",
       "branch": "agent/cloudflare-pickup-timer",
-      "ci": null,
+      "ci": {
+        "requestId": "8e179bbd-8b58-45f5-bfba-bfdec301b081",
+        "head": "b6ced6e95818d63d4f84bf37006d848671ec6e4b",
+        "runId": null
+      },
       "feedback": "Owner PR CI or subscription review unavailable; no automatic retry"
     }
   },
