@@ -5993,7 +5993,29 @@
         ]
       },
       "ci": null,
-      "feedback": "Dependency preparation held; no model invocation"
+      "feedback": "Dependency preparation held; no model invocation",
+      "analysis": {
+        "version": 2,
+        "repository": "haideearus/cypress-realworld-app",
+        "pr": 299,
+        "base": "3c5cf96ecbf21380005d8416aa1cb97918b019f5",
+        "head": "de71235f0aceb642e58755c7c144aa1604a84b13",
+        "workflowSha": "3c5cf96ecbf21380005d8416aa1cb97918b019f5",
+        "runId": "45887404616",
+        "runAttempt": 1,
+        "stage": "analysis",
+        "toolDigest": "f280c92eeb2f5ac163b37bbe2d1cffa0ca85a8237161c40dced67f0c8f5dffb5",
+        "at": "2026-11-26T19:58:05.668Z",
+        "result": {
+          "changed": 2,
+          "candidateVersions": 2,
+          "cleared": [
+            "GHSA-58qx-3vcg-4xpx",
+            "GHSA-96hv-2xvq-fx4p"
+          ],
+          "remainingBaseline": []
+        }
+      }
     },
     "300": {
       "coding": 0,
