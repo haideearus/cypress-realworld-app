@@ -386,17 +386,12 @@
     "7687d0803a53020fdf3da65cba6e747472b02c50e3c96880000122fe87335083": {
       "candidate": "8.21.0",
       "day": "2026-11-26",
-      "base": "e5191016d583bc85f779cbec3d610f223634c428",
-      "head": "740c140bffc171417e0b1e74c2c0e5bca50469ab",
+      "base": "0eca54cde2480d5a59b4657b8093996dcc84bbf2",
+      "head": "171bbdc5b7c7ae433ed189ff43210901b82b759a",
       "name": "ws",
-      "phase": "refresh",
+      "phase": "ready",
       "issue": 298,
-      "pr": 299,
-      "refresh": {
-        "base": "0eca54cde2480d5a59b4657b8093996dcc84bbf2",
-        "head": "171bbdc5b7c7ae433ed189ff43210901b82b759a",
-        "resume": "ready"
-      }
+      "pr": 299
     }
   },
   "heldAfter": "@graphql-tools/utils"
