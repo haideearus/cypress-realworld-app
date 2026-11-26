@@ -2115,9 +2115,17 @@
       "reviews": 1,
       "retries": 1,
       "head": "d6eab58a1b5f612ef81b58c6ed3e89ba724ab0bf",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 295,
-      "approval": null,
+      "approval": {
+        "head": "d6eab58a1b5f612ef81b58c6ed3e89ba724ab0bf",
+        "pr": 295,
+        "grant": "f1649896-c543-464e-b845-0580cc04d3b8",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/45747590913"
+      },
       "criteriaHash": "81cb7d587bd2125b35f0a11d6962ec69aa1063ee71759ffdfdf617724fb371e7",
       "automatic": {
         "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-automatic.yml@refs/heads/main",
@@ -2126,7 +2134,7 @@
         "runAttempt": 1,
         "appSlug": "haideearus-software-factory"
       },
-      "feedback": "Agent, publication, or CI infrastructure failed; no automatic model retry",
+      "feedback": "{\"head\":\"d6eab58a1b5f612ef81b58c6ed3e89ba724ab0bf\",\"verdict\":\"pass\",\"summary\":\"Reviewed the diff against src/components/NavBar.tsx and the new src/components/__tests__/NavBar.test.tsx at commit d6eab58a. The change adds aria-label=\\\"Notifications\\\" to the icon-only IconButton (lines 173-180 of NavBar.tsx) that links to /notifications, leaving the `to`, `data-test`, Badge count, and NotificationsIcon markup untouched, satisfying the ticket's \\\"keep target, badge, appearance\\\" requirement. The accompanying regression test renders NavBar with a MemoryRouter and a real dataMachine(\\\"notifications\\\") service (confirmed in src/machines/dataMachine.ts the machine starts in \\\"idle\\\" and never auto-dispatches FETCH, so no network call occurs during the test), then asserts screen.getByRole(\\\"link\\\", { name: \\\"Notifications\\\" }) resolves and has href=\\\"/notifications\\\" — this directly exercises the accessible-name fix via Testing Library's accessible-name algorithm, which prioritizes aria-label. The test file follows existing conventions in src/components/__tests__ (vitest + @testing-library/react, matching UserSettingsForm.test.tsx), and package.json confirms a \\\"test:unit:ci\\\": \\\"vitest --run\\\" script exists to run it; CI evidence (failed run) was noted but the diff itself is self-consistent and correctly scoped to the ticket. Limits: I did not execute the test suite myself (read-only review); I relied on static inspection of the component, test, and machine logic plus the supplied CI link as evidence rather than live execution.\",\"findings\":[]}",
       "delayedRetry": {
         "grantId": "ff163eff-957b-41c1-8868-1abd496b40d0",
         "jobId": 135225265791,
@@ -7292,15 +7300,12 @@
       "runId": "45747590913",
       "runAttempt": 1,
       "head": "d6eab58a1b5f612ef81b58c6ed3e89ba724ab0bf",
-      "status": "reserved",
-      "at": "2026-11-26T03:29:30.638Z"
+      "status": "finished",
+      "at": "2026-11-26T03:29:30.638Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 109,
-    "runId": "45747590913",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -11927,6 +11932,14 @@
       "runId": "45747590913",
       "runAttempt": 1,
       "actor": "haideearus"
+    },
+    {
+      "at": "2026-11-26T03:31:20.015Z",
+      "event": "finished",
+      "ticket": 109,
+      "grant": "f1649896-c543-464e-b845-0580cc04d3b8",
+      "status": "reviewed",
+      "head": "d6eab58a1b5f612ef81b58c6ed3e89ba724ab0bf"
     }
   ],
   "featureTurn": {
