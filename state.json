@@ -4645,7 +4645,15 @@
           "remainingBaseline": []
         }
       },
-      "feedback": "{\"head\":\"2cef0d71bca591d0a26277ef896e342b04a61293\",\"verdict\":\"pass\",\"summary\":\"Inspected yarn.lock (sole changed file per dependencyFacts.changedFiles) and confirmed its on-disk content at head matches the diff exactly: three duplicated browserslist entries (4.24.3, 4.25.1, 4.28.1) satisfying ^4.24.0/^4.25.1/^4.28.1 are deduped into a single browserslist@4.29.6, with transitive caniuse-lite, electron-to-chromium, node-releases, update-browserslist-db, and baseline-browser-mapping ranges bumped consistently. package.json's root \\\"browserslist\\\" key (package.json:219-230) is only the query config, not a version pin, and was untouched, matching the ticket's \\\"bounded, lockfile-only\\\" scope. Registry integrity hashes for all 7 added/retained packages matched dependencyFacts.registry (integrityMatched: true for each), so no tampering or confusion risk. Both advisories GHSA-73wf-gq98-2v4g and GHSA-c83g-rgw3-j3cx (browserslist fixed at 4.28.7 per the OSV records) are correctly cleared since 4.29.6 is above the fix boundary, and none of the newly added/retained versions carry advisoryIds. ciEvidence shows a verified exact-head CI run with lint/types/unit tests plus full UI regression (cypress/tests/ui/auth.spec.ts, bankaccounts.spec.ts, user-settings.spec.ts, src/components/__tests__/UserSettingsForm.test.tsx — all confirmed present via Glob) passing, which exercises the build pipeline that consumes browserslist/caniuse-lite data, giving indirect confidence the bump didn't break builds, though none of these tests specifically target browserslist-consumer output (e.g., autoprefixer/babel target changes).\",\"findings\":[{\"severity\":\"minor\",\"message\":\"No test in the cited CI evidence (cypress/tests/ui/*.spec.ts, UserSettingsForm.test.tsx) specifically exercises browserslist-dependent build output (autoprefixer/babel target lists), so compatibility confidence rests on the overall app still building and passing unrelated UI/unit specs rather than a targeted check of the caniuse-lite/electron-to-chromium data bump's effect on bundled output.\"}]}"
+      "feedback": "{\"head\":\"2cef0d71bca591d0a26277ef896e342b04a61293\",\"verdict\":\"pass\",\"summary\":\"Inspected yarn.lock (sole changed file per dependencyFacts.changedFiles) and confirmed its on-disk content at head matches the diff exactly: three duplicated browserslist entries (4.24.3, 4.25.1, 4.28.1) satisfying ^4.24.0/^4.25.1/^4.28.1 are deduped into a single browserslist@4.29.6, with transitive caniuse-lite, electron-to-chromium, node-releases, update-browserslist-db, and baseline-browser-mapping ranges bumped consistently. package.json's root \\\"browserslist\\\" key (package.json:219-230) is only the query config, not a version pin, and was untouched, matching the ticket's \\\"bounded, lockfile-only\\\" scope. Registry integrity hashes for all 7 added/retained packages matched dependencyFacts.registry (integrityMatched: true for each), so no tampering or confusion risk. Both advisories GHSA-73wf-gq98-2v4g and GHSA-c83g-rgw3-j3cx (browserslist fixed at 4.28.7 per the OSV records) are correctly cleared since 4.29.6 is above the fix boundary, and none of the newly added/retained versions carry advisoryIds. ciEvidence shows a verified exact-head CI run with lint/types/unit tests plus full UI regression (cypress/tests/ui/auth.spec.ts, bankaccounts.spec.ts, user-settings.spec.ts, src/components/__tests__/UserSettingsForm.test.tsx — all confirmed present via Glob) passing, which exercises the build pipeline that consumes browserslist/caniuse-lite data, giving indirect confidence the bump didn't break builds, though none of these tests specifically target browserslist-consumer output (e.g., autoprefixer/babel target changes).\",\"findings\":[{\"severity\":\"minor\",\"message\":\"No test in the cited CI evidence (cypress/tests/ui/*.spec.ts, UserSettingsForm.test.tsx) specifically exercises browserslist-dependent build output (autoprefixer/babel target lists), so compatibility confidence rests on the overall app still building and passing unrelated UI/unit specs rather than a targeted check of the caniuse-lite/electron-to-chromium data bump's effect on bundled output.\"}]}",
+      "merge": {
+        "status": "intent",
+        "head": "2cef0d71bca591d0a26277ef896e342b04a61293",
+        "pr": 236,
+        "at": "2026-11-26T11:52:00.291Z",
+        "runId": "45812010313",
+        "runAttempt": 1
+      }
     },
     "237": {
       "coding": 0,
@@ -8039,7 +8047,11 @@
       "outcome": "reviewed"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 236,
+    "runId": "45812010313",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-13T08:57:15.491Z",
