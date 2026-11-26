@@ -5036,7 +5036,8 @@
       "ci": {
         "requestId": "ff3e38df-699b-40d8-a8ce-873c4dde81b5",
         "head": "84ad9020a39fcfc02ae7d4c8bb422896d10af78f",
-        "runId": null
+        "runId": 45763079174,
+        "passed": true
       },
       "analysis": {
         "version": 2,
