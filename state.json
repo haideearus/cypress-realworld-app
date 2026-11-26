@@ -5472,6 +5472,10 @@
           {
             "from": "1b60c00c1fcda124900302d3f26c57bf967d9f46",
             "base": "ecc71a8d32ea1c44b2cef431d98a592c581f1135"
+          },
+          {
+            "from": "4a149213e60f0259200172271e710884f9c9b67b",
+            "base": "69a289f5fa189283e300087467e54b2cdccd99cd"
           }
         ],
         "parent": {
@@ -5485,6 +5489,20 @@
           "runAttempt": 1,
           "workflowSha": "fecc67833148e98fdec387738e074e2f48d29945",
           "head": "1b60c00c1fcda124900302d3f26c57bf967d9f46"
+        },
+        "finalContinuation": {
+          "failedParent": {
+            "runId": "45697642899",
+            "runAttempt": 1,
+            "workflowSha": "ecc71a8d32ea1c44b2cef431d98a592c581f1135",
+            "head": "4a149213e60f0259200172271e710884f9c9b67b"
+          },
+          "priorCi": {
+            "requestId": "ef22055f-b660-48f3-b91a-8e65af035b65",
+            "head": "4a149213e60f0259200172271e710884f9c9b67b",
+            "runId": 45697851922,
+            "passed": true
+          }
         }
       },
       "skippedPublishedReview": {
@@ -8231,15 +8249,6 @@
   },
   "active": null,
   "audit": [
-    {
-      "at": "2026-11-13T22:10:52.265Z",
-      "event": "reserved",
-      "ticket": 33,
-      "grant": "c8e93f8b-3368-4f87-a681-448f6b4e802d",
-      "phase": "review",
-      "runId": "43517085435",
-      "runAttempt": 1
-    },
     {
       "at": "2026-11-13T22:21:38.497Z",
       "event": "finished",
@@ -13373,6 +13382,14 @@
       "grant": "73222c67-7bef-46ba-ab98-c98372a893a7",
       "status": "reviewed",
       "head": "af1ca365d016e7d9fc92551b58ac75e81bc183fc"
+    },
+    {
+      "at": "2026-11-26T19:25:21.717Z",
+      "event": "published_review_refresh_requested",
+      "ticket": 273,
+      "pr": 274,
+      "from": "4a149213e60f0259200172271e710884f9c9b67b",
+      "base": "69a289f5fa189283e300087467e54b2cdccd99cd"
     }
   ],
   "featureTurn": {
