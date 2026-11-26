@@ -6020,9 +6020,17 @@
       "reviews": 1,
       "retries": 0,
       "head": "af1ca365d016e7d9fc92551b58ac75e81bc183fc",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 306,
-      "approval": null,
+      "approval": {
+        "head": "af1ca365d016e7d9fc92551b58ac75e81bc183fc",
+        "pr": 306,
+        "grant": "73222c67-7bef-46ba-ab98-c98372a893a7",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/45880468113"
+      },
       "criteriaHash": "06839c4bb02b2f9189623808c5049c1a50f70e730077be03ef83a630ecce538b",
       "branch": "agent/273-review-only-continuation",
       "ci": {
@@ -6030,7 +6038,8 @@
         "head": "af1ca365d016e7d9fc92551b58ac75e81bc183fc",
         "runId": 45880570674,
         "passed": true
-      }
+      },
+      "feedback": "{\"head\":\"af1ca365d016e7d9fc92551b58ac75e81bc183fc\",\"verdict\":\"pass\",\"summary\":\"Reviewed the diff against the current checkout of .github/workflows/factory-automatic.yml, scripts/factory/{published-review-recovery,trusted-wake,wake-contract,wake-controller,wake-queue}.cjs and the two expanded test files. (1) Pickup-wake: wake-controller.cjs's mainQueueSignal/classifySignal require a push-triggered factory-ci.yml run with run_attempt===1, a passing single 'verify' job, an allow-listed actor (owner or the Factory bot via discovery-contract.runActorOK), and a current main ref matching the run head; wake-contract.isMainQueueCheck's strict shape check and sourceKey-based receipt de-duplication (wake-controller.cjs handleWake) ensure this wakes pickup exactly once per push. wake-queue.verifyIdlePickup only treats a workflow_dispatch run as an 'idle pickup' eligible to hand off to Dependency maintenance when its wake_id's bound receipt is itself an isMainQueueCheck signal (or the pre-existing schedule/timer/owner-manual paths), so arbitrary other wake-triggered runs cannot masquerade as idle hand-offs. (2) Bounded recovery: finalContinuationFor/eligible in published-review-recovery.cjs gate the extra 'resume once' path to concurrent===1, exactly 2 prior refreshes, feedback===STALE_REASON, and a passing CI receipt whose head matches the stalled parent; verifyOriginal's new block re-verifies via the API that the stalled parent run failed, its CI actually passed, its review job was 'skipped' (not spent), and no review grant was ever issued for that run, matching the ticket's #273/PR#274 citation (the new tests literally reuse run id 45697642899 from the linked incident). The refresh cap (MAX_REFRESHES + Number(hasFinal)), validateRecovery's new finalContinuation invariants, and the 'lost branch-update response' test all look internally consistent with preserving coding/review/history fields. (3) The one-ticket-slot/fresh-CI/independent-review constraints are unchanged by this diff and the new eligibility branch explicitly requires config.concurrent===1, so the existing protections are not loosened. Limits of this review: I did not execute the Node test suite or fetch the linked CI run (https://github.com/haideearus/cypress-realworld-app/actions/runs/45880570674); I traced the logic and the accompanying tests by hand only, and I did not check files outside this diff's blast radius (e.g. factory-cycle.yml, factory-control action) for interaction effects.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"scripts/factory/wake-queue.cjs verifyIdlePickup calls trusted-wake.cjs verifyWake for the wake_id branch without a try/catch; if that call throws a plain Error (e.g. a receiver-identity mismatch distinct from the StaleWakeSource cases already handled upstream), it propagates uncaught out of nextDependency/handleWake, failing the whole wake invocation with an unhandled exception instead of returning a graceful 'ignored' outcome like the rest of the module. This is fail-closed/safe but is a minor robustness gap worth hardening.\"}]}"
     }
   },
   "grants": {
@@ -8215,24 +8224,13 @@
       "runId": "45880468113",
       "runAttempt": 1,
       "head": "af1ca365d016e7d9fc92551b58ac75e81bc183fc",
-      "status": "reserved",
-      "at": "2026-11-26T19:01:58.193Z"
+      "status": "finished",
+      "at": "2026-11-26T19:01:58.193Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 305,
-    "runId": "45880468113",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
-    {
-      "at": "2026-11-13T19:25:59.309Z",
-      "event": "finished",
-      "ticket": 31,
-      "grant": "3e93e95c-ddb8-41f6-9d42-d25ad84f6f05",
-      "status": "reviewed",
-      "head": "aef4f1be7054e855fa4a362029cec7e0b7c1c7e9"
-    },
     {
       "at": "2026-11-13T22:10:52.265Z",
       "event": "reserved",
@@ -13367,6 +13365,14 @@
       "runId": "45880468113",
       "runAttempt": 1,
       "actor": "haideearus"
+    },
+    {
+      "at": "2026-11-26T19:14:34.169Z",
+      "event": "finished",
+      "ticket": 305,
+      "grant": "73222c67-7bef-46ba-ab98-c98372a893a7",
+      "status": "reviewed",
+      "head": "af1ca365d016e7d9fc92551b58ac75e81bc183fc"
     }
   ],
   "featureTurn": {
