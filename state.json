@@ -5337,7 +5337,7 @@
       "retries": 0,
       "origin": "discovery-sweep",
       "head": "c8b87ff6ffbbdee5ea525459b5d72628261ea9d8",
-      "status": "discovering",
+      "status": "discovery_complete",
       "pr": null,
       "approval": null,
       "discovery": {
@@ -7344,15 +7344,12 @@
       "runId": "45750275133",
       "runAttempt": 1,
       "head": "c8b87ff6ffbbdee5ea525459b5d72628261ea9d8",
-      "status": "reserved",
-      "at": "2026-11-26T03:39:23.693Z"
+      "status": "finished",
+      "at": "2026-11-26T03:39:23.693Z",
+      "outcome": "discovery_complete"
     }
   },
-  "active": {
-    "ticket": 296,
-    "runId": "45750275133",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -12008,6 +12005,14 @@
       "runId": "45750275133",
       "runAttempt": 1,
       "actor": "haideearus-software-factory[bot]"
+    },
+    {
+      "at": "2026-11-26T03:51:33.551Z",
+      "event": "finished",
+      "ticket": 296,
+      "grant": "600a4db6-1254-4ff7-83aa-6ffe62bb3617",
+      "phase": "discover",
+      "status": "discovery_complete"
     }
   ],
   "featureTurn": {
