@@ -231,7 +231,7 @@
     "261": {
       "branch": "dependabot/npm_and_yarn/rollup-2.80.0",
       "issue": 265,
-      "status": "closing",
+      "status": "merged",
       "recovery": {
         "669c95a66717b8b9e5d8f5b610d7211411d49cd9": {
           "bases": {
