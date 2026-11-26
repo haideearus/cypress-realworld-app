@@ -173,7 +173,8 @@
       300,
       258,
       236,
-      302
+      302,
+      304
     ]
   },
   "tickets": {
@@ -5993,6 +5994,19 @@
         "head": "6a7c473726fc60393244eab5e7ccecac837ab0c2",
         "runId": null
       }
+    },
+    "304": {
+      "coding": 0,
+      "origin": "owner-pr",
+      "reviews": 1,
+      "retries": 0,
+      "head": "6a7c473726fc60393244eab5e7ccecac837ab0c2",
+      "status": "reviewing",
+      "pr": 303,
+      "approval": null,
+      "criteriaHash": "e2aa090012c716c3a739284d8e31cf714e517701f6cc6bc74760563849eb8ac9",
+      "branch": "agent/kill-switch-markdown-rehearsal",
+      "ci": null
     }
   },
   "grants": {
@@ -8156,19 +8170,25 @@
       "status": "finished",
       "at": "2026-11-26T14:38:52.682Z",
       "outcome": "blocked"
+    },
+    "02f11962-8834-468c-ba3d-8d76fda4796e": {
+      "id": "02f11962-8834-468c-ba3d-8d76fda4796e",
+      "ticket": 304,
+      "phase": "review",
+      "slot": "existing",
+      "runId": "45841886515",
+      "runAttempt": 1,
+      "head": "6a7c473726fc60393244eab5e7ccecac837ab0c2",
+      "status": "reserved",
+      "at": "2026-11-26T14:44:02.816Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 304,
+    "runId": "45841886515",
+    "runAttempt": 1
+  },
   "audit": [
-    {
-      "at": "2026-11-13T18:17:05.143Z",
-      "event": "reserved",
-      "ticket": 29,
-      "grant": "3b8fd895-a173-45a9-9e2a-1f97a08b4667",
-      "phase": "code",
-      "runId": "43481055400",
-      "runAttempt": 1
-    },
     {
       "at": "2026-11-13T18:23:30.310Z",
       "event": "finished",
@@ -13267,6 +13287,16 @@
           "reason": "Frozen pre-job controller rejects retained drill history before admission"
         }
       ]
+    },
+    {
+      "at": "2026-11-26T14:44:02.816Z",
+      "event": "reserved",
+      "ticket": 304,
+      "grant": "02f11962-8834-468c-ba3d-8d76fda4796e",
+      "phase": "review",
+      "runId": "45841886515",
+      "runAttempt": 1,
+      "actor": "haideearus"
     }
   ],
   "featureTurn": {
