@@ -168,7 +168,8 @@
       296,
       297,
       250,
-      261
+      261,
+      299
     ]
   },
   "tickets": {
@@ -5710,6 +5711,38 @@
         "runAttempt": 1,
         "mergeCommit": "2f86b1864301d21032396aabbf0ce64d225ad0b0"
       }
+    },
+    "299": {
+      "coding": 0,
+      "reviews": 0,
+      "retries": 0,
+      "origin": "dependency-pr",
+      "head": "171bbdc5b7c7ae433ed189ff43210901b82b759a",
+      "pr": 299,
+      "status": "new",
+      "approval": null,
+      "branch": "agent/dependency-alert-7687d0803a53020fdf3da65cba6e747472b02c50e3c96880000122fe87335083",
+      "criteriaHash": "faf7c91dea4b17b99dd4af9d449be590d850cf6487b44d31b365330a49181d1d",
+      "dependency": {
+        "version": 1,
+        "pr": 299,
+        "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-dependencies.yml@refs/heads/main",
+        "workflowSha": "0eca54cde2480d5a59b4657b8093996dcc84bbf2",
+        "runId": "45769945087",
+        "runAttempt": 1,
+        "appSlug": "haideearus-software-factory",
+        "attempts": [
+          {
+            "head": "171bbdc5b7c7ae433ed189ff43210901b82b759a",
+            "base": "0eca54cde2480d5a59b4657b8093996dcc84bbf2",
+            "runId": "45769945087",
+            "runAttempt": 1,
+            "workflowSha": "0eca54cde2480d5a59b4657b8093996dcc84bbf2",
+            "at": "2026-11-26T06:41:57.758Z"
+          }
+        ]
+      },
+      "ci": null
     }
   },
   "grants": {
@@ -7767,7 +7800,11 @@
       "outcome": "reviewed"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 299,
+    "runId": "45769945087",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -12704,6 +12741,16 @@
       "ticket": 223,
       "head": "d787f1d6c26c4df254df6fc02315c81a87108bae",
       "runId": "45769010844"
+    },
+    {
+      "at": "2026-11-26T06:41:57.758Z",
+      "event": "dependency_metadata_admitted",
+      "ticket": 299,
+      "head": "171bbdc5b7c7ae433ed189ff43210901b82b759a",
+      "runId": "45769945087",
+      "actor": "github-actions[bot]",
+      "wakeReceipt": "7cd7238f700f06eb59bce6ab34d647a255c302b720abaee1b8f7fe719487e26a",
+      "sourceActor": "haideearus-software-factory[bot]"
     }
   ],
   "featureTurn": {
