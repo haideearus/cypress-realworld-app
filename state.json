@@ -4844,9 +4844,9 @@
       "reviews": 1,
       "retries": 0,
       "origin": "dependency-pr",
-      "head": "867307adf1e1ebee7eab0d41d43e4244fe5aefaa",
+      "head": "0aff056ce35228d7e5358ed62a40f553bdcd6188",
       "pr": 259,
-      "status": "blocked",
+      "status": "new",
       "approval": null,
       "branch": "dependabot/npm_and_yarn/yaml-1.10.3",
       "criteriaHash": "a93256e237f3394a5d1720e8e66f764f41fb3492d6b3cd248ffb5b25c59a0aa3",
@@ -4882,37 +4882,19 @@
                 "finishedAt": "2026-11-25T13:46:39.034Z"
               }
             ]
+          },
+          {
+            "head": "0aff056ce35228d7e5358ed62a40f553bdcd6188",
+            "base": "e5191016d583bc85f779cbec3d610f223634c428",
+            "runId": "45765865137",
+            "runAttempt": 1,
+            "workflowSha": "e5191016d583bc85f779cbec3d610f223634c428",
+            "at": "2026-11-26T06:06:35.396Z"
           }
         ]
       },
-      "ci": {
-        "requestId": "7ab1cd61-19ec-40ea-bda0-e456fa4c1226",
-        "head": "867307adf1e1ebee7eab0d41d43e4244fe5aefaa",
-        "runId": 45625330147,
-        "passed": true
-      },
-      "feedback": "{\"head\":\"867307adf1e1ebee7eab0d41d43e4244fe5aefaa\",\"verdict\":\"pass\",\"summary\":\"Reviewed the yarn.lock-only diff at 867307ad (bumping transitive `yaml` from 1.10.2/2.6.1 to 1.10.3/2.9.1). Confirmed via Grep of package.json and src/ that `yaml` is not a direct dependency or imported anywhere in app source — only js-yaml is used directly; `yaml` is pulled in transitively by cosmiconfig@^7 (yaml^1.10.0), @percy/cli-snapshot/@percy/config/@percy/core (yaml^2.0.0/^2.2.2/^2.4.1), and patch-package (yaml^2.2.2), all exercised in package.json's \\\"postinstall\\\": \\\"husky install && patch-package\\\" and via jest/eslint config loading. Both new versions (1.10.3, 2.9.1) satisfy the pre-existing caret ranges already declared by these dependents, so no range override or compatibility risk is introduced. dependencyFacts registry entries show integrityMatched:true for both versions, matching the integrity hashes in the diff exactly. The advisory GHSA-48c2-rrv3-qjmp's affected ranges (yaml 1.0.0–<1.10.3 and 2.0.0–<2.8.3) place both new versions outside the vulnerable range, consistent with the \\\"cleared\\\" / empty remainingBaseline summary. ciEvidence's listed testFiles (UserSettingsForm.test.tsx, auth/bankaccounts/user-settings specs) are generic regression tests unrelated to yaml parsing and only prove the full suite passed at this head, not targeted coverage of the cosmiconfig/percy/patch-package code paths that actually consume yaml.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"The ciEvidence testFiles (UserSettingsForm.test.tsx, auth.spec.ts, bankaccounts.spec.ts, user-settings.spec.ts) are unrelated to yaml parsing; they only show the general CI suite passed at this head, not that cosmiconfig/@percy/patch-package's yaml-consuming code paths were specifically exercised or asserted on.\"},{\"severity\":\"minor\",\"message\":\"dependencyFacts.upstreamReleases is empty, so there is no independent upstream GitHub tag/release corroboration for yaml 1.10.3/2.9.1 beyond the npm registry entries and integrity match; provenance rests solely on registry data.\"}]}",
-      "analysis": {
-        "version": 2,
-        "repository": "haideearus/cypress-realworld-app",
-        "pr": 259,
-        "base": "1ab033c7be9311e55deda7df373602ecbde08109",
-        "head": "867307adf1e1ebee7eab0d41d43e4244fe5aefaa",
-        "workflowSha": "1ab033c7be9311e55deda7df373602ecbde08109",
-        "runId": "45625030865",
-        "runAttempt": 1,
-        "stage": "analysis",
-        "toolDigest": "f280c92eeb2f5ac163b37bbe2d1cffa0ca85a8237161c40dced67f0c8f5dffb5",
-        "at": "2026-11-25T13:35:56.364Z",
-        "result": {
-          "changed": 4,
-          "candidateVersions": 2,
-          "cleared": [
-            "GHSA-48c2-rrv3-qjmp"
-          ],
-          "remainingBaseline": []
-        }
-      }
+      "ci": null,
+      "feedback": "{\"head\":\"867307adf1e1ebee7eab0d41d43e4244fe5aefaa\",\"verdict\":\"pass\",\"summary\":\"Reviewed the yarn.lock-only diff at 867307ad (bumping transitive `yaml` from 1.10.2/2.6.1 to 1.10.3/2.9.1). Confirmed via Grep of package.json and src/ that `yaml` is not a direct dependency or imported anywhere in app source — only js-yaml is used directly; `yaml` is pulled in transitively by cosmiconfig@^7 (yaml^1.10.0), @percy/cli-snapshot/@percy/config/@percy/core (yaml^2.0.0/^2.2.2/^2.4.1), and patch-package (yaml^2.2.2), all exercised in package.json's \\\"postinstall\\\": \\\"husky install && patch-package\\\" and via jest/eslint config loading. Both new versions (1.10.3, 2.9.1) satisfy the pre-existing caret ranges already declared by these dependents, so no range override or compatibility risk is introduced. dependencyFacts registry entries show integrityMatched:true for both versions, matching the integrity hashes in the diff exactly. The advisory GHSA-48c2-rrv3-qjmp's affected ranges (yaml 1.0.0–<1.10.3 and 2.0.0–<2.8.3) place both new versions outside the vulnerable range, consistent with the \\\"cleared\\\" / empty remainingBaseline summary. ciEvidence's listed testFiles (UserSettingsForm.test.tsx, auth/bankaccounts/user-settings specs) are generic regression tests unrelated to yaml parsing and only prove the full suite passed at this head, not targeted coverage of the cosmiconfig/percy/patch-package code paths that actually consume yaml.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"The ciEvidence testFiles (UserSettingsForm.test.tsx, auth.spec.ts, bankaccounts.spec.ts, user-settings.spec.ts) are unrelated to yaml parsing; they only show the general CI suite passed at this head, not that cosmiconfig/@percy/patch-package's yaml-consuming code paths were specifically exercised or asserted on.\"},{\"severity\":\"minor\",\"message\":\"dependencyFacts.upstreamReleases is empty, so there is no independent upstream GitHub tag/release corroboration for yaml 1.10.3/2.9.1 beyond the npm registry entries and integrity match; provenance rests solely on registry data.\"}]}"
     },
     "260": {
       "coding": 0,
@@ -7714,7 +7696,11 @@
       "outcome": "reviewed"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 259,
+    "runId": "45765865137",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -12593,6 +12579,16 @@
       "runAttempt": 1,
       "outcome": "accepted",
       "mergeCommit": "e5191016d583bc85f779cbec3d610f223634c428"
+    },
+    {
+      "at": "2026-11-26T06:06:35.396Z",
+      "event": "dependency_metadata_admitted",
+      "ticket": 259,
+      "head": "0aff056ce35228d7e5358ed62a40f553bdcd6188",
+      "runId": "45765865137",
+      "actor": "github-actions[bot]",
+      "wakeReceipt": "8ad81fbe094b6fcac8771ae5178efe024483679ff9233892fc1b0674c690ae1d",
+      "sourceActor": "dependabot[bot]"
     }
   ],
   "featureTurn": {
