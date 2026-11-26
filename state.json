@@ -4264,9 +4264,9 @@
       "reviews": 0,
       "retries": 0,
       "origin": "dependency-pr",
-      "head": "d787f1d6c26c4df254df6fc02315c81a87108bae",
+      "head": "c82f5bf2a05afc4c297ff245bb5d76aad56d22a4",
       "pr": 223,
-      "status": "blocked",
+      "status": "new",
       "approval": null,
       "branch": "dependabot/npm_and_yarn/vitest-4.1.11",
       "criteriaHash": "ddeac18b98029246e847bfa5fab0a6d8c78e4d92e05b3a8f546a09fd3179f62e",
@@ -4302,6 +4302,14 @@
             "runAttempt": 1,
             "workflowSha": "0eca54cde2480d5a59b4657b8093996dcc84bbf2",
             "at": "2026-11-26T06:34:23.161Z"
+          },
+          {
+            "head": "c82f5bf2a05afc4c297ff245bb5d76aad56d22a4",
+            "base": "6354a0b9c8723006b4deea39437ea528de095af0",
+            "runId": "45808179762",
+            "runAttempt": 1,
+            "workflowSha": "6354a0b9c8723006b4deea39437ea528de095af0",
+            "at": "2026-11-26T11:12:11.763Z"
           }
         ]
       },
@@ -7930,23 +7938,12 @@
       "outcome": "reviewed"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 223,
+    "runId": "45808179762",
+    "runAttempt": 1
+  },
   "audit": [
-    {
-      "at": "2026-11-12T10:50:23.190Z",
-      "event": "blocked",
-      "ticket": 11,
-      "reason": "Agent, publication, or CI infrastructure failed; no automatic model retry"
-    },
-    {
-      "at": "2026-11-12T11:42:00.351Z",
-      "event": "reserved",
-      "ticket": 12,
-      "grant": "1f81633d-863a-4257-ab45-6696d3f05d1a",
-      "phase": "review",
-      "runId": "43211345723",
-      "runAttempt": 1
-    },
     {
       "at": "2026-11-12T11:51:54.329Z",
       "event": "finished",
@@ -12934,6 +12931,16 @@
       "runAttempt": 1,
       "outcome": "accepted",
       "mergeCommit": "6354a0b9c8723006b4deea39437ea528de095af0"
+    },
+    {
+      "at": "2026-11-26T11:12:11.763Z",
+      "event": "dependency_metadata_admitted",
+      "ticket": 223,
+      "head": "c82f5bf2a05afc4c297ff245bb5d76aad56d22a4",
+      "runId": "45808179762",
+      "actor": "github-actions[bot]",
+      "wakeReceipt": "28a94d203d9308604f0076f061e0534e0fa6b23e1e76fdffb51ffc3ebe763518",
+      "sourceActor": "dependabot[bot]"
     }
   ],
   "featureTurn": {
