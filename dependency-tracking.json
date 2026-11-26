@@ -123,7 +123,8 @@
         "2ebe285098eb7a828d0b8fbc26e5174d1c566ea4": {
           "bases": {
             "3c5cf96ecbf21380005d8416aa1cb97918b019f5": {
-              "refresh": "confirmed"
+              "refresh": "confirmed",
+              "stale": "requested"
             }
           }
         }
