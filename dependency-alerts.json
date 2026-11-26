@@ -284,7 +284,7 @@
       "name": "js-yaml",
       "day": "2026-11-26",
       "trackingReason": "no-common-candidate",
-      "phase": "linked",
+      "phase": "ready",
       "issue": 208,
       "pr": 297,
       "candidate": "3.15.2",
