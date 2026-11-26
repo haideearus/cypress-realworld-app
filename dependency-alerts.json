@@ -382,6 +382,16 @@
       "phase": "tracking",
       "issue": 293,
       "pr": null
+    },
+    "7687d0803a53020fdf3da65cba6e747472b02c50e3c96880000122fe87335083": {
+      "candidate": "8.21.0",
+      "day": "2026-11-26",
+      "base": "4a3c5b7236d0885c8259778c9a66da68da78cc61",
+      "head": "d47b33c0fff3b413ee6b878c9f3fae15f0cdb66c",
+      "name": "ws",
+      "phase": "prepared",
+      "issue": null,
+      "pr": null
     }
   },
   "heldAfter": "js-yaml"
