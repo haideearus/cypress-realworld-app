@@ -164,7 +164,8 @@
       291
     ],
     "2026-11-26": [
-      294
+      294,
+      296
     ]
   },
   "tickets": {
@@ -5329,6 +5330,28 @@
         "workflowSha": "e2e9c9bd96a486ef8dfecfad34162a35a0602b32",
         "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-discovery.yml@refs/heads/main"
       }
+    },
+    "296": {
+      "coding": 0,
+      "reviews": 0,
+      "retries": 0,
+      "origin": "discovery-sweep",
+      "head": "c8b87ff6ffbbdee5ea525459b5d72628261ea9d8",
+      "status": "discovering",
+      "pr": null,
+      "approval": null,
+      "discovery": {
+        "version": 1,
+        "head": "c8b87ff6ffbbdee5ea525459b5d72628261ea9d8",
+        "ciRunId": "45749552806",
+        "charter": "functional-feed",
+        "day": "2026-11-26",
+        "key": "de0f10adc3889d7928e794c61eaa56927eec0a4c924c464b2edbd0e8fa324ae6",
+        "runId": "45750275133",
+        "runAttempt": 1,
+        "workflowSha": "c8b87ff6ffbbdee5ea525459b5d72628261ea9d8",
+        "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-discovery.yml@refs/heads/main"
+      }
     }
   },
   "grants": {
@@ -7312,9 +7335,24 @@
       "status": "finished",
       "at": "2026-11-26T03:29:30.638Z",
       "outcome": "reviewed"
+    },
+    "600a4db6-1254-4ff7-83aa-6ffe62bb3617": {
+      "id": "600a4db6-1254-4ff7-83aa-6ffe62bb3617",
+      "ticket": 296,
+      "phase": "discover",
+      "slot": "discovery",
+      "runId": "45750275133",
+      "runAttempt": 1,
+      "head": "c8b87ff6ffbbdee5ea525459b5d72628261ea9d8",
+      "status": "reserved",
+      "at": "2026-11-26T03:39:23.693Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 296,
+    "runId": "45750275133",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -11960,6 +11998,16 @@
       "runAttempt": 1,
       "outcome": "accepted",
       "mergeCommit": "c8b87ff6ffbbdee5ea525459b5d72628261ea9d8"
+    },
+    {
+      "at": "2026-11-26T03:39:23.693Z",
+      "event": "reserved",
+      "ticket": 296,
+      "grant": "600a4db6-1254-4ff7-83aa-6ffe62bb3617",
+      "phase": "discover",
+      "runId": "45750275133",
+      "runAttempt": 1,
+      "actor": "haideearus-software-factory[bot]"
     }
   ],
   "featureTurn": {
