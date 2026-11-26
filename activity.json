@@ -898,29 +898,6 @@
       },
       "status": "intent",
       "commentId": null
-    },
-    "05b72590653ead2088a7b3d237c277735427f67eed0dda9c35add13daef8dc9a": {
-      "event": {
-        "id": "05b72590653ead2088a7b3d237c277735427f67eed0dda9c35add13daef8dc9a",
-        "producer": {
-          "runId": "45768837599",
-          "runAttempt": 1,
-          "workflow": "factory-deploy.yml",
-          "workflowSha": "0eca54cde2480d5a59b4657b8093996dcc84bbf2",
-          "phase": "job-139736371778",
-          "actor": "haideearus-software-factory[bot]"
-        },
-        "kind": "deployment",
-        "state": "success",
-        "subject": 45768837599,
-        "head": "0eca54cde2480d5a59b4657b8093996dcc84bbf2",
-        "summary": "Production deployment job is success; named human approval remains required.",
-        "links": [
-          "https://github.com/haideearus/cypress-realworld-app/actions/runs/45768837599"
-        ]
-      },
-      "status": "intent",
-      "commentId": null
     }
   },
   "lastMonitor": {
