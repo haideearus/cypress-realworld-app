@@ -143,7 +143,29 @@ async function verifySource(api, signal, bound, vars = {}) {
     }
     return;
   }
-  const { verifiedRun, alertWakeConfig, verifyAlertCI } = require("./wake-controller.cjs");
+  const {
+    verifiedRun,
+    alertWakeConfig,
+    verifyAlertCI,
+    mainQueueSignal,
+  } = require("./wake-controller.cjs");
+  if (c.isMainQueueCheck(signal)) {
+    const run = await verifiedRun(api, signal.sourceRun, signal.sourceAttempt, "factory-ci.yml");
+    const source = await mainQueueSignal(api, run);
+    if (
+      !source ||
+      c.sourceKey(source) !== c.sourceKey(signal) ||
+      source.actor.login !== signal.actor.login ||
+      source.actor.id !== signal.actor.id
+    )
+      throw Error("Main queue CI proof changed");
+    if (!bound) {
+      const main = await api.request("GET", `${ROOT}/git/ref/heads/main`);
+      if (main.object?.sha !== signal.head)
+        throw new c.StaleWakeSource("Main changed since queue CI passed");
+    }
+    return;
+  }
   if (signal.kind === "dependency-alert-ci") {
     const d = require("./dependency-contract.cjs");
     const run = await verifiedRun(api, signal.sourceRun, signal.sourceAttempt, "factory-ci.yml");
@@ -303,6 +325,8 @@ async function verifyWake({
   c.validateReceipt(receipt);
   if (receipt.signal.lane !== lane || !["intent", "sent", "bound"].includes(receipt.status))
     throw Error("Wake dispatch intent missing");
+  if (c.isMainQueueCheck(receipt.signal) && receipt.signal.head !== context.workflowSha)
+    throw new c.StaleWakeSource("Main changed before the queue check ran");
   await verifyDispatchIdentity(api, context, receipt, lane);
   await verifySource(api, receipt.signal, receipt.receiver !== null, vars);
   const expected = { runId: context.runId, runAttempt: 1, workflowSha: context.workflowSha };

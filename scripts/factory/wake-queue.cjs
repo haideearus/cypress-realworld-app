@@ -10,19 +10,27 @@ const CI_WORKFLOW = "factory-ci.yml";
 const IDLE_STEP = "Hand off an idle app queue to dependency maintenance";
 const MAX_SOURCE_CHECKS = 4;
 
-async function verifyIdlePickup(api, runId, attempt) {
+const manualPickup = (run) =>
+  run.event === "workflow_dispatch" && run.display_title === "Automatic factory";
+const appWakeId = (run) =>
+  run.event === "workflow_dispatch" &&
+  /^Automatic factory \/ wake ([a-f0-9]{64})$/.exec(run.display_title)?.[1];
+
+async function verifyIdlePickup(api, runId, attempt, store) {
   const { verifiedRun } = require("./wake-controller.cjs");
   if (attempt !== 1) return null;
   const run = await verifiedRun(api, runId, attempt, AUTO_WORKFLOW);
   const external = timerRun(run);
+  const wake = appWakeId(run);
+  if (run.head_branch !== "main") return null;
   if (
-    (run.event !== "schedule" && !external) ||
-    run.head_branch !== "main" ||
-    ![run.actor, run.triggering_actor].every((a) => a?.login === c.OWNER && a.id === c.OWNER_ID)
+    !wake &&
+    (!(run.event === "schedule" || external || manualPickup(run)) ||
+      ![run.actor, run.triggering_actor].every((a) => a?.login === c.OWNER && a.id === c.OWNER_ID))
   )
     return null;
   const jobs = await api.pages(`${ROOT}/actions/runs/${run.id}/attempts/1/jobs`, "jobs");
-  return jobs.some(
+  const idle = jobs.some(
     (job) =>
       job.name === "pick" &&
       job.status === "completed" &&
@@ -30,9 +38,32 @@ async function verifyIdlePickup(api, runId, attempt) {
       job.steps?.some((step) => step.name === IDLE_STEP && step.conclusion === "success") &&
       (!external ||
         job.steps.some((step) => step.name === TIMER_STEP && step.conclusion === "success"))
-  )
-    ? run
-    : null;
+  );
+  if (!idle) return null;
+  if (wake) {
+    const wakeStore = store ?? new (require("./wake-store.cjs").WakeStore)(api);
+    const receipt = (await wakeStore.read()).state.receipts[wake];
+    if (!receipt || receipt.status !== "bound" || !c.isMainQueueCheck(receipt.signal)) return null;
+    const context = {
+      repository: c.REPOSITORY,
+      actor: run.actor?.login,
+      triggeringActor: run.triggering_actor?.login,
+      ref: "refs/heads/main",
+      event: run.event,
+      workflowRef: `${c.REPOSITORY}/.github/workflows/${AUTO_WORKFLOW}@refs/heads/main`,
+      workflowSha: run.head_sha,
+      runId: String(run.id),
+      runAttempt: attempt,
+    };
+    await require("./trusted-wake.cjs").verifyWake({
+      api,
+      context,
+      store: wakeStore,
+      receiptId: wake,
+      lane: "app",
+    });
+  }
+  return run;
 }
 
 const queueKey = (number, head) => c.digest(["dependency-queue", number, head]);
@@ -118,7 +149,7 @@ async function nextDependency({ api, source, context, vars, ledger, store, state
   const full = !slots.capacity(state, Number(vars.FACTORY_MAX_CONCURRENT_TICKETS));
   const terminal = full ? await terminalDependency(api, state, autoMerge) : null;
   if (full && !terminal) return null;
-  const run = await verifyIdlePickup(api, String(source.id), source.run_attempt);
+  const run = await verifyIdlePickup(api, String(source.id), source.run_attempt, store);
   if (!run || run.head_sha !== context.workflowSha) return null;
   const { state: wakes } = await store.read();
   if (
@@ -204,4 +235,4 @@ async function nextDependency({ api, source, context, vars, ledger, store, state
   return { signal: queueCheck, queueCheck, terminal, skipped };
 }
 
-module.exports = { nextDependency, verifyQueueCheck, terminalDependency };
+module.exports = { nextDependency, verifyQueueCheck, terminalDependency, manualPickup, appWakeId };

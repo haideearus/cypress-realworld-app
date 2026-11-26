@@ -109,6 +109,37 @@ async function verifiedRun(
     throw Error("Untrusted source workflow run");
   return run;
 }
+async function mainQueueSignal(api, run) {
+  if (
+    run.event !== "push" ||
+    run.head_branch !== "main" ||
+    run.run_attempt !== 1 ||
+    run.conclusion !== "success" ||
+    !require("./discovery-contract.cjs").runActorOK(run, "workflow_run")
+  )
+    return null;
+  const jobs = await api.pages(`${ROOT}/actions/runs/${run.id}/attempts/1/jobs`, "jobs");
+  const verify = jobs.filter((job) => job.name === "verify");
+  if (
+    verify.length !== 1 ||
+    verify[0].run_id !== run.id ||
+    verify[0].head_sha !== run.head_sha ||
+    verify[0].status !== "completed" ||
+    verify[0].conclusion !== "success"
+  )
+    return null;
+  return {
+    kind: "drain",
+    lane: "app",
+    number: run.id,
+    head: run.head_sha,
+    criteriaHash: c.digest(["main-queue", run.head_sha]),
+    revision: "main-queue",
+    sourceRun: String(run.id),
+    sourceAttempt: 1,
+    actor: { login: run.actor.login, id: run.actor.id },
+  };
+}
 async function verifyProducer(api, context) {
   if (
     context.repository !== c.REPOSITORY ||
@@ -287,9 +318,15 @@ async function classifySignal({
     };
   }
   if (source.path === ".github/workflows/factory-ci.yml") {
-    const r = await verifiedRun(api, String(source.id), source.run_attempt, "factory-ci.yml");
-    // Only PR CI can wake dependency intake.
-    if (r.event !== "pull_request") return null;
+    const r = await verifiedRun(api, String(source.id), source.run_attempt, "factory-ci.yml", {
+      success: source.event !== "push",
+    });
+    if (r.event === "push") {
+      if (r.head_sha !== context.workflowSha || r.conclusion !== "success") return null;
+      const main = await api.request("GET", `${ROOT}/git/ref/heads/main`);
+      return main.object?.sha === r.head_sha ? mainQueueSignal(api, r) : null;
+    }
+    if (r.event !== "pull_request" || r.conclusion !== "success") return null;
     const config = alertWakeConfig(vars);
     for (const link of r.pull_requests || []) {
       let pr;
@@ -393,18 +430,21 @@ async function handleWake({
   )
     return { outcome: "ignored" };
   const source = event.workflow_run;
-  const scheduled =
+  const queue = require("./wake-queue.cjs");
+  const idleHandoff =
     !preview &&
     event.repository?.full_name === c.REPOSITORY &&
     context.event === "workflow_run" &&
     event.action === "completed" &&
     source?.path === ".github/workflows/factory-automatic.yml" &&
     (source.event === "schedule" ||
+      queue.manualPickup(source) ||
+      queue.appWakeId(source) ||
       (vars.FACTORY_EXTERNAL_PICKUP_ENABLED === "true" &&
         require("./pickup-timer.cjs").timerRun(source))) &&
     source.conclusion === "success" &&
     c.ID.test(String(source.id))
-      ? await require("./wake-queue.cjs").nextDependency({
+      ? await queue.nextDependency({
           api,
           source,
           context,
@@ -414,13 +454,13 @@ async function handleWake({
           state: (await ledger.read()).state,
         })
       : null;
-  if (scheduled?.duplicate) return { outcome: "duplicate" };
+  if (idleHandoff?.duplicate) return { outcome: "duplicate" };
   let signal =
-    scheduled?.signal ?? (await classifySignal({ api, event, context, vars, ledger, store }));
+    idleHandoff?.signal ?? (await classifySignal({ api, event, context, vars, ledger, store }));
   if (!signal)
     return {
       outcome: "ignored",
-      ...(scheduled?.skipped?.length ? { skipped: scheduled.skipped } : {}),
+      ...(idleHandoff?.skipped?.length ? { skipped: idleHandoff.skipped } : {}),
     };
   c.validateSignal(signal);
   if (preview) return { outcome: "preview", lane: signal.lane, number: signal.number };
@@ -432,14 +472,17 @@ async function handleWake({
   if (![1, 2].includes(concurrent)) throw Error("Invalid wake capacity setting");
   const busy =
     !slots.capacity(controls, concurrent) &&
-    (!scheduled?.terminal ||
+    (!idleHandoff?.terminal ||
       (await require("./wake-queue.cjs").terminalDependency(
         api,
         controls,
         vars.FACTORY_AUTOMERGE_ENABLED === "true"
-      )) !== scheduled.terminal);
-  const drain = signal.kind === "drain" && !c.isQueueCheckDrain(signal) ? signal : null;
-  const sourceDrain = scheduled?.queueCheck ?? drain;
+      )) !== idleHandoff.terminal);
+  const drain =
+    signal.kind === "drain" && !c.isQueueCheckDrain(signal) && !c.isMainQueueCheck(signal)
+      ? signal
+      : null;
+  const sourceDrain = idleHandoff?.queueCheck ?? drain;
   const preparation = c.isPreparationDrain(signal);
   const alreadyDrained = (state) =>
     sourceDrain &&
@@ -452,10 +495,10 @@ async function handleWake({
     );
   const observed = [];
   const deferred = [];
-  const skipped = scheduled?.skipped || [];
+  const skipped = idleHandoff?.skipped || [];
   let completedDrain =
-    !busy && scheduled?.queueCheck && scheduled.queueCheck !== signal
-      ? c.createWake({ signal: scheduled.queueCheck, producer })
+    !busy && idleHandoff?.queueCheck && idleHandoff.queueCheck !== signal
+      ? c.createWake({ signal: idleHandoff.queueCheck, producer })
       : undefined;
   if (drain && !busy) {
     const { state } = await store.read();
@@ -464,7 +507,7 @@ async function handleWake({
       .filter(
         (r) =>
           r.status === "pending" &&
-          r.signal.kind !== "drain" &&
+          (r.signal.kind !== "drain" || c.isMainQueueCheck(r.signal)) &&
           (preparation
             ? r.signal.lane === "dependency" && c.isDependencyCI(r.signal)
             : drain.lane === "app" || r.signal.kind !== "finding")
@@ -474,7 +517,11 @@ async function handleWake({
     for (const queued of pending) {
       if (Date.now() >= deadline) break;
       try {
-        if (queued.signal.lane === "app" && controls.tickets[String(queued.signal.number)])
+        if (
+          queued.signal.lane === "app" &&
+          !c.isMainQueueCheck(queued.signal) &&
+          controls.tickets[String(queued.signal.number)]
+        )
           throw new c.StaleWakeSource("Wake issue already admitted");
         if (
           preparation &&
@@ -565,4 +612,5 @@ module.exports = {
   handleWake,
   alertWakeConfig,
   verifyAlertCI,
+  mainQueueSignal,
 };

@@ -43,6 +43,7 @@ const isPreparationDrain = (signal) =>
   signal.kind === "drain" && signal.revision === preparationRevision(signal.sourceAttempt);
 const isQueueCheckDrain = (signal) =>
   signal.kind === "drain" && signal.revision === `queue-check:${signal.sourceAttempt}`;
+const isMainQueueCheck = (signal) => signal.kind === "drain" && signal.revision === "main-queue";
 function validateSignal(s) {
   if (
     !exact(s, "kind,lane,number,head,criteriaHash,revision,sourceRun,sourceAttempt,actor") ||
@@ -50,6 +51,8 @@ function validateSignal(s) {
     !LANES[s.lane] ||
     (s.kind === "dependency-alert-ci" && s.lane !== "dependency") ||
     ((isPreparationDrain(s) || isQueueCheckDrain(s)) && s.lane !== "dependency") ||
+    (isMainQueueCheck(s) &&
+      (s.lane !== "app" || s.sourceAttempt !== 1 || String(s.number) !== s.sourceRun)) ||
     !Number.isSafeInteger(s.number) ||
     s.number < 1 ||
     !SHA.test(s.head) ||
@@ -178,6 +181,7 @@ module.exports = {
   preparationRevision,
   isPreparationDrain,
   isQueueCheckDrain,
+  isMainQueueCheck,
   createWake,
   sourceKey,
   validateSignal,

@@ -104,7 +104,9 @@ jobs:
         run: echo 'Pickup selected work for dispatch or merge recovery.' >> "$GITHUB_STEP_SUMMARY"
       - name: Hand off an idle app queue to dependency maintenance
         if: >-
-          ${{ (github.event_name == 'schedule' || steps.timer.outputs.allowed == 'true') &&
+          ${{ (github.event_name == 'schedule' || steps.timer.outputs.allowed == 'true' ||
+              (github.event_name == 'workflow_dispatch' && inputs.operation == 'run' &&
+               !inputs.dry_run && !inputs.timer_tick)) &&
               vars.FACTORY_EVENT_PICKUP_ENABLED == 'true' &&
               steps.control.outputs.ready == 'false' && steps.control.outputs.ticket == '' }}
         run: echo 'App pickup found no ticket. The event wake can inspect the dependency queue.'

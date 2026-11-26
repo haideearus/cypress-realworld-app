@@ -117,6 +117,168 @@ test("idle completions, observer completions and owner harness CI cannot drain",
   }
 });
 
+test("verified current-main CI wakes the app queue once and its idle check can hand off", async (t) => {
+  const s = fixture();
+  const contract = require("../factory/wake-contract.cjs");
+  const trusted = require("../factory/trusted-wake.cjs");
+  const ci = {
+    ...s.run,
+    id: 701,
+    workflow_id: 71,
+    path: ".github/workflows/factory-ci.yml",
+    event: "push",
+    status: "completed",
+    conclusion: "success",
+  };
+  s.context.event = s.run.event = "workflow_run";
+  s.event = { repository: ci.repository, action: "completed", workflow_run: ci };
+  let currentMain = sha;
+  const request = s.api.request;
+  s.api.request = (method, path, body) => {
+    if (path.endsWith("/actions/runs/701/attempts/1")) return structuredClone(ci);
+    if (path.endsWith("/actions/workflows/factory-ci.yml")) return { id: 71, path: ci.path };
+    if (path.endsWith("/git/ref/heads/main")) return { object: { sha: currentMain } };
+    return request(method, path, body);
+  };
+  let conclusion = "failure";
+  s.api.pages = async () => [
+    { name: "verify", run_id: 701, head_sha: sha, status: "completed", conclusion },
+  ];
+  assert.equal((await handleWake(s)).outcome, "ignored");
+  assert.deepEqual(s.dispatches, []);
+
+  conclusion = "success";
+  s.ledger.state.active = { ticket: 9, runId: "9", runAttempt: 1 };
+  assert.equal((await handleWake(s)).outcome, "busy");
+  assert.deepEqual(s.dispatches, []);
+  s.ledger.state.active = null;
+  const result = await handleWake(s);
+  assert.equal(result.outcome, "dispatched");
+  assert.equal(result.lane, "app");
+  assert.deepEqual(s.dispatches, [
+    { ref: "main", inputs: { wake_id: result.receiptId, dry_run: false } },
+  ]);
+  const receipt = s.store.state.receipts[result.receiptId];
+  assert.equal(contract.isMainQueueCheck(receipt.signal), true);
+  await trusted.verifySource(s.api, receipt.signal, false);
+  assert.equal((await handleWake(s)).outcome, "duplicate");
+
+  const bot = { login: contract.BOT, id: contract.BOT_ID };
+  const receiver = {
+    ...ci,
+    id: 702,
+    workflow_id: 72,
+    path: ".github/workflows/factory-automatic.yml",
+    event: "workflow_dispatch",
+    display_title: `Automatic factory / wake ${receipt.id}`,
+    actor: bot,
+    triggering_actor: bot,
+  };
+  const mainRequest = s.api.request;
+  const mainJobs = s.api.pages;
+  s.api.request = (method, path, body) => {
+    if (path.endsWith("/actions/runs/702/attempts/1")) return structuredClone(receiver);
+    if (path.endsWith("/actions/workflows/factory-automatic.yml"))
+      return { id: 72, path: receiver.path };
+    if (path.includes("/factory-ci.yml/runs?")) return { workflow_runs: [] };
+    return mainRequest(method, path, body);
+  };
+  s.api.pages = async (path) =>
+    path.includes("/runs/702/")
+      ? [
+          {
+            name: "pick",
+            status: "completed",
+            conclusion: "success",
+            steps: [
+              {
+                name: "Hand off an idle app queue to dependency maintenance",
+                conclusion: "success",
+              },
+            ],
+          },
+        ]
+      : mainJobs(path);
+  t.mock.method(
+    require("../factory/dependency-tracking.cjs"),
+    "previewNativeRecovery",
+    async () => 260
+  );
+  const completion = { ...s, event: { ...s.event, workflow_run: receiver } };
+  assert.equal((await handleWake(completion)).outcome, "ignored");
+  const context = {
+    ...s.context,
+    runId: "702",
+    actor: bot.login,
+    triggeringActor: bot.login,
+    event: "workflow_dispatch",
+    workflowRef: `${s.context.repository}/${receiver.path}@refs/heads/main`,
+  };
+  const wake = await trusted.verifyWake({
+    api: s.api,
+    context,
+    receiptId: receipt.id,
+    lane: "app",
+    bind: true,
+    store: s.store,
+  });
+  assert.equal(trusted.isTrustedWakeContext({ ...context, wake }, "app"), true);
+  assert.equal((await handleWake(completion)).lane, "dependency");
+  assert.equal((await handleWake(completion)).outcome, "duplicate");
+
+  currentMain = "c".repeat(40);
+  await assert.rejects(trusted.verifySource(s.api, receipt.signal, false), /main.*changed/i);
+  assert.equal((await handleWake(s)).outcome, "ignored");
+  assert.equal(s.dispatches.length, 2);
+});
+
+test("an idle owner-started app run can hand off to Dependency maintenance", async (t) => {
+  const s = fixture();
+  const contract = require("../factory/wake-contract.cjs");
+  t.mock.method(
+    require("../factory/dependency-tracking.cjs"),
+    "previewNativeRecovery",
+    async () => 260
+  );
+  const run = {
+    ...s.run,
+    id: 702,
+    workflow_id: 72,
+    path: ".github/workflows/factory-automatic.yml",
+    event: "workflow_dispatch",
+    display_title: "Automatic factory",
+    status: "completed",
+    conclusion: "success",
+  };
+  s.context.event = s.run.event = "workflow_run";
+  s.event = { repository: run.repository, action: "completed", workflow_run: run };
+  const base = s.api.request;
+  s.api.request = (method, path, body) => {
+    if (path.endsWith("/actions/runs/702/attempts/1")) return structuredClone(run);
+    if (path.endsWith("/actions/workflows/factory-automatic.yml"))
+      return { id: 72, path: run.path };
+    if (path.includes("/factory-ci.yml/runs?")) return { workflow_runs: [] };
+    return base(method, path, body);
+  };
+  let conclusion = "skipped";
+  s.api.pages = async () => [
+    {
+      name: "pick",
+      status: "completed",
+      conclusion: "success",
+      steps: [{ name: "Hand off an idle app queue to dependency maintenance", conclusion }],
+    },
+  ];
+  assert.equal((await handleWake(s)).outcome, "ignored");
+  conclusion = "success";
+  const result = await handleWake(s);
+  assert.equal(result.outcome, "dispatched");
+  assert.equal(result.lane, "dependency");
+  assert.equal(contract.isQueueCheckDrain(s.store.state.receipts[result.receiptId].signal), true);
+  assert.equal((await handleWake(s)).outcome, "duplicate");
+  assert.equal(s.dispatches.length, 1);
+});
+
 test("an idle scheduled app run can hand off one model-free dependency recovery", async (t) => {
   const s = fixture();
   const queue = require("../factory/wake-contract.cjs");

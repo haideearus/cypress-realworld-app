@@ -37,7 +37,9 @@ function validateRecovery(ticket, grants) {
   const r = ticket.publishedRecovery;
   const skipped = ticket.skippedPublishedReview;
   if (r === undefined && skipped === undefined) return;
-  const parents = r?.refreshes;
+  const refreshes = r?.refreshes;
+  const final = r?.finalContinuation;
+  const hasFinal = final !== undefined;
   const interruptedParent = r?.previousParent ?? r?.parent;
   const owner = (p) =>
     exact(p, "head,runAttempt,runId,workflowSha") &&
@@ -46,11 +48,13 @@ function validateRecovery(ticket, grants) {
     policy.SHA.test(p.workflowSha || "") &&
     policy.SHA.test(p.head || "") &&
     p.runId !== ticket.automatic?.runId;
-  const keys = r?.previousParent
-    ? "parent,previousParent,refreshes,sourceCi"
-    : r?.parent
-      ? "parent,refreshes,sourceCi"
-      : "refreshes,sourceCi";
+  const keys = [
+    ...(hasFinal ? ["finalContinuation"] : []),
+    ...(r?.parent ? ["parent"] : []),
+    ...(r?.previousParent ? ["previousParent"] : []),
+    "refreshes",
+    "sourceCi",
+  ].join(",");
   if (
     !exact(r, keys) ||
     ticket.origin !== "factory" ||
@@ -64,21 +68,34 @@ function validateRecovery(ticket, grants) {
     ticket.monitor ||
     ticket.delayedRetry ||
     !passingCiReceipt(r.sourceCi) ||
+    (hasFinal &&
+      (!exact(final, "failedParent,priorCi") ||
+        !r.parent ||
+        !r.previousParent ||
+        !owner(final.failedParent) ||
+        final.failedParent.runId === r.previousParent.runId ||
+        !passingCiReceipt(final.priorCi) ||
+        final.priorCi.head !== final.failedParent.head ||
+        (r.parent.runId === final.failedParent.runId &&
+          (r.parent.head !== final.failedParent.head ||
+            r.parent.workflowSha !== final.failedParent.workflowSha)) ||
+        grants.some((g) => g.phase === "review" && g.runId === final.failedParent.runId))) ||
     (skipped !== undefined &&
       (!exact(skipped, "ci,grant") ||
         !UUID.test(skipped.grant || "") ||
         !passingCiReceipt(skipped.ci) ||
         skipped.ci.head !== interruptedParent?.head ||
         !grants.some((g) => g.id === skipped.grant && blockedReview(g, interruptedParent)))) ||
-    !Array.isArray(parents) ||
-    parents.length > MAX_REFRESHES ||
-    parents.some(
+    !Array.isArray(refreshes) ||
+    (hasFinal && refreshes.length < MAX_REFRESHES) ||
+    refreshes.length > MAX_REFRESHES + Number(hasFinal) ||
+    refreshes.some(
       (entry) =>
         !exact(entry, "base,from") ||
         !policy.SHA.test(entry.base || "") ||
         !policy.SHA.test(entry.from || "")
     ) ||
-    new Set(parents.map(({ base, from }) => `${base}:${from}`)).size !== parents.length ||
+    new Set(refreshes.map(({ base, from }) => `${base}:${from}`)).size !== refreshes.length ||
     (r.parent && !owner(r.parent)) ||
     (r.previousParent &&
       (!owner(r.previousParent) ||
@@ -110,11 +127,27 @@ function recoveryParent(ticket, context) {
   );
 }
 
+function finalContinuationFor(ticket) {
+  const r = ticket.publishedRecovery;
+  const ci = r?.finalContinuation?.priorCi ?? ticket.ci;
+  if (
+    !r?.parent ||
+    !r.previousParent ||
+    r.refreshes.length < MAX_REFRESHES ||
+    (r.finalContinuation && r.parent.runId !== r.finalContinuation.failedParent.runId) ||
+    ticket.feedback !== STALE_REASON ||
+    !passingCiReceipt(ci) ||
+    ci.head !== r.parent.head
+  )
+    return null;
+  return { failedParent: r.parent, priorCi: ci };
+}
+
 function eligible(ticket, n, state, config, context) {
   const r = ticket.publishedRecovery;
   const retryParent =
     r?.parent &&
-    !r.previousParent &&
+    (!r.previousParent || (config.concurrent === 1 && finalContinuationFor(ticket))) &&
     r.parent.runId !== context.runId &&
     ((ticket.feedback === STALE_REASON && r.parent.workflowSha !== context.workflowSha) ||
       ticket.feedback === INTERRUPTED_REASON);
@@ -240,7 +273,7 @@ async function verifySkippedReview(coordinator, state, n, ticket, parent, run) {
   return { grant: grant.id, ci };
 }
 
-async function verifyOriginal(coordinator, state, n, ticket, ci) {
+async function verifyOriginal(coordinator, state, n, ticket, ci, finalContinuation) {
   const { api, controller } = coordinator;
   const source = ticket.automatic;
   const grants = Object.values(state.grants).filter((g) => g.ticket === n && g.phase === "code");
@@ -285,6 +318,35 @@ async function verifyOriginal(coordinator, state, n, ticket, ci) {
     });
     if (previous.head_sha !== parent.workflowSha || previous.head_branch !== "main")
       throw new RecoveryHold("Earlier review recovery run identity changed");
+    if (finalContinuation) {
+      const reason =
+        "Last recovery did not prove passing CI and a review skipped before reservation";
+      const prior = finalContinuation.priorCi;
+      const [previousJobs, previousCi] = await Promise.all([
+        api.pages(`${ROOT}/actions/runs/${parent.runId}/attempts/1/jobs`, "jobs"),
+        controller.validateCI(prior.runId, prior.head, prior).catch((error) => {
+          if (error.message === "CI does not cover the expected head or run attempt")
+            throw new RecoveryHold(reason);
+          throw error;
+        }),
+      ]);
+      if (
+        previous.conclusion !== "failure" ||
+        !previousCi.passed ||
+        Object.values(state.grants).some(
+          (g) => g.ticket === n && g.phase === "review" && g.runId === parent.runId
+        ) ||
+        !completedCycleJobs(previousJobs, {
+          coding: "skipped",
+          publish: "skipped",
+          ci: "success",
+          reserve_review: "failure",
+          review: "skipped",
+          assess: "success",
+        })
+      )
+        throw new RecoveryHold(reason);
+    }
     if (ticket.feedback === INTERRUPTED_REASON && ticket.reviews === 1) {
       const skippedReview = await verifySkippedReview(
         coordinator,
@@ -396,12 +458,14 @@ async function resumeOne(coordinator, state, commit, n, dryRun, sleep, recordWri
   const { api, config, context, ledger } = coordinator;
   let t = state.tickets[n];
   const receipt = t.publishedRecovery ?? { sourceCi: t.ci, refreshes: [] };
+  const finalContinuation = finalContinuationFor(t);
   const { originalBase, skippedReview } = await verifyOriginal(
     coordinator,
     state,
     n,
     t,
-    receipt.sourceCi
+    receipt.sourceCi,
+    finalContinuation
   );
   await verifyIssue(api, n, t, config);
   const { head: base } = await require("./discovery-run.cjs")
@@ -438,6 +502,7 @@ async function resumeOne(coordinator, state, commit, n, dryRun, sleep, recordWri
         const next = current.tickets[n];
         next.publishedRecovery ??= structuredClone(receipt);
         if (skippedReview) next.skippedPublishedReview ??= structuredClone(skippedReview);
+        if (finalContinuation) next.publishedRecovery.finalContinuation ??= finalContinuation;
         mutate(next, current);
         return { state: current };
       },
@@ -471,7 +536,7 @@ async function resumeOne(coordinator, state, commit, n, dryRun, sleep, recordWri
       };
     if (receipt.refreshes.some((r) => r.from === pr.head.sha && r.base === base))
       throw new RecoveryHold("Waiting for the recorded branch refresh");
-    if (receipt.refreshes.length >= MAX_REFRESHES)
+    if (receipt.refreshes.length >= MAX_REFRESHES + Number(Boolean(finalContinuation)))
       throw new RecoveryHold("Published branch refresh limit reached");
     const from = pr.head.sha;
     await currentBase(api, base);
@@ -534,10 +599,10 @@ async function resumeOne(coordinator, state, commit, n, dryRun, sleep, recordWri
       { ticket: n, runId: parent.runId, runAttempt: parent.runAttempt },
       config.concurrent
     );
-    if (next.head !== pr.head.sha) next.ci = null;
+    if (finalContinuation || next.head !== pr.head.sha) next.ci = null;
     next.head = pr.head.sha;
     next.status = "awaiting_review";
-    if (next.publishedRecovery.parent)
+    if (next.publishedRecovery.parent && !finalContinuation)
       next.publishedRecovery.previousParent = next.publishedRecovery.parent;
     next.publishedRecovery.parent = parent;
     policy.audit(current, "published_review_resumed", {
