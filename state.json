@@ -5433,12 +5433,13 @@
       },
       "feedback": "{\"head\":\"199c13fb93865fba3cfbd1d68deaa93d5087e0d7\",\"verdict\":\"pass\",\"summary\":\"Reviewed the yarn.lock-only diff (PR #297) bumping js-yaml@^3.13.1 from 3.14.1 to 3.15.2. Confirmed via package.json/yarn.lock that js-yaml 3.x is a transitive dependency of @istanbuljs/load-nyc-config (pulled in by the nyc coverage tool, yarn.lock:2439-2453), not used anywhere in src/ or backend/. The bump stays within the already-declared ^3.13.1 range and the lockfile integrity hash matches the trusted registry fact for js-yaml 3.15.2. The five cleared GHSA advisories (2883-xcg3-v3hh, 52cp-r559-cp3m, 5p4m-2wfm-xmqj, h67p-54hq-rp68, mh29-5h37-fv8m) all list fixed versions at or below 3.15.2, so the clearance is consistent with the OSV ranges supplied, and the unchanged js-yaml@4.3.2 baseline remains on its already-patched version with no new advisoryIds. CI (run 45752716834) reports passing lint/unit/regression steps, which is suite-level evidence, not per-dependency proof. The referenced test files (UserSettingsForm.test.tsx, auth/bankaccounts/user-settings Cypress specs) exercise unrelated UI flows and do not specifically target the nyc/coverage-config loading path that actually consumes js-yaml, leaving that narrow path unverified by name.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"None of the CI-referenced test files (UserSettingsForm.test.tsx, auth.spec.ts, bankaccounts.spec.ts, user-settings.spec.ts) exercise the nyc/@istanbuljs/load-nyc-config code path that actually consumes js-yaml 3.x, so the suite-level CI pass does not specifically validate the bumped dependency's YAML-parsing behavior, only that the overall build/test pipeline still succeeds.\"}]}",
       "merge": {
-        "status": "intent",
+        "status": "merged",
         "head": "199c13fb93865fba3cfbd1d68deaa93d5087e0d7",
         "pr": 297,
-        "at": "2026-11-26T04:17:35.256Z",
+        "at": "2026-11-26T04:17:56.379Z",
         "runId": "45752540202",
-        "runAttempt": 1
+        "runAttempt": 1,
+        "mergeCommit": "2f86b1864301d21032396aabbf0ce64d225ad0b0"
       }
     }
   },
@@ -7449,11 +7450,7 @@
       "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 297,
-    "runId": "45752540202",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
