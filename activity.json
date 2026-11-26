@@ -898,6 +898,29 @@
       },
       "status": "intent",
       "commentId": null
+    },
+    "fcc2cf49c278e19dd068cca544a0d4df3cab5cd68554c44b835a79fd28f86fba": {
+      "event": {
+        "id": "fcc2cf49c278e19dd068cca544a0d4df3cab5cd68554c44b835a79fd28f86fba",
+        "producer": {
+          "runId": "45817531035",
+          "runAttempt": 1,
+          "workflow": "factory-monitor.yml",
+          "workflowSha": "33f5f85eb3b5a388fc896f50496384c93a836205",
+          "phase": "freshness",
+          "actor": "haideearus"
+        },
+        "kind": "monitor-stale",
+        "state": "stale",
+        "subject": 45817531035,
+        "head": "33f5f85eb3b5a388fc896f50496384c93a836205",
+        "summary": "No verified production monitor completion for at least 90 minutes. Old health is not current health.",
+        "links": [
+          "https://github.com/haideearus/cypress-realworld-app/actions/runs/45817531035"
+        ]
+      },
+      "status": "intent",
+      "commentId": null
     }
   },
   "lastMonitor": {
