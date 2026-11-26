@@ -263,7 +263,14 @@
       "trackingReason": "major-held",
       "phase": "tracking",
       "issue": 197,
-      "pr": null
+      "pr": null,
+      "widerChecks": [
+        {
+          "fingerprint": "dafa4a8033612b5f7377527e18f31039a3facfeeadbd6f5224e2c5f8c3c53fc8",
+          "result": "wider-held",
+          "at": "2026-11-26T03:52:12.241Z"
+        }
+      ]
     },
     "b63d4528386b4540df18eced8b6351c1e7848d4ba9ce5b0eb884b1706281a5b6": {
       "name": "ip-address",
