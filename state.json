@@ -4573,12 +4573,12 @@
     },
     "236": {
       "coding": 0,
-      "reviews": 0,
+      "reviews": 1,
       "retries": 0,
       "origin": "dependency-pr",
       "head": "2cef0d71bca591d0a26277ef896e342b04a61293",
       "pr": 236,
-      "status": "new",
+      "status": "reviewing",
       "approval": null,
       "branch": "dependabot/npm_and_yarn/browserslist-4.29.6",
       "criteriaHash": "f749c593de69cd5f2a0b350b46201b6f1726e7f5434502d6a4acc948633b9b1a",
@@ -8016,6 +8016,17 @@
       "status": "finished",
       "at": "2026-11-26T11:19:09.932Z",
       "outcome": "blocked"
+    },
+    "ff0416f6-6a82-4f21-98d3-e9f2dbb46b1c": {
+      "id": "ff0416f6-6a82-4f21-98d3-e9f2dbb46b1c",
+      "ticket": 236,
+      "phase": "review",
+      "slot": "dependency",
+      "runId": "45812010313",
+      "runAttempt": 1,
+      "head": "2cef0d71bca591d0a26277ef896e342b04a61293",
+      "status": "reserved",
+      "at": "2026-11-26T11:48:10.209Z"
     }
   },
   "active": {
@@ -8024,12 +8035,6 @@
     "runAttempt": 1
   },
   "audit": [
-    {
-      "at": "2026-11-13T08:25:09.177Z",
-      "event": "blocked",
-      "ticket": 11,
-      "reason": "Agent, publication, or CI infrastructure failed; no automatic model retry"
-    },
     {
       "at": "2026-11-13T08:49:37.451Z",
       "event": "reserved",
@@ -13019,6 +13024,18 @@
       "ticket": 236,
       "head": "2cef0d71bca591d0a26277ef896e342b04a61293",
       "runId": "45812010313",
+      "actor": "github-actions[bot]",
+      "wakeReceipt": "f903f7ca6d4ea8db49a2d5543f137fd7c594908ff700105299c987000e2bc2ac",
+      "sourceActor": "dependabot[bot]"
+    },
+    {
+      "at": "2026-11-26T11:48:10.209Z",
+      "event": "reserved",
+      "ticket": 236,
+      "grant": "ff0416f6-6a82-4f21-98d3-e9f2dbb46b1c",
+      "phase": "review",
+      "runId": "45812010313",
+      "runAttempt": 1,
       "actor": "github-actions[bot]",
       "wakeReceipt": "f903f7ca6d4ea8db49a2d5543f137fd7c594908ff700105299c987000e2bc2ac",
       "sourceActor": "dependabot[bot]"
