@@ -5170,8 +5170,16 @@
       "origin": "dependency-pr",
       "head": "8d25196d69ce5e616058127023ef3fba0aa2fbd9",
       "pr": 260,
-      "status": "reviewing",
-      "approval": null,
+      "status": "reviewed",
+      "approval": {
+        "head": "8d25196d69ce5e616058127023ef3fba0aa2fbd9",
+        "pr": 260,
+        "grant": "577c7f85-2f76-4d66-9ab9-9f6c8f8d0857",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/45901937699"
+      },
       "branch": "dependabot/npm_and_yarn/validator-13.15.35",
       "criteriaHash": "83af26fa9987b6c5227fa042cd399aac091a3ad0c4a7167610291843f7225b55",
       "dependency": {
@@ -5223,7 +5231,7 @@
         "runId": 45902138472,
         "passed": true
       },
-      "feedback": "{\"verdict\":\"pass\",\"head\":\"2cc5d967cff5c712c42bcd333bcbafbd13f50fbe\",\"summary\":\"PR #260 is a yarn.lock-only bump of the transitive `validator` package (pulled in solely by express-validator@6.15.0, per yarn.lock:6727-6733) from 13.12.0 to 13.15.35, within the declared ^13.9.0 range; package.json is unchanged. Per dependencyFacts, this clears GHSA-9965-vmph-33xx (fixed 13.15.20) and GHSA-vghf-hv5q-vc2g (fixed 13.15.22), both satisfied by 13.15.35, and registry integrity for the tarball matches. backend/validators.ts and backend/helpers.ts show validator.js functions (isURL, isNumeric, isIn, isInt, isBoolean) are used server-side for user/transaction/bankaccount validation; cypress/tests/api/api-users.spec.ts (not in the listed ciEvidence.testFiles but part of the \\\"API and browser regression tests\\\" CI step) exercises POST /users with avatar (URL) and balance (numeric) fields, giving indirect coverage of the validator.js code paths touched by this bump. The four ciEvidence.testFiles (UserSettingsForm.test.tsx, auth.spec.ts, bankaccounts.spec.ts, user-settings.spec.ts) primarily test frontend Yup/Formik validation, not the backend validator.js integration directly. The CI receipt (run 45639761174) proves the full suite steps passed, not per-assertion coverage of every validator.js edge case for the new version. No duplicate/hoisted validator versions exist in yarn.lock, and no \\\"resolutions\\\" conflicts.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"The ciEvidence.testFiles cited for this PR (UserSettingsForm.test.tsx, auth.spec.ts, bankaccounts.spec.ts, user-settings.spec.ts) validate frontend Yup/Formik logic, not the backend validator.js functions (isURL, isNumeric, isIn, isInt, isBoolean) in backend/validators.ts that actually depend on the bumped package; only the broader, unlisted cypress/tests/api/api-users.spec.ts exercises those backend paths (avatar URL, balance numeric), so coverage of the exact dependency behavior relies on that incidental suite rather than targeted tests for this change.\"}]}",
+      "feedback": "{\"head\":\"8d25196d69ce5e616058127023ef3fba0aa2fbd9\",\"verdict\":\"pass\",\"summary\":\"Reviewed PR #260 at head 8d25196d, a yarn.lock-only bump of the transitive `validator` package (pulled in by express-validator@6.15.0, package.json unchanged) from 13.12.0 to 13.15.35, inside the declared ^13.9.0 range. yarn.lock shows a single resolved entry (no duplicate/hoisted versions), and dependencyFacts confirms registry integrity matches and the version clears GHSA-9965-vmph-33xx (fixed 13.15.20) and GHSA-vghf-hv5q-vc2g (fixed 13.15.22) with no new advisoryIds on 13.15.35. backend/validators.ts and backend/helpers.ts use validator.js-backed express-validator checks (isURL, isNumeric, isIn, isInt, isBoolean, isString) for user, bankaccount, transaction and notification payloads. The CI receipt (run 45902138472) verifies the \\\"yarn types && yarn lint && yarn test:unit:ci\\\" and \\\"API and browser regression tests\\\" steps passed at this exact head; .github/workflows/factory-ci.yml confirms the latter step runs `cypress run --spec 'cypress/tests/api/*,cypress/tests/ui/*'`, so cypress/tests/api/api-users.spec.ts (POST /users with a faker-generated avatar URL and a numeric balance) actually executed and exercised the isURL/isNumeric paths in backend/validators.ts touched by this bump, even though it isn't among the four curated ciEvidence.testFiles. Those four files (UserSettingsForm.test.tsx, auth.spec.ts, bankaccounts.spec.ts, user-settings.spec.ts) mainly validate frontend Yup/regex logic (phone/name/email) and, for bankaccounts.spec.ts, a GraphQL mutation path rather than backend/validators.ts's isString checks. This is a narrowly-scoped, low-risk security-fix bump with registry/OSV evidence and passing CI; I found no correctness or regression issues that block merge.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"The four ciEvidence.testFiles (UserSettingsForm.test.tsx, auth.spec.ts, bankaccounts.spec.ts, user-settings.spec.ts) don't directly exercise the backend validator.js functions (isURL, isIn, isInt, isBoolean in backend/validators.ts) that this bump actually touches; bankaccounts.spec.ts drives bank account creation through a GraphQL mutation, not the REST isBankAccountValidator path. Coverage of those specific backend validator.js code paths relies on the broader, unlisted cypress/tests/api/api-users.spec.ts (avatar URL, numeric balance) within the same passing CI step, so there is no test targeted specifically at this dependency change for isIn/isInt/isBoolean usages in transaction/notification routes.\"}]}",
       "analysis": {
         "version": 2,
         "repository": "haideearus/cypress-realworld-app",
@@ -8354,24 +8362,13 @@
       "runId": "45901937699",
       "runAttempt": 1,
       "head": "8d25196d69ce5e616058127023ef3fba0aa2fbd9",
-      "status": "reserved",
-      "at": "2026-11-26T22:11:48.313Z"
+      "status": "finished",
+      "at": "2026-11-26T22:11:48.313Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 260,
-    "runId": "45901937699",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
-    {
-      "at": "2026-11-14T21:12:31.655Z",
-      "event": "finished",
-      "ticket": 39,
-      "grant": "ac50c8b8-b555-47f8-bcd8-e8615dd60a17",
-      "status": "blocked",
-      "head": "bbaf55d11a8c32b4c4c18db68af5c534e58b8e9b"
-    },
     {
       "at": "2026-11-14T21:23:55.580Z",
       "event": "reserved",
@@ -13526,6 +13523,14 @@
       "actor": "github-actions[bot]",
       "wakeReceipt": "2814791f85398403b55eff5f305930b8cc25c14ee1ec90e6a2959fcc152b566e",
       "sourceActor": "dependabot[bot]"
+    },
+    {
+      "at": "2026-11-26T22:14:29.612Z",
+      "event": "finished",
+      "ticket": 260,
+      "grant": "577c7f85-2f76-4d66-9ab9-9f6c8f8d0857",
+      "status": "reviewed",
+      "head": "8d25196d69ce5e616058127023ef3fba0aa2fbd9"
     }
   ],
   "featureTurn": {
