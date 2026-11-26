@@ -5,6 +5,7 @@ const a = require("./activity.cjs");
 const { ActivityStore } = require("./activity-store.cjs");
 const { triageHarnessFaults } = require("./activity-harness-faults.cjs");
 const { REPOSITORY, OWNER } = require("./wake-contract.cjs");
+const { timerTitle } = require("./pickup-timer.cjs");
 const link = (id) => `https://github.com/${REPOSITORY}/actions/runs/${id}`;
 const stateFor = (status, conclusion) =>
   status === "completed"
@@ -55,6 +56,15 @@ async function collectRunActivity({ run, jobs, ledger, deploymentStart = false }
     return events;
   }
   const { state } = await ledger.read();
+  const grants = Object.values(state.grants).filter(
+    (g) => g.runId === String(run.id) && g.runAttempt === run.run_attempt
+  );
+  const merges = Object.entries(state.tickets).filter(
+    ([, ticket]) =>
+      ticket.merge?.status === "merged" &&
+      ticket.merge.runId === String(run.id) &&
+      ticket.merge.runAttempt === run.run_attempt
+  );
   const kind =
     workflow === "factory-monitor.yml"
       ? "monitor"
@@ -63,14 +73,15 @@ async function collectRunActivity({ run, jobs, ledger, deploymentStart = false }
         : workflow === "factory-ci.yml"
           ? "ci"
           : "queue";
-  emit(
-    kind,
-    stateFor(run.status, run.conclusion),
-    "run",
-    run.id,
-    run.head_sha,
-    `Workflow ${workflow} is ${stateFor(run.status, run.conclusion)}. Check the linked run for authoritative evidence.`
-  );
+  if (!timerTitle(run) || grants.length || merges.length || run.conclusion === "failure")
+    emit(
+      kind,
+      stateFor(run.status, run.conclusion),
+      "run",
+      run.id,
+      run.head_sha,
+      `Workflow ${workflow} is ${stateFor(run.status, run.conclusion)}. Check the linked run for authoritative evidence.`
+    );
   if (workflow === "factory-discovery-intake.yml")
     for (const job of jobs.filter((j) => ["publish", "replay", "finalize"].includes(j.name)))
       emit(
@@ -85,16 +96,13 @@ async function collectRunActivity({ run, jobs, ledger, deploymentStart = false }
             ? "Current-main sandbox replay job observed. This is not production or live-monitor coverage."
             : "Finding intake assessment recorded. Observed resolution is not a factory-authored repair or production verification."
       );
-  const grants = Object.values(state.grants).filter(
-    (g) => g.runId === String(run.id) && g.runAttempt === run.run_attempt
-  );
   for (const job of jobs) {
     const phase =
       job.name === "discover"
         ? "discovery"
         : job.name?.includes("review")
           ? "review"
-          : job.name?.includes("code") || job.name?.includes("drill")
+          : ["code", "coding", "drill"].some((part) => job.name?.includes(part))
             ? "coding"
             : null;
     const grant =
@@ -172,16 +180,16 @@ async function collectRunActivity({ run, jobs, ledger, deploymentStart = false }
           : "Review did not retain a passing approval; inspect the assessment before retrying."
       );
     }
-    if (t?.merge?.runId === String(run.id) && t.merge.status === "merged")
-      emit(
-        "merge",
-        "merged",
-        `merge-${t.pr}`,
-        grant.ticket,
-        t.merge.mergeCommit,
-        "Protected merge confirmed in the retained usage ledger."
-      );
   }
+  for (const [number, ticket] of merges)
+    emit(
+      "merge",
+      "merged",
+      `merge-${ticket.pr}`,
+      Number(number),
+      ticket.merge.mergeCommit,
+      "Protected merge confirmed in the retained usage ledger."
+    );
   return events;
 }
 async function observeRun({

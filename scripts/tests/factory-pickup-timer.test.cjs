@@ -78,6 +78,17 @@ test("a timer dispatch must be opted in and use the single-ticket limit", async 
   assert.equal(unsafe.allowed, false);
 });
 
+test("native pickup still runs when the external timer's single-ticket setting is invalid", async () => {
+  const { checkPickupTick } = require("../factory/pickup-timer.cjs");
+  const native = { ...run, event: "schedule", display_title: "Automatic factory" };
+  const result = await checkPickupTick(metadata(native), {
+    context: { ...context, event: "schedule" },
+    inputs: {},
+    vars: { ...vars, FACTORY_MAX_CONCURRENT_TICKETS: "2" },
+  });
+  assert.equal(result.allowed, true);
+});
+
 test("a timer cannot invoke owner recovery operations or run from another branch", async () => {
   const { checkPickupTick } = require("../factory/pickup-timer.cjs");
   for (const args of [

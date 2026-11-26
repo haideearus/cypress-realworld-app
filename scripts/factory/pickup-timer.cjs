@@ -58,9 +58,9 @@ async function checkPickupTick(api, { context, inputs, vars }) {
   const held = (outcome, reason) => ({ allowed: false, outcome, reason });
   if (vars.FACTORY_EXTERNAL_PICKUP_ENABLED !== "true")
     return held("disabled", "External pickup is disabled");
-  if (vars.FACTORY_MAX_CONCURRENT_TICKETS !== "1")
-    return held("held", "The pickup timer requires FACTORY_MAX_CONCURRENT_TICKETS=1");
   const native = context.event === "schedule";
+  if (!native && vars.FACTORY_MAX_CONCURRENT_TICKETS !== "1")
+    return held("held", "The pickup timer requires FACTORY_MAX_CONCURRENT_TICKETS=1");
   if (
     context.repository !== c.REPOSITORY ||
     context.actor !== c.OWNER ||
