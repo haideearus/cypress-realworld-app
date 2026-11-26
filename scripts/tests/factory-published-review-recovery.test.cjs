@@ -525,22 +525,29 @@ test("an out-of-date published PR refreshes once and keeps its old CI as history
   assert.equal(await resumePublishedReview(coordinator, state, base, false), null);
 });
 
-async function afterTwo273Recoveries({ lastReviewJob = "skipped", prNumber = 274 } = {}) {
+async function afterTwoRecoveries({
+  lastReviewJob = "skipped",
+  number = 273,
+  prNumber = 274,
+  firstParentRun = "45610806210",
+  failedParentRun = "45697642899",
+  fromFeature = true,
+} = {}) {
   const result = await afterReviewSkip({
     behind: true,
-    number: 273,
+    number,
     prNumber,
-    firstParentRun: "45610806210",
-    fromFeature: true,
+    firstParentRun,
+    fromFeature,
   });
   const { coordinator, state, recovery, ci } = result;
-  coordinator.context.runId = "45697642899";
+  coordinator.context.runId = failedParentRun;
   coordinator.context.workflowSha = laterBase;
   assert.equal(
     (await recovery.resumePublishedReview(coordinator, state, base, false)).head,
     laterHead
   );
-  const ticket = state.tickets[273];
+  const ticket = state.tickets[number];
   Object.assign(ticket, {
     status: "blocked",
     feedback: recovery.STALE_REASON,
@@ -552,9 +559,9 @@ async function afterTwo273Recoveries({ lastReviewJob = "skipped", prNumber = 274
   const { api } = coordinator;
   const { request, pages } = api;
   api.request = async (method, path, body) => {
-    if (path === `${ROOT}/actions/runs/45697642899/attempts/1`)
+    if (path === `${ROOT}/actions/runs/${failedParentRun}/attempts/1`)
       return {
-        id: 45697642899,
+        id: Number(failedParentRun),
         run_attempt: 1,
         workflow_id: 70,
         event: "workflow_dispatch",
@@ -569,7 +576,7 @@ async function afterTwo273Recoveries({ lastReviewJob = "skipped", prNumber = 274
     return request(method, path, body);
   };
   api.pages = async (path) => {
-    if (path !== `${ROOT}/actions/runs/45697642899/attempts/1/jobs`) return pages(path);
+    if (path !== `${ROOT}/actions/runs/${failedParentRun}/attempts/1/jobs`) return pages(path);
     return Object.entries({
       coding: "skipped",
       publish: "skipped",
@@ -587,7 +594,7 @@ async function afterTwo273Recoveries({ lastReviewJob = "skipped", prNumber = 274
 }
 
 test("#273 can refresh and resume #274 once while keeping both older recovery runs", async () => {
-  const { coordinator, state, calls, recovery } = await afterTwo273Recoveries();
+  const { coordinator, state, calls, recovery } = await afterTwoRecoveries();
   const original = structuredClone(state);
   const result = await recovery.resumePublishedReview(coordinator, state, base, false);
   assert.deepEqual(
@@ -621,9 +628,26 @@ test("#273 can refresh and resume #274 once while keeping both older recovery ru
   assert.equal(calls.filter(([method]) => method === "PUT").length, 3);
 });
 
-test("the extra continuation requires the exact PR and skipped review evidence", async () => {
-  for (const options of [{ lastReviewJob: "success" }, { prNumber: 275 }]) {
-    const { coordinator, state, calls, recovery } = await afterTwo273Recoveries(options);
+test("another published app PR can use the same evidence-based continuation", async () => {
+  const { coordinator, state, recovery } = await afterTwoRecoveries({
+    number: 390,
+    prNumber: 391,
+    firstParentRun: "879",
+    failedParentRun: "880",
+    fromFeature: false,
+  });
+  const grants = structuredClone(state.grants);
+  const result = await recovery.resumePublishedReview(coordinator, state, base, false);
+  assert.equal(result?.ticket, 390);
+  assert.equal(result?.reviewOnly, true);
+  assert.equal(state.tickets[390].publishedRecovery.finalContinuation.failedParent.runId, "880");
+  assert.deepEqual(state.grants, grants);
+  recovery.validateRecovery(state.tickets[390], Object.values(state.grants));
+});
+
+test("the extra continuation requires retained CI and a review skipped before reservation", async () => {
+  for (const options of [{ lastReviewJob: "success" }, { lastReviewJob: "missing" }]) {
+    const { coordinator, state, calls, recovery } = await afterTwoRecoveries(options);
     const original = structuredClone(state);
     const result = await recovery.resumePublishedReview(coordinator, state, base, false);
     assert.equal(result?.ready ?? false, false);
@@ -633,7 +657,7 @@ test("the extra continuation requires the exact PR and skipped review evidence",
 });
 
 test("a lost refresh response can be reconciled without sending another branch update", async () => {
-  const { coordinator, state, calls, recovery } = await afterTwo273Recoveries();
+  const { coordinator, state, calls, recovery } = await afterTwoRecoveries();
   const { api } = coordinator;
   const { request } = api;
   api.request = async (method, path, body) => {

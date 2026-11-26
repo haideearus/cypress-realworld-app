@@ -7,13 +7,6 @@ const { validPath } = require("./artifacts.cjs");
 const MAX_REFRESHES = 2;
 const STALE_REASON = "Main advanced; published repair requires fresh CI and review";
 const INTERRUPTED_REASON = "Published repair recovery stopped before assessment completed";
-// The second recovery of #274 lost its base before it could reserve a review.
-const FINAL_CONTINUATION = {
-  ticket: 273,
-  pr: 274,
-  firstRun: "45610806210",
-  failedRun: "45697642899",
-};
 const RUN = /^[1-9]\d*$/;
 const UUID = /^[a-f0-9-]{36}$/;
 const positive = (n) => Number.isSafeInteger(n) && n > 0;
@@ -77,13 +70,10 @@ function validateRecovery(ticket, grants) {
     !passingCiReceipt(r.sourceCi) ||
     (hasFinal &&
       (!exact(final, "failedParent,priorCi") ||
-        grants[0]?.ticket !== FINAL_CONTINUATION.ticket ||
-        ticket.pr !== FINAL_CONTINUATION.pr ||
-        !skipped ||
         !r.parent ||
-        r.previousParent?.runId !== FINAL_CONTINUATION.firstRun ||
+        !r.previousParent ||
         !owner(final.failedParent) ||
-        final.failedParent.runId !== FINAL_CONTINUATION.failedRun ||
+        final.failedParent.runId === r.previousParent.runId ||
         !passingCiReceipt(final.priorCi) ||
         final.priorCi.head !== final.failedParent.head ||
         (r.parent.runId === final.failedParent.runId &&
@@ -97,6 +87,7 @@ function validateRecovery(ticket, grants) {
         skipped.ci.head !== interruptedParent?.head ||
         !grants.some((g) => g.id === skipped.grant && blockedReview(g, interruptedParent)))) ||
     !Array.isArray(refreshes) ||
+    (hasFinal && refreshes.length < MAX_REFRESHES) ||
     refreshes.length > MAX_REFRESHES + Number(hasFinal) ||
     refreshes.some(
       (entry) =>
@@ -136,17 +127,15 @@ function recoveryParent(ticket, context) {
   );
 }
 
-function finalContinuationFor(ticket, n) {
+function finalContinuationFor(ticket) {
   const r = ticket.publishedRecovery;
   const ci = r?.finalContinuation?.priorCi ?? ticket.ci;
   if (
-    n !== FINAL_CONTINUATION.ticket ||
-    ticket.pr !== FINAL_CONTINUATION.pr ||
-    r?.previousParent?.runId !== FINAL_CONTINUATION.firstRun ||
-    r?.parent?.runId !== FINAL_CONTINUATION.failedRun ||
+    !r?.parent ||
+    !r.previousParent ||
+    r.refreshes.length < MAX_REFRESHES ||
+    (r.finalContinuation && r.parent.runId !== r.finalContinuation.failedParent.runId) ||
     ticket.feedback !== STALE_REASON ||
-    ticket.reviews !== 1 ||
-    !ticket.skippedPublishedReview ||
     !passingCiReceipt(ci) ||
     ci.head !== r.parent.head
   )
@@ -158,7 +147,7 @@ function eligible(ticket, n, state, config, context) {
   const r = ticket.publishedRecovery;
   const retryParent =
     r?.parent &&
-    (!r.previousParent || (config.concurrent === 1 && finalContinuationFor(ticket, n))) &&
+    (!r.previousParent || (config.concurrent === 1 && finalContinuationFor(ticket))) &&
     r.parent.runId !== context.runId &&
     ((ticket.feedback === STALE_REASON && r.parent.workflowSha !== context.workflowSha) ||
       ticket.feedback === INTERRUPTED_REASON);
@@ -469,7 +458,7 @@ async function resumeOne(coordinator, state, commit, n, dryRun, sleep, recordWri
   const { api, config, context, ledger } = coordinator;
   let t = state.tickets[n];
   const receipt = t.publishedRecovery ?? { sourceCi: t.ci, refreshes: [] };
-  const finalContinuation = finalContinuationFor(t, n);
+  const finalContinuation = finalContinuationFor(t);
   const { originalBase, skippedReview } = await verifyOriginal(
     coordinator,
     state,
