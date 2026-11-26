@@ -394,5 +394,5 @@
       "pr": 299
     }
   },
-  "heldAfter": "js-yaml"
+  "heldAfter": "@graphql-tools/utils"
 }
