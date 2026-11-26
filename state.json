@@ -4491,7 +4491,8 @@
       "ci": {
         "requestId": "f6d45587-7b91-4c52-9562-46ea76e21dbe",
         "head": "3e5b9855ae1af13a650ad7c7599fc3c351fdd2b9",
-        "runId": null
+        "runId": 45759506112,
+        "passed": true
       },
       "feedback": "Dependency preparation held; no model invocation",
       "analysis": {
