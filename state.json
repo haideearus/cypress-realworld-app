@@ -4893,7 +4893,11 @@
           }
         ]
       },
-      "ci": null,
+      "ci": {
+        "requestId": "79f3dcc3-3ccc-470e-a5e7-0d3ac45bf090",
+        "head": "0aff056ce35228d7e5358ed62a40f553bdcd6188",
+        "runId": null
+      },
       "feedback": "{\"head\":\"867307adf1e1ebee7eab0d41d43e4244fe5aefaa\",\"verdict\":\"pass\",\"summary\":\"Reviewed the yarn.lock-only diff at 867307ad (bumping transitive `yaml` from 1.10.2/2.6.1 to 1.10.3/2.9.1). Confirmed via Grep of package.json and src/ that `yaml` is not a direct dependency or imported anywhere in app source — only js-yaml is used directly; `yaml` is pulled in transitively by cosmiconfig@^7 (yaml^1.10.0), @percy/cli-snapshot/@percy/config/@percy/core (yaml^2.0.0/^2.2.2/^2.4.1), and patch-package (yaml^2.2.2), all exercised in package.json's \\\"postinstall\\\": \\\"husky install && patch-package\\\" and via jest/eslint config loading. Both new versions (1.10.3, 2.9.1) satisfy the pre-existing caret ranges already declared by these dependents, so no range override or compatibility risk is introduced. dependencyFacts registry entries show integrityMatched:true for both versions, matching the integrity hashes in the diff exactly. The advisory GHSA-48c2-rrv3-qjmp's affected ranges (yaml 1.0.0–<1.10.3 and 2.0.0–<2.8.3) place both new versions outside the vulnerable range, consistent with the \\\"cleared\\\" / empty remainingBaseline summary. ciEvidence's listed testFiles (UserSettingsForm.test.tsx, auth/bankaccounts/user-settings specs) are generic regression tests unrelated to yaml parsing and only prove the full suite passed at this head, not targeted coverage of the cosmiconfig/percy/patch-package code paths that actually consume yaml.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"The ciEvidence testFiles (UserSettingsForm.test.tsx, auth.spec.ts, bankaccounts.spec.ts, user-settings.spec.ts) are unrelated to yaml parsing; they only show the general CI suite passed at this head, not that cosmiconfig/@percy/patch-package's yaml-consuming code paths were specifically exercised or asserted on.\"},{\"severity\":\"minor\",\"message\":\"dependencyFacts.upstreamReleases is empty, so there is no independent upstream GitHub tag/release corroboration for yaml 1.10.3/2.9.1 beyond the npm registry entries and integrity match; provenance rests solely on registry data.\"}]}",
       "analysis": {
         "version": 2,
