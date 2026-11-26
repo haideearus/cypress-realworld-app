@@ -394,5 +394,13 @@
       "pr": 299
     }
   },
-  "heldAfter": "@graphql-tools/utils"
+  "heldAfter": "@graphql-tools/utils",
+  "deferred": {
+    "base": "33f5f85eb3b5a388fc896f50496384c93a836205",
+    "fingerprint": "0ccb00ac061ded1c83dcc621cf73a6735d515d4b19d25f261f61352fea450495",
+    "runs": [
+      "45815732489"
+    ],
+    "at": "2026-11-26T12:02:15.543Z"
+  }
 }
