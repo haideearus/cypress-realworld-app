@@ -5988,7 +5988,11 @@
       "approval": null,
       "criteriaHash": "dd1d5613fa7193a5ecebc4dd4199765f3e954feff613f44739fe972dea511d3d",
       "branch": "agent/kill-switch-markdown-rehearsal",
-      "ci": null
+      "ci": {
+        "requestId": "ce2012d8-d38e-4cff-b0a1-6ee539012e3b",
+        "head": "6a7c473726fc60393244eab5e7ccecac837ab0c2",
+        "runId": null
+      }
     }
   },
   "grants": {
