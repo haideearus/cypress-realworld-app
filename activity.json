@@ -806,29 +806,6 @@
       },
       "status": "intent",
       "commentId": null
-    },
-    "474251da12657ff1be3462f2a6fbb931edad7aee0bcf763217f1df035b03a169": {
-      "event": {
-        "id": "474251da12657ff1be3462f2a6fbb931edad7aee0bcf763217f1df035b03a169",
-        "producer": {
-          "runId": "45744525231",
-          "runAttempt": 1,
-          "workflow": "factory-monitor.yml",
-          "workflowSha": "e2e9c9bd96a486ef8dfecfad34162a35a0602b32",
-          "phase": "monitor-incident",
-          "actor": "haideearus"
-        },
-        "kind": "issue",
-        "state": "held",
-        "subject": 124,
-        "head": "e2e9c9bd96a486ef8dfecfad34162a35a0602b32",
-        "summary": "Receipt-backed monitor incident 124: blocked_repair_recovery_observed.",
-        "links": [
-          "https://github.com/haideearus/cypress-realworld-app/issues/124"
-        ]
-      },
-      "status": "intent",
-      "commentId": null
     }
   },
   "lastMonitor": {
