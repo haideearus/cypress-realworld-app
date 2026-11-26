@@ -6001,7 +6001,7 @@
       "reviews": 1,
       "retries": 0,
       "head": "6a7c473726fc60393244eab5e7ccecac837ab0c2",
-      "status": "reviewing",
+      "status": "blocked",
       "pr": 303,
       "approval": null,
       "criteriaHash": "e2aa090012c716c3a739284d8e31cf714e517701f6cc6bc74760563849eb8ac9",
@@ -8184,25 +8184,13 @@
       "runId": "45841886515",
       "runAttempt": 1,
       "head": "6a7c473726fc60393244eab5e7ccecac837ab0c2",
-      "status": "reserved",
-      "at": "2026-11-26T14:44:02.816Z"
+      "status": "finished",
+      "at": "2026-11-26T14:44:02.816Z",
+      "outcome": "blocked"
     }
   },
-  "active": {
-    "ticket": 304,
-    "runId": "45841886515",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
-    {
-      "at": "2026-11-13T18:29:29.147Z",
-      "event": "reserved",
-      "ticket": 29,
-      "grant": "4074bfe5-7300-4d18-9349-4d148fea8018",
-      "phase": "review",
-      "runId": "43481055400",
-      "runAttempt": 1
-    },
     {
       "at": "2026-11-13T18:34:03.276Z",
       "event": "finished",
@@ -13301,6 +13289,33 @@
       "actor": "haideearus",
       "commandId": "1d35dad8-6ae5-4433-a9a8-4ae7f8db9e4c",
       "reason": "Owner emergency stop"
+    },
+    {
+      "at": "2026-11-26T14:55:17.974Z",
+      "event": "factory-stop-result",
+      "actor": "haideearus",
+      "commandId": "1d35dad8-6ae5-4433-a9a8-4ae7f8db9e4c",
+      "terminalRunIds": [
+        45841886515
+      ],
+      "quarantinedRunIds": [
+        43467058965
+      ],
+      "quarantinedRuns": [
+        {
+          "id": 43467058965,
+          "runAttempt": 1,
+          "status": "queued",
+          "head": "421553c2c108dc2704ef6cec7864582b8c63ead6",
+          "containmentTicket": 38,
+          "reason": "Frozen pre-job controller rejects retained drill history before admission"
+        }
+      ],
+      "pendingRunIds": [],
+      "switchesOff": true,
+      "inventoryComplete": true,
+      "errorCount": 0,
+      "elapsedMs": 33497
     }
   ],
   "featureTurn": {
