@@ -13543,6 +13543,17 @@
       "grant": "577c7f85-2f76-4d66-9ab9-9f6c8f8d0857",
       "status": "reviewed",
       "head": "8d25196d69ce5e616058127023ef3fba0aa2fbd9"
+    },
+    {
+      "at": "2026-11-26T22:16:07.273Z",
+      "event": "automatic_merge_api_result",
+      "ticket": 260,
+      "pr": 260,
+      "head": "8d25196d69ce5e616058127023ef3fba0aa2fbd9",
+      "runId": "45901937699",
+      "runAttempt": 1,
+      "outcome": "accepted",
+      "mergeCommit": "bd881afb2cc8e315083cd0b74279047ee84f09c6"
     }
   ],
   "featureTurn": {
