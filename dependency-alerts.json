@@ -389,7 +389,7 @@
       "base": "4a3c5b7236d0885c8259778c9a66da68da78cc61",
       "head": "d47b33c0fff3b413ee6b878c9f3fae15f0cdb66c",
       "name": "ws",
-      "phase": "prepared",
+      "phase": "issue-intent",
       "issue": null,
       "pr": null
     }
