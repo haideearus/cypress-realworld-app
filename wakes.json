@@ -6522,36 +6522,6 @@
       },
       "at": "2026-11-26T11:12:36.965Z"
     },
-    "26129608b98a9e9e28876af3977aed5278e8a1f36fdb50a4a4bdb85d37e99eaa": {
-      "id": "26129608b98a9e9e28876af3977aed5278e8a1f36fdb50a4a4bdb85d37e99eaa",
-      "signal": {
-        "kind": "dependency-alert-ci",
-        "lane": "dependency",
-        "number": 299,
-        "head": "4c9a059079901d820a8c6b0706df0eaa39e1e037",
-        "criteriaHash": "faf7c91dea4b17b99dd4af9d449be590d850cf6487b44d31b365330a49181d1d",
-        "revision": "6354a0b9c8723006b4deea39437ea528de095af0",
-        "sourceRun": "45808173927",
-        "sourceAttempt": 1,
-        "actor": {
-          "login": "haideearus-software-factory[bot]",
-          "id": 356310548
-        }
-      },
-      "producer": {
-        "runId": "45809495857",
-        "runAttempt": 1,
-        "workflowSha": "6354a0b9c8723006b4deea39437ea528de095af0",
-        "actor": {
-          "login": "haideearus-software-factory[bot]",
-          "id": 356310548
-        },
-        "event": "workflow_run"
-      },
-      "status": "pending",
-      "receiver": null,
-      "at": "2026-11-26T11:19:25.605Z"
-    },
     "6e6fae7ceb29498dd2e7a8384f039cda8a3dda7b3c1512ba90abf599d26fb830": {
       "id": "6e6fae7ceb29498dd2e7a8384f039cda8a3dda7b3c1512ba90abf599d26fb830",
       "signal": {
@@ -6633,16 +6603,16 @@
         }
       },
       "producer": {
-        "runId": "45815855239",
+        "runId": "45820407749",
         "runAttempt": 1,
         "workflowSha": "33f5f85eb3b5a388fc896f50496384c93a836205",
         "actor": {
-          "login": "dependabot[bot]",
-          "id": 49699333
+          "login": "haideearus",
+          "id": 101267861
         },
         "event": "workflow_run"
       },
-      "status": "pending",
+      "status": "intent",
       "receiver": null,
       "at": "2026-11-26T12:02:04.846Z"
     },
@@ -6709,6 +6679,66 @@
       "status": "pending",
       "receiver": null,
       "at": "2026-11-26T12:04:56.194Z"
+    },
+    "a45e662cfd70250b0ec603965eb436ffd8df26f8fdd42d35573341bb4fd6fe6c": {
+      "id": "a45e662cfd70250b0ec603965eb436ffd8df26f8fdd42d35573341bb4fd6fe6c",
+      "signal": {
+        "kind": "drain",
+        "lane": "app",
+        "number": 300,
+        "head": "33f5f85eb3b5a388fc896f50496384c93a836205",
+        "criteriaHash": "30e1a258cd67d93f12f37df96527f29410f8d3a0e4d4c280888e0672eedf11c0",
+        "revision": "1",
+        "sourceRun": "45819447468",
+        "sourceAttempt": 1,
+        "actor": {
+          "login": "haideearus",
+          "id": 101267861
+        }
+      },
+      "producer": {
+        "runId": "45820407749",
+        "runAttempt": 1,
+        "workflowSha": "33f5f85eb3b5a388fc896f50496384c93a836205",
+        "actor": {
+          "login": "haideearus",
+          "id": 101267861
+        },
+        "event": "workflow_run"
+      },
+      "status": "observed",
+      "receiver": null,
+      "at": "2026-11-26T12:31:29.416Z"
+    },
+    "26129608b98a9e9e28876af3977aed5278e8a1f36fdb50a4a4bdb85d37e99eaa": {
+      "id": "26129608b98a9e9e28876af3977aed5278e8a1f36fdb50a4a4bdb85d37e99eaa",
+      "signal": {
+        "kind": "dependency-alert-ci",
+        "lane": "dependency",
+        "number": 299,
+        "head": "4c9a059079901d820a8c6b0706df0eaa39e1e037",
+        "criteriaHash": "faf7c91dea4b17b99dd4af9d449be590d850cf6487b44d31b365330a49181d1d",
+        "revision": "6354a0b9c8723006b4deea39437ea528de095af0",
+        "sourceRun": "45808173927",
+        "sourceAttempt": 1,
+        "actor": {
+          "login": "haideearus-software-factory[bot]",
+          "id": 356310548
+        }
+      },
+      "producer": {
+        "runId": "45809495857",
+        "runAttempt": 1,
+        "workflowSha": "6354a0b9c8723006b4deea39437ea528de095af0",
+        "actor": {
+          "login": "haideearus-software-factory[bot]",
+          "id": 356310548
+        },
+        "event": "workflow_run"
+      },
+      "status": "pending",
+      "receiver": null,
+      "at": "2026-11-26T11:19:25.605Z"
     }
   }
 }
