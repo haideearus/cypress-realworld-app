@@ -197,7 +197,7 @@
     "259": {
       "branch": "dependabot/npm_and_yarn/yaml-1.10.3",
       "issue": 263,
-      "status": "open",
+      "status": "closing",
       "recovery": {
         "daec4acc45c2487a07b3766f997a3f18f8cca66a": {
           "bases": {
