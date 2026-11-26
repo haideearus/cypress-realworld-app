@@ -921,6 +921,29 @@
       },
       "status": "intent",
       "commentId": null
+    },
+    "b6230da625281f25725387505cc727a20b6943dd7fcd9f4825f78a36644977ba": {
+      "event": {
+        "id": "b6230da625281f25725387505cc727a20b6943dd7fcd9f4825f78a36644977ba",
+        "producer": {
+          "runId": "45841886515",
+          "runAttempt": 1,
+          "workflow": "factory-agents.yml",
+          "workflowSha": "6940cc0aebfe8a5f0944accc8274d92ab8a3648e",
+          "phase": "job-139991535643-finish",
+          "actor": "haideearus"
+        },
+        "kind": "review",
+        "state": "cancelled",
+        "subject": 304,
+        "head": "6a7c473726fc60393244eab5e7ccecac837ab0c2",
+        "summary": "Role job completed with cancelled; trusted validation decides its result.",
+        "links": [
+          "https://github.com/haideearus/cypress-realworld-app/actions/runs/45841886515"
+        ]
+      },
+      "status": "intent",
+      "commentId": null
     }
   },
   "lastMonitor": {
