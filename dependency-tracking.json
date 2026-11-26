@@ -155,7 +155,7 @@
     "250": {
       "branch": "dependabot/npm_and_yarn/tootallnate/once-2.0.1",
       "issue": 257,
-      "status": "open"
+      "status": "closing"
     },
     "258": {
       "branch": "dependabot/npm_and_yarn/jws-3.2.3",
