@@ -4261,9 +4261,9 @@
       "reviews": 0,
       "retries": 0,
       "origin": "dependency-pr",
-      "head": "0f667145239f017770bc169e05fec48a5e2d250d",
+      "head": "d787f1d6c26c4df254df6fc02315c81a87108bae",
       "pr": 223,
-      "status": "blocked",
+      "status": "new",
       "approval": null,
       "branch": "dependabot/npm_and_yarn/vitest-4.1.11",
       "criteriaHash": "ddeac18b98029246e847bfa5fab0a6d8c78e4d92e05b3a8f546a09fd3179f62e",
@@ -4291,6 +4291,14 @@
             "runAttempt": 1,
             "workflowSha": "e2e9c9bd96a486ef8dfecfad34162a35a0602b32",
             "at": "2026-11-25T21:07:49.954Z"
+          },
+          {
+            "head": "d787f1d6c26c4df254df6fc02315c81a87108bae",
+            "base": "0eca54cde2480d5a59b4657b8093996dcc84bbf2",
+            "runId": "45769010844",
+            "runAttempt": 1,
+            "workflowSha": "0eca54cde2480d5a59b4657b8093996dcc84bbf2",
+            "at": "2026-11-26T06:34:23.161Z"
           }
         ]
       },
@@ -7759,7 +7767,11 @@
       "outcome": "reviewed"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 223,
+    "runId": "45769010844",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -12679,6 +12691,16 @@
       "runAttempt": 1,
       "outcome": "accepted",
       "mergeCommit": "0eca54cde2480d5a59b4657b8093996dcc84bbf2"
+    },
+    {
+      "at": "2026-11-26T06:34:23.161Z",
+      "event": "dependency_metadata_admitted",
+      "ticket": 223,
+      "head": "d787f1d6c26c4df254df6fc02315c81a87108bae",
+      "runId": "45769010844",
+      "actor": "github-actions[bot]",
+      "wakeReceipt": "78d5c6d8c5f129709788a157242395d64f9ba4f9e9e6d51e8a83d6af26bb46ac",
+      "sourceActor": "dependabot[bot]"
     }
   ],
   "featureTurn": {
