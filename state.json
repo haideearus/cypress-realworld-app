@@ -2110,12 +2110,12 @@
       "feedback": "{\"head\":\"4d85eb5014c5a64f59db472757695aa3ef2c1b88\",\"verdict\":\"pass\",\"summary\":\"Reviewed backend/bankaccount-routes.ts, backend/database.ts, src/__tests__/bankaccount-routes.test.ts and src/__tests__/bankaccounts.test.ts at commit 4d85eb5, matching the supplied diff exactly against current source. The GET /:bankAccountId handler (backend/bankaccount-routes.ts:26-48) now reads req.user?.id, returns 401 if absent, and calls the new getBankAccountForUser(id, userId) (backend/database.ts:266-267), which does a single lowdb find({id, userId}) query consistent with the existing getBy pattern (database.ts:132-137). Because the lookup filters on both id and userId simultaneously, a missing account and a non-owned account both yield undefined, so both cases correctly fall into the same res.sendStatus(404) branch — satisfying the acceptance criterion that missing/non-owned accounts are indistinguishable. Test coverage: src/__tests__/bankaccount-routes.test.ts mocks express/database/helpers to unit-test the handler for the 200 (owner match, asserting findForUser called with id+signed-in-id), 404 (no match) and 401 (no user id) paths; src/__tests__/bankaccounts.test.ts adds a database-level test exercising getBankAccountForUser directly for same-owner (match), different-owner (undefined) and missing-account (undefined) cases. getBankAccountById remains exported and used elsewhere in tests, so removing its import from bankaccount-routes.ts caused no breakage. The unrelated DELETE /:bankAccountId route still has no ownership check, but that endpoint is untouched by this diff and outside issue #96's stated scope, so it isn't counted as a regression here. I could not execute the test suite or fetch the linked CI run in this read-only session; the assessment relies on static inspection of the code and tests plus the diff provided, treating the referenced CI URL as supporting evidence without independently verifying its contents.\",\"findings\":[]}"
     },
     "109": {
-      "coding": 1,
+      "coding": 2,
       "origin": "factory",
       "reviews": 0,
-      "retries": 0,
-      "head": "60ec2c6a851b315e3db3f175a62cc580ef9e99ab",
-      "status": "blocked",
+      "retries": 1,
+      "head": "e2e9c9bd96a486ef8dfecfad34162a35a0602b32",
+      "status": "coding",
       "pr": null,
       "approval": null,
       "criteriaHash": "81cb7d587bd2125b35f0a11d6962ec69aa1063ee71759ffdfdf617724fb371e7",
@@ -2126,7 +2126,22 @@
         "runAttempt": 1,
         "appSlug": "haideearus-software-factory"
       },
-      "feedback": "Agent, publication, or CI infrastructure failed; no automatic model retry"
+      "feedback": "Agent, publication, or CI infrastructure failed; no automatic model retry",
+      "delayedRetry": {
+        "grantId": "ff163eff-957b-41c1-8868-1abd496b40d0",
+        "jobId": 135225265791,
+        "notBefore": "2026-11-19T00:24:12.000Z",
+        "fix": {
+          "pr": 111,
+          "mergeCommit": "56294cf7fe21ebe1a040a66798b5f75fe7ed9411",
+          "ciRunId": "45698168953"
+        },
+        "parent": {
+          "runId": "45747590913",
+          "runAttempt": 1,
+          "workflowSha": "e2e9c9bd96a486ef8dfecfad34162a35a0602b32"
+        }
+      }
     },
     "110": {
       "coding": 0,
@@ -7249,9 +7264,24 @@
       "status": "finished",
       "at": "2026-11-25T22:28:09.781Z",
       "outcome": "discovery_complete"
+    },
+    "8a7388e0-6fbc-4d23-b154-56882b23dae1": {
+      "id": "8a7388e0-6fbc-4d23-b154-56882b23dae1",
+      "ticket": 109,
+      "phase": "code",
+      "slot": "cycle1",
+      "runId": "45747590913",
+      "runAttempt": 1,
+      "head": "e2e9c9bd96a486ef8dfecfad34162a35a0602b32",
+      "status": "reserved",
+      "at": "2026-11-26T03:14:27.469Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 109,
+    "runId": "45747590913",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -11841,6 +11871,25 @@
       "grant": "939a01fa-9b06-4e58-b72a-dc8f14cab098",
       "phase": "discover",
       "status": "discovery_complete"
+    },
+    {
+      "at": "2026-11-26T03:14:27.469Z",
+      "event": "blocked_retry_queued_after_fix",
+      "ticket": 109,
+      "fixPr": 111,
+      "fixCommit": "56294cf7fe21ebe1a040a66798b5f75fe7ed9411",
+      "testedMainRun": "45698168953",
+      "notBefore": "2026-11-19T00:24:12.000Z"
+    },
+    {
+      "at": "2026-11-26T03:14:27.469Z",
+      "event": "reserved",
+      "ticket": 109,
+      "grant": "8a7388e0-6fbc-4d23-b154-56882b23dae1",
+      "phase": "code",
+      "runId": "45747590913",
+      "runAttempt": 1,
+      "actor": "haideearus"
     }
   ],
   "featureTurn": {
