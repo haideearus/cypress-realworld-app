@@ -4392,7 +4392,7 @@
       "origin": "dependency-pr",
       "head": "c97554b95572ff9f6d36765239a5efecaacbd0e2",
       "pr": 233,
-      "status": "new",
+      "status": "blocked",
       "approval": null,
       "branch": "dependabot/npm_and_yarn/babel/core-7.29.6",
       "criteriaHash": "611722c5e328e314138424f17603591e0536ddb00d27617bc46c0baea06e1abc",
@@ -7617,11 +7617,7 @@
       "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 233,
-    "runId": "45762256098",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
@@ -12452,6 +12448,13 @@
       "actor": "github-actions[bot]",
       "wakeReceipt": "ec202bb974e9bb7e4dc905dd7d3b7396a3067c85db78864b9cd22bfe158ee208",
       "sourceActor": "dependabot[bot]"
+    },
+    {
+      "at": "2026-11-26T05:36:04.876Z",
+      "event": "dependency_preparation_blocked",
+      "ticket": 233,
+      "head": "c97554b95572ff9f6d36765239a5efecaacbd0e2",
+      "runId": "45762256098"
     }
   ],
   "featureTurn": {
