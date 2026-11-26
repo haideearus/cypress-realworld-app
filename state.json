@@ -5963,7 +5963,8 @@
       "ci": {
         "requestId": "8e179bbd-8b58-45f5-bfba-bfdec301b081",
         "head": "b6ced6e95818d63d4f84bf37006d848671ec6e4b",
-        "runId": null
+        "runId": 45822988541,
+        "passed": true
       },
       "feedback": "Owner PR CI or subscription review unavailable; no automatic retry"
     }
