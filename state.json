@@ -2142,7 +2142,12 @@
           "workflowSha": "e2e9c9bd96a486ef8dfecfad34162a35a0602b32"
         }
       },
-      "branch": "agent/factory-109"
+      "branch": "agent/factory-109",
+      "ci": {
+        "requestId": "923ee9c1-bee8-43f8-86d5-4568cc8ac164",
+        "head": "d6eab58a1b5f612ef81b58c6ed3e89ba724ab0bf",
+        "runId": null
+      }
     },
     "110": {
       "coding": 0,
