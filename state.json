@@ -4852,12 +4852,12 @@
     },
     "258": {
       "coding": 0,
-      "reviews": 0,
+      "reviews": 1,
       "retries": 0,
       "origin": "dependency-pr",
       "head": "729abbf2453d34e09b5dd960faadc1cb897371af",
       "pr": 258,
-      "status": "new",
+      "status": "reviewing",
       "approval": null,
       "branch": "dependabot/npm_and_yarn/jws-3.2.3",
       "criteriaHash": "9085454eb67c1ed56adadba84c6bd174f8f89e9fb5246bb0aaaef01ffa74d49f",
@@ -7898,6 +7898,17 @@
       "status": "finished",
       "at": "2026-11-26T10:26:23.556Z",
       "outcome": "blocked"
+    },
+    "f509194e-ebea-4801-8cca-3e7ed91746bb": {
+      "id": "f509194e-ebea-4801-8cca-3e7ed91746bb",
+      "ticket": 258,
+      "phase": "review",
+      "slot": "dependency",
+      "runId": "45804006063",
+      "runAttempt": 1,
+      "head": "729abbf2453d34e09b5dd960faadc1cb897371af",
+      "status": "reserved",
+      "at": "2026-11-26T10:55:53.056Z"
     }
   },
   "active": {
@@ -12883,6 +12894,18 @@
       "ticket": 258,
       "head": "729abbf2453d34e09b5dd960faadc1cb897371af",
       "runId": "45804006063",
+      "actor": "github-actions[bot]",
+      "wakeReceipt": "aebbda69263ec9a99bc62669553e3e272fa9517304243bb629330bfe0f14aff0",
+      "sourceActor": "dependabot[bot]"
+    },
+    {
+      "at": "2026-11-26T10:55:53.056Z",
+      "event": "reserved",
+      "ticket": 258,
+      "grant": "f509194e-ebea-4801-8cca-3e7ed91746bb",
+      "phase": "review",
+      "runId": "45804006063",
+      "runAttempt": 1,
       "actor": "github-actions[bot]",
       "wakeReceipt": "aebbda69263ec9a99bc62669553e3e272fa9517304243bb629330bfe0f14aff0",
       "sourceActor": "dependabot[bot]"
