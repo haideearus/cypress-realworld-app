@@ -85,6 +85,7 @@ const TransactionListAmountRangeFilter: React.FC<TransactionListAmountRangeFilte
           <Grid item>
             <Button
               data-test="transaction-list-filter-amount-clear-button"
+              aria-label="Clear amount range"
               onClick={() => {
                 setAmountRangeValue(initialAmountRange);
                 resetAmountRange();
