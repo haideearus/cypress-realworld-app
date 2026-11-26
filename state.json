@@ -5453,7 +5453,8 @@
       "ci": {
         "requestId": "fbe174d9-b717-434d-ad82-f0f55d6eb33b",
         "head": "7ea82aeca5c823323344598fdddf969a45825622",
-        "runId": null
+        "runId": 45883597309,
+        "passed": true
       },
       "feedback": "Main advanced; published repair requires fresh CI and review",
       "publishedRecovery": {
