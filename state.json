@@ -4925,12 +4925,13 @@
       },
       "feedback": "{\"head\":\"729abbf2453d34e09b5dd960faadc1cb897371af\",\"verdict\":\"pass\",\"summary\":\"Reviewed the yarn.lock-only diff (package.json unchanged) bumping transitive deps jwa 1.4.1→1.4.2 and jws 3.2.2→3.2.3, pulled in by jsonwebtoken@8.5.1←express-jwt (backend/helpers.ts, backend/app.ts). dependencyFacts confirms GHSA-869p-cjfg-cm3x (jws <3.2.3) is cleared by the 3.2.3 upgrade, with matching npm registry integrity hashes for jwa/jws/buffer-equal-constant-time and no upstreamReleases anomalies, so no package-takeover concern. The buffer-equal-constant-time range widened from pinned 1.0.1 to ^1.0.1 (still resolving 1.0.1) is an upstream jwa 1.4.2 package.json change, not a behavior change. CI (run 45804260128) passed lint/types/unit and the UI regression suite at this exact head. Checked the cited ciEvidence.testFiles (cypress/tests/ui/auth.spec.ts, bankaccounts.spec.ts, user-settings.spec.ts, src/components/__tests__/UserSettingsForm.test.tsx) and backend/app.ts: these exercise the default passport session-cookie auth flow, not the express-jwt-backed checkAuth0Jwt/checkCognitoJwt/checkGoogleJwt middlewares that actually consume jws/jwa. That gap is pre-existing (those branches carry `/* istanbul ignore if */` and are gated behind VITE_AUTH0/VITE_AWS_COGNITO/VITE_GOOGLE env vars not set in CI), not introduced by this PR, so it doesn't block a narrowly-scoped patch-level security bump.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"The JWT-verification code paths that actually consume jwa/jws (backend/helpers.ts checkAuth0Jwt, checkCognitoJwt, checkGoogleJwt, wired in backend/app.ts behind VITE_AUTH0/VITE_AWS_COGNITO/VITE_GOOGLE) are not exercised by the CI-cited tests (auth.spec.ts, bankaccounts.spec.ts, user-settings.spec.ts, UserSettingsForm.test.tsx), which only cover the default passport session-cookie login flow. This is a pre-existing gap (those branches are marked `/* istanbul ignore if */`), not a regression from this bump, but it means the patch-level jws/jwa upgrade has no direct regression test confirming the Auth0/Cognito/Google JWT verification paths still work.\"}]}",
       "merge": {
-        "status": "intent",
+        "status": "merged",
         "head": "729abbf2453d34e09b5dd960faadc1cb897371af",
         "pr": 258,
-        "at": "2026-11-26T10:59:56.793Z",
+        "at": "2026-11-26T11:00:18.451Z",
         "runId": "45804006063",
-        "runAttempt": 1
+        "runAttempt": 1,
+        "mergeCommit": "6354a0b9c8723006b4deea39437ea528de095af0"
       }
     },
     "259": {
@@ -7929,11 +7930,7 @@
       "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 258,
-    "runId": "45804006063",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
     {
       "at": "2026-11-12T10:50:23.190Z",
