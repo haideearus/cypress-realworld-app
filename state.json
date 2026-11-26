@@ -5947,7 +5947,7 @@
       "reviews": 4,
       "retries": 0,
       "head": "b6ced6e95818d63d4f84bf37006d848671ec6e4b",
-      "status": "reviewing",
+      "status": "blocked",
       "pr": 301,
       "approval": null,
       "criteriaHash": "c7ab92acde12dd62f10e5e012617d6faf4511631e5f6eb2ffbe5fad2f549f736",
@@ -5958,7 +5958,7 @@
         "runId": 45819611576,
         "passed": false
       },
-      "feedback": "{\"verdict\":\"changes_requested\",\"head\":\"4f8823a3675de9b9b5fd9fc2d017dbf9205b7aec\",\"summary\":\"Reviewed the Cloudflare pickup-timer feature at HEAD 4f8823a3: .github/workflows/factory-automatic.yml, factory-dependency-alerts.yml, factory-activity.yml; scripts/factory/pickup-timer.cjs (new), wake-queue.cjs, wake-controller.cjs, feature-trigger.cjs, feature-run.cjs, automation.cjs, activity-observer.cjs; ops/cloudflare-pickup/{worker.mjs,wrangler.toml}; docs/factory/CLOUDFLARE-PICKUP.md; and scripts/tests/factory-pickup-timer.test.cjs, factory-wake-workflow.test.cjs, factory-activity-workflow.test.cjs. The supplied prior feedback at 2accb21e flagged two issues; both are now fixed and verified in the current source: pickup-timer.cjs:61-63 now gates the FACTORY_MAX_CONCURRENT_TICKETS check behind `!native`, so a native github.event_name=='schedule' run is never held by that guard regardless of concurrency drift (confirmed against the \\\"native pickup still runs\\\" test); and activity-observer.cjs:58-76/184-192 now emits run-level and merge events for timer-titled runs whenever real grant/merge evidence or a failure exists, while factory-activity.yml's `observe` job `if` (read directly, lines 38-43) carries no timer exclusion at all, matching the new `assert.doesNotMatch` test in factory-activity-workflow.test.cjs. The core dedup/window/owner logic in checkPickupTick, verifyIdlePickup, and wake-controller's timerRun-gated handoff is internally consistent, fail-closed on untrusted actors/branches/windows, and the Cloudflare worker.mjs validates tick alignment with redirect:\\\"error\\\" and no secret logging. One acceptance criterion is not fully met: the ticket requires verifying \\\"the workflow and its dependency handoff with model-free tests,\\\" but the new trust-gating logic added to feature-trigger.cjs (verifyContinuation now returns false when a timer-titled run lacks pickupCompleted evidence) and feature-run.cjs (short-circuits with reason \\\"Pickup timer did not select from the queue\\\") has zero test coverage anywhere in scripts/tests — a repo-wide grep for \\\"verifyContinuation\\\" returns no hits, unlike the parallel dedup logic in wake-queue.cjs/pickup-timer.cjs which is thoroughly tested. This is read-only static review; CI at the linked run was treated as supplementary evidence only and not independently re-executed.\",\"findings\":[{\"severity\":\"important\",\"message\":\"feature-trigger.cjs:48-51 and feature-run.cjs:107-111 add new trust-gating logic (verifyContinuation now returns false, instead of only throwing, when a timer-titled factory-automatic.yml run lacks pickupCompleted evidence, causing the weekly feature continuation to abort with 'Pickup timer did not select from the queue'). No test in scripts/tests exercises this new branch or even references verifyContinuation at all (confirmed via repo-wide search), unlike the equivalent dedup logic in wake-queue.cjs/pickup-timer.cjs which has dedicated coverage in factory-wake-workflow.test.cjs and factory-pickup-timer.test.cjs. This leaves a security-relevant wake-trust change in the weekly-feature continuation path unverified, contrary to the ticket's explicit requirement to verify the workflow and its handoff with model-free tests.\"},{\"severity\":\"minor\",\"message\":\"The new exclusion in .github/workflows/factory-dependency-alerts.yml's 'repair' job if-condition (lines 82-83) skips that job's workflow_run-triggered wake for any completed factory-automatic.yml run whose display_title starts with 'Automatic factory / timer '. Unlike the parallel, now-removed exclusion in factory-activity.yml (explicitly tested via assert.doesNotMatch), this one has no dedicated test confirming the YAML condition evaluates as intended, and it means the dependency-alert-repair job's event wake relies solely on native-schedule completions even during the exact native-scheduling gaps this ticket is meant to paper over; worth confirming this narrower scope is intentional.\"}]}"
+      "feedback": "Owner PR CI or subscription review unavailable; no automatic retry"
     }
   },
   "grants": {
@@ -8083,25 +8083,13 @@
       "runId": "45819447468",
       "runAttempt": 1,
       "head": "b6ced6e95818d63d4f84bf37006d848671ec6e4b",
-      "status": "reserved",
-      "at": "2026-11-26T12:25:41.393Z"
+      "status": "finished",
+      "at": "2026-11-26T12:25:41.393Z",
+      "outcome": "blocked"
     }
   },
-  "active": {
-    "ticket": 300,
-    "runId": "45819447468",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
-    {
-      "at": "2026-11-13T11:36:56.576Z",
-      "event": "reserved",
-      "ticket": 11,
-      "grant": "1036a5ae-1e5b-41ec-80c8-1dd61beba15c",
-      "phase": "code",
-      "runId": "43418380398",
-      "runAttempt": 2
-    },
     {
       "at": "2026-11-13T11:43:57.299Z",
       "event": "blocked",
@@ -13100,6 +13088,12 @@
       "runId": "45819447468",
       "runAttempt": 1,
       "actor": "haideearus"
+    },
+    {
+      "at": "2026-11-26T12:31:03.660Z",
+      "event": "blocked",
+      "ticket": 300,
+      "reason": "Owner PR CI or subscription review unavailable; no automatic retry"
     }
   ],
   "featureTurn": {
