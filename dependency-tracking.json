@@ -120,7 +120,7 @@
     "235": {
       "branch": "dependabot/npm_and_yarn/humanfs/node-0.16.8",
       "issue": 251,
-      "status": "closing",
+      "status": "merged",
       "recovery": {
         "38e1d26f1dcee3980c166db5ee761ca135cb9bc1": {
           "blocked": true
