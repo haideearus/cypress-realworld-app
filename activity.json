@@ -898,29 +898,6 @@
       },
       "status": "intent",
       "commentId": null
-    },
-    "214f7c798cfae2a3c9efe5c46b776a7867ec0082c3bc8d0399dbe0795c2e2c08": {
-      "event": {
-        "id": "214f7c798cfae2a3c9efe5c46b776a7867ec0082c3bc8d0399dbe0795c2e2c08",
-        "producer": {
-          "runId": "45814436818",
-          "runAttempt": 1,
-          "workflow": "factory-ci.yml",
-          "workflowSha": "33f5f85eb3b5a388fc896f50496384c93a836205",
-          "phase": "run",
-          "actor": "haideearus-software-factory[bot]"
-        },
-        "kind": "ci",
-        "state": "success",
-        "subject": 45814436818,
-        "head": "33f5f85eb3b5a388fc896f50496384c93a836205",
-        "summary": "Workflow factory-ci.yml is success. Check the linked run for authoritative evidence.",
-        "links": [
-          "https://github.com/haideearus/cypress-realworld-app/actions/runs/45814436818"
-        ]
-      },
-      "status": "intent",
-      "commentId": null
     }
   },
   "lastMonitor": {
