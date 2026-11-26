@@ -5076,7 +5076,15 @@
           "remainingBaseline": []
         }
       },
-      "feedback": "{\"head\":\"84ad9020a39fcfc02ae7d4c8bb422896d10af78f\",\"verdict\":\"pass\",\"summary\":\"Inspected yarn.lock (the diff's only changed file), package.json, .github/workflows/factory-ci.yml, and the four CI-referenced test files (src/components/__tests__/UserSettingsForm.test.tsx, cypress/tests/ui/auth.spec.ts, bankaccounts.spec.ts, user-settings.spec.ts). package.json's rollup ranges (^2.77.2, ^4.40.0) are unchanged; yarn.lock resolution moves within those ranges: rollup 2.79.2->2.80.0 and 4.46.2->4.68.8, with matching @rollup/rollup-* platform binaries (plus new optional platform entries such as android-x64, openbsd-x64, openharmony-arm64, linux-loong64-* replacing the old loongarch64 name) and @types/estree gaining a 1.0.11 resolution for rollup's ^1.0.10 need while 1.0.8 remains for other consumers. Per dependencyFacts, every new registry entry has integrityMatched true, and GHSA-mw96-cpmx-2vgc (affecting rollup <2.80.0, 3.x<3.30.0, 4.x<4.59.0) is cleared by these exact target versions (2.80.0 and 4.68.8), with remainingBaseline empty, satisfying the \\\"bounded update, hold on unresolved concerns\\\" ticket intent. The verified CI receipt for this exact head shows yarn build:ci (vite build, which invokes rollup) and the Cypress API/UI regression run both completing after the bump, per .github/workflows/factory-ci.yml's sequential steps. Remaining limit: the cited test files are general app/UI regression tests (form validation, auth, bank accounts), not rollup-specific or production-bundle-output assertions, so build-tool-specific edge cases (e.g. code-splitting, platform-binary selection) are only indirectly covered by the overall build succeeding. No package-takeover or compatibility issue was found in current registry/OSV facts; this assessment is based on source inspection and the supplied CI/dependency evidence only, nothing was executed.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"CI regression coverage cited in ciEvidence (UserSettingsForm.test.tsx, auth.spec.ts, bankaccounts.spec.ts, user-settings.spec.ts) exercises general app functionality rather than rollup/vite build-output specifics (e.g. code-splitting, dynamic imports, platform binary selection), so compatibility evidence for the bundler bump itself is indirect, via overall build success, not targeted assertions.\"}]}"
+      "feedback": "{\"head\":\"84ad9020a39fcfc02ae7d4c8bb422896d10af78f\",\"verdict\":\"pass\",\"summary\":\"Inspected yarn.lock (the diff's only changed file), package.json, .github/workflows/factory-ci.yml, and the four CI-referenced test files (src/components/__tests__/UserSettingsForm.test.tsx, cypress/tests/ui/auth.spec.ts, bankaccounts.spec.ts, user-settings.spec.ts). package.json's rollup ranges (^2.77.2, ^4.40.0) are unchanged; yarn.lock resolution moves within those ranges: rollup 2.79.2->2.80.0 and 4.46.2->4.68.8, with matching @rollup/rollup-* platform binaries (plus new optional platform entries such as android-x64, openbsd-x64, openharmony-arm64, linux-loong64-* replacing the old loongarch64 name) and @types/estree gaining a 1.0.11 resolution for rollup's ^1.0.10 need while 1.0.8 remains for other consumers. Per dependencyFacts, every new registry entry has integrityMatched true, and GHSA-mw96-cpmx-2vgc (affecting rollup <2.80.0, 3.x<3.30.0, 4.x<4.59.0) is cleared by these exact target versions (2.80.0 and 4.68.8), with remainingBaseline empty, satisfying the \\\"bounded update, hold on unresolved concerns\\\" ticket intent. The verified CI receipt for this exact head shows yarn build:ci (vite build, which invokes rollup) and the Cypress API/UI regression run both completing after the bump, per .github/workflows/factory-ci.yml's sequential steps. Remaining limit: the cited test files are general app/UI regression tests (form validation, auth, bank accounts), not rollup-specific or production-bundle-output assertions, so build-tool-specific edge cases (e.g. code-splitting, platform-binary selection) are only indirectly covered by the overall build succeeding. No package-takeover or compatibility issue was found in current registry/OSV facts; this assessment is based on source inspection and the supplied CI/dependency evidence only, nothing was executed.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"CI regression coverage cited in ciEvidence (UserSettingsForm.test.tsx, auth.spec.ts, bankaccounts.spec.ts, user-settings.spec.ts) exercises general app functionality rather than rollup/vite build-output specifics (e.g. code-splitting, dynamic imports, platform binary selection), so compatibility evidence for the bundler bump itself is indirect, via overall build success, not targeted assertions.\"}]}",
+      "merge": {
+        "status": "intent",
+        "head": "84ad9020a39fcfc02ae7d4c8bb422896d10af78f",
+        "pr": 261,
+        "at": "2026-11-26T05:54:35.673Z",
+        "runId": "45762932909",
+        "runAttempt": 1
+      }
     },
     "266": {
       "coding": 0,
@@ -7705,7 +7713,11 @@
       "outcome": "reviewed"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 261,
+    "runId": "45762932909",
+    "runAttempt": 1
+  },
   "audit": [
     {
       "at": "2026-11-12T10:46:10.463Z",
