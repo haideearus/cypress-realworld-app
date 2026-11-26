@@ -4273,7 +4273,7 @@
       "origin": "dependency-pr",
       "head": "f2a4a85cd2091336745194f2efe754550a2481b3",
       "pr": 223,
-      "status": "new",
+      "status": "blocked",
       "approval": null,
       "branch": "dependabot/npm_and_yarn/vitest-4.1.11",
       "criteriaHash": "ddeac18b98029246e847bfa5fab0a6d8c78e4d92e05b3a8f546a09fd3179f62e",
@@ -8421,21 +8421,8 @@
       "outcome": "discovery_complete"
     }
   },
-  "active": {
-    "ticket": 223,
-    "runId": "45906268125",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
-    {
-      "at": "2026-11-14T23:39:11.546Z",
-      "event": "reserved",
-      "ticket": 44,
-      "grant": "b235ffc3-39b5-4656-8d16-9e43ee2ed8f9",
-      "phase": "review",
-      "runId": "43654287550",
-      "runAttempt": 1
-    },
     {
       "at": "2026-11-14T23:47:27.273Z",
       "event": "factory-stop-requested",
@@ -13594,6 +13581,13 @@
       "actor": "github-actions[bot]",
       "wakeReceipt": "31b4ed7421031b558ec0bdff79d65d727de9ba77da5fefab0c55fabe37e514fa",
       "sourceActor": "dependabot[bot]"
+    },
+    {
+      "at": "2026-11-26T22:41:49.334Z",
+      "event": "dependency_preparation_blocked",
+      "ticket": 223,
+      "head": "f2a4a85cd2091336745194f2efe754550a2481b3",
+      "runId": "45906268125"
     }
   ],
   "featureTurn": {
