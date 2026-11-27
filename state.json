@@ -6016,18 +6016,10 @@
       "reviews": 1,
       "retries": 0,
       "origin": "dependency-pr",
-      "head": "de71235f0aceb642e58755c7c144aa1604a84b13",
+      "head": "6ec5cac31d8d32ac29211d9208a3410724978a87",
       "pr": 299,
-      "status": "reviewed",
-      "approval": {
-        "head": "de71235f0aceb642e58755c7c144aa1604a84b13",
-        "pr": 299,
-        "grant": "b8caa67a-6dd3-408a-92bb-ff9f1646e10c",
-        "verdict": "pass",
-        "source": "claude-subscription",
-        "fixture": false,
-        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/45887404616"
-      },
+      "status": "new",
+      "approval": null,
       "branch": "agent/dependency-alert-7687d0803a53020fdf3da65cba6e747472b02c50e3c96880000122fe87335083",
       "criteriaHash": "faf7c91dea4b17b99dd4af9d449be590d850cf6487b44d31b365330a49181d1d",
       "dependency": {
@@ -6062,51 +6054,19 @@
                 "finishedAt": "2026-11-26T20:07:47.667Z"
               }
             ]
+          },
+          {
+            "head": "6ec5cac31d8d32ac29211d9208a3410724978a87",
+            "base": "bd881afb2cc8e315083cd0b74279047ee84f09c6",
+            "runId": "45918653703",
+            "runAttempt": 1,
+            "workflowSha": "bd881afb2cc8e315083cd0b74279047ee84f09c6",
+            "at": "2026-11-27T00:46:36.871Z"
           }
         ]
       },
-      "ci": {
-        "requestId": "b7b45040-6f16-462b-83c4-74a8f2653d34",
-        "head": "de71235f0aceb642e58755c7c144aa1604a84b13",
-        "runId": 45887605904,
-        "passed": true
-      },
-      "feedback": "{\"head\":\"de71235f0aceb642e58755c7c144aa1604a84b13\",\"verdict\":\"pass\",\"summary\":\"Reviewed the yarn.lock-only diff at de71235f (base 3c5cf96e): it merges two duplicate ws@8.18.0 resolutions (for ranges ^8.13.0 and ^8.17.1) into a single ws@8.21.0 entry. Confirmed via Grep that these ranges are required only by @percy/core (visual-testing dev dependency, package.json:~3166 area in yarn.lock) and jsdom (test-environment dependency, yarn.lock:8407) — ws is not a direct or runtime dependency of the payment app itself. dependencyFacts registry entries show integrity-matched npm tarballs for both 7.5.13 (baseline, unchanged) and 8.21.0 (added), consistent with the diff. OSV facts show GHSA-58qx-3vcg-4xpx (fixed 8.20.1) and GHSA-96hv-2xvq-fx4p (fixed 8.21.0, and already fixed at 7.5.11 for the untouched 7.x line) are cleared by 8.21.0, with no new vulnerable version introduced. Checked the four CI-referenced test files (UserSettingsForm.test.tsx, auth.spec.ts, bankaccounts.spec.ts, user-settings.spec.ts): none exercise WebSocket/percy/socket.io code paths, so the CI receipt proves the suite ran green but does not specifically exercise the ws-consuming code in @percy/core or jsdom's WebSocket implementation. upstreamReleases is empty, so there is no independent GitHub tag/release cross-check beyond npm registry integrity matching. Net effect is a narrow, semver-compatible dev/test-tooling bump that removes two cleared advisories without touching production payment logic.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"No test in the CI evidence set (UserSettingsForm.test.tsx, auth/bankaccounts/user-settings cypress specs) exercises WebSocket behavior, and the regression run was described as 'without cloud recording', meaning Percy's websocket-based snapshot upload path (the main runtime consumer of ws@^8.17.1 via @percy/core) was likely not actually invoked during this CI run. Passing CI therefore does not functionally validate the ws upgrade's effect on Percy's websocket client.\"},{\"severity\":\"minor\",\"message\":\"upstreamReleases in the supplied dependencyFacts is empty, so the only provenance signal for ws@8.21.0 is npm registry tarball integrity matching the lockfile; there is no independent GitHub release/tag confirmation in the supplied facts, leaving registry-only trust as a residual (non-blocking) verification gap for this transitive dependency.\"}]}",
-      "analysis": {
-        "version": 2,
-        "repository": "haideearus/cypress-realworld-app",
-        "pr": 299,
-        "base": "3c5cf96ecbf21380005d8416aa1cb97918b019f5",
-        "head": "de71235f0aceb642e58755c7c144aa1604a84b13",
-        "workflowSha": "3c5cf96ecbf21380005d8416aa1cb97918b019f5",
-        "runId": "45887404616",
-        "runAttempt": 1,
-        "stage": "analysis",
-        "toolDigest": "f280c92eeb2f5ac163b37bbe2d1cffa0ca85a8237161c40dced67f0c8f5dffb5",
-        "at": "2026-11-26T19:58:05.668Z",
-        "result": {
-          "changed": 2,
-          "candidateVersions": 2,
-          "cleared": [
-            "GHSA-58qx-3vcg-4xpx",
-            "GHSA-96hv-2xvq-fx4p"
-          ],
-          "remainingBaseline": []
-        }
-      },
-      "dependencyMergeRetry": {
-        "head": "de71235f0aceb642e58755c7c144aa1604a84b13",
-        "grant": "b8caa67a-6dd3-408a-92bb-ff9f1646e10c",
-        "at": "2026-11-26T20:12:02.885Z",
-        "phase": "held",
-        "failure": {
-          "stage": "required-checks",
-          "reason": "Refreshed native review gate did not pass"
-        },
-        "retryAt": null,
-        "sourceRun": "45887404616",
-        "run": null
-      }
+      "ci": null,
+      "feedback": "{\"head\":\"de71235f0aceb642e58755c7c144aa1604a84b13\",\"verdict\":\"pass\",\"summary\":\"Reviewed the yarn.lock-only diff at de71235f (base 3c5cf96e): it merges two duplicate ws@8.18.0 resolutions (for ranges ^8.13.0 and ^8.17.1) into a single ws@8.21.0 entry. Confirmed via Grep that these ranges are required only by @percy/core (visual-testing dev dependency, package.json:~3166 area in yarn.lock) and jsdom (test-environment dependency, yarn.lock:8407) — ws is not a direct or runtime dependency of the payment app itself. dependencyFacts registry entries show integrity-matched npm tarballs for both 7.5.13 (baseline, unchanged) and 8.21.0 (added), consistent with the diff. OSV facts show GHSA-58qx-3vcg-4xpx (fixed 8.20.1) and GHSA-96hv-2xvq-fx4p (fixed 8.21.0, and already fixed at 7.5.11 for the untouched 7.x line) are cleared by 8.21.0, with no new vulnerable version introduced. Checked the four CI-referenced test files (UserSettingsForm.test.tsx, auth.spec.ts, bankaccounts.spec.ts, user-settings.spec.ts): none exercise WebSocket/percy/socket.io code paths, so the CI receipt proves the suite ran green but does not specifically exercise the ws-consuming code in @percy/core or jsdom's WebSocket implementation. upstreamReleases is empty, so there is no independent GitHub tag/release cross-check beyond npm registry integrity matching. Net effect is a narrow, semver-compatible dev/test-tooling bump that removes two cleared advisories without touching production payment logic.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"No test in the CI evidence set (UserSettingsForm.test.tsx, auth/bankaccounts/user-settings cypress specs) exercises WebSocket behavior, and the regression run was described as 'without cloud recording', meaning Percy's websocket-based snapshot upload path (the main runtime consumer of ws@^8.17.1 via @percy/core) was likely not actually invoked during this CI run. Passing CI therefore does not functionally validate the ws upgrade's effect on Percy's websocket client.\"},{\"severity\":\"minor\",\"message\":\"upstreamReleases in the supplied dependencyFacts is empty, so the only provenance signal for ws@8.21.0 is npm registry tarball integrity matching the lockfile; there is no independent GitHub release/tag confirmation in the supplied facts, leaving registry-only trust as a residual (non-blocking) verification gap for this transitive dependency.\"}]}"
     },
     "300": {
       "coding": 0,
@@ -8455,32 +8415,12 @@
       "outcome": "discovery_complete"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 299,
+    "runId": "45918653703",
+    "runAttempt": 1
+  },
   "audit": [
-    {
-      "at": "2026-11-15T06:39:49.771Z",
-      "event": "factory-resumed",
-      "actor": "haideearus",
-      "commandId": "28613b22-59d4-4cee-a189-6bcef5779b2b",
-      "restored": {
-        "FACTORY_AUTOMATION_ENABLED": "false",
-        "FACTORY_AUTOMERGE_ENABLED": "false",
-        "FACTORY_ENABLED": "true"
-      },
-      "quarantinedRunIds": [
-        43467058965
-      ],
-      "quarantinedRuns": [
-        {
-          "id": 43467058965,
-          "runAttempt": 1,
-          "status": "queued",
-          "head": "421553c2c108dc2704ef6cec7864582b8c63ead6",
-          "containmentTicket": 38,
-          "reason": "Frozen pre-job controller rejects retained drill history before admission"
-        }
-      ]
-    },
     {
       "at": "2026-11-15T06:40:51.012Z",
       "event": "reserved",
@@ -13606,6 +13546,16 @@
       "ticket": 232,
       "head": "88aebd535023c5ab1996f20814458b96a5faf617",
       "runId": "45918515523"
+    },
+    {
+      "at": "2026-11-27T00:46:36.871Z",
+      "event": "dependency_metadata_admitted",
+      "ticket": 299,
+      "head": "6ec5cac31d8d32ac29211d9208a3410724978a87",
+      "runId": "45918653703",
+      "actor": "github-actions[bot]",
+      "wakeReceipt": "b109186def203c7986598cc9a8c0ff9263e841f587f707464f7c32c87e0ed57e",
+      "sourceActor": "haideearus-software-factory[bot]"
     }
   ],
   "featureTurn": {
