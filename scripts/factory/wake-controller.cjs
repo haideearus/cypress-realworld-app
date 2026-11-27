@@ -234,22 +234,28 @@ function interruptedAppSignal(state, run, boundTicket = null) {
   if (
     !require("./published-review-recovery.cjs").functionalPublication(ticket) ||
     ticket.monitor.issue !== number ||
-    ticket.branch !== `agent/factory-${number}` ||
-    ticket.automatic.workflowSha !== run.head_sha ||
-    ticket.automatic.runId !== owner.runId
+    ticket.branch !== `agent/factory-${number}`
   )
     return null;
-  const retained = boundTicket !== null && ticket.publishedRecovery?.interruptedHead;
+  const recovery = ticket.publishedRecovery;
+  const original = ticket.automatic.runId === owner.runId;
+  const previous = boundTicket !== null ? (recovery?.interruptedParents ?? []) : [];
+  const parent = original
+    ? ticket.automatic
+    : [recovery?.parent, ...previous].find((p) => p?.runId === owner.runId);
+  if (!parent || parent.runAttempt !== run.run_attempt || parent.workflowSha !== run.head_sha)
+    return null;
+  const retained = boundTicket !== null && recovery?.interruptedHead;
   if (
     !retained &&
     (entry?.ticket !== number ||
-      ticket.publishedRecovery ||
+      (original ? !!recovery : !recovery?.interruptedHead) ||
       ticket.approval ||
       ticket.merge ||
       !["awaiting_review", "reviewing"].includes(ticket.status))
   )
     return null;
-  const head = retained || ticket.head;
+  const head = original ? (recovery?.interruptedHead ?? ticket.head) : parent.head;
   return {
     kind: "drain",
     lane: "app",
@@ -259,6 +265,44 @@ function interruptedAppSignal(state, run, boundTicket = null) {
     revision: "app-interrupted",
     sourceRun: owner.runId,
     sourceAttempt: owner.runAttempt,
+    actor: { login: run.actor.login, id: run.actor.id },
+  };
+}
+function releasedAppSignal(state, run) {
+  if (
+    run.path !== ".github/workflows/factory-automatic.yml" ||
+    run.head_branch !== "main" ||
+    !require("./wake-queue.cjs").appWakeId(run) ||
+    ![run.actor, run.triggering_actor].every(
+      (actor) => actor?.login === c.BOT && actor.id === c.BOT_ID
+    )
+  )
+    return null;
+  const runId = String(run.id);
+  const releases = state.audit.filter(
+    (row) =>
+      row.event === "published_review_terminal_run_released" &&
+      row.receiverRunId === runId &&
+      row.receiverAttempt === run.run_attempt &&
+      row.receiverSha === run.head_sha
+  );
+  if (releases.length !== 1) return null;
+  const previous = releases[0];
+  if (!state.tickets[previous.ticket]?.publishedRecovery?.interruptedHead) return null;
+  return {
+    kind: "drain",
+    lane: "app",
+    number: previous.ticket,
+    head: run.head_sha,
+    criteriaHash: c.digest([
+      previous.ticket,
+      previous.runId,
+      previous.runAttempt,
+      run.display_title,
+    ]),
+    revision: "app-release",
+    sourceRun: runId,
+    sourceAttempt: run.run_attempt,
     actor: { login: run.actor.login, id: run.actor.id },
   };
 }
@@ -500,7 +544,7 @@ async function classifySignal({
   if (!grants.length)
     return r.path === `.github/workflows/${c.LANES.dependency}`
       ? preparationDrain(api, state, r, store)
-      : null;
+      : releasedAppSignal(state, r);
   return {
     kind: "drain",
     lane: c.DRAIN_LANES[r.path],
@@ -619,9 +663,7 @@ async function handleWake({
       .filter(
         (r) =>
           r.status === "pending" &&
-          (r.signal.kind !== "drain" ||
-            c.isMainQueueCheck(r.signal) ||
-            c.isAppMergeDrain(r.signal)) &&
+          (r.signal.kind !== "drain" || c.isAppQueueCheck(r.signal)) &&
           (preparation
             ? r.signal.lane === "dependency" && c.isDependencyCI(r.signal)
             : drain.lane === "app" || r.signal.kind !== "finding")
@@ -729,4 +771,5 @@ module.exports = {
   mainQueueSignal,
   appMergeSignal,
   interruptedAppSignal,
+  releasedAppSignal,
 };

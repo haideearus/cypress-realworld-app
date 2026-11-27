@@ -45,6 +45,9 @@ const isQueueCheckDrain = (signal) =>
   signal.kind === "drain" && signal.revision === `queue-check:${signal.sourceAttempt}`;
 const isMainQueueCheck = (signal) => signal.kind === "drain" && signal.revision === "main-queue";
 const isAppMergeDrain = (signal) => signal.kind === "drain" && signal.revision === "app-merge";
+const isAppRelease = (signal) => signal.kind === "drain" && signal.revision === "app-release";
+const isAppQueueCheck = (signal) =>
+  isMainQueueCheck(signal) || isAppMergeDrain(signal) || isAppRelease(signal);
 const isInterruptedApp = (signal) =>
   signal.kind === "drain" && signal.revision === "app-interrupted";
 function validateSignal(s) {
@@ -56,7 +59,7 @@ function validateSignal(s) {
     ((isPreparationDrain(s) || isQueueCheckDrain(s)) && s.lane !== "dependency") ||
     (isMainQueueCheck(s) &&
       (s.lane !== "app" || s.sourceAttempt !== 1 || String(s.number) !== s.sourceRun)) ||
-    ((isAppMergeDrain(s) || isInterruptedApp(s)) && s.lane !== "app") ||
+    ((isAppMergeDrain(s) || isAppRelease(s) || isInterruptedApp(s)) && s.lane !== "app") ||
     !Number.isSafeInteger(s.number) ||
     s.number < 1 ||
     !SHA.test(s.head) ||
@@ -187,6 +190,8 @@ module.exports = {
   isQueueCheckDrain,
   isMainQueueCheck,
   isAppMergeDrain,
+  isAppRelease,
+  isAppQueueCheck,
   isInterruptedApp,
   createWake,
   sourceKey,

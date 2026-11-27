@@ -304,8 +304,13 @@ test("a grantless completed recovery that released a hold wakes ordinary pickup 
   s.ticket.publishedRecovery = { interruptedHead: s.ticket.head };
   assert.equal((await handleWake(s)).outcome, "ignored");
   s.ledger.state.audit.push({
-    event: "published_review_terminal_run_released", ticket: 12, runId: "600", runAttempt: 1,
-    receiverRunId: "700", receiverAttempt: 1, receiverSha: s.parent.head_sha,
+    event: "published_review_terminal_run_released",
+    ticket: 12,
+    runId: "600",
+    runAttempt: 1,
+    receiverRunId: "700",
+    receiverAttempt: 1,
+    receiverSha: s.parent.head_sha,
   });
   const result = await handleWake(s);
   assert.equal(result.outcome, "dispatched");

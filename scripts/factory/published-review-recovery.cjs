@@ -82,7 +82,8 @@ function validateRecovery(ticket, grants) {
     ticket.branch !== `agent/factory-${grants[0]?.ticket}` ||
     !positive(ticket.pr) ||
     ticket.coding !== 1 ||
-    ticket.reviews > (interrupted ? 1 + interruptions.MAX_CONTINUATIONS : r?.previousParent ? 2 : 1) ||
+    ticket.reviews >
+      (interrupted ? 1 + interruptions.MAX_CONTINUATIONS : r?.previousParent ? 2 : 1) ||
     ticket.retries !== 0 ||
     ticket.finding ||
     (interrupted ? !functionalPublication(ticket) : ticket.monitor) ||
@@ -94,7 +95,8 @@ function validateRecovery(ticket, grants) {
         (r.interruptedParents !== undefined &&
           !interruptions.validHistory(r, owner, passingCiReceipt, grants)) ||
         Boolean(r.previousParent || hasFinal || skipped) ||
-        (new Set(grants.filter(g => g.phase === "review").map(g => g.runId)).size !== ticket.reviews))) ||
+        new Set(grants.filter((g) => g.phase === "review").map((g) => g.runId)).size !==
+          ticket.reviews)) ||
     (hasFinal &&
       (!exact(final, "failedParent,priorCi") ||
         !r.parent ||
@@ -139,7 +141,9 @@ function validateRecovery(ticket, grants) {
         (g.runAttempt !== 1 ||
           g.slot !== "cycle1" ||
           (!blockedReview(g, original) &&
-            ![r.parent, r.previousParent, ...(r.interruptedParents ?? [])].some((p) => p?.runId === g.runId && p.head === g.head)))
+            ![r.parent, r.previousParent, ...(r.interruptedParents ?? [])].some(
+              (p) => p?.runId === g.runId && p.head === g.head
+            )))
     )
   )
     throw Error("Invalid published review recovery receipt");
@@ -186,13 +190,16 @@ function eligible(ticket, n, state, config, context) {
     ticket.automatic?.appSlug === config.appSlug &&
     ticket.automatic?.runAttempt === 1 &&
     ticket.coding === 1 &&
-    ticket.reviews < (interrupted ? config.reviews : Math.min(retryParent ? 2 : 1, config.reviews)) &&
+    ticket.reviews <
+      (interrupted ? config.reviews : Math.min(retryParent ? 2 : 1, config.reviews)) &&
     (retryParent || interrupted || ticket.reviews === 0) &&
     require("./ticket-ai-budget.cjs").canReserve(ticket, "review", config) &&
     ticket.retries === 0 &&
     config.reviews > 0 &&
     (!ticket.feature || ticket.feature.mode === config.featureMode) &&
-    (interrupted ? interruptions.withinLimit(r, context.runId) && ticket.feedback === INTERRUPTED_REASON : !r?.parent || retryParent) &&
+    (interrupted
+      ? interruptions.withinLimit(r, context.runId) && ticket.feedback === INTERRUPTED_REASON
+      : !r?.parent || retryParent) &&
     !ticket.finding &&
     (interrupted ? functionalPublication(ticket) : !ticket.monitor) &&
     !ticket.delayedRetry &&
@@ -254,8 +261,11 @@ async function releaseTerminalRecovery(coordinator, entry, held, commit) {
           refreshes: [],
         };
       } else if (t.publishedRecovery?.interruptedHead) {
-        const history = t.publishedRecovery.interruptedParents ??= [];
-        history.push({ ...parent, ci: passingCiReceipt(t.ci) && t.ci.head === parent.head ? structuredClone(t.ci) : null });
+        const history = (t.publishedRecovery.interruptedParents ??= []);
+        history.push({
+          ...parent,
+          ci: passingCiReceipt(t.ci) && t.ci.head === parent.head ? structuredClone(t.ci) : null,
+        });
       }
       slots.releaseActive(state, entry);
       policy.audit(state, "published_review_terminal_run_released", {
@@ -346,44 +356,38 @@ async function verifyOriginal(coordinator, state, n, ticket, ci, finalContinuati
     ci ? controller.validateCI(ci.runId, ci.head, ci) : null,
   ]);
   if (ticket.publishedRecovery?.interruptedHead) {
-    const interruptedHead = ticket.publishedRecovery.interruptedHead;
-    const reviews = Object.values(state.grants).filter(
-      (g) => g.ticket === n && g.phase === "review" && g.runId === source.runId
-    );
-    const outcomes = (name, allowed) => {
-      const matches = jobs.filter(
-        (job) => job.name === "cycle1 / " + name || job.name === "cycle1 / " + name + " / agent"
+    const recovery = ticket.publishedRecovery;
+    const assertInterrupted = (owner, run, jobs, ci, verified, publishedHere) => {
+      const reviewReserved = Object.values(state.grants).some(
+        (g) => g.ticket === n && g.phase === "review" && g.runId === owner.runId
       );
-      return (
-        matches.length === 1 &&
-        matches[0].status === "completed" &&
-        allowed.includes(matches[0].conclusion)
-      );
+      if (
+        run.head_branch !== "main" ||
+        run.head_sha !== owner.workflowSha ||
+        !interruptions.interrupted(run.conclusion) ||
+        (ci && (ci.head !== owner.head || !verified.passed)) ||
+        ticket.ci?.passed === false ||
+        !interruptions.interruptedJobs(jobs, { publishedHere, ci, reviewReserved })
+      )
+        throw new RecoveryHold(
+          "Interrupted browser run lacks verified publication and an incomplete review"
+        );
     };
-    if (
-      run.head_branch !== "main" ||
-      run.head_sha !== source.workflowSha ||
-      !["cancelled", "timed_out"].includes(run.conclusion) ||
-      !completedCycleJobs(jobs, { "coding / agent": "success", publish: "success" }) ||
-      !outcomes(
-        "ci",
-        ci ? ["success", "cancelled", "timed_out"] : ["skipped", "cancelled", "timed_out"]
-      ) ||
-      !outcomes(
-        "reserve_review",
-        reviews.length
-          ? ["success", "cancelled", "timed_out"]
-          : ["skipped", "cancelled", "timed_out"]
-      ) ||
-      !outcomes("review", ["skipped", "cancelled", "timed_out"]) ||
-      !outcomes("assess", ["skipped", "cancelled", "timed_out"]) ||
-      (ci && (ci.head !== interruptedHead || !verified.passed)) ||
-      (!ci && ticket.ci?.passed === false) ||
-      (reviews.length && !ci)
-    )
-      throw new RecoveryHold(
-        "Interrupted browser run lacks verified publication and an incomplete review"
-      );
+    assertInterrupted({ ...source, head: recovery.interruptedHead }, run, jobs, ci, verified, true);
+    const latest = recovery.interruptedParents?.at(-1);
+    if (latest) {
+      const [previous, jobs, result] = await Promise.all([
+        verifiedRun(api, latest.runId, latest.runAttempt, "factory-automatic.yml", {
+          success: false,
+        }),
+        api.pages(
+          `${ROOT}/actions/runs/${latest.runId}/attempts/${latest.runAttempt}/jobs`,
+          "jobs"
+        ),
+        latest.ci ? controller.validateCI(latest.ci.runId, latest.head, latest.ci) : null,
+      ]);
+      assertInterrupted(latest, previous, jobs, latest.ci, result, false);
+    }
     return { originalBase: grant.head };
   }
   const expected = {
@@ -689,7 +693,12 @@ async function resumeOne(coordinator, state, commit, n, dryRun, sleep, recordWri
     workflowSha: base,
     head: pr.head.sha,
   };
-  if (receipt.parent?.head === parent.head && t.reviews > 0 && !skippedReview)
+  if (
+    !receipt.interruptedHead &&
+    receipt.parent?.head === parent.head &&
+    t.reviews > 0 &&
+    !skippedReview
+  )
     throw new RecoveryHold("Review recovery needs a fresh head");
   await save((next, current) => {
     slots.claimActive(
@@ -700,7 +709,7 @@ async function resumeOne(coordinator, state, commit, n, dryRun, sleep, recordWri
     if (finalContinuation || next.head !== pr.head.sha) next.ci = null;
     next.head = pr.head.sha;
     next.status = "awaiting_review";
-    if (next.publishedRecovery.parent && !finalContinuation)
+    if (next.publishedRecovery.parent && !finalContinuation && !receipt.interruptedHead)
       next.publishedRecovery.previousParent = next.publishedRecovery.parent;
     next.publishedRecovery.parent = parent;
     policy.audit(current, "published_review_resumed", {
@@ -749,7 +758,11 @@ async function resumePublishedReview(
       (interruption?.target === undefined || Number(n) === interruption.target) &&
       Boolean(t.publishedRecovery?.interruptedHead) === Boolean(interruption) &&
       eligible(t, Number(n), state, config, context) &&
-      (!context.wake || require("./trusted-wake.cjs").allowedModelBots(context, t))
+      (!context.wake ||
+        require("./trusted-wake.cjs").allowedModelBots(
+          { ...context, phase: "review", slot: "cycle1", ticket: Number(n), head: t.head },
+          t
+        ))
   );
   const offset =
     candidates.length > 4 ? Number(BigInt(context.runId) % BigInt(candidates.length)) : 0;

@@ -25,9 +25,19 @@ function nextAction(ticket, config) {
   if (ticket.dependency)
     return "Check Dependency maintenance for the hold and whether a fresh candidate is eligible.";
   if (ticket.publishedRecovery) {
-    if (ticket.publishedRecovery.interruptedHead && !ticket.publishedRecovery.parent)
-      return "Check the interrupted publication and its remaining review budget before admitting fresh work.";
     const { STALE_REASON, INTERRUPTED_REASON } = require("./published-review-recovery.cjs");
+    if (ticket.publishedRecovery.interruptedHead) {
+      if (!require("./ticket-ai-budget.cjs").canReserve(ticket, "review", config))
+        return "Review or lifetime session allowance exhausted. The interrupted repair stays parked.";
+      if (
+        (ticket.publishedRecovery.interruptedParents?.length ?? 0) >=
+        require("./interrupted-publication.cjs").MAX_CONTINUATIONS
+      )
+        return "Interrupted repair continuation limit reached. Other work can use the slot.";
+      return ticket.feedback === INTERRUPTED_REASON
+        ? "Recheck the interrupted publication before admitting fresh work."
+        : "Inspect the last published repair stage. It has no confirmed resumable interruption.";
+    }
     if (!ticket.publishedRecovery.previousParent && ticket.feedback === STALE_REASON)
       return "Waiting for tested main and a verified branch refresh before new CI and review.";
     if (

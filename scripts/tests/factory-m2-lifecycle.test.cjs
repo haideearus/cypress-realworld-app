@@ -1,6 +1,9 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const { readFileSync } = require("node:fs");
+const path = require("node:path");
 const policy = require("../factory/policy.cjs");
+const { runtimeContext } = require("../factory/controller.cjs");
 const { Ledger } = require("../factory/github.cjs");
 const { verifyFunctionalChecks } = require("../factory/functional-browser.cjs");
 const { publishFunctional } = require("../factory/functional-discovery.cjs");
@@ -18,36 +21,55 @@ async function deliver(parentId, receiverId, workflowSha, revision, api, ledger,
   wake.ledger = ledger;
   wake.context.event = wake.run.event = "workflow_run";
   wake.context.workflowSha = wake.run.head_sha = workflowSha;
-  const source = await api.request("GET", `/repos/${policy.REPOSITORY}/actions/runs/${parentId}/attempts/1`);
+  const source = await api.request(
+    "GET",
+    `/repos/${policy.REPOSITORY}/actions/runs/${parentId}/attempts/1`
+  );
   wake.context.actor = wake.run.actor.login = source.actor.login;
   wake.run.actor.id = source.actor.id;
   wake.context.triggeringActor = wake.run.triggering_actor.login = source.actor.login;
   wake.run.triggering_actor.id = source.actor.id;
   wake.event = { action: "completed", repository: repo, workflow_run: source };
   const wakeRequest = wake.api.request;
-  wake.api.request = (method,path,body) =>
+  wake.api.request = (method, path, body) =>
     path.endsWith("/actions/workflows/factory-automatic.yml") ||
     path.endsWith(`/actions/runs/${parentId}/attempts/1`) ||
     path.endsWith(`/actions/runs/${receiverId}/attempts/1`) ||
-    path.endsWith("/pulls/20") || path.includes("/git/ref/heads/factory/state") ||
-    path.includes("/contents/state.json") ? api.request(method,path,body) : wakeRequest(method,path,body);
+    path.endsWith("/pulls/20") ||
+    path.includes("/git/ref/heads/factory/state") ||
+    path.includes("/contents/state.json")
+      ? api.request(method, path, body)
+      : wakeRequest(method, path, body);
   wake.api.pages = async () => [];
   const { outcome, receiptId } = await handleWake(wake);
   assert.equal(outcome, "dispatched");
-  assert.equal(wake.dispatches.length,1);
-  assert.equal(wake.store.state.receipts[receiptId].signal.revision,revision);
-  const bot = { login:BOT, id:BOT_ID };
+  assert.equal(wake.dispatches.length, 1);
+  assert.equal(wake.store.state.receipts[receiptId].signal.revision, revision);
+  const bot = { login: BOT, id: BOT_ID };
   receivers.set(receiverId, {
-    ...source, id:receiverId, event:"workflow_dispatch", head_sha:workflowSha, actor:bot,
-    triggering_actor:bot, status:"in_progress", conclusion:null,
-    display_title:`Automatic factory / wake ${receiptId}`,
+    ...source,
+    id: receiverId,
+    event: "workflow_dispatch",
+    head_sha: workflowSha,
+    actor: bot,
+    triggering_actor: bot,
+    status: "in_progress",
+    conclusion: null,
+    display_title: `Automatic factory / wake ${receiptId}`,
   });
-  const receiverContext = {
-    ...context, runId:String(receiverId), workflowRef:policy.AUTOMATIC_WORKFLOW_REF,
-    workflowSha, actor:BOT, triggeringActor:BOT, event:"workflow_dispatch",
-  };
+  const receiverContext = runtimeContext({
+    GITHUB_REPOSITORY: policy.REPOSITORY,
+    GITHUB_REF: "refs/heads/main",
+    GITHUB_WORKFLOW_REF: policy.AUTOMATIC_WORKFLOW_REF,
+    GITHUB_WORKFLOW_SHA: workflowSha,
+    GITHUB_ACTOR: BOT,
+    GITHUB_TRIGGERING_ACTOR: BOT,
+    GITHUB_EVENT_NAME: "workflow_dispatch",
+    GITHUB_RUN_ID: String(receiverId),
+    GITHUB_RUN_ATTEMPT: "1",
+  });
   async function bind() {
-    return verifyWake({ ...wake, context:receiverContext, receiptId, bind:true, lane:"app" });
+    return verifyWake({ ...wake, context: receiverContext, receiptId, bind: true, lane: "app" });
   }
   receiverContext.wake = await bind();
   return { receiverContext, bind };
@@ -121,7 +143,10 @@ test("one Settings incident resumes its own PR within budget and hands off after
       {
         path: "src/components/UserSettingsForm.tsx",
         mode: "100644",
-        content: "export const validEmail = true;\n",
+        content: readFileSync(
+          path.join(__dirname, "../../src/components/UserSettingsForm.tsx"),
+          "utf8"
+        ),
       },
     ],
     evidence: "Fixture RED and GREEN for the synthetic Settings validation result.",
@@ -138,7 +163,7 @@ test("one Settings incident resumes its own PR within budget and hands off after
     labels: [{ name: "factory-ready" }],
     created_at: "2026-11-21T12:00:00Z",
   });
-  const interruptedWake = await deliver(700,701,head,"app-interrupted",api,ledger,receivers);
+  const interruptedWake = await deliver(700, 701, head, "app-interrupted", api, ledger, receivers);
   const recoveryContext = interruptedWake.receiverContext;
   const recovery = new AutomaticCoordinator(api, config, recoveryContext);
   const resumed = await recovery.pick();
@@ -149,11 +174,19 @@ test("one Settings incident resumes its own PR within budget and hands off after
   assert.notEqual(grant.grantId, interrupted.grantId);
   // A separate model job has to rebind the same durable receipt and pass preflight.
   const workerContext = {
-    ...recoveryContext, wake:await interruptedWake.bind(), ticket:10, head:pr.head, phase:"review", slot:"cycle1"
+    ...recoveryContext,
+    wake: await interruptedWake.bind(),
+    ticket: 10,
+    head: pr.head,
+    phase: "review",
+    slot: "cycle1",
   };
   const beforeReview = (await ledger.read()).state;
-  assert.equal(policy.preflight(beforeReview,grant.grantId,workerContext,config).id,grant.grantId);
-  assert.equal(allowedModelBots(workerContext,beforeReview.tickets[10]),BOT);
+  assert.equal(
+    policy.preflight(beforeReview, grant.grantId, workerContext, config).id,
+    grant.grantId
+  );
+  assert.equal(allowedModelBots(workerContext, beforeReview.tickets[10]), BOT);
   const review = await recovery.controller.assess(
     10,
     { coding: "skipped", publication: "skipped", ci: "success", review: "success" },
@@ -163,7 +196,11 @@ test("one Settings incident resumes its own PR within budget and hands off after
       kind: "review",
       grantId: grant.grantId,
       base: pr.head,
-      result: JSON.parse(reviewFeedback(pr.head)),
+      result: {
+        ...JSON.parse(reviewFeedback(pr.head)),
+        summary:
+          "Checked the Settings email-validation regression and verified the expected invalid-address message. The fixture change stays within the approved app repair scope.",
+      },
     },
     "cycle1"
   );
@@ -186,14 +223,31 @@ test("one Settings incident resumes its own PR within budget and hands off after
     1
   );
 
-  Object.assign(receivers.get(701), {status:"completed",conclusion:"success"});
-  const {receiverContext} = await deliver(701,702,mergeSha,"app-merge",api,ledger,receivers);
+  Object.assign(receivers.get(701), { status: "completed", conclusion: "success" });
+  const { receiverContext } = await deliver(
+    701,
+    702,
+    mergeSha,
+    "app-merge",
+    api,
+    ledger,
+    receivers
+  );
   const next = new AutomaticCoordinator(api, config, receiverContext);
   const admitted = await next.pick();
-  assert.equal(admitted.ticket,11);
+  assert.equal(admitted.ticket, 11);
   const after = (await ledger.read()).state;
-  const codingContext = {...receiverContext, phase:"code", ticket:11, head:admitted.head, slot:"cycle1"};
-  assert.equal(policy.preflight(after, admitted.grantId, codingContext, config).id, admitted.grantId);
-  assert.equal(allowedModelBots(codingContext,after.tickets[11]), BOT);
+  const codingContext = {
+    ...receiverContext,
+    phase: "code",
+    ticket: 11,
+    head: admitted.head,
+    slot: "cycle1",
+  };
+  assert.equal(
+    policy.preflight(after, admitted.grantId, codingContext, config).id,
+    admitted.grantId
+  );
+  assert.equal(allowedModelBots(codingContext, after.tickets[11]), BOT);
   assert.equal(after.active.ticket, 11);
 });

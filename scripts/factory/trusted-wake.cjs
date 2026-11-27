@@ -160,15 +160,18 @@ async function verifySource(api, signal, bound, vars = {}) {
     mainQueueSignal,
     appMergeSignal,
     interruptedAppSignal,
+    releasedAppSignal,
   } = require("./wake-controller.cjs");
-  if (c.isAppMergeDrain(signal) || c.isInterruptedApp(signal)) {
+  if (c.isAppMergeDrain(signal) || c.isInterruptedApp(signal) || c.isAppRelease(signal)) {
     const [run, { state }] = await Promise.all([
       verifiedRun(api, signal.sourceRun, signal.sourceAttempt, c.LANES.app, { success: false }),
       new (require("./github.cjs").Ledger)(api).read(),
     ]);
-    const source = c.isInterruptedApp(signal)
-      ? interruptedAppSignal(state, run, bound ? signal.number : null)
-      : await appMergeSignal(api, state, run);
+    let source;
+    if (c.isInterruptedApp(signal))
+      source = interruptedAppSignal(state, run, bound ? signal.number : null);
+    else if (c.isAppRelease(signal)) source = releasedAppSignal(state, run);
+    else source = await appMergeSignal(api, state, run);
     if (
       !source ||
       c.sourceKey(source) !== c.sourceKey(signal) ||

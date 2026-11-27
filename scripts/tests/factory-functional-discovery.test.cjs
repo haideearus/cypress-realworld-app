@@ -63,8 +63,9 @@ test("browser discovery defaults to preview and separates tests from the publish
     )
   );
   assert.equal(workflow.on.workflow_dispatch.inputs.dry_run.default, true);
+  const rehearsal = p.REPOSITORY.endsWith("-settings-rehearsal");
   assert.deepEqual(workflow.on.workflow_run, {
-    workflows: ["Factory CI", "Proactive app discovery"],
+    workflows: rehearsal ? ["Factory CI"] : ["Factory CI", "Proactive app discovery"],
     branches: ["main"],
     types: ["completed"],
   });
@@ -79,11 +80,13 @@ test("browser discovery defaults to preview and separates tests from the publish
   );
   assert.equal(preflight.env.FACTORY_FUNCTIONAL_OPERATION, "plan");
   assert.equal(workflow.on.workflow_dispatch.inputs.extended.default, false);
-  assert.ok(
-    workflow.on.schedule.some(
-      (entry) => entry.cron === "20 7 * * 0" && entry.timezone === "Europe/Bucharest"
-    )
-  );
+  if (rehearsal) assert.equal(workflow.on.schedule, undefined);
+  else
+    assert.ok(
+      workflow.on.schedule.some(
+        (entry) => entry.cron === "20 7 * * 0" && entry.timezone === "Europe/Bucharest"
+      )
+    );
   assert.ok(
     browserSteps.indexOf(preflight) <
       browserSteps.findIndex((step) => step.name === "Prepare the disposable application")
@@ -261,9 +264,10 @@ test("only a verified fixed check can publish a deduplicated functional repair t
   assert.match(s.ticket().body, /Failed assertion: settings-email-invalid/);
   assert.equal(validateMonitorProof(proofFromIncident(s.state.incidents[s.state.active])), true);
   assert.equal(typeof publicationSummary, "function", "the publisher needs an Actions summary");
-  assert.match(
-    publicationSummary(created),
-    /ready ticket.*\[#200\]\(https:\/\/github\.com\/haideearus\/cypress-realworld-app\/issues\/200\)/i
+  assert.ok(
+    publicationSummary(created).includes(
+      `Ready ticket published — [#200](https://github.com/${p.REPOSITORY}/issues/200)`
+    )
   );
   assert.match(publicationSummary(created), /settings-email-invalid/);
 });

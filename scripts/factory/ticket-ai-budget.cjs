@@ -52,4 +52,12 @@ function checkPending(ticket, grant, config) {
     throw Error("Pending reservation exceeds current ticket AI budget");
 }
 
-module.exports = { DEFAULT_SESSIONS, MAX_SESSIONS, effectiveLimit, canReserve, reserve, validate, checkPending };
+module.exports = {
+  DEFAULT_SESSIONS,
+  MAX_SESSIONS,
+  effectiveLimit,
+  canReserve,
+  reserve,
+  validate,
+  checkPending,
+};

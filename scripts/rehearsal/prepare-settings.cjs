@@ -142,6 +142,13 @@ function prepareSettings(repo, commit, destination, { m2 = false } = {}) {
   modify(app, "scripts/factory/wake-contract.cjs", (source) =>
     replaceOnce(source, `"${LIVE}"`, `"${SANDBOX}"`)
   );
+  if (m2) {
+    for (const contract of ["discovery", "dependency"]) {
+      modify(app, `scripts/factory/${contract}-contract.cjs`, (source) =>
+        replaceOnce(source, `"${LIVE}"`, `"${SANDBOX}"`)
+      );
+    }
+  }
   for (const file of [
     ...tests.map((name) => `factory-${name}.test.cjs`),
     "helpers/factory-fixtures.cjs",

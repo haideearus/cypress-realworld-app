@@ -449,19 +449,35 @@ test("a second interrupted browser parent retains each reservation and respects 
   const { AutomaticCoordinator } = require("../factory/automation.cjs");
   const recovery = require("../factory/published-review-recovery.cjs");
   for (const limit of [3, 4]) {
-    const { coordinator, state, issue } = interruptedBrowser({spentReview: true});
-    const {api} = coordinator;
+    const { coordinator, state, issue } = interruptedBrowser({ spentReview: true });
+    const { api } = coordinator;
     const pages = api.pages.bind(api);
     api.pages = async (path, key) => {
       if (!path.includes("/800/attempts/1/jobs")) return pages(path, key);
-      return Object.entries({coding: "skipped",publish:"skipped",ci:"success",reserve_review:"success","review / agent":"cancelled",assess:"skipped"})
-        .map(([name, conclusion]) => ({name: "cycle1 / " + name, status: "completed", conclusion}));
+      return Object.entries({
+        coding: "skipped",
+        publish: "skipped",
+        ci: "success",
+        reserve_review: "success",
+        "review / agent": "cancelled",
+        assess: "skipped",
+      }).map(([name, conclusion]) => ({
+        name: "cycle1 / " + name,
+        status: "completed",
+        conclusion,
+      }));
     };
     const picker = Object.assign(Object.create(AutomaticCoordinator.prototype), coordinator);
     Object.assign(picker.context, { ticket: 1, phase: "code", head: sourceBase, slot: "cycle1" });
-    Object.assign(picker.config, {reviews: 4, aiSessions: limit});
+    Object.assign(picker.config, { reviews: 4, aiSessions: limit });
     assert.equal((await picker.pick()).reviewOnly, true);
-    state.grants.secondReview = {...state.active, phase:"review",slot:"cycle1", head: sourceHead, status:"reserved"};
+    state.grants.secondReview = {
+      ...state.active,
+      phase: "review",
+      slot: "cycle1",
+      head: sourceHead,
+      status: "reserved",
+    };
     state.tickets[issue.number].reviews++;
     state.tickets[issue.number].status = "reviewing";
     picker.context.runId = "801";
@@ -525,6 +541,44 @@ test("a completed review, incomplete publication proof, revoked issue, or exhaus
     assert.equal(state.tickets[issue.number].reviews, 1, reason);
     assert.equal(state.tickets[issue.number].coding, 1, reason);
   }
+});
+
+test("repeated interruptions before any review is reserved park after three continuation parents", async () => {
+  const { AutomaticCoordinator } = require("../factory/automation.cjs");
+  const recovery = require("../factory/published-review-recovery.cjs");
+  const { coordinator, state, issue } = interruptedBrowser();
+  const { api } = coordinator;
+  const request = api.request.bind(api);
+  api.request = async (method, path, body) => {
+    const id = /\/actions\/runs\/(80[0-2])\/attempts\/1$/.exec(path)?.[1];
+    if (id)
+      return { ...(await request(method, ROOT + "/actions/runs/800/attempts/1")), id: Number(id) };
+    return request(method, path, body);
+  };
+  const pages = api.pages.bind(api);
+  api.pages = async (path, key) => {
+    if (!/\/80[0-2]\/attempts\/1\/jobs/.test(path)) return pages(path, key);
+    return ["coding", "publish", "ci", "reserve_review", "review", "assess"].map((stage) => ({
+      name: "cycle1 / " + stage,
+      status: "completed",
+      conclusion: "skipped",
+    }));
+  };
+  const picker = Object.assign(Object.create(AutomaticCoordinator.prototype), coordinator);
+  Object.assign(picker.context, { ticket: 1, phase: "code", head: sourceBase, slot: "cycle1" });
+  picker.candidate = () => null;
+  for (const id of ["800", "801", "802", "803"]) {
+    picker.context.runId = id;
+    const selected = await picker.pick();
+    assert.equal(selected.ready, id !== "803");
+    recovery.validateRecovery(state.tickets[issue.number], Object.values(state.grants));
+  }
+  assert.equal(state.active, null);
+  assert.deepEqual(
+    state.tickets[issue.number].publishedRecovery.interruptedParents.map((p) => p.runId),
+    ["800", "801", "802"]
+  );
+  assert.equal(state.tickets[issue.number].reviews, 0);
 });
 
 test("recovery reuses the passing CI and claims a review-only slot with the coding grant preserved", async () => {

@@ -14,7 +14,10 @@ asks the controller to reconcile that particular ticket. It verifies the
 terminal run and jobs, the original functional incident, the factory-owned PR
 and its patch, and the current base. It can then resume CI and independent
 review under the same issue and PR. A running parent keeps its slot. A stop
-command takes precedence over recovery.
+command takes precedence over recovery. The interrupted-publication path allows
+at most three continuation runs, including runs interrupted before a review
+reservation. When this bound or the AI allowance is exhausted, the original
+ticket retains its history and releases the slot for other eligible work.
 
 `FACTORY_MAX_AI_SESSIONS_PER_TICKET` optionally sets the combined allowance for
 automatic app coding and review reservations (default **6**, range **0–15**).
