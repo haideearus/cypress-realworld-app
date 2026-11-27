@@ -182,7 +182,8 @@
       232,
       308,
       234,
-      309
+      309,
+      311
     ]
   },
   "tickets": {
@@ -6343,6 +6344,19 @@
         "passed": true
       },
       "feedback": "{\"head\":\"fa324d76790e6edf831629cacffae69643f7ef7b\",\"verdict\":\"pass\",\"summary\":\"Reviewed the harness-maintenance diff (base-to-head in .factory-input/context.json) against ticket #309's four criteria, inspecting scripts/factory/ticket-ai-budget.cjs, published-review-recovery.cjs, interrupted-publication.cjs, functional-repeat-evidence.cjs, merge.cjs, wake-queue.cjs, trusted-wake.cjs, queue-summary.cjs, docs/factory/M2-TICKET-RECOVERY.md and SETTINGS-REHEARSAL.md, plus scripts/rehearsal/prepare-settings.cjs. functional-repeat-evidence.cjs updates a single marker-keyed bot comment so repeated Settings-check evidence stays attached to the original issue rather than creating duplicates. published-review-recovery.cjs and interrupted-publication.cjs together verify terminal runs, jobs, CI, and patch identity before resuming CI/review on the same PR/branch after an interruption, bounding continuations at MAX_CONTINUATIONS=3 and refusing to let an old-head approval authorize a merge when main has advanced (RecoveryStaleBase/holdMovedBase path in merge.cjs). ticket-ai-budget.cjs pins aiSessionLimit on first reservation, applies min(pinned, liveLimit) so lower live caps apply immediately while higher ones can't retroactively raise a ticket's ceiling, and reserves 2 remaining sessions for coding (room for a follow-up review) vs 1 for review, matching the documented example. The end-to-end integration test scripts/tests/factory-m2-lifecycle.test.cjs exercises this whole path with fixtures (duplicate incident on one issue, interrupted review resumption, budget counters, protected-check merge, then wake-triggered admission of the next ticket with exactly one active slot afterward) and scripts/tests/factory-ticket-ai-budget.test.cjs covers pinning, legacy-ticket adoption, and exhausted-budget release as unit tests; none read as placeholder/sample content. deploy.cjs is untouched, consistent with production release staying behind its existing manual approval, and no model/live-trial code paths were added to the rehearsal preparation script. I treated the linked CI run as evidence of a green build per instructions; I did not execute any commands myself in this read-only session. Given the diff's size (~29 files), I did not line-by-line audit every touched module (e.g., wake-controller.cjs, monitor.cjs, controller.cjs, automation.cjs changes beyond what's shown above) with the same depth as the files above, so residual risk in those areas can't be fully ruled out from this pass alone.\",\"findings\":[]}"
+    },
+    "311": {
+      "coding": 0,
+      "origin": "owner-pr",
+      "reviews": 1,
+      "retries": 0,
+      "head": "5d7362a81f1ffb073d8bb7c84eddf2d150fce6a2",
+      "status": "reviewing",
+      "pr": 312,
+      "approval": null,
+      "criteriaHash": "a64a4a7dc7c11b94e778c81bc14c1f6fe9e060ede38cf2bdcf99f82125c53d8f",
+      "branch": "agent/factory-reliability",
+      "ci": null
     }
   },
   "grants": {
@@ -8626,19 +8640,25 @@
       "status": "finished",
       "at": "2026-11-27T21:03:53.190Z",
       "outcome": "reviewed"
+    },
+    "f74f9185-f910-4e82-bc17-3b0cb7d8651b": {
+      "id": "f74f9185-f910-4e82-bc17-3b0cb7d8651b",
+      "ticket": 311,
+      "phase": "review",
+      "slot": "existing",
+      "runId": "46073633139",
+      "runAttempt": 1,
+      "head": "5d7362a81f1ffb073d8bb7c84eddf2d150fce6a2",
+      "status": "reserved",
+      "at": "2026-11-27T21:58:22.162Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 311,
+    "runId": "46073633139",
+    "runAttempt": 1
+  },
   "audit": [
-    {
-      "at": "2026-11-15T16:28:06.312Z",
-      "event": "reserved",
-      "ticket": 55,
-      "grant": "63fa8c92-34c0-4fc4-b587-47ce87245096",
-      "phase": "review",
-      "runId": "43735607969",
-      "runAttempt": 1
-    },
     {
       "at": "2026-11-15T16:36:14.835Z",
       "event": "finished",
@@ -13781,6 +13801,16 @@
       },
       "recovery": "held",
       "retryAt": null
+    },
+    {
+      "at": "2026-11-27T21:58:22.162Z",
+      "event": "reserved",
+      "ticket": 311,
+      "grant": "f74f9185-f910-4e82-bc17-3b0cb7d8651b",
+      "phase": "review",
+      "runId": "46073633139",
+      "runAttempt": 1,
+      "actor": "haideearus"
     }
   ],
   "featureTurn": {
