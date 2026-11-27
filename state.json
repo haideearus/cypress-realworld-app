@@ -6109,6 +6109,19 @@
           ],
           "remainingBaseline": []
         }
+      },
+      "dependencyMergeRetry": {
+        "head": "6ec5cac31d8d32ac29211d9208a3410724978a87",
+        "grant": "c966e44c-cd8e-49b7-b18f-43d7e3f886e0",
+        "at": "2026-11-27T01:04:14.193Z",
+        "phase": "held",
+        "failure": {
+          "stage": "required-checks",
+          "reason": "Refreshed native review gate did not pass"
+        },
+        "retryAt": null,
+        "sourceRun": "45918653703",
+        "run": null
       }
     },
     "300": {
@@ -8472,15 +8485,6 @@
   },
   "active": null,
   "audit": [
-    {
-      "at": "2026-11-15T07:41:09.014Z",
-      "event": "reserved",
-      "ticket": 48,
-      "grant": "a94c9e0e-5a26-4450-b037-252ba35570c1",
-      "phase": "code",
-      "runId": "43691015736",
-      "runAttempt": 1
-    },
     {
       "at": "2026-11-15T07:46:50.667Z",
       "event": "finished",
@@ -13610,6 +13614,19 @@
       "grant": "c966e44c-cd8e-49b7-b18f-43d7e3f886e0",
       "status": "reviewed",
       "head": "6ec5cac31d8d32ac29211d9208a3410724978a87"
+    },
+    {
+      "at": "2026-11-27T01:04:14.193Z",
+      "event": "dependency_merge_preflight_held",
+      "ticket": 299,
+      "head": "6ec5cac31d8d32ac29211d9208a3410724978a87",
+      "runId": "45918653703",
+      "failure": {
+        "stage": "required-checks",
+        "reason": "Refreshed native review gate did not pass"
+      },
+      "recovery": "held",
+      "retryAt": null
     }
   ],
   "featureTurn": {
