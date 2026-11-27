@@ -20,6 +20,8 @@ const STAGES = new Set([
 const UNKNOWN = "Check failed without a recognized safe reason";
 const INCOMPLETE = "The retry ended before confirming a merge";
 const QUOTA = "GitHub read quota exhausted";
+const LEGACY_GATE = "Refreshed native review gate did not pass";
+const CURRENT_GATE_UNAVAILABLE = "Current trusted review gate unavailable after refresh";
 const REASONS = new Set([
   UNKNOWN,
   INCOMPLETE,
@@ -28,7 +30,8 @@ const REASONS = new Set([
   "Native review gate is pending or unavailable",
   "Native review gate run or attempt changed during refresh",
   "Native metadata gate identity changed before refresh",
-  "Refreshed native review gate did not pass",
+  LEGACY_GATE,
+  CURRENT_GATE_UNAVAILABLE,
   "Timed out waiting for the native review gate refresh",
   "Timed out waiting for clean PR mergeability after the native review gate refresh",
   "PR mergeability is not clean",
@@ -100,6 +103,11 @@ class MergeCheckFailure extends Error {
 }
 
 function retryTime(error, now) {
+  if (
+    error?.code === "FACTORY_VERIFIED_GATE_PENDING" &&
+    error.message === "Native review gate is pending or unavailable"
+  )
+    return new Date(+now + RETRY_DELAY).toISOString();
   const status = readStatus(error);
   if (TEMPORARY.has(status)) return new Date(+now + RETRY_DELAY).toISOString();
   if (
@@ -172,6 +180,17 @@ function due(ticket, now) {
   return record?.phase === "queued" && Date.parse(record.retryAt) <= +now;
 }
 
+function heldGate(ticket) {
+  const record = current(ticket);
+  return Boolean(
+    record?.phase === "held" &&
+      record.run === null &&
+      record.retryAt === null &&
+      record.failure.stage === "required-checks" &&
+      record.failure.reason === LEGACY_GATE
+  );
+}
+
 function owner(record, context) {
   const run = record?.run;
   return (
@@ -199,41 +218,63 @@ function recordUnsent(ticket, intent, error, now = new Date()) {
 
 function recordFailure(ticket, context, diagnostic, retryAt, now) {
   const previous = current(ticket);
+  const trustedGateRefreshUnavailable = diagnostic.reason === CURRENT_GATE_UNAVAILABLE;
+  // Old in-flight controllers validate fixed receipt reasons across the entire
+  // ledger. Retain the compatible reason and keep new detail in the audit row.
+  const failure = trustedGateRefreshUnavailable
+    ? { ...diagnostic, reason: LEGACY_GATE }
+    : diagnostic;
   ticket.dependencyMergeRetry = previous
-    ? { ...previous, phase: "held", failure: diagnostic }
+    ? { ...previous, phase: "held", failure }
     : {
         head: ticket.head,
         grant: ticket.approval.grant,
         at: now.toISOString(),
         phase: retryAt ? "queued" : "held",
-        failure: diagnostic,
+        failure,
         retryAt,
         sourceRun: context.runId,
         run: null,
       };
   return {
-    failure: diagnostic,
+    failure,
     recovery: ticket.dependencyMergeRetry.phase,
     retryAt: ticket.dependencyMergeRetry.retryAt,
+    ...(trustedGateRefreshUnavailable ? { trustedGateRefreshUnavailable: true } : {}),
   };
 }
 
 class RetryUnavailable extends Error {}
-async function claim(ledger, ticket, context, config, now) {
+async function claim(ledger, ticket, context, config, now, verifyHeldGate) {
   if (!config.autoMerge || context.runAttempt !== 1) return false;
   try {
-    await ledger.update((state) => {
+    await ledger.update(async (state) => {
       policy.assertNotStopped(state);
       const t = state.tickets[ticket.pr];
       const record = current(t);
+      const recoverGate = typeof verifyHeldGate === "function" && heldGate(t);
       if (
-        !due(t, now) ||
+        (!recoverGate && !due(t, now)) ||
         record.sourceRun === context.runId ||
         JSON.stringify(t) !== JSON.stringify(ticket) ||
         slots.pendingIntent(state) ||
         !slots.capacity(state, config.concurrent)
       )
         throw new RetryUnavailable();
+      if (recoverGate) {
+        if (
+          +now <= Date.parse(record.at) ||
+          !policy.reviewGate(state, { number: t.pr, head: t.head }).ok
+        )
+          throw new RetryUnavailable();
+        await verifyHeldGate(t);
+        slots.claimActive(
+          state,
+          { ticket: t.pr, runId: context.runId, runAttempt: context.runAttempt },
+          config.concurrent
+        );
+        record.retryAt = now.toISOString();
+      }
       record.phase = "retrying";
       record.run = {
         at: now.toISOString(),
@@ -278,7 +319,7 @@ async function holdBeforeIntent(ledger, ticket, context, diagnostic, retryAt, no
         JSON.stringify(t) !== JSON.stringify(ticket)
       )
         throw new RetryUnavailable();
-      if (active && !slots.owns(active, { ticket: ticket.pr, ...context })) {
+      if (active && !slots.owns(active, { ...context, ticket: ticket.pr })) {
         const parent = t.dependency.attempts.at(-1);
         if (
           !slots.owns(active, { ...parent, ticket: t.pr }) ||
@@ -339,6 +380,9 @@ async function finish(ledger, t, context) {
       const retry = current(latest);
       if (latest?.merge || retry?.phase !== "retrying" || !owner(retry, context))
         throw new RetryUnavailable();
+      const active = slots.activeFor(next, t.pr);
+      if (active && !slots.owns(active, { ...context, ticket: t.pr })) throw new RetryUnavailable();
+      if (active) slots.releaseActive(next, active);
       retry.phase = "held";
       retry.failure = { stage: "premerge", reason: INCOMPLETE };
       policy.audit(next, "dependency_merge_retry_ended_unsent", {
@@ -362,6 +406,7 @@ module.exports = {
   current,
   blocksQueue,
   due,
+  heldGate,
   permits,
   recordUnsent,
   claim,

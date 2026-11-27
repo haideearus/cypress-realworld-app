@@ -156,6 +156,12 @@ The completion observer verifies the receiver binding before reporting model or
 review outcomes. An unbound receiver is reported as held. Stale dependency candidates produce typed refresh holds with PR
 links rather than an idle-queue claim.
 
+The event wake workflow also checks retained receipts on its GitHub schedule.
+It can dispatch one verified pending receipt when the worker is free and no
+merge outcome needs reconciliation. For an uncertain dispatch, it looks for the
+matching GitHub Actions receiver. An unresolved send stays recorded so it cannot
+launch a duplicate worker.
+
 Stop request, result and resume notifications come from the retained owner-command
 audit, keyed by command identity. They remain reportable after resume and are not
 repeated per subsequently observed run. Ancestral ledger snapshots verify those

@@ -224,22 +224,28 @@ custom API checks that report success while GitHub still shows the required
 status as Expected. A green API record alone does not establish merge readiness.
 Check the actual PR merge status and the native required job.
 
-**Factory review status** runs only on pull-request events. It checks out the
-immutable base SHA, reads the current PR and durable ledger, and refuses missing,
-stale, fixture, failed or unavailable proof. It does not check out PR code, run
-an agent, install application dependencies, reserve usage, write the ledger or
-receive a model credential. Its repository token is read-only. The actual stdin
-entry is tested both with and without synthetic current-head approval.
+**Factory review status** runs on pull-request events. It resolves the current
+protected `main`, checks out that exact commit, and reads the current PR and
+durable ledger. The gate requires an open PR from this repository, the same head
+as the event, and genuine approval for that head. The repository token is read-only.
+The gate uses only trusted `main` code and consumes zero model sessions. Its test
+replays PR #299 with a saved approval and an unrelated newer recovery record in
+the ledger.
 
-After genuine current-head approval, open the matching **Factory review status**
-run and select **Re-run failed jobs**. This reruns only its read-only metadata
-gate, using the original pull-request event; it does not invoke Claude and can
-run while FACTORY_ENABLED=false. The owner or an explicitly authorized repository
-management action performs that refresh. Automatic gate refresh is not part of
-this rollout: the proposed rerun helper and its added Actions write grants were
-removed. Existing CI dispatch permissions stay unchanged; no metadata or model
-job gains an extra permission. The informational custom check uses a different
-name to avoid competing with the native required job.
+After genuine current-head approval, **Re-run failed jobs** refreshes the gate
+when the original run includes the **Verify exact-head review with current
+trusted main** step. The refreshed check can run with `FACTORY_ENABLED=false`.
+An older run still uses its original workflow and event. Automatic merge
+recovery can add `factory-gate-refresh` once to request a fresh native PR event
+for that same head. The label remains as a record of the request. The merge
+worker waits for the native check and continues only when both required checks
+pass. The informational **Factory review evidence** check remains separate.
+
+Recovery also checks dependency compatibility and the current base. A branch
+refresh that changes the commit requires CI and review for the new head under
+the ticket's existing limits. The local replay covers the saved approval and
+metadata checks. Confirm GitHub delivers the label event and associates its
+new gate with the existing PR head during rollout.
 
 For PR #19, both parts of the owner-authorized change are reviewed against the
 complete [combined brief](factory/PR-19-REVIEW.md), also saved as issue #20 before
@@ -287,6 +293,8 @@ active ticket/run IDs, expected commit hashes, reservations, outcomes and audit
 events. Git history preserves earlier snapshots. Only metadata controllers write
 it; model jobs receive read-only GitHub tokens. Do not force-push, delete or edit
 the ledger to clear a limit. The normal factory cannot silently recreate it.
+New writes use compact JSON and retain the same schema and records. The
+controller warns at 800,000 bytes, before the 1,000,000-byte write limit.
 
 ### GitHub API quota during CI and review
 

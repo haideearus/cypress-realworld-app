@@ -2,6 +2,15 @@ const c = require("./activity-contract.cjs");
 const { ROOT, Ledger } = require("./github.cjs");
 const { ActivityStore } = require("./activity-store.cjs");
 const { REPOSITORY, OWNER, BOT, BOT_ID } = require("./wake-contract.cjs");
+class ActivityLedgerUnavailable extends Error {}
+
+async function readActivityLedger(ledger) {
+  try {
+    return await ledger.read();
+  } catch {
+    throw new ActivityLedgerUnavailable("Factory usage ledger unavailable to activity observer");
+  }
+}
 async function verifyActivityProducer(
   api,
   event,
@@ -85,7 +94,7 @@ async function journal(api, number) {
     issue.labels.length
   )
     throw Error("Activity journal must be an open unlabelled owner issue");
-  if ((await new Ledger(api).read()).state.tickets[String(number)])
+  if ((await readActivityLedger(new Ledger(api))).state.tickets[String(number)])
     throw Error("Activity journal cannot be an admitted maintenance ticket");
   return issue;
 }
@@ -361,6 +370,8 @@ async function recordMonitorResult(api, context, result, env = process.env) {
 }
 module.exports = {
   ...c,
+  ActivityLedgerUnavailable,
+  readActivityLedger,
   verifyActivityProducer,
   journal,
   enqueueActivity,

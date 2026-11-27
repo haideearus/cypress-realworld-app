@@ -14,6 +14,7 @@ test("wake observer is main-only, metadata-only and cannot observe itself or not
   assert.equal(w.on.workflow_run.workflows.includes("Factory activity"), false);
   assert.equal(w.on.issue_comment, undefined);
   assert.equal(w.on.workflow_dispatch.inputs.preview.default, true);
+  assert.deepEqual(w.on.schedule, [{ cron: "8,28,48 * * * *" }]);
   const j = w.jobs.wake;
   assert.ok(j.if.includes("FACTORY_EVENT_PICKUP_ENABLED"));
   assert.deepEqual(j.permissions, {

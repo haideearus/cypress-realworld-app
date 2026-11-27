@@ -192,6 +192,20 @@ or expired retry leaves the approval and counters intact and lets unrelated
 work proceed. An uncertain merge request still requires confirmation before
 another send.
 
+A held legacy gate can also claim one merge-only attempt with its saved CI and
+review. The claim owns the worker slot and rechecks the current dependency
+candidate before it runs. If the original native workflow still uses the old
+verifier, the merger can attach `factory-gate-refresh` once to request a fresh
+native check on the same PR. The required check must pass with the new verifier
+before the merge. A changed head or incompatible base follows the ordinary
+refresh and independent review path. GitHub event delays or missing evidence
+can still leave the ticket held.
+
+For a persistent hold, Factory activity updates one bot comment on the verified
+tracking issue with the PR head, run link, and next action. Repeated verified
+failures to obtain a fresh gate can create one harness maintenance issue. The
+observer reports an unreadable ledger in its Actions summary.
+
 ## Limits and holds
 
 - Native version proposals: Monday 06:15, Europe/Bucharest; one open version PR.

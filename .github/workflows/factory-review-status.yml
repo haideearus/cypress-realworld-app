@@ -2,7 +2,9 @@ name: Factory review status
 on:
   pull_request:
     branches: [main]
-    types: [opened, synchronize, reopened, ready_for_review]
+    # A label can request a fresh native check without rewriting the PR head.
+    # Every listed activity runs the same verification because a skipped check can satisfy protection.
+    types: [opened, synchronize, reopened, ready_for_review, labeled]
 permissions:
   contents: read
 concurrency:
@@ -17,41 +19,102 @@ jobs:
       contents: read
       pull-requests: read
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-        with:
-          ref: ${{ github.event.pull_request.base.sha }}
-          persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 22.20.0
+      - id: main
+        name: Resolve current protected main for the verifier
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FACTORY_BASE_REPOSITORY: ${{ github.event.pull_request.base.repo.full_name }}
+          FACTORY_BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          node <<'NODE'
+          const { appendFileSync } = require('node:fs');
+          async function resolveMain(env = process.env, transport = globalThis.fetch) {
+            const repo = env.GITHUB_REPOSITORY;
+            if (!/^[A-Za-z0-9][A-Za-z0-9_.-]*\/[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(repo || '') ||
+                repo !== env.FACTORY_BASE_REPOSITORY || env.FACTORY_BASE_REF !== 'main' ||
+                env.GITHUB_EVENT_NAME !== 'pull_request' || !env.GH_TOKEN)
+              throw new Error('Invalid review gate repository or pull request event');
+            const response = await transport(`https://api.github.com/repos/${repo}/branches/main`, {
+              method: 'GET',
+              redirect: 'error',
+              signal: AbortSignal.timeout(30000),
+              headers: {
+                Accept: 'application/vnd.github+json',
+                Authorization: `Bearer ${env.GH_TOKEN}`,
+                'X-GitHub-Api-Version': '2022-11-28',
+                'User-Agent': 'factory-review-status',
+              },
+            });
+            if (!response.ok) throw new Error('Protected main was unavailable');
+            const branch = await response.json();
+            if (branch.name !== 'main' || branch.protected !== true ||
+                !/^[a-f0-9]{40}$/.test(branch.commit?.sha || ''))
+              throw new Error('Invalid protected main revision');
+            return branch.commit.sha;
+          }
+          if (require.main === module || module.id === '[stdin]') resolveMain().then(sha => {
+            appendFileSync(process.env.GITHUB_OUTPUT, `sha=${sha}\n`);
+          }).catch(() => {
+            console.error('Factory gate could not resolve protected main (trusted-main-unavailable)');
+            process.exitCode = 1;
+          });
+          module.exports = { resolveMain };
+          NODE
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: ${{ github.repository }}
+          ref: ${{ steps.main.outputs.sha }}
+          persist-credentials: false
       - id: verify
-        name: Verify current-head independent proof without a model or state write
+        name: Verify exact-head review with current trusted main
         env:
           GH_TOKEN: ${{ github.token }}
           FACTORY_PR: ${{ github.event.pull_request.number }}
           FACTORY_HEAD: ${{ github.event.pull_request.head.sha }}
+          FACTORY_VERIFIER_SHA: ${{ steps.main.outputs.sha }}
         run: |
           node <<'NODE'
           const policy = require('./scripts/factory/policy.cjs');
           const { GitHub, Ledger, ROOT } = require('./scripts/factory/github.cjs');
+          class GateFailure extends Error {
+            constructor(code, message) {
+              super(message);
+              this.code = code;
+            }
+          }
           async function verify(env = process.env, api = new GitHub({ token: env.GH_TOKEN })) {
-            if (env.GITHUB_REPOSITORY !== policy.REPOSITORY) throw new Error('Invalid gate repository');
+            if (env.GITHUB_REPOSITORY !== policy.REPOSITORY)
+              throw new GateFailure('repository-invalid', 'Invalid gate repository');
             const number = Number(env.FACTORY_PR);
-            if (!Number.isSafeInteger(number) || number < 1 || !policy.SHA.test(env.FACTORY_HEAD || ''))
-              throw new Error('Invalid PR identity');
-            const pr = await api.request('GET', `${ROOT}/pulls/${number}`);
-            if (pr.state !== 'open' || pr.base?.ref !== 'main' ||
+            if (!Number.isSafeInteger(number) || number < 1 || !policy.SHA.test(env.FACTORY_HEAD || '') ||
+                !policy.SHA.test(env.FACTORY_VERIFIER_SHA || ''))
+              throw new GateFailure('pr-identity-invalid', 'Invalid PR or verifier identity');
+            const [pr, main] = await Promise.all([
+              api.request('GET', `${ROOT}/pulls/${number}`),
+              api.request('GET', `${ROOT}/branches/main`),
+            ]);
+            if (pr.number !== number || pr.state !== 'open' || pr.base?.ref !== 'main' ||
+                pr.base?.repo?.full_name !== policy.REPOSITORY ||
                 pr.head?.repo?.full_name !== policy.REPOSITORY || pr.head?.sha !== env.FACTORY_HEAD)
-              throw new Error('PR head or repository changed');
-            const { state } = await new Ledger(api).read();
+              throw new GateFailure('pr-changed', 'PR head or repository changed');
+            if (main.name !== 'main' || main.protected !== true || main.commit?.sha !== env.FACTORY_VERIFIER_SHA)
+              throw new GateFailure('trusted-main-changed', 'Trusted main changed while starting the review gate');
+            const { state } = await new Ledger(api).read().catch(error => {
+              const code = Number.isSafeInteger(error?.status) ? 'ledger-unavailable' : 'ledger-invalid';
+              throw new GateFailure(code, 'Review ledger is unavailable or invalid');
+            });
             const result = policy.reviewGate(state, { number, head: pr.head.sha });
-            if (!result.ok) throw new Error(result.reason);
+            if (!result.ok) throw new GateFailure('approval-missing', result.reason);
             return result;
           }
           if (require.main === module || module.id === '[stdin]') verify().then(result => {
             console.log(result.reason);
-          }).catch(() => {
-            console.error('Independent review is missing, stale, or unavailable for this PR head');
+          }).catch(error => {
+            const code = error instanceof GateFailure ? error.code : 'verification-unavailable';
+            console.error(`Independent review was not verified for this PR head (${code})`);
             process.exitCode = 1;
           });
           module.exports = { verify };

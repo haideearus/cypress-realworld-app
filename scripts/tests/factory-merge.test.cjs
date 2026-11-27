@@ -104,6 +104,8 @@ class MergeFixture extends GitHubFixture {
       ],
     ]);
     this.runStatuses = new Map();
+    this.jobSteps = new Map();
+    this.onGateLabel = null;
     this.files = [{ filename: "src/example.ts", status: "modified" }];
     this.refreshCompletes = true;
     this.onGateRefresh = null;
@@ -170,6 +172,8 @@ class MergeFixture extends GitHubFixture {
                   check_run_url: `https://api.github.com${ROOT}/check-runs/${check.id}`,
                   status: check.status,
                   conclusion: check.conclusion,
+                  head_sha: head,
+                  steps: this.jobSteps.get(id),
                 },
               ]
             : [],
@@ -182,6 +186,12 @@ class MergeFixture extends GitHubFixture {
         if (this.onGateRefresh) this.onGateRefresh();
         else if (this.refreshCompletes) this.publishRefreshedGate();
         return reply(201, {});
+      }
+      if (method === "GET" && path === "/labels/factory-gate-refresh")
+        return reply(200, { name: "factory-gate-refresh" });
+      if (method === "POST" && path === "/issues/20/labels" && this.onGateLabel) {
+        this.onGateLabel();
+        return reply(200, [{ name: "factory-gate-refresh" }]);
       }
       if (method === "PUT" && path === "/pulls/20/merge") {
         this.putStarted = true;
@@ -773,6 +783,63 @@ test("only the exact failed native metadata gate is refreshed after genuine appr
     ["/actions/runs/502/rerun-failed-jobs"]
   );
 });
+
+for (const scenario of ["passing", "old-verifier", "lost-label-response"]) {
+  test(`#299 regression: a fresh gate event handles ${scenario}`, async () => {
+    const { fixture, merger, ledger } = await setup();
+    const valid = scenario !== "old-verifier";
+    const original = (await ledger.read()).state;
+    fixture.checks[1].conclusion = "failure";
+    fixture.runs.get(502).conclusion = "failure";
+    fixture.jobSteps.set(502, [
+      { name: "Verify current-head independent proof without a model or state write" },
+    ]);
+    fixture.pr.mergeable_state = "blocked";
+    fixture.onGateLabel = () => {
+      fixture.runs.set(505, {
+        ...fixture.runs.get(502),
+        id: 505,
+        check_suite_id: 605,
+        conclusion: "success",
+      });
+      fixture.checks[1] = {
+        ...fixture.checks[1],
+        id: 105,
+        check_suite: { id: 605 },
+        conclusion: "success",
+        details_url: `https://github.com/${policy.REPOSITORY}/actions/runs/505/job/705`,
+      };
+      fixture.jobSteps.set(
+        505,
+        valid
+          ? [{ name: "Verify exact-head review with current trusted main", conclusion: "success" }]
+          : fixture.jobSteps.get(502)
+      );
+      fixture.pr.mergeable_state = "clean";
+      fixture.pr.labels = [{ name: "factory-gate-refresh" }];
+      if (scenario === "lost-label-response") throw Error("fixture connection lost after labeling");
+    };
+    if (valid) assert.equal((await merger.merge(10)).merged, true);
+    else
+      await assert.rejects(
+        merger.merge(10),
+        /Current trusted review gate unavailable after refresh/
+      );
+    const requests = fixture.mutations().filter(({ path }) => path.endsWith("/labels"));
+    assert.deepEqual(requests, [
+      { path: "/issues/20/labels", method: "POST", body: { labels: ["factory-gate-refresh"] } },
+    ]);
+    assert.equal(fixture.mutations().filter(({ path }) => path.includes("rerun")).length, 0);
+    assert.equal(
+      fixture.mutations().filter(({ method }) => method === "PUT").length,
+      valid ? 1 : 0
+    );
+    const after = (await ledger.read()).state;
+    assert.deepEqual(after.grants, original.grants);
+    assert.deepEqual(after.tickets["10"].ci, original.tickets["10"].ci);
+    assert.deepEqual(after.tickets["10"].approval, original.tickets["10"].approval);
+  });
+}
 test("metadata refresh has a bounded wait and never reruns model or unrelated checks", async () => {
   const { fixture, merger, ledger } = await setup();
   fixture.checks[1].conclusion = "failure";
@@ -786,6 +853,26 @@ test("metadata refresh has a bounded wait and never reruns model or unrelated ch
   );
   assert.equal((await ledger.read()).state.tickets["10"].merge, undefined);
   assert.equal((await ledger.read()).state.active, null);
+});
+
+test("a genuine required gate already in progress is observed before any write", async () => {
+  const { fixture, merger } = await setup();
+  const check = fixture.checks[1];
+  const run = fixture.runs.get(502);
+  for (const item of [check, run]) Object.assign(item, { status: "in_progress", conclusion: null });
+  let waits = 0;
+  merger.sleep = async () => {
+    assert.equal(fixture.putStarted, false);
+    waits++;
+    for (const item of [check, run])
+      Object.assign(item, { status: "completed", conclusion: "success" });
+  };
+  assert.equal((await merger.merge(10)).merged, true);
+  assert.equal(waits, 1);
+  assert.equal(
+    fixture.mutations().some(({ path }) => path.includes("rerun")),
+    false
+  );
 });
 test("merger waits when a refreshed gate job is visible before its check record", async () => {
   const { fixture, merger } = await setup();

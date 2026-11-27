@@ -334,6 +334,7 @@ function queueNativeCI(s, number, runId, mode = "current") {
         head_sha: head,
         status: "completed",
         conclusion: "success",
+        actor: mode === "wrong-actor" ? s.run.actor : actor,
         pull_requests: [{ number }],
       };
     return request(method, path, body);
@@ -341,6 +342,109 @@ function queueNativeCI(s, number, runId, mode = "current") {
   s.api.pages = async () => [{ name: "verify", status: "completed", conclusion: "success" }];
   return receipt.id;
 }
+
+function scheduledWake(s) {
+  s.context.event = s.run.event = "schedule";
+  s.run.created_at = new Date().toISOString();
+  s.event = { repository: s.run.repository };
+  return s;
+}
+
+test("a scheduled check picks one verified wake left pending by Dependency maintenance #165", async () => {
+  const s = scheduledWake(fixture());
+  s.ledger.state.tickets[299] = {
+    origin: "dependency-pr",
+    status: "reviewed",
+    dependencyMergeRetry: { phase: "held", retryAt: null },
+  };
+  s.ledger.state.grants["review-299"] = {
+    ticket: 299,
+    runId: "46066424823",
+    status: "finished",
+  };
+  const stale = queueNativeCI(s, 221, 703, "old-base");
+  const forged = queueNativeCI(s, 230, 704, "wrong-actor");
+  const first = queueNativeCI(s, 233, 706);
+  const second = queueNativeCI(s, 258, 707);
+  for (const id of [stale, forged, first, second])
+    s.store.state.receipts[id].producer.runId = "799";
+  const request = s.api.request.bind(s.api);
+  s.api.request = (method, route, body) => {
+    if (/\/runs\/799\/attempts\/1$/.test(route))
+      return { ...s.run, id: 799, event: "workflow_run" };
+    if (route.includes("/compare/"))
+      return { behind_by: 0, merge_base_commit: { sha: s.context.workflowSha } };
+    return request(method, route, body);
+  };
+  const before = structuredClone(s.ledger.state);
+  const outcomes = await Promise.all([wake.handleWake(s), wake.handleWake(s)]);
+  assert.equal(outcomes.filter((result) => result.outcome === "dispatched").length, 1);
+  assert.deepEqual(s.dispatches, [{ ref: "main", inputs: { wake_id: first, preview: false } }]);
+  assert.equal(s.store.state.receipts[stale].status, "observed");
+  assert.equal(s.store.state.receipts[forged].status, "pending");
+  assert.equal(s.store.state.receipts[first].producer.runId, "799");
+  assert.equal(s.store.state.receipts[second].status, "pending");
+  assert.deepEqual(s.ledger.state, before);
+});
+
+test("a scheduled check retains queued work while a worker or an unresolved merge owns it", async () => {
+  for (const apply of [
+    (state) => (state.active = { ticket: 299, runId: "46066424823", runAttempt: 1 }),
+    (state) => (state.tickets[299] = { merge: { status: "intent" } }),
+    (state) => (state.stop = {}),
+  ]) {
+    const s = scheduledWake(fixture());
+    apply(s.ledger.state);
+    const ready = queueNativeCI(s, 233, 706);
+    await wake.handleWake(s);
+    assert.deepEqual(s.dispatches, []);
+    assert.equal(s.store.state.receipts[ready].status, "pending");
+  }
+});
+
+test("an untrusted scheduled event cannot advance pending work", async () => {
+  const s = scheduledWake(fixture());
+  s.run.triggering_actor.id = 777;
+  await assert.rejects(wake.handleWake(s), /identity mismatch/);
+  assert.deepEqual(s.dispatches, []);
+});
+
+test("a scheduled check acknowledges an ambiguous dispatch only after finding its exact bot receiver", async () => {
+  for (const actor of [
+    { login: "github-actions[bot]", id: 41898282 },
+    { login: "haideearus", id: 101267861 },
+  ]) {
+    const { context: receiverContext, receiver, receiptId, ...original } = await receiverSetup();
+    original.store.state.receipts[receiptId].status = "intent";
+    original.context = {
+      ...receiverContext,
+      workflowRef: receiverContext.workflowRef.replace("factory-automatic", "factory-wake"),
+      runId: "801",
+      actor: "haideearus",
+      triggeringActor: "haideearus",
+    };
+    const s = scheduledWake(original);
+    const scheduledRun = { ...s.run, id: 801 };
+    s.run.event = "issues";
+    Object.assign(receiver, {
+      actor,
+      triggering_actor: actor,
+      created_at: new Date().toISOString(),
+    });
+    const oldApi = s.api.request.bind(s.api);
+    s.api.request = async (method, route, data) => {
+      if (/\/runs\/801\/attempts\/1$/.test(route)) return scheduledRun;
+      if (route.includes("/workflows/factory-automatic.yml/runs?"))
+        return { workflow_runs: [receiver] };
+      return oldApi(method, route, data);
+    };
+    await wake.handleWake(s);
+    assert.equal(s.dispatches.length, 1);
+    const receipt = s.store.state.receipts[receiptId];
+    assert.equal(receipt.status, actor.id === 41898282 ? "sent" : "intent");
+    assert.equal(receipt.receiver, null);
+  }
+});
 
 async function dependencyPreparationFixture(event = "workflow_dispatch") {
   const s = fixture();
@@ -441,6 +545,110 @@ test("a scheduled owner preparation can hand off to pending dependency CI", asyn
   const ready = queueNativeCI(s, 233, 706);
   assert.equal((await wake.handleWake(s)).receiptId, ready);
   assert.equal(s.dispatches.length, 1);
+});
+
+test("a model-free dependency gate recovery wakes one pending ticket only after safe release", async () => {
+  for (const outcome of ["held", "merged", "unconfirmed", "unverified-merge"]) {
+    const s = await dependencyPreparationFixture("schedule");
+    const ready = queueNativeCI(s, 233, 706);
+    const head = "e".repeat(40);
+    const mergeCommit = "f".repeat(40);
+    const reviewGrant = "same-reviewed-grant";
+    const release =
+      outcome === "held"
+        ? null
+        : {
+            status: outcome === "unconfirmed" ? "intent" : "merged",
+            pr: 299,
+            head,
+            runId: "850",
+            runAttempt: 1,
+            mergeCommit,
+          };
+    const failure = {
+      stage: "required-checks",
+      reason: "Current trusted review gate unavailable after refresh",
+    };
+    s.ledger.state.tickets = {
+      299: {
+        origin: "dependency-pr",
+        pr: 299,
+        head,
+        branch: "dependabot/npm_and_yarn/demo-299",
+        status: "reviewed",
+        approval: {
+          head,
+          grant: reviewGrant,
+          verdict: "pass",
+          source: "claude-subscription",
+          fixture: false,
+        },
+        dependency: { attempts: [{ head }], appSlug: "fixture-factory" },
+        dependencyMergeRetry: {
+          head,
+          grant: reviewGrant,
+          failure,
+          phase: outcome === "held" ? "held" : "retrying",
+          run: {
+            runId: "850",
+            runAttempt: 1,
+            workflowSha: s.run.head_sha,
+            at: "2026-11-27T21:07:41.000Z",
+          },
+        },
+        ...(release ? { merge: release } : {}),
+      },
+    };
+    s.ledger.state.grants[reviewGrant] = {
+      head,
+      phase: "review",
+      ticket: 299,
+      status: "finished",
+      outcome: "reviewed",
+      runId: "810",
+      runAttempt: 1,
+    };
+    const audit = { ticket: 299, runId: "850", head };
+    s.ledger.state.audit = [
+      { ...audit, event: "dependency_merge_retry_claimed" },
+      ...(outcome === "held"
+        ? [{ ...audit, event: "dependency_merge_preflight_held", recovery: "held", failure }]
+        : []),
+    ];
+    const request = s.api.request.bind(s.api);
+    s.api.request = (method, route, data) => {
+      if (route.endsWith("/pulls/299")) {
+        const repo = s.run.repository;
+        return {
+          number: 299,
+          state: ["merged", "unverified-merge"].includes(outcome) ? "closed" : "open",
+          merged: ["merged", "unverified-merge"].includes(outcome),
+          merge_commit_sha: outcome === "merged" ? mergeCommit : null,
+          draft: false,
+          user: { login: "dependabot[bot]", id: 49699333, type: "Bot" },
+          head: { ref: "dependabot/npm_and_yarn/demo-299", sha: head, repo },
+          base: { ref: "main", sha: s.run.head_sha, repo },
+        };
+      }
+      return request(method, route, data);
+    };
+    const result = await wake.handleWake(s);
+    if (["unconfirmed", "unverified-merge"].includes(outcome)) {
+      assert.equal(result.outcome, "ignored");
+      assert.deepEqual(s.dispatches, []);
+      assert.equal(s.store.state.receipts[ready].status, "pending");
+    } else {
+      assert.equal(result.outcome, "dispatched");
+      assert.deepEqual(s.dispatches, [{ ref: "main", inputs: { wake_id: ready, preview: false } }]);
+      assert.ok(
+        Object.values(s.store.state.receipts).some(
+          (entry) =>
+            entry.signal.revision === "gate-recovery-release" && entry.status === "observed"
+        )
+      );
+      assert.equal((await wake.handleWake(s)).outcome, "duplicate");
+    }
+  }
 });
 
 test("a rebase after lease release preserves the bound receiver's completion provenance", async () => {

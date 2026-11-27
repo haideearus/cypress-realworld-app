@@ -856,4 +856,13 @@ async function previewNativeRecovery(api, { ledger, now = Date.now() }) {
   return null;
 }
 
-module.exports = { trackNativeDependencies, previewNativeRecovery };
+async function verifiedTrackingIssue(api, pr) {
+  if (!nativePR(pr)) return null;
+  const store = new MetadataStore(api, "dependency-tracking", empty, validate);
+  const row = (await store.read({ allowMissing: true })).state.records[pr.number];
+  if (row?.branch !== pr.head.ref || row.status !== "open" || !row.issue) return null;
+  const issue = await readExisting(api, `${ROOT}/issues/${row.issue}`);
+  return issue?.state === "open" && issueOK(issue, pr.number, row.issue) ? issue.number : null;
+}
+
+module.exports = { trackNativeDependencies, previewNativeRecovery, verifiedTrackingIssue };

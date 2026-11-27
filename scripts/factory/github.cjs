@@ -163,6 +163,9 @@ class GitHub {
     throw new Error("GitHub collection exceeds safe pagination limit");
   }
 }
+const LEDGER_LIMIT_BYTES = 1_000_000;
+const LEDGER_WARNING_BYTES = 800_000;
+
 class Ledger {
   constructor(api) {
     this.api = api;
@@ -189,9 +192,12 @@ class Ledger {
   }
   async commit(state, parent) {
     validateState(state);
-    const content = JSON.stringify(state, null, 2) + "\n";
-    if (Buffer.byteLength(content) > 1000000)
+    const content = JSON.stringify(state) + "\n";
+    const size = Buffer.byteLength(content);
+    if (size > LEDGER_LIMIT_BYTES)
       throw new Error("Ledger exceeds safe size; owner maintenance required");
+    if (size >= LEDGER_WARNING_BYTES)
+      console.warn(`Factory ledger nearing capacity (${size} of ${LEDGER_LIMIT_BYTES} bytes).`);
     const blob = await this.api.request("POST", `${ROOT}/git/blobs`, {
       content: Buffer.from(content).toString("base64"),
       encoding: "base64",

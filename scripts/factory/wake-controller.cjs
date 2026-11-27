@@ -213,7 +213,11 @@ async function verifyProducer(api, context) {
     r.actor?.login !== context.actor ||
     r.triggering_actor?.login !== context.triggeringActor ||
     r.event !== context.event ||
-    !c.actor(r.actor)
+    !c.actor(r.actor) ||
+    (r.event === "schedule" &&
+      ![r.actor, r.triggering_actor].every(
+        (actor) => actor?.login === c.OWNER && actor.id === c.OWNER_ID
+      ))
   )
     throw Error("Wake bridge identity mismatch");
   return {
@@ -222,6 +226,7 @@ async function verifyProducer(api, context) {
     workflowSha: context.workflowSha,
     actor: { login: r.actor.login, id: r.actor.id },
     event: r.event,
+    ...(r.event === "schedule" ? { createdAt: Date.parse(r.created_at) } : {}),
   };
 }
 function interruptedAppSignal(state, run, boundTicket = null) {
@@ -346,6 +351,100 @@ async function preparationDrain(api, state, run, store) {
     revision: c.preparationRevision(runAttempt),
     sourceRun: runId,
     sourceAttempt: runAttempt,
+    actor: { login: run.actor.login, id: run.actor.id },
+  };
+}
+function dependencyReleaseOwners(state, run) {
+  return Object.values(state.tickets).filter(
+    (ticket) =>
+      ticket.origin === "dependency-pr" &&
+      ticket.dependencyMergeRetry?.run?.runId === String(run.id) &&
+      ticket.dependencyMergeRetry.run.runAttempt === run.run_attempt
+  );
+}
+
+async function dependencyReleaseSignal(
+  api,
+  state,
+  run,
+  store,
+  owners = dependencyReleaseOwners(state, run)
+) {
+  if (
+    run.path !== `.github/workflows/${c.LANES.dependency}` ||
+    run.status !== "completed" ||
+    owners.length !== 1
+  )
+    return null;
+  const [ticket] = owners;
+  const retry = require("./dependency-merge-retry.cjs").current(ticket);
+  const grant = retry && state.grants[retry.grant];
+  const number = ticket.pr;
+  if (
+    !retry ||
+    retry.run.workflowSha !== run.head_sha ||
+    slots.activeFor(state, number) ||
+    grant?.ticket !== number ||
+    grant.phase !== "review" ||
+    grant.head !== ticket.head ||
+    grant.status !== "finished" ||
+    grant.outcome !== "reviewed" ||
+    ticket.approval.verdict !== "pass" ||
+    ticket.approval.source !== "claude-subscription" ||
+    ticket.approval.fixture !== false
+  )
+    return null;
+  const rows = state.audit.filter(
+    (a) => a.runId === String(run.id) && a.ticket === number && a.head === ticket.head
+  );
+  if (!rows.some((a) => a.event === "dependency_merge_retry_claimed")) return null;
+  const merge = ticket.merge;
+  if (merge) {
+    if (
+      !["merged", "closed"].includes(merge.status) ||
+      merge.pr !== number ||
+      merge.head !== ticket.head ||
+      merge.runId !== String(run.id) ||
+      merge.runAttempt !== run.run_attempt ||
+      (merge.status === "merged" && !c.SHA.test(merge.mergeCommit || ""))
+    )
+      return null;
+  } else if (
+    retry.phase !== "held" ||
+    !rows.some(
+      (a) =>
+        a.event === "dependency_merge_retry_ended_unsent" ||
+        (["dependency_merge_preflight_held", "automatic_merge_not_sent"].includes(a.event) &&
+          a.recovery === "held" &&
+          a.failure?.stage === retry.failure.stage &&
+          a.failure?.reason === retry.failure.reason)
+    )
+  )
+    return null;
+  if (!(await require("./trusted-wake.cjs").verifyDependencyReleaseOrigin(api, store, run)))
+    return null;
+  const pr = await api.request("GET", `${ROOT}/pulls/${number}`);
+  dependency.prOK(pr, true, { alertRepair: true, appSlug: ticket.dependency.appSlug });
+  if (
+    pr.number !== number ||
+    pr.head.sha !== ticket.head ||
+    pr.head.ref !== ticket.branch ||
+    (merge
+      ? pr.state !== "closed" ||
+        pr.merged !== (merge.status === "merged") ||
+        (merge.status === "merged" && pr.merge_commit_sha !== merge.mergeCommit)
+      : pr.state !== "open" || pr.merged === true)
+  )
+    return null;
+  return {
+    kind: "drain",
+    lane: "dependency",
+    number,
+    head: run.head_sha,
+    criteriaHash: c.digest([number, ticket.head, retry.grant, merge?.mergeCommit ?? retry.failure]),
+    revision: "gate-recovery-release",
+    sourceRun: String(run.id),
+    sourceAttempt: run.run_attempt,
     actor: { login: run.actor.login, id: run.actor.id },
   };
 }
@@ -550,6 +649,13 @@ async function classifySignal({
     const owners = appMergeOwners(state, r.id, r.run_attempt);
     if (owners.length) return appMergeSignal(api, state, r, owners);
   }
+  if (r.path === `.github/workflows/${c.LANES.dependency}` && !grants.length) {
+    const owners = dependencyReleaseOwners(state, r);
+    if (owners.length)
+      return slots.pendingIntent(state)
+        ? null
+        : dependencyReleaseSignal(api, state, r, store, owners);
+  }
   if (!grants.length)
     return r.path === `.github/workflows/${c.LANES.dependency}`
       ? preparationDrain(api, state, r, store)
@@ -578,6 +684,18 @@ async function handleWake({
   if (typeof preview !== "boolean") throw Error("Invalid wake preview");
   if (!preview && vars.FACTORY_EVENT_PICKUP_ENABLED !== "true") return { outcome: "disabled" };
   const producer = await verifyProducer(api, context);
+  if (context.event === "schedule") {
+    if (preview) return { outcome: "ignored" };
+    return require("./wake-queue.cjs").recoverScheduledWake({
+      api,
+      context,
+      vars,
+      store,
+      ledger,
+      producer,
+      dispatchWake,
+    });
+  }
   if (
     context.event === "issues" &&
     event.issue?.number === Number(vars.FACTORY_ACTIVITY_ISSUE_NUMBER)
@@ -733,6 +851,7 @@ async function handleWake({
     if (!busy) {
       state.receipts[receipt.id].status = dispatch ? "intent" : "observed";
       state.receipts[receipt.id].producer = producer;
+      if (dispatch) state.receipts[receipt.id].at = new Date().toISOString();
       if (completedDrain)
         state.receipts[completedDrain.id] = { ...completedDrain, status: "observed" };
       for (const id of observed) {
@@ -751,6 +870,11 @@ async function handleWake({
   if (claim.duplicate) return { outcome: "duplicate", receiptId: receipt.id };
   if (busy) return { outcome: "busy", receiptId: receipt.id };
   if (!dispatch) return { outcome: "observed", receiptId: receipt.id, ...diagnostics };
+  return dispatchWake(api, store, receipt, diagnostics);
+}
+
+async function dispatchWake(api, store, receipt, diagnostics = {}) {
+  const { signal } = receipt;
   const inputs = {
     wake_id: receipt.id,
     ...(signal.lane === "app" ? { dry_run: false } : { preview: false }),
@@ -782,4 +906,5 @@ module.exports = {
   appMergeOwners,
   interruptedAppSignal,
   releasedAppSignal,
+  dependencyReleaseSignal,
 };

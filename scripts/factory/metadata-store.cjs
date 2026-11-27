@@ -12,6 +12,7 @@ class MetadataStore {
         "features",
         "dependency-alerts",
         "dependency-tracking",
+        "merge-reports",
       ].includes(namespace)
     )
       throw Error("Invalid metadata namespace");
