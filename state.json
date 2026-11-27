@@ -4468,9 +4468,9 @@
       "reviews": 0,
       "retries": 0,
       "origin": "dependency-pr",
-      "head": "8a209269da3a9a9aededd9d6cb85860c490ced4f",
+      "head": "bbfd82e23df3ec49f1321b6bdc0c72923a269fa5",
       "pr": 233,
-      "status": "blocked",
+      "status": "new",
       "approval": null,
       "branch": "dependabot/npm_and_yarn/babel/core-7.29.6",
       "criteriaHash": "611722c5e328e314138424f17603591e0536ddb00d27617bc46c0baea06e1abc",
@@ -4522,6 +4522,14 @@
             "runAttempt": 1,
             "workflowSha": "33f5f85eb3b5a388fc896f50496384c93a836205",
             "at": "2026-11-26T12:04:36.818Z"
+          },
+          {
+            "head": "bbfd82e23df3ec49f1321b6bdc0c72923a269fa5",
+            "base": "bd881afb2cc8e315083cd0b74279047ee84f09c6",
+            "runId": "45978362515",
+            "runAttempt": 1,
+            "workflowSha": "bd881afb2cc8e315083cd0b74279047ee84f09c6",
+            "at": "2026-11-27T10:00:23.863Z"
           }
         ]
       },
@@ -8518,16 +8526,12 @@
       "outcome": "discovery_complete"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 233,
+    "runId": "45978362515",
+    "runAttempt": 1
+  },
   "audit": [
-    {
-      "at": "2026-11-15T07:56:59.071Z",
-      "event": "finished",
-      "ticket": 48,
-      "grant": "1a17c59a-9aec-402c-97e2-d404fe99efd7",
-      "status": "reviewed",
-      "head": "ee62e1b720e512c1f9dc194155aec11b298ce132"
-    },
     {
       "at": "2026-11-15T10:53:55.196Z",
       "event": "reserved",
@@ -13663,6 +13667,14 @@
       "grant": "143b2e81-42f2-4241-8461-bcf15289709f",
       "phase": "discover",
       "status": "discovery_complete"
+    },
+    {
+      "at": "2026-11-27T10:00:23.863Z",
+      "event": "dependency_metadata_admitted",
+      "ticket": 233,
+      "head": "bbfd82e23df3ec49f1321b6bdc0c72923a269fa5",
+      "runId": "45978362515",
+      "actor": "haideearus"
     }
   ],
   "featureTurn": {
