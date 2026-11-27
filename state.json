@@ -8529,14 +8529,6 @@
   "active": null,
   "audit": [
     {
-      "at": "2026-11-15T11:04:41.555Z",
-      "event": "finished",
-      "ticket": 50,
-      "grant": "fd31b6ad-0ffa-4937-9d36-5d29aedf1434",
-      "status": "reviewed",
-      "head": "d74b7aa7478a839aa90be0ac986c0832f35d59bb"
-    },
-    {
       "at": "2026-11-15T12:22:16.938Z",
       "event": "dependency_metadata_admitted",
       "ticket": 52,
@@ -13669,6 +13661,13 @@
       "ticket": 233,
       "head": "bbfd82e23df3ec49f1321b6bdc0c72923a269fa5",
       "runId": "45978362515"
+    },
+    {
+      "at": "2026-11-27T18:44:14.418Z",
+      "event": "weekly_planner_reserved",
+      "week": "2026-11-23",
+      "runId": "46051615526",
+      "grant": "78a26c73-25e7-406d-9e00-46533088d8b3"
     }
   ],
   "featureTurn": {
@@ -13677,7 +13676,16 @@
     "at": "2026-11-27T18:44:01.109Z",
     "attemptAt": "2026-11-27T18:44:03.702Z",
     "retryAt": null,
-    "status": "waiting",
+    "status": "finished",
     "ticket": null
+  },
+  "featurePlans": {
+    "2026-11-23": {
+      "id": "78a26c73-25e7-406d-9e00-46533088d8b3",
+      "head": "bd881afb2cc8e315083cd0b74279047ee84f09c6",
+      "runId": "46051615526",
+      "at": "2026-11-27T18:44:14.418Z",
+      "status": "reserved"
+    }
   }
 }
