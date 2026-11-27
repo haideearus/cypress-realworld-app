@@ -4471,9 +4471,9 @@
       "reviews": 0,
       "retries": 0,
       "origin": "dependency-pr",
-      "head": "bbfd82e23df3ec49f1321b6bdc0c72923a269fa5",
+      "head": "71dfc0b04659874c6bed1554a1130e9024b6cea6",
       "pr": 233,
-      "status": "blocked",
+      "status": "new",
       "approval": null,
       "branch": "dependabot/npm_and_yarn/babel/core-7.29.6",
       "criteriaHash": "611722c5e328e314138424f17603591e0536ddb00d27617bc46c0baea06e1abc",
@@ -4533,6 +4533,14 @@
             "runAttempt": 1,
             "workflowSha": "bd881afb2cc8e315083cd0b74279047ee84f09c6",
             "at": "2026-11-27T10:00:23.863Z"
+          },
+          {
+            "head": "71dfc0b04659874c6bed1554a1130e9024b6cea6",
+            "base": "68b111eb98a0d6778db3fdc071a5b82a94047fdc",
+            "runId": "46075103102",
+            "runAttempt": 1,
+            "workflowSha": "68b111eb98a0d6778db3fdc071a5b82a94047fdc",
+            "at": "2026-11-27T22:12:10.860Z"
           }
         ]
       },
@@ -8668,15 +8676,12 @@
       "outcome": "reviewed"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 233,
+    "runId": "46075103102",
+    "runAttempt": 1
+  },
   "audit": [
-    {
-      "at": "2026-11-15T17:38:48.420Z",
-      "event": "dependency_metadata_admitted",
-      "ticket": 52,
-      "head": "c89871f643c936d958a861d738ebca623f3963c9",
-      "runId": "43742253061"
-    },
     {
       "at": "2026-11-15T17:44:40.090Z",
       "event": "reserved",
@@ -13822,6 +13827,16 @@
       "grant": "f74f9185-f910-4e82-bc17-3b0cb7d8651b",
       "status": "reviewed",
       "head": "5d7362a81f1ffb073d8bb7c84eddf2d150fce6a2"
+    },
+    {
+      "at": "2026-11-27T22:12:10.860Z",
+      "event": "dependency_metadata_admitted",
+      "ticket": 233,
+      "head": "71dfc0b04659874c6bed1554a1130e9024b6cea6",
+      "runId": "46075103102",
+      "actor": "github-actions[bot]",
+      "wakeReceipt": "00d27310df9bad68f03a6925d81457b2f9cd7618ef31443285c774affdb10ce3",
+      "sourceActor": "dependabot[bot]"
     }
   ],
   "featureTurn": {
