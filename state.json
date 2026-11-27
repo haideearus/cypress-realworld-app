@@ -6062,8 +6062,16 @@
       "origin": "dependency-pr",
       "head": "9a348af64d89bb3c0fbd0f527b86ecd733dbcb4c",
       "pr": 299,
-      "status": "reviewing",
-      "approval": null,
+      "status": "reviewed",
+      "approval": {
+        "head": "9a348af64d89bb3c0fbd0f527b86ecd733dbcb4c",
+        "pr": 299,
+        "grant": "826399c0-aae6-485e-a673-c90d4e1a0d0c",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/46066424823"
+      },
       "branch": "agent/dependency-alert-7687d0803a53020fdf3da65cba6e747472b02c50e3c96880000122fe87335083",
       "criteriaHash": "faf7c91dea4b17b99dd4af9d449be590d850cf6487b44d31b365330a49181d1d",
       "dependency": {
@@ -6139,7 +6147,7 @@
         "runId": 46066640526,
         "passed": true
       },
-      "feedback": "{\"verdict\":\"pass\",\"head\":\"6ec5cac31d8d32ac29211d9208a3410724978a87\",\"summary\":\"Reviewed the yarn.lock-only diff at 6ec5cac3 (base bd881afb): the previously merged \\\"ws@^8.13.0, ws@^8.17.1\\\" entry pinned at 8.18.0 is split into two separate range entries, each now resolving to ws@8.21.0. Via Grep I confirmed the two ranges are required by @percy/cypress's driver chain (yarn.lock:3166, a visual-testing/dev dependency) and jsdom (yarn.lock:8407, a test-environment dependency) — ws is not a direct or runtime dependency of the payment app. dependencyFacts shows integrity-matched npm tarballs for baseline 7.5.13 (unchanged) and added 8.21.0, matching the diff exactly, and both ranges (^8.13.0, ^8.17.1) are satisfied by 8.21.0 so the resolution is semver-correct. OSV facts confirm GHSA-58qx-3vcg-4xpx (fixed 8.20.1) and GHSA-96hv-2xvq-fx4p (fixed 8.21.0) are cleared with no new vulnerable version introduced, and remainingBaseline is empty. I independently re-checked the four CI-referenced files (UserSettingsForm.test.tsx, auth.spec.ts, bankaccounts.spec.ts, user-settings.spec.ts) via Grep for socket/WebSocket/percy references; the lone match was a false positive (\\\"shows\\\"), confirming none of them exercise ws-consuming code paths. upstreamReleases remains empty, so provenance rests only on npm registry integrity matching, not an independent tag/release check. Net effect is a narrow, semver-compatible dev/test-tooling lockfile change that removes two cleared advisories without touching production payment logic or package.json.\",\"findings\":[{\"severity\":\"minor\",\"message\":\"None of the CI-evidenced test files (UserSettingsForm.test.tsx, auth/bankaccounts/user-settings cypress specs) exercise WebSocket, percy, or jsdom websocket code paths (confirmed via Grep; the only 'ws' match was the substring in 'shows'), and the run excluded cloud recording, so the green CI receipt does not functionally validate ws@8.21.0 against @percy/cypress's or jsdom's actual websocket usage.\"},{\"severity\":\"minor\",\"message\":\"dependencyFacts.upstreamReleases is empty for this head, so the only provenance signal for ws@8.21.0 is npm registry tarball integrity matching the lockfile; there is no independent GitHub release/tag cross-check for this transitive dependency, a residual non-blocking verification gap.\"}]}",
+      "feedback": "{\"findings\":[{\"severity\":\"minor\",\"message\":\"None of the four CI-evidenced test files (src/components/__tests__/UserSettingsForm.test.tsx; cypress/tests/ui/auth.spec.ts, bankaccounts.spec.ts, user-settings.spec.ts) reference socket/WebSocket/percy functionality — I grepped each and got zero matches — so the green CI receipt in ciEvidence exercises unrelated Formik/Yup form flows, not the @percy/cypress or jsdom code paths that actually consume the bumped ws package.\"},{\"severity\":\"minor\",\"message\":\"dependencyFacts.upstreamReleases is empty for both ws 7.5.13 and 8.21.0, so provenance for the added tarball rests solely on npm registry integrity-hash matching (integrityMatched:true); there is no independent GitHub tag/release cross-check available for this transitive package at this head, a residual non-blocking verification gap.\"}],\"head\":\"9a348af64d89bb3c0fbd0f527b86ecd733dbcb4c\",\"summary\":\"Reviewed yarn.lock diff at 9a348af6 (base 68b111eb): the merged ws@^8.13.0, ws@^8.17.1 entry (previously 8.18.0) is split into two separate ranges, each now resolving to ws@8.21.0; package.json is unchanged and has no direct ws dependency. Via Grep I traced the two consumer ranges to @percy/cypress's driver chain (yarn.lock:3166) and jsdom (yarn.lock:8407) — both dev/test-tooling, not production payment code — and confirmed no socket.io/engine.io or other package pulls ws through a different range. dependencyFacts shows integrity-matched registry tarballs for the unchanged 7.5.13 baseline and the added 8.21.0, matching the diff exactly, and both ^8.13.0 and ^8.17.1 are semver-satisfied by 8.21.0. OSV facts confirm GHSA-58qx-3vcg-4xpx (fixed 8.20.1) and GHSA-96hv-2xvq-fx4p (fixed 8.21.0) are both cleared with remainingBaseline empty, and no new vulnerable version is introduced. I independently read UserSettingsForm.test.tsx and grepped the three cypress specs named in ciEvidence; none exercise ws/WebSocket/percy paths, so the passing CI receipt validates unrelated Formik/Yup form behavior, not ws compatibility itself — a real but minor residual gap. upstreamReleases is empty, leaving registry integrity as the only provenance signal for ws@8.21.0. Net effect: a narrow, semver-compatible dev/test-only lockfile change that clears two advisories without touching production logic.\",\"verdict\":\"pass\"}",
       "analysis": {
         "version": 2,
         "repository": "haideearus/cypress-realworld-app",
@@ -8602,25 +8610,13 @@
       "runId": "46066424823",
       "runAttempt": 1,
       "head": "9a348af64d89bb3c0fbd0f527b86ecd733dbcb4c",
-      "status": "reserved",
-      "at": "2026-11-27T21:03:53.190Z"
+      "status": "finished",
+      "at": "2026-11-27T21:03:53.190Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 299,
-    "runId": "46066424823",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
-    {
-      "at": "2026-11-15T15:17:21.391Z",
-      "event": "reserved",
-      "ticket": 55,
-      "grant": "a9f0ade4-27d5-4774-942d-dacee30e5d34",
-      "phase": "review",
-      "runId": "43729011956",
-      "runAttempt": 1
-    },
     {
       "at": "2026-11-15T15:31:08.669Z",
       "event": "finished",
@@ -13759,6 +13755,14 @@
       "actor": "github-actions[bot]",
       "wakeReceipt": "bef77c5ac2b2fd50030fc620e030e275b07a86cf4a99ec0567b696bbae71a543",
       "sourceActor": "haideearus-software-factory[bot]"
+    },
+    {
+      "at": "2026-11-27T21:06:19.292Z",
+      "event": "finished",
+      "ticket": 299,
+      "grant": "826399c0-aae6-485e-a673-c90d4e1a0d0c",
+      "status": "reviewed",
+      "head": "9a348af64d89bb3c0fbd0f527b86ecd733dbcb4c"
     }
   ],
   "featureTurn": {
