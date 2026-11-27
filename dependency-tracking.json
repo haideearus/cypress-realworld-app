@@ -168,7 +168,7 @@
           "blocked": true,
           "bases": {
             "68b111eb98a0d6778db3fdc071a5b82a94047fdc": {
-              "refresh": "attempted"
+              "refresh": "confirmed"
             }
           }
         }
