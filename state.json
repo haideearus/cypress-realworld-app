@@ -13672,12 +13672,12 @@
     }
   ],
   "featureTurn": {
-    "runId": "45463951116",
-    "mode": "pilot",
-    "at": "2026-11-24T18:54:44.684Z",
+    "runId": "46051615526",
+    "mode": "live",
+    "at": "2026-11-27T18:44:01.109Z",
     "attemptAt": null,
     "retryAt": null,
-    "status": "finished",
-    "ticket": 273
+    "status": "waiting",
+    "ticket": null
   }
 }
