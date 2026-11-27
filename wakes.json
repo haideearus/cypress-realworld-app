@@ -7263,6 +7263,36 @@
       "status": "observed",
       "receiver": null,
       "at": "2026-11-27T00:46:00.779Z"
+    },
+    "25ecf80b47c2c898ccf48234f3744b9facf692c1a9d45eb274f12efb64a4e536": {
+      "id": "25ecf80b47c2c898ccf48234f3744b9facf692c1a9d45eb274f12efb64a4e536",
+      "signal": {
+        "kind": "drain",
+        "lane": "app",
+        "number": 308,
+        "head": "bd881afb2cc8e315083cd0b74279047ee84f09c6",
+        "criteriaHash": "66faab1e3667e9bbd76177df27548f762b6135e5b8f8a00d1e3358a24ef7c051",
+        "revision": "1",
+        "sourceRun": "45975348636",
+        "sourceAttempt": 1,
+        "actor": {
+          "login": "haideearus",
+          "id": 101267861
+        }
+      },
+      "producer": {
+        "runId": "45977502158",
+        "runAttempt": 1,
+        "workflowSha": "bd881afb2cc8e315083cd0b74279047ee84f09c6",
+        "actor": {
+          "login": "haideearus",
+          "id": 101267861
+        },
+        "event": "workflow_run"
+      },
+      "status": "intent",
+      "receiver": null,
+      "at": "2026-11-27T09:53:57.291Z"
     }
   }
 }
