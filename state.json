@@ -6057,12 +6057,12 @@
     },
     "299": {
       "coding": 0,
-      "reviews": 2,
+      "reviews": 3,
       "retries": 0,
       "origin": "dependency-pr",
       "head": "9a348af64d89bb3c0fbd0f527b86ecd733dbcb4c",
       "pr": 299,
-      "status": "new",
+      "status": "reviewing",
       "approval": null,
       "branch": "agent/dependency-alert-7687d0803a53020fdf3da65cba6e747472b02c50e3c96880000122fe87335083",
       "criteriaHash": "faf7c91dea4b17b99dd4af9d449be590d850cf6487b44d31b365330a49181d1d",
@@ -8593,6 +8593,17 @@
       "status": "finished",
       "at": "2026-11-27T20:07:32.820Z",
       "outcome": "reviewed"
+    },
+    "826399c0-aae6-485e-a673-c90d4e1a0d0c": {
+      "id": "826399c0-aae6-485e-a673-c90d4e1a0d0c",
+      "ticket": 299,
+      "phase": "review",
+      "slot": "dependency",
+      "runId": "46066424823",
+      "runAttempt": 1,
+      "head": "9a348af64d89bb3c0fbd0f527b86ecd733dbcb4c",
+      "status": "reserved",
+      "at": "2026-11-27T21:03:53.190Z"
     }
   },
   "active": {
@@ -8601,14 +8612,6 @@
     "runAttempt": 1
   },
   "audit": [
-    {
-      "at": "2026-11-15T13:24:00.756Z",
-      "event": "finished",
-      "ticket": 52,
-      "grant": "060c2155-4039-4c57-ac73-348a073d7cec",
-      "status": "blocked",
-      "head": "5b3d4c0a7580d93ef148996e0dacf30fbfe2e5fa"
-    },
     {
       "at": "2026-11-15T15:17:21.391Z",
       "event": "reserved",
@@ -13741,6 +13744,18 @@
       "ticket": 299,
       "head": "9a348af64d89bb3c0fbd0f527b86ecd733dbcb4c",
       "runId": "46066424823",
+      "actor": "github-actions[bot]",
+      "wakeReceipt": "bef77c5ac2b2fd50030fc620e030e275b07a86cf4a99ec0567b696bbae71a543",
+      "sourceActor": "haideearus-software-factory[bot]"
+    },
+    {
+      "at": "2026-11-27T21:03:53.190Z",
+      "event": "reserved",
+      "ticket": 299,
+      "grant": "826399c0-aae6-485e-a673-c90d4e1a0d0c",
+      "phase": "review",
+      "runId": "46066424823",
+      "runAttempt": 1,
       "actor": "github-actions[bot]",
       "wakeReceipt": "bef77c5ac2b2fd50030fc620e030e275b07a86cf4a99ec0567b696bbae71a543",
       "sourceActor": "haideearus-software-factory[bot]"
