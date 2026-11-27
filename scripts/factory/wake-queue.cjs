@@ -43,7 +43,7 @@ async function verifyIdlePickup(api, runId, attempt, store) {
   if (wake) {
     const wakeStore = store ?? new (require("./wake-store.cjs").WakeStore)(api);
     const receipt = (await wakeStore.read()).state.receipts[wake];
-    if (!receipt || receipt.status !== "bound" || !c.isMainQueueCheck(receipt.signal)) return null;
+    if (!receipt || receipt.status !== "bound" || !c.isAppQueueCheck(receipt.signal)) return null;
     const context = {
       repository: c.REPOSITORY,
       actor: run.actor?.login,

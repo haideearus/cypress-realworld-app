@@ -101,4 +101,10 @@ async function verifyMonitorIssue(api, issue, { proof, requireActive = true } = 
   if (!verified) return null;
   return actual;
 }
-module.exports = { MONITOR_WORKFLOW, validateMonitorProof, proofFromIncident, verifyMonitorIssue };
+module.exports = {
+  MONITOR_WORKFLOW,
+  validateMonitorProof,
+  proofFromIncident,
+  criteriaHash,
+  verifyMonitorIssue,
+};

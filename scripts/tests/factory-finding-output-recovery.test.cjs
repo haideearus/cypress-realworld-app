@@ -308,7 +308,9 @@ test("recovery preserves #97, stop protection and complete history across public
   s.tickets["97"] = done.tickets["97"];
   s.grants[other.grant.id] = done.grants[other.grant.id];
   s.days["2026-11-18"].push(97);
-  const r = p.reserve(s, request(), config());
+  // This historical five-coding/two-review scenario needs seven reservations.
+  const lifecycleConfig = config({ FACTORY_MAX_AI_SESSIONS_PER_TICKET: "7" });
+  const r = p.reserve(s, request(), lifecycleConfig);
   assert.deepEqual(r.state.tickets["97"], s.tickets["97"]);
   assert.deepEqual(r.state.grants[other.grant.id], s.grants[other.grant.id]);
   assert.equal(p.reviewGate(r.state, { number: 1000, head }).ok, false);
@@ -334,7 +336,9 @@ test("recovery preserves #97, stop protection and complete history across public
     head: published,
     pr: 1000,
   });
-  const final = p.reserve(requested, { ...ctx, head: published, slot: "cycle2" }, config());
+  const finalRequest = { ...ctx, head: published, slot: "cycle2" };
+  assert.throws(() => p.reserve(requested, finalRequest, config()), /AI budget/);
+  const final = p.reserve(requested, finalRequest, lifecycleConfig);
   assert.equal(final.state.tickets["96"].coding, 5);
   assert.equal(final.state.tickets["96"].retries, 4);
   p.validateState(final.state);

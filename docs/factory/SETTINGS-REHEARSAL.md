@@ -1,5 +1,8 @@
 # Step 5 Settings validation rehearsal
 
+For the later interruption and queue-handoff demonstration, use the
+[M2 rehearsal](M2-TICKET-RECOVERY.md) and its explicit reviewed source commit.
+
 The rehearsal follows one browser finding through ticket publication, pickup,
 coding, independent review, and a protected merge in a separate repository.
 The bug changes the invalid-email message in Settings. The existing

@@ -4,6 +4,24 @@ const { queueSummary } = require("../factory/queue-summary.cjs");
 
 const state = (tickets, grants = {}) => ({ tickets, grants, audit: [] });
 
+test("the queue shows the spent and effective AI allowance for a held repair", () => {
+  const text = queueSummary(
+    state({
+      9: {
+        origin: "factory",
+        automatic: {},
+        status: "blocked",
+        aiSessionLimit: 6,
+        coding: 1,
+        reviews: 2,
+        retries: 0,
+      },
+    }),
+    { aiSessions: 3 }
+  );
+  assert.match(text, /3 of 3 AI sessions reserved/);
+});
+
 test("blocked queue shows the saved attempt and delayed retry without exposing feedback", () => {
   const text = queueSummary(
     state(

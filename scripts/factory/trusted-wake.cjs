@@ -21,6 +21,9 @@ function dependencyWakeTarget(context) {
   if (!isTrustedWakeContext(context, "dependency")) return null;
   return proofs.get(context.wake).dependencyTarget;
 }
+function interruptedWakeTarget(context) {
+  return isTrustedWakeContext(context, "app") ? proofs.get(context.wake).interruptedTicket : null;
+}
 function allowedModelBots(context, ticket) {
   if (ticket?.origin === "dependency-pr") {
     const target = dependencyWakeTarget(context);
@@ -48,6 +51,13 @@ function allowedModelBots(context, ticket) {
   )
     return "";
   const { signalKind } = proofs.get(context.wake);
+  const interrupted = interruptedWakeTarget(context);
+  if (interrupted !== null)
+    return ticket.monitor?.issue === interrupted &&
+      (context.phase === undefined ||
+        (context.phase === "review" && context.ticket === interrupted))
+      ? c.BOT
+      : "";
   return ["issue", "monitor", "drain"].includes(signalKind) ? c.BOT : "";
 }
 async function verifyPreparationOrigin(api, run, ticket, attempt, store) {
@@ -148,7 +158,30 @@ async function verifySource(api, signal, bound, vars = {}) {
     alertWakeConfig,
     verifyAlertCI,
     mainQueueSignal,
+    appMergeSignal,
+    appMergeOwners,
+    interruptedAppSignal,
+    releasedAppSignal,
   } = require("./wake-controller.cjs");
+  if (c.isAppMergeDrain(signal) || c.isInterruptedApp(signal) || c.isAppRelease(signal)) {
+    const [run, { state }] = await Promise.all([
+      verifiedRun(api, signal.sourceRun, signal.sourceAttempt, c.LANES.app, { success: false }),
+      new (require("./github.cjs").Ledger)(api).read(),
+    ]);
+    let source;
+    if (c.isInterruptedApp(signal))
+      source = interruptedAppSignal(state, run, bound ? signal.number : null);
+    else if (c.isAppRelease(signal)) source = releasedAppSignal(state, run);
+    else source = await appMergeSignal(api, state, run);
+    if (
+      !source ||
+      c.sourceKey(source) !== c.sourceKey(signal) ||
+      source.actor.login !== signal.actor.login ||
+      source.actor.id !== signal.actor.id
+    )
+      throw Error("App completion wake evidence changed");
+    return;
+  }
   if (c.isMainQueueCheck(signal)) {
     const run = await verifiedRun(api, signal.sourceRun, signal.sourceAttempt, "factory-ci.yml");
     const source = await mainQueueSignal(api, run);
@@ -236,6 +269,12 @@ async function verifySource(api, signal, bound, vars = {}) {
   if (signal.kind !== "drain" || c.isPreparationDrain(signal)) throw Error("Unknown wake source");
   const { Ledger } = require("./github.cjs");
   const { state } = await new Ledger(api).read();
+  if (
+    !bound &&
+    signal.lane === "app" &&
+    appMergeOwners(state, signal.sourceRun, signal.sourceAttempt).length
+  )
+    throw new c.StaleWakeSource("An app merge owner requires a confirmed merge receipt");
   const grants = Object.values(state.grants).filter(
     (g) => g.runId === signal.sourceRun && g.runAttempt === signal.sourceAttempt
   );
@@ -354,7 +393,8 @@ async function verifyWake({
   const dependencyTarget = c.isDependencyCI(receipt.signal)
     ? Object.freeze({ number, head })
     : null;
-  proofs.set(proof, { ...expected, lane, signalKind, dependencyTarget });
+  const interruptedTicket = c.isInterruptedApp(receipt.signal) ? number : null;
+  proofs.set(proof, { ...expected, lane, signalKind, dependencyTarget, interruptedTicket });
   return proof;
 }
 async function loadWakeContext(api, context, env = process.env, { bind = false } = {}) {
@@ -385,6 +425,7 @@ module.exports = {
   PendingWakeBinding,
   isTrustedWakeContext,
   dependencyWakeTarget,
+  interruptedWakeTarget,
   verifyPreparationOrigin,
   allowedModelBots,
   verifySource,

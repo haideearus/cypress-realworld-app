@@ -140,6 +140,64 @@ async function mainQueueSignal(api, run) {
     actor: { login: run.actor.login, id: run.actor.id },
   };
 }
+// A later parent can confirm a protected merge without reserving another model.
+// The terminal merge receipt identifies that parent, even when it has zero grants.
+function appMergeOwners(state, runId, runAttempt) {
+  return Object.entries(state.tickets).filter(
+    ([, t]) =>
+      t.origin === "factory" &&
+      t.automatic &&
+      t.merge?.runId === String(runId) &&
+      t.merge.runAttempt === runAttempt
+  );
+}
+async function appMergeSignal(
+  api,
+  state,
+  run,
+  rows = appMergeOwners(state, run.id, run.run_attempt)
+) {
+  if (run.path !== ".github/workflows/factory-automatic.yml" || run.head_branch !== "main")
+    return null;
+  if (rows.length !== 1) return null;
+  const [id, ticket] = rows[0];
+  const number = Number(id);
+  const merge = ticket.merge;
+  if (
+    slots.activeFor(state, number) ||
+    ticket.status !== "reviewed" ||
+    merge.status !== "merged" ||
+    merge.pr !== ticket.pr ||
+    merge.head !== ticket.head ||
+    !c.SHA.test(merge.mergeCommit || "")
+  )
+    return null;
+  const pr = await api.request("GET", `${ROOT}/pulls/${ticket.pr}`);
+  if (
+    pr.number !== ticket.pr ||
+    pr.state !== "closed" ||
+    pr.merged !== true ||
+    pr.merge_commit_sha !== merge.mergeCommit ||
+    pr.head?.sha !== ticket.head ||
+    pr.head?.ref !== `agent/factory-${id}` ||
+    pr.head?.repo?.full_name !== c.REPOSITORY ||
+    pr.base?.ref !== "main" ||
+    pr.base?.repo?.full_name !== c.REPOSITORY ||
+    pr.user?.login !== `${ticket.automatic.appSlug}[bot]`
+  )
+    return null;
+  return {
+    kind: "drain",
+    lane: "app",
+    number,
+    head: merge.mergeCommit,
+    criteriaHash: c.digest([pr.number, ticket.head, merge.mergeCommit]),
+    revision: "app-merge",
+    sourceRun: String(run.id),
+    sourceAttempt: run.run_attempt,
+    actor: { login: run.actor.login, id: run.actor.id },
+  };
+}
 async function verifyProducer(api, context) {
   if (
     context.repository !== c.REPOSITORY ||
@@ -164,6 +222,95 @@ async function verifyProducer(api, context) {
     workflowSha: context.workflowSha,
     actor: { login: r.actor.login, id: r.actor.id },
     event: r.event,
+  };
+}
+function interruptedAppSignal(state, run, boundTicket = null) {
+  if (
+    run.path !== ".github/workflows/factory-automatic.yml" ||
+    run.head_branch !== "main" ||
+    run.run_attempt !== 1 ||
+    !["cancelled", "timed_out"].includes(run.conclusion)
+  )
+    return null;
+  const owner = { runId: String(run.id), runAttempt: run.run_attempt };
+  const entry = slots
+    .activeEntries(state)
+    .find((e) => e.runId === owner.runId && e.runAttempt === owner.runAttempt);
+  const number = boundTicket ?? entry?.ticket;
+  const ticket = state.tickets[number];
+  if (
+    !require("./published-review-recovery.cjs").functionalPublication(ticket) ||
+    ticket.monitor.issue !== number ||
+    ticket.branch !== `agent/factory-${number}`
+  )
+    return null;
+  const recovery = ticket.publishedRecovery;
+  const original = ticket.automatic.runId === owner.runId;
+  const previous = boundTicket !== null ? (recovery?.interruptedParents ?? []) : [];
+  const parent = original
+    ? ticket.automatic
+    : [recovery?.parent, ...previous].find((p) => p?.runId === owner.runId);
+  if (!parent || parent.runAttempt !== run.run_attempt || parent.workflowSha !== run.head_sha)
+    return null;
+  const retained = boundTicket !== null && recovery?.interruptedHead;
+  if (
+    !retained &&
+    (entry?.ticket !== number ||
+      (original ? !!recovery : !recovery?.interruptedHead) ||
+      ticket.approval ||
+      ticket.merge ||
+      !["awaiting_review", "reviewing"].includes(ticket.status))
+  )
+    return null;
+  const head = original ? (recovery?.interruptedHead ?? ticket.head) : parent.head;
+  return {
+    kind: "drain",
+    lane: "app",
+    number,
+    head,
+    criteriaHash: c.digest([number, ticket.pr, head, run.head_sha]),
+    revision: "app-interrupted",
+    sourceRun: owner.runId,
+    sourceAttempt: owner.runAttempt,
+    actor: { login: run.actor.login, id: run.actor.id },
+  };
+}
+function releasedAppSignal(state, run) {
+  if (
+    run.path !== ".github/workflows/factory-automatic.yml" ||
+    run.head_branch !== "main" ||
+    !require("./wake-queue.cjs").appWakeId(run) ||
+    ![run.actor, run.triggering_actor].every(
+      (actor) => actor?.login === c.BOT && actor.id === c.BOT_ID
+    )
+  )
+    return null;
+  const runId = String(run.id);
+  const releases = state.audit.filter(
+    (row) =>
+      row.event === "published_review_terminal_run_released" &&
+      row.receiverRunId === runId &&
+      row.receiverAttempt === run.run_attempt &&
+      row.receiverSha === run.head_sha
+  );
+  if (releases.length !== 1) return null;
+  const previous = releases[0];
+  if (!state.tickets[previous.ticket]?.publishedRecovery?.interruptedHead) return null;
+  return {
+    kind: "drain",
+    lane: "app",
+    number: previous.ticket,
+    head: run.head_sha,
+    criteriaHash: c.digest([
+      previous.ticket,
+      previous.runId,
+      previous.runAttempt,
+      run.display_title,
+    ]),
+    revision: "app-release",
+    sourceRun: runId,
+    sourceAttempt: run.run_attempt,
+    actor: { login: run.actor.login, id: run.actor.id },
   };
 }
 async function preparationDrain(api, state, run, store) {
@@ -385,7 +532,10 @@ async function classifySignal({
     source.path.split("/").at(-1),
     { success: false }
   );
-  // A completion can advance the queue once its lease is released.
+  // Only the interrupted owner can wake a targeted reconciliation while its slot is held.
+  const interrupted = interruptedAppSignal(state, r);
+  if (interrupted) return interrupted;
+  // Other completions advance the queue once their lease has been released.
   const grants = Object.values(state.grants).filter(
     (g) => g.runId === String(r.id) && g.runAttempt === r.run_attempt
   );
@@ -396,10 +546,14 @@ async function classifySignal({
       .some((e) => e.runId === String(r.id) && e.runAttempt === r.run_attempt)
   )
     return null;
+  if (r.path === `.github/workflows/${c.LANES.app}`) {
+    const owners = appMergeOwners(state, r.id, r.run_attempt);
+    if (owners.length) return appMergeSignal(api, state, r, owners);
+  }
   if (!grants.length)
     return r.path === `.github/workflows/${c.LANES.dependency}`
       ? preparationDrain(api, state, r, store)
-      : null;
+      : releasedAppSignal(state, r);
   return {
     kind: "drain",
     lane: c.DRAIN_LANES[r.path],
@@ -470,7 +624,15 @@ async function handleWake({
     return { outcome: "disabled" };
   const concurrent = Number(vars.FACTORY_MAX_CONCURRENT_TICKETS);
   if (![1, 2].includes(concurrent)) throw Error("Invalid wake capacity setting");
+  const interruptedOwner =
+    c.isInterruptedApp(signal) &&
+    slots.owns(slots.activeFor(controls, signal.number), {
+      ticket: signal.number,
+      runId: signal.sourceRun,
+      runAttempt: signal.sourceAttempt,
+    });
   const busy =
+    !interruptedOwner &&
     !slots.capacity(controls, concurrent) &&
     (!idleHandoff?.terminal ||
       (await require("./wake-queue.cjs").terminalDependency(
@@ -479,7 +641,10 @@ async function handleWake({
         vars.FACTORY_AUTOMERGE_ENABLED === "true"
       )) !== idleHandoff.terminal);
   const drain =
-    signal.kind === "drain" && !c.isQueueCheckDrain(signal) && !c.isMainQueueCheck(signal)
+    signal.kind === "drain" &&
+    !c.isQueueCheckDrain(signal) &&
+    !c.isMainQueueCheck(signal) &&
+    !c.isInterruptedApp(signal)
       ? signal
       : null;
   const sourceDrain = idleHandoff?.queueCheck ?? drain;
@@ -507,7 +672,7 @@ async function handleWake({
       .filter(
         (r) =>
           r.status === "pending" &&
-          (r.signal.kind !== "drain" || c.isMainQueueCheck(r.signal)) &&
+          (r.signal.kind !== "drain" || c.isAppQueueCheck(r.signal)) &&
           (preparation
             ? r.signal.lane === "dependency" && c.isDependencyCI(r.signal)
             : drain.lane === "app" || r.signal.kind !== "finding")
@@ -519,7 +684,7 @@ async function handleWake({
       try {
         if (
           queued.signal.lane === "app" &&
-          !c.isMainQueueCheck(queued.signal) &&
+          queued.signal.kind !== "drain" &&
           controls.tickets[String(queued.signal.number)]
         )
           throw new c.StaleWakeSource("Wake issue already admitted");
@@ -613,4 +778,8 @@ module.exports = {
   alertWakeConfig,
   verifyAlertCI,
   mainQueueSignal,
+  appMergeSignal,
+  appMergeOwners,
+  interruptedAppSignal,
+  releasedAppSignal,
 };

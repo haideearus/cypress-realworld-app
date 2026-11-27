@@ -12,6 +12,7 @@ const { marked } = require("./feature-contract.cjs");
 const { readyFeature, verifyFeatureIssue } = require("./feature-origin.cjs");
 const { repairsWaiting, productionIncident } = require("./feature-priority.cjs");
 const turns = require("./feature-turn.cjs");
+const published = require("./published-review-recovery.cjs");
 
 const QUEUE_LABEL = "factory-ready";
 const MAX_QUEUE_PAGES = 5;
@@ -241,8 +242,11 @@ class AutomaticCoordinator {
     if (!dryRun && (!this.config.enabled || !this.config.automatic))
       return { ready: false, reason: "Automatic pickup disabled; no model invocation" };
 
+    const interruptedTarget = this.context.wake
+      ? require("./trusted-wake.cjs").interruptedWakeTarget(this.context)
+      : null;
     let loaded = await this.ledger.read();
-    if (!dryRun && !loaded.state.stop)
+    if (!dryRun && !loaded.state.stop && !interruptedTarget)
       loaded = await require("./feature-meter.cjs").reconcile(this.api, this.ledger, loaded);
     let { state, commit } = loaded;
     if (summaryPath) {
@@ -256,6 +260,28 @@ class AutomaticCoordinator {
         reason: "Factory stopped by owner; explicit resume is required",
       };
     const intentOwner = slots.pendingIntent(state);
+    if (interruptedTarget) {
+      const active = slots.activeFor(state, interruptedTarget);
+      if (!intentOwner && active && !dryRun) {
+        const held = state.tickets[interruptedTarget];
+        if (published.functionalPublication(held))
+          ({ state, commit } =
+            (await published.releaseTerminalRecovery(this, active, held, commit)) ?? loaded);
+      }
+      return (
+        (await published.resumeInterruptedReview(
+          this,
+          state,
+          commit,
+          dryRun,
+          interruptedTarget
+        )) ?? {
+          ready: false,
+          preview: dryRun,
+          reason: "Interrupted repair is held or already claimed",
+        }
+      );
+    }
     if (intentOwner) {
       if (!intentOwner.record.automatic)
         return {
@@ -290,13 +316,8 @@ class AutomaticCoordinator {
       };
     for (const entry of slots.activeEntries(state)) {
       const held = state.tickets[String(entry.ticket)];
-      if (!dryRun && held?.publishedRecovery) {
-        const saved = await require("./published-review-recovery.cjs").releaseTerminalRecovery(
-          this,
-          entry,
-          held,
-          commit
-        );
+      if (!dryRun && (held?.publishedRecovery || published.functionalPublication(held))) {
+        const saved = await published.releaseTerminalRecovery(this, entry, held, commit);
         if (saved) {
           state = saved.state;
           commit = saved.commit;
@@ -387,6 +408,13 @@ class AutomaticCoordinator {
         reason: "Reconcile the pending automatic PR before admitting new work",
       };
 
+    // Continue an interrupted, already-published functional fix before starting another ticket.
+    const interrupted = await published.resumeInterruptedReview(this, state, commit, dryRun);
+    if (interrupted?.ready || interrupted?.preview) return interrupted;
+    if (interrupted && !dryRun) {
+      if (summaryPath) require("node:fs").appendFileSync(summaryPath, `\n${interrupted.reason}\n`);
+      ({ state, commit } = await this.ledger.read());
+    }
     const turn = turns.priority(state, this.config);
     let candidate;
     if (turn) {
@@ -488,7 +516,8 @@ class AutomaticCoordinator {
       }
       if (!candidate)
         return (
-          recovery ?? {
+          recovery ??
+          interrupted ?? {
             ready: false,
             preview: dryRun,
             reason: "No eligible issue in the bounded queue",

@@ -340,8 +340,15 @@ async function observeIncident({
       state.active = null;
     }
     if (changed || state.active === null) await store.save(state, commit);
+    const repeatEvidence =
+      functional && !observation.healthy
+        ? await require("./functional-repeat-evidence.cjs")
+            .recordFunctionalRepeat(api, active, issue, context)
+            .catch(() => "held")
+        : undefined;
     return {
       outcome: observation.healthy ? "recovered" : "incident_existing",
+      ...(repeatEvidence ? { repeatEvidence } : {}),
       issue: active.issue,
       observation,
     };
