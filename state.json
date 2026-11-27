@@ -179,7 +179,8 @@
     ],
     "2026-11-27": [
       307,
-      232
+      232,
+      308
     ]
   },
   "tickets": {
@@ -6234,6 +6235,28 @@
         "workflowSha": "bd881afb2cc8e315083cd0b74279047ee84f09c6",
         "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-discovery.yml@refs/heads/main"
       }
+    },
+    "308": {
+      "coding": 0,
+      "reviews": 0,
+      "retries": 0,
+      "origin": "discovery-sweep",
+      "head": "bd881afb2cc8e315083cd0b74279047ee84f09c6",
+      "status": "discovering",
+      "pr": null,
+      "approval": null,
+      "discovery": {
+        "version": 1,
+        "head": "bd881afb2cc8e315083cd0b74279047ee84f09c6",
+        "ciRunId": "45903681274",
+        "charter": "functional-notifications",
+        "day": "2026-11-27",
+        "key": "b85952c6c062aad44a20b9ad7d82b31106e2d7c00a49287257e184ca497ffe49",
+        "runId": "45975348636",
+        "runAttempt": 1,
+        "workflowSha": "bd881afb2cc8e315083cd0b74279047ee84f09c6",
+        "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-discovery.yml@refs/heads/main"
+      }
     }
   },
   "grants": {
@@ -8481,18 +8504,25 @@
       "status": "finished",
       "at": "2026-11-27T01:00:25.582Z",
       "outcome": "reviewed"
+    },
+    "143b2e81-42f2-4241-8461-bcf15289709f": {
+      "id": "143b2e81-42f2-4241-8461-bcf15289709f",
+      "ticket": 308,
+      "phase": "discover",
+      "slot": "discovery",
+      "runId": "45975348636",
+      "runAttempt": 1,
+      "head": "bd881afb2cc8e315083cd0b74279047ee84f09c6",
+      "status": "reserved",
+      "at": "2026-11-27T09:38:38.610Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 308,
+    "runId": "45975348636",
+    "runAttempt": 1
+  },
   "audit": [
-    {
-      "at": "2026-11-15T07:46:50.667Z",
-      "event": "finished",
-      "ticket": 48,
-      "grant": "a94c9e0e-5a26-4450-b037-252ba35570c1",
-      "status": "awaiting_review",
-      "head": "ee62e1b720e512c1f9dc194155aec11b298ce132"
-    },
     {
       "at": "2026-11-15T07:53:41.529Z",
       "event": "reserved",
@@ -13627,6 +13657,16 @@
       },
       "recovery": "held",
       "retryAt": null
+    },
+    {
+      "at": "2026-11-27T09:38:38.610Z",
+      "event": "reserved",
+      "ticket": 308,
+      "grant": "143b2e81-42f2-4241-8461-bcf15289709f",
+      "phase": "discover",
+      "runId": "45975348636",
+      "runAttempt": 1,
+      "actor": "haideearus"
     }
   ],
   "featureTurn": {
