@@ -6,6 +6,7 @@ const { validateMonitorProof } = require("./monitor-proof.cjs");
 const { DRILL_WORKFLOW_REF, isDrillContext, validateDrillProof } = require("./drill-contract.cjs");
 const { validateStop } = require("./stop-contract.cjs");
 const { denyRetiredRun } = require("./quarantine-contract.cjs");
+const ticketBudget = require("./ticket-ai-budget.cjs");
 
 const REPOSITORY = "haideearus/cypress-realworld-app";
 const OWNER = "haideearus";
@@ -37,6 +38,11 @@ function readConfig(vars) {
   const featureMode = vars.FACTORY_FEATURE_MODE ?? "off";
   if (!["off", "pilot", "live"].includes(featureMode)) deny("Invalid weekly feature mode");
   const config = {
+    aiSessions: integer(
+      vars.FACTORY_MAX_AI_SESSIONS_PER_TICKET ?? String(ticketBudget.DEFAULT_SESSIONS),
+      "FACTORY_MAX_AI_SESSIONS_PER_TICKET",
+      ticketBudget.MAX_SESSIONS
+    ),
     featureMode,
     enabled: vars.FACTORY_ENABLED === "true",
     discovery: vars.FACTORY_DISCOVERY_ENABLED === "true",
@@ -160,6 +166,7 @@ function validateState(state) {
     )
       deny("Invalid ledger ticket counters");
     const grants = Object.values(state.grants).filter((g) => g?.ticket === Number(id));
+    ticketBudget.validate(ticket);
     require("./review-recovery.cjs").validateReceipt(ticket, id, grants);
     require("./published-review-recovery.cjs").validateRecovery(ticket, grants);
     if (ticket.delayedRetry !== undefined) require("./delayed-retry.cjs").validate(ticket, grants);
@@ -644,6 +651,8 @@ function reserve(original, request, config, now = new Date()) {
       ...(drill ? { drill: structuredClone(request.drill) } : {}),
     };
   }
+  if (automatic || existing?.automatic || existing?.aiSessionLimit !== undefined)
+    ticketBudget.reserve(state.tickets[id], request, config, Object.values(state.grants));
   if (request.phase === "code") {
     const t = state.tickets[id];
     if (t.status === "reviewed") deny("Ticket already reviewed");
@@ -732,6 +741,8 @@ function preflight(state, grantId, context, config) {
   if (automatic && !config.automatic) deny("Automatic factory disabled");
   const grant = state.grants[grantId];
   const ticket = grant && state.tickets[String(grant.ticket)];
+  if (ticket?.automatic || ticket?.aiSessionLimit !== undefined)
+    ticketBudget.checkPending(ticket, grant, config);
   if (ticket?.origin === "dependency-pr") {
     dependency.matches(ticket, context, config);
     if (context.phase !== "review" || context.slot !== "dependency" || !config.automatic)

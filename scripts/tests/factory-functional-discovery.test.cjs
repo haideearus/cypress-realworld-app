@@ -268,6 +268,60 @@ test("only a verified fixed check can publish a deduplicated functional repair t
   assert.match(publicationSummary(created), /settings-email-invalid/);
 });
 
+test("repeated Settings failures update one evidence comment without altering admission criteria", async () => {
+  const { publishFunctional } = require("../factory/functional-discovery.cjs");
+  const s = publisherFixture();
+  const comments = [];
+  const writes = [];
+  const bot = { login: "github-actions[bot]", type: "Bot" };
+  const api = {
+    async request(method, route, payload) {
+      if (route.includes("/comments?")) return structuredClone(comments);
+      if (route.endsWith("/issues/200/comments") || route.endsWith("/issues/comments/901")) {
+        writes.push(method);
+        const note = { id: 901, user: bot, ...payload };
+        if (method === "POST") comments.push(note);
+        else
+          Object.assign(
+            comments.find((entry) => entry.id === 901),
+            note
+          );
+        return note;
+      }
+      return s.api.request(method, route, payload);
+    },
+  };
+  const run = (runId, assertion = "settings-email-invalid") =>
+    publishFunctional({
+      ...s,
+      api,
+      context: { ...context, runId },
+      status: "confirmed_failure",
+      check: "form-validation",
+      assertion,
+      enabled: true,
+      dryRun: false,
+    });
+  assert.equal((await run("514")).issue, 200);
+  const criteria = s.ticket().body;
+  await run("514");
+  await run("515");
+  assert.deepEqual(writes, ["POST"]);
+  const spoof = { ...comments[0], id: 900, user: { login: "someone", type: "User" } };
+  comments.unshift(spoof);
+  await run("515");
+  await run("517", "settings-save-disabled");
+  await run("518");
+  await run("516");
+  assert.deepEqual(writes, ["POST", "PATCH"]);
+  assert.match(comments[1].body, /actions\/runs\/518\b/);
+  assert.equal(s.posts(), 1);
+  assert.equal(s.ticket().body, criteria);
+  s.ticket().state = "closed";
+  await run("520");
+  assert.equal(writes.length, 2);
+});
+
 test("pickup and event wake accept a sign-in accessibility issue only with its retained workflow proof", async () => {
   const { publishFunctional } = require("../factory/functional-discovery.cjs");
   const { verifyMonitorIssue } = require("../factory/monitor-origin.cjs");

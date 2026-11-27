@@ -87,6 +87,7 @@ function eligibleBlocked(state, ticket, id, config) {
       !ticket.approval &&
       !slots.activeFor(state, id) &&
       ticket.coding < config.coding &&
+      require("./ticket-ai-budget.cjs").canReserve(ticket, "code", config) &&
       ticket.retries < config.retries
   );
 }

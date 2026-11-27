@@ -305,6 +305,228 @@ function fixture({
   };
 }
 
+function interruptedBrowser({
+  conclusion = "cancelled",
+  spentReview = false,
+  savedCI = true,
+} = {}) {
+  const { coordinator, state, issue, ...rest } = fixture();
+  const { api } = coordinator;
+  const functional = require("../factory/functional-discovery-contract.cjs");
+  const { proofFromIncident } = require("../factory/monitor-proof.cjs");
+  const run = { runId: "514", runAttempt: 1, workflowSha: sourceBase };
+  Object.assign(issue, {
+    user: { login: "github-actions[bot]", type: "Bot" },
+    title: "Functional discovery: Settings form validation failed",
+    body: "Failed assertion: settings-email-invalid",
+  });
+  const incident = {
+    id: "00000000-0000-4000-8000-000000000022",
+    at: "2026-11-24T18:54:00.000Z",
+    day: "2026-11-24",
+    phase: "open",
+    recovered: false,
+    source: run,
+    criteriaHash: criteriaHash(issue),
+    issue: issue.number,
+    probeMode: functional.PROBE_MODE,
+    functionalCheck: "form-validation",
+    functionalAssertion: "settings-email-invalid",
+  };
+  const ticket = state.tickets[issue.number];
+  Object.assign(ticket, {
+    criteriaHash: incident.criteriaHash,
+    monitor: proofFromIncident(incident),
+    status: spentReview ? "reviewing" : "awaiting_review",
+    reviews: Number(spentReview),
+    ci: savedCI ? ticket.ci : null,
+  });
+  state.active = { ticket: issue.number, runId: ticket.automatic.runId, runAttempt: 1 };
+  if (spentReview)
+    state.grants.firstReview = {
+      ...state.active,
+      phase: "review",
+      slot: "cycle1",
+      head: ticket.head,
+      status: "reserved",
+    };
+  const request = api.request.bind(api);
+  api.request = async (method, path, body) => {
+    if (path.endsWith("/actions/runs/700/attempts/1"))
+      return {
+        ...(await request(method, path, body)),
+        conclusion,
+        status: conclusion ? "completed" : "in_progress",
+      };
+    if (path.endsWith("/git/ref/heads/factory/monitor-functional"))
+      return { object: { sha: base } };
+    if (path.endsWith("/contents/monitor.json?ref=" + base)) {
+      const { emptyMonitorState } = require("../factory/monitor-state.cjs");
+      const registry = emptyMonitorState();
+      registry.active = incident.id;
+      registry.incidents[incident.id] = incident;
+      return {
+        type: "file",
+        encoding: "base64",
+        content: Buffer.from(JSON.stringify(registry)).toString("base64"),
+      };
+    }
+    if (path.endsWith("/actions/workflows/" + functional.WORKFLOW_FILE))
+      return { id: 52, path: functional.WORKFLOW_PATH };
+    if (path.endsWith("/actions/runs/514/attempts/1"))
+      return {
+        ...(await request("GET", ROOT + "/actions/runs/700/attempts/1")),
+        id: 514,
+        workflow_id: 52,
+        path: functional.WORKFLOW_PATH,
+        conclusion: "success",
+      };
+    if (path.endsWith("/actions/runs/514/attempts/1/jobs?per_page=100"))
+      return {
+        jobs: [
+          ["browser", "Run approved browser checks"],
+          ["publish", "Publish confirmed functional failure"],
+        ].map(([name, step]) => ({
+          name,
+          conclusion: "success",
+          status: "completed",
+          steps: [{ name: step, conclusion: "success" }],
+        })),
+      };
+    return request(method, path, body);
+  };
+  const pages = api.pages.bind(api);
+  api.pages = async (path, key) => {
+    if (!path.includes("/700/attempts/1/jobs")) return pages(path, key);
+    return Object.entries({
+      "coding / agent": "success",
+      publish: "success",
+      ci: savedCI ? "success" : "cancelled",
+      reserve_review: spentReview ? "success" : "skipped",
+      [spentReview ? "review / agent" : "review"]: spentReview ? "cancelled" : "skipped",
+      assess: "skipped",
+    }).map(([name, result]) => ({
+      name: "cycle1 / " + name,
+      status: "completed",
+      conclusion: result,
+    }));
+  };
+  return { coordinator, state, issue, ...rest };
+}
+
+test("automatic pickup resumes an interrupted published browser repair before admitting new work", async () => {
+  const { AutomaticCoordinator } = require("../factory/automation.cjs");
+  const recovery = require("../factory/published-review-recovery.cjs");
+  for (const options of [{ savedCI: false }, { savedCI: true, spentReview: true }]) {
+    const { coordinator, state, issue } = interruptedBrowser(options);
+    const picker = Object.assign(Object.create(AutomaticCoordinator.prototype), coordinator);
+    Object.assign(picker.context, { ticket: 1, phase: "code", head: sourceBase, slot: "cycle1" });
+    picker.candidate = () => assert.fail("Unfinished published repair lost priority");
+    const result = await picker.pick();
+    assert.equal(result.reviewOnly, true);
+    assert.equal(result.ticket, issue.number);
+    const ticket = state.tickets[issue.number];
+    assert.equal(ticket.pr, 301);
+    assert.equal(ticket.head, sourceHead);
+    assert.equal(ticket.coding, 1);
+    assert.equal(ticket.reviews, Number(Boolean(options.spentReview)));
+    if (options.spentReview) assert.equal(state.grants.firstReview.outcome, "blocked");
+    assert.equal(state.active.runId, coordinator.context.runId);
+    recovery.validateRecovery(ticket, Object.values(state.grants));
+  }
+});
+
+test("a running browser parent retains its only slot", async () => {
+  const { AutomaticCoordinator } = require("../factory/automation.cjs");
+  const { coordinator, state } = interruptedBrowser({ conclusion: null });
+  const picker = Object.assign(Object.create(AutomaticCoordinator.prototype), coordinator);
+  Object.assign(picker.context, { ticket: 1, phase: "code", head: sourceBase, slot: "cycle1" });
+  assert.equal((await picker.pick()).ready, false);
+  assert.equal(state.active.runId, "700");
+});
+
+test("a second interrupted browser parent retains each reservation and respects the ticket cap", async () => {
+  const { AutomaticCoordinator } = require("../factory/automation.cjs");
+  const recovery = require("../factory/published-review-recovery.cjs");
+  for (const limit of [3, 4]) {
+    const { coordinator, state, issue } = interruptedBrowser({spentReview: true});
+    const {api} = coordinator;
+    const pages = api.pages.bind(api);
+    api.pages = async (path, key) => {
+      if (!path.includes("/800/attempts/1/jobs")) return pages(path, key);
+      return Object.entries({coding: "skipped",publish:"skipped",ci:"success",reserve_review:"success","review / agent":"cancelled",assess:"skipped"})
+        .map(([name, conclusion]) => ({name: "cycle1 / " + name, status: "completed", conclusion}));
+    };
+    const picker = Object.assign(Object.create(AutomaticCoordinator.prototype), coordinator);
+    Object.assign(picker.context, { ticket: 1, phase: "code", head: sourceBase, slot: "cycle1" });
+    Object.assign(picker.config, {reviews: 4, aiSessions: limit});
+    assert.equal((await picker.pick()).reviewOnly, true);
+    state.grants.secondReview = {...state.active, phase:"review",slot:"cycle1", head: sourceHead, status:"reserved"};
+    state.tickets[issue.number].reviews++;
+    state.tickets[issue.number].status = "reviewing";
+    picker.context.runId = "801";
+    picker.candidate = () => null;
+    const next = await picker.pick();
+    assert.equal(state.grants.firstReview.outcome, "blocked");
+    assert.equal(state.grants.secondReview.outcome, "blocked");
+    assert.equal(state.tickets[issue.number].reviews, 2);
+    assert.equal(state.tickets[issue.number].coding, 1);
+    assert.equal(state.tickets[issue.number].publishedRecovery.interruptedParents[0].runId, "800");
+    recovery.validateRecovery(state.tickets[issue.number], Object.values(state.grants));
+    if (limit === 3) {
+      assert.equal(state.active, null);
+      assert.equal(next.ready, false);
+    } else {
+      assert.equal(next.reviewOnly, true);
+      assert.equal(state.active.runId, "801");
+    }
+  }
+});
+
+test("a completed review, incomplete publication proof, revoked issue, or exhausted budget cannot replay a browser repair", async () => {
+  const recovery = require("../factory/published-review-recovery.cjs");
+  for (const reason of [
+    "completed review",
+    "duplicate publication",
+    "removed label",
+    "spent budget",
+    "edited issue",
+  ]) {
+    const { coordinator, state, issue } = interruptedBrowser({ spentReview: true });
+    const { api, config } = coordinator;
+    const saved = await recovery.releaseTerminalRecovery(
+      coordinator,
+      state.active,
+      state.tickets[issue.number],
+      base
+    );
+    if (reason === "completed review" || reason === "duplicate publication") {
+      const pages = api.pages.bind(api);
+      api.pages = async (path, key) => {
+        const rows = await pages(path, key);
+        if (path.includes("/700/attempts/1/jobs")) {
+          if (reason === "completed review")
+            rows.find((j) => j.name === "cycle1 / review / agent").conclusion = "success";
+          else rows.push(rows.find((j) => j.name === "cycle1 / publish"));
+        }
+        return rows;
+      };
+    } else if (reason === "removed label") issue.labels = [];
+    else if (reason === "edited issue") issue.body += "\nchanged";
+    else config.aiSessions = 2;
+    const result = await recovery.resumeInterruptedReview(
+      coordinator,
+      saved.state,
+      saved.commit,
+      false
+    );
+    assert.equal(result?.ready ?? false, false, reason);
+    assert.equal(state.active, null, reason);
+    assert.equal(state.tickets[issue.number].reviews, 1, reason);
+    assert.equal(state.tickets[issue.number].coding, 1, reason);
+  }
+});
+
 test("recovery reuses the passing CI and claims a review-only slot with the coding grant preserved", async () => {
   const { resumePublishedReview } = require("../factory/published-review-recovery.cjs");
   const { coordinator, state, calls, ci } = fixture();

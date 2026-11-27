@@ -17,6 +17,19 @@ function git(cwd, ...args) {
   return result.stdout;
 }
 
+test("the M2 exporter requires a full immutable source and an explicit destination", () => {
+  const { parseBundleArgs } = require(script);
+  const commit = "a".repeat(40);
+  assert.deepEqual(parseBundleArgs(["--m2-source", commit, "../m2"]), {
+    commit,
+    destination: "../m2",
+    m2: true,
+  });
+  assert.equal(parseBundleArgs(["../old-rehearsal"]).m2, false);
+  for (const args of [["--m2-source"], ["--m2-source", "main", "../m2"], ["--bad"], []])
+    assert.throws(() => parseBundleArgs(args), /Usage/);
+});
+
 test("preparation exports the healthy app and a separate one-line seed, with no live workflows", async (t) => {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), "settings-preparation-test-"));
   t.after(() => fs.rmSync(temp, { recursive: true, force: true }));

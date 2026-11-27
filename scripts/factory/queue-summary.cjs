@@ -1,5 +1,6 @@
 const { REPOSITORY } = require("./wake-contract.cjs");
 const mergeRetry = require("./dependency-merge-retry.cjs");
+const { effectiveLimit } = require("./ticket-ai-budget.cjs");
 
 const WEB = `https://github.com/${REPOSITORY}`;
 const NUMBER = /^[1-9]\d*$/;
@@ -24,6 +25,8 @@ function nextAction(ticket, config) {
   if (ticket.dependency)
     return "Check Dependency maintenance for the hold and whether a fresh candidate is eligible.";
   if (ticket.publishedRecovery) {
+    if (ticket.publishedRecovery.interruptedHead && !ticket.publishedRecovery.parent)
+      return "Check the interrupted publication and its remaining review budget before admitting fresh work.";
     const { STALE_REASON, INTERRUPTED_REASON } = require("./published-review-recovery.cjs");
     if (!ticket.publishedRecovery.previousParent && ticket.feedback === STALE_REASON)
       return "Waiting for tested main and a verified branch refresh before new CI and review.";
@@ -68,12 +71,15 @@ function queueSummary(state, config) {
         link("actions/runs", latest?.runId, "last attempt"),
         retry && link("actions/runs", retry.run?.runId ?? retry.sourceRun, "merge attempt"),
         link("actions/runs", ticket.ci?.runId, "saved CI"),
-        ticket.publishedRecovery?.sourceCi.runId !== ticket.ci?.runId &&
-          link("actions/runs", ticket.publishedRecovery?.sourceCi.runId, "original CI"),
+        ticket.publishedRecovery?.sourceCi?.runId !== ticket.ci?.runId &&
+          link("actions/runs", ticket.publishedRecovery?.sourceCi?.runId, "original CI"),
         link("pull", ticket.delayedRetry?.fix?.pr, "verified harness fix"),
       ].filter(Boolean);
       const attempts = `${ticket.coding || 0} coding / ${ticket.reviews || 0} review / ${ticket.retries || 0} retries`;
-      return `| ${links.join(" · ") || `Ledger entry #${id}`} | ${attempts} | ${nextAction(ticket, config)} |`;
+      const budget = ticket.automatic
+        ? ` · ${ticket.coding + ticket.reviews} of ${effectiveLimit(ticket, config)} AI sessions reserved`
+        : "";
+      return `| ${links.join(" · ") || `Ledger entry #${id}`} | ${attempts}${budget} | ${nextAction(ticket, config)} |`;
     });
   return [
     "",

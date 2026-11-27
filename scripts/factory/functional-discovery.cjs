@@ -214,7 +214,7 @@ async function publishFunctional({
   return { ...result, modelCalls: 0 };
 }
 
-function publicationSummary({ outcome, issue, observation }) {
+function publicationSummary({ outcome, issue, observation, repeatEvidence }) {
   const link = issueLink(issue);
   const ticketLabel =
     outcome === "incident_created" ? "Ready ticket published" : "Existing functional incident";
@@ -226,6 +226,9 @@ function publicationSummary({ outcome, issue, observation }) {
     "",
     `- Outcome — ${statusText(outcome)}`,
     ...(failure ? [failure] : []),
+    ...(outcome === "incident_existing" && repeatEvidence === "held"
+      ? ["- Repeat evidence is in this run. Updating the issue comment could not be confirmed."]
+      : []),
     link ? `- ${ticketLabel} — ${link}` : "- No ticket published by this run.",
   ].join("\n");
 }

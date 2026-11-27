@@ -30,6 +30,12 @@ const TESTS = [
   "wake",
 ];
 const FORM = "src/components/UserSettingsForm.tsx";
+const M2_TESTS = [
+  "ticket-ai-budget",
+  "published-review-recovery",
+  "app-merge-wake",
+  "m2-lifecycle",
+];
 
 function replaceOnce(text, from, to) {
   const index = text.indexOf(from);
@@ -100,7 +106,7 @@ function seedPatch(source) {
   ].join("\n");
 }
 
-function prepareSettings(repo, commit, destination) {
+function prepareSettings(repo, commit, destination, { m2 = false } = {}) {
   if (!/^[a-f0-9]{40}$/.test(commit)) throw Error("Use the complete source commit SHA");
   const parent = fs.realpathSync(path.dirname(destination));
   const output = path.join(parent, path.basename(destination));
@@ -111,6 +117,11 @@ function prepareSettings(repo, commit, destination) {
 
   const tree = execFileSync("git", ["ls-tree", "-r", commit], { cwd: repo, encoding: "utf8" });
   if (/^(120000|160000) /m.test(tree)) throw Error("Source contains a symlink or Git submodule");
+  const tests = m2 ? [...TESTS, ...M2_TESTS] : TESTS;
+  for (const name of tests) {
+    if (!tree.includes(`\tscripts/tests/factory-${name}.test.cjs\n`))
+      throw Error(`The selected source is missing the rehearsal test ${name}`);
+  }
   fs.mkdirSync(output);
   const app = path.join(output, "app");
   fs.mkdirSync(app);
@@ -132,7 +143,7 @@ function prepareSettings(repo, commit, destination) {
     replaceOnce(source, `"${LIVE}"`, `"${SANDBOX}"`)
   );
   for (const file of [
-    ...TESTS.map((name) => `factory-${name}.test.cjs`),
+    ...tests.map((name) => `factory-${name}.test.cjs`),
     "helpers/factory-fixtures.cjs",
     "helpers/event-fixtures.cjs",
   ]) {
@@ -144,7 +155,7 @@ function prepareSettings(repo, commit, destination) {
     replaceOnce(
       source,
       "node --test scripts/tests/factory-*.test.cjs",
-      `node --test ${TESTS.map((name) => `scripts/tests/factory-${name}.test.cjs`).join(" ")}`
+      `node --test ${tests.map((name) => `scripts/tests/factory-${name}.test.cjs`).join(" ")}`
     )
   );
   modify(app, "AGENTS.md", (source) => source.replaceAll(LIVE, SANDBOX));
@@ -159,11 +170,25 @@ function prepareSettings(repo, commit, destination) {
   );
 }
 
-if (require.main === module) {
-  const [destination, ...extra] = process.argv.slice(2);
-  if (!destination || extra.length)
-    throw Error("Usage: node scripts/rehearsal/prepare-settings.cjs <new-folder>");
-  prepareSettings(path.resolve(__dirname, "../.."), SOURCE, path.resolve(destination));
+function parseBundleArgs(args) {
+  if (args.length === 1 && args[0] && !args[0].startsWith("-"))
+    return { commit: SOURCE, destination: args[0], m2: false };
+  if (
+    args.length === 3 &&
+    args[0] === "--m2-source" &&
+    /^[a-f0-9]{40}$/.test(args[1]) &&
+    args[2] &&
+    !args[2].startsWith("-")
+  )
+    return { commit: args[1], destination: args[2], m2: true };
+  throw Error(
+    "Usage: node scripts/rehearsal/prepare-settings.cjs [--m2-source <full-commit-sha>] <new-folder>"
+  );
 }
 
-module.exports = { prepareSettings };
+if (require.main === module) {
+  const { commit, destination, m2 } = parseBundleArgs(process.argv.slice(2));
+  prepareSettings(path.resolve(__dirname, "../.."), commit, path.resolve(destination), { m2 });
+}
+
+module.exports = { prepareSettings, parseBundleArgs };
