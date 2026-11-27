@@ -178,7 +178,8 @@
       305
     ],
     "2026-11-27": [
-      307
+      307,
+      232
     ]
   },
   "tickets": {
@@ -4428,6 +4429,38 @@
         "mergeCommit": "61be0f06450e1916803c3050613e727a65400a1f"
       }
     },
+    "232": {
+      "coding": 0,
+      "reviews": 0,
+      "retries": 0,
+      "origin": "dependency-pr",
+      "head": "88aebd535023c5ab1996f20814458b96a5faf617",
+      "pr": 232,
+      "status": "new",
+      "approval": null,
+      "branch": "dependabot/npm_and_yarn/faker-js/faker-10.5.0",
+      "criteriaHash": "bc16af64818669e69a6c0501b601a1a607f139984bb6437577ca56a2c221816c",
+      "dependency": {
+        "version": 1,
+        "pr": 232,
+        "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-dependencies.yml@refs/heads/main",
+        "workflowSha": "bd881afb2cc8e315083cd0b74279047ee84f09c6",
+        "runId": "45918515523",
+        "runAttempt": 1,
+        "appSlug": "haideearus-software-factory",
+        "attempts": [
+          {
+            "head": "88aebd535023c5ab1996f20814458b96a5faf617",
+            "base": "bd881afb2cc8e315083cd0b74279047ee84f09c6",
+            "runId": "45918515523",
+            "runAttempt": 1,
+            "workflowSha": "bd881afb2cc8e315083cd0b74279047ee84f09c6",
+            "at": "2026-11-27T00:44:58.160Z"
+          }
+        ]
+      },
+      "ci": null
+    },
     "233": {
       "coding": 0,
       "reviews": 0,
@@ -8421,15 +8454,12 @@
       "outcome": "discovery_complete"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 232,
+    "runId": "45918515523",
+    "runAttempt": 1
+  },
   "audit": [
-    {
-      "at": "2026-11-14T23:47:27.273Z",
-      "event": "factory-stop-requested",
-      "actor": "haideearus",
-      "commandId": "28613b22-59d4-4cee-a189-6bcef5779b2b",
-      "reason": "Owner emergency stop"
-    },
     {
       "at": "2026-11-14T23:47:47.072Z",
       "event": "factory-stop-result",
@@ -13588,6 +13618,14 @@
       "ticket": 223,
       "head": "f2a4a85cd2091336745194f2efe754550a2481b3",
       "runId": "45906268125"
+    },
+    {
+      "at": "2026-11-27T00:44:58.160Z",
+      "event": "dependency_metadata_admitted",
+      "ticket": 232,
+      "head": "88aebd535023c5ab1996f20814458b96a5faf617",
+      "runId": "45918515523",
+      "actor": "haideearus"
     }
   ],
   "featureTurn": {
