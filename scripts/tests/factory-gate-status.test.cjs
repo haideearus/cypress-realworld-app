@@ -7,7 +7,8 @@ const { spawnSync } = require("node:child_process");
 const yaml = require("js-yaml");
 const { Controller } = require("../factory/controller.cjs");
 const { GitHub, Ledger } = require("../factory/github.cjs");
-const { readConfig, REPOSITORY } = require("../factory/policy.cjs");
+const { readConfig, REPOSITORY, AUTOMATIC_WORKFLOW_REF } = require("../factory/policy.cjs");
+const dependency = require("../factory/dependency-contract.cjs");
 const { FactoryFixture, vars, context } = require("./helpers/factory-fixtures.cjs");
 const root = path.resolve(__dirname, "../..");
 const workflow = path.join(root, ".github/workflows/factory-review-status.yml");
@@ -19,9 +20,10 @@ function loadWorkflow() {
   );
   return yaml.load(fs.readFileSync(workflow, "utf8"));
 }
-function verifier() {
+function inlineStep(id) {
   const flow = loadWorkflow();
-  const source = flow.jobs.gate.steps.find((s) => s.id === "verify").run;
+  const source = flow.jobs.gate.steps.find((s) => s.id === id)?.run;
+  assert.ok(source, `the workflow needs its ${id} step`);
   const match = source.match(/^node <<'NODE'\n([\s\S]+)\nNODE\s*$/);
   assert.ok(match, "the verifier must be the actual inline workflow entry");
   const filename = path.join(root, ".factory-inline-gate.cjs");
@@ -29,8 +31,9 @@ function verifier() {
   compiled.filename = filename;
   compiled.paths = Module._nodeModulePaths(root);
   compiled._compile(match[1], filename);
-  return compiled.exports.verify;
+  return compiled.exports;
 }
+const verifier = () => inlineStep("verify").verify;
 class GateFixture extends FactoryFixture {
   constructor() {
     super();
@@ -47,8 +50,11 @@ class GateFixture extends FactoryFixture {
         });
       if (route.startsWith("/actions/")) this.actionsCalls.push({ method, route });
       const response = await baseFetch(url, options);
-      if (this.patchPR && method === "GET" && route === "/pulls/30")
-        return respond(200, this.patchPR(await response.json()));
+      if (method === "GET" && /^\/pulls\/\d+$/.test(route)) {
+        const pr = await response.json();
+        pr.base.repo = { full_name: REPOSITORY };
+        return respond(200, this.patchPR ? this.patchPR(pr) : pr);
+      }
       return response;
     };
   }
@@ -90,6 +96,7 @@ async function setup(approved = true) {
     FACTORY_PR: "30",
     FACTORY_HEAD: "d".repeat(40),
     FACTORY_ENABLED: "false",
+    FACTORY_VERIFIER_SHA: fixture.branchHeads.get("main"),
   };
   return { fixture, api, ledger, controller, env };
 }
@@ -106,18 +113,202 @@ test("required review status is a native pull-request job with trusted base code
   const flow = loadWorkflow();
   assert.deepEqual(Object.keys(flow.on), ["pull_request"]);
   assert.deepEqual(flow.on.pull_request.branches, ["main"]);
+  assert.ok(flow.on.pull_request.types.includes("labeled"));
   const job = flow.jobs.gate;
   assert.equal(job.name, "Factory review gate");
   assert.deepEqual(job.permissions, { contents: "read", "pull-requests": "read" });
   assert.equal(job["timeout-minutes"], 5);
   assert.equal(job.if, undefined, "the required job must not silently skip missing review proof");
   assert.notEqual(job["continue-on-error"], true);
-  assert.notEqual(job.steps.find((s) => s.id === "verify")["continue-on-error"], true);
+  const verify = job.steps.find((s) => s.id === "verify");
+  assert.notEqual(verify["continue-on-error"], true);
+  assert.equal(verify.name, "Verify exact-head review with current trusted main");
+  assert.equal(verify.env.FACTORY_VERIFIER_SHA, "${{ steps.main.outputs.sha }}");
   const checkout = job.steps.find((s) => s.uses?.startsWith("actions/checkout@"));
-  assert.equal(checkout.with.ref, "${{ github.event.pull_request.base.sha }}");
+  assert.equal(checkout.with.repository, "${{ github.repository }}");
+  assert.equal(checkout.with.ref, "${{ steps.main.outputs.sha }}");
   assert.equal(checkout.with["persist-credentials"], false);
   assert.doesNotMatch(JSON.stringify(flow), /secrets\.|CLAUDE|ANTHROPIC|OPENAI|workflow_dispatch/);
   for (const step of job.steps) if (step.uses) assert.match(step.uses, /@[a-f0-9]{40}$/);
+});
+
+test("a fresh native gate resolves the same repository's protected main instead of the frozen PR event base", async () => {
+  const { fixture } = await setup(false);
+  const current = "68b111eb98a0d6778db3fdc071a5b82a94047fdc";
+  fixture.branchHeads.set("main", current);
+  const env = {
+    GITHUB_REPOSITORY: REPOSITORY,
+    GITHUB_EVENT_NAME: "pull_request",
+    FACTORY_BASE_REPOSITORY: REPOSITORY,
+    FACTORY_BASE_REF: "main",
+    FACTORY_BASE_SHA: "4a3c5b7236d0885c8259778c9a66da68da78cc61",
+    GH_TOKEN: "fixture-only",
+  };
+  const { resolveMain } = inlineStep("main");
+  const calls = [];
+  const transport = (url, options) => {
+    calls.push([options.method, url]);
+    return fixture.fetch(url, options);
+  };
+  assert.equal(await resolveMain(env, transport), current);
+  assert.deepEqual(calls, [["GET", `https://api.github.com/repos/${REPOSITORY}/branches/main`]]);
+  await assert.rejects(
+    resolveMain({ ...env, FACTORY_BASE_REPOSITORY: "other/repo" }, fixture.fetch)
+  );
+  await assert.rejects(
+    resolveMain({ ...env, GITHUB_EVENT_NAME: "workflow_dispatch" }, fixture.fetch)
+  );
+  for (const response of [
+    { name: "main", protected: false, commit: { sha: current } },
+    { name: "pr-head", protected: true, commit: { sha: current } },
+    { name: "main", protected: true, commit: { sha: "refs/pull/299/head" } },
+  ]) {
+    await assert.rejects(
+      resolveMain(env, async () => Response.json(response)),
+      /protected main/i
+    );
+  }
+});
+
+test("the initially resolved verifier cannot pass after protected main moves", async () => {
+  const { env, api, fixture } = await setup();
+  fixture.branchHeads.set("main", "b".repeat(40));
+  await assert.rejects(verifier()(env, api), /trusted main changed/i);
+});
+
+test("#299's fresh gate verifies its saved answer while the ledger retains #273's newer recovery", async () => {
+  const { fixture, api, env, ledger } = await setup(false);
+  const oldBase = "4a3c5b7236d0885c8259778c9a66da68da78cc61";
+  const current = "68b111eb98a0d6778db3fdc071a5b82a94047fdc";
+  const head = "9a348af64d89bb3c0fbd0f527b86ecd733dbcb4c";
+  const branch = `agent/dependency-alert-${"c".repeat(64)}`;
+  const at = "2026-11-27T21:06:19.292Z";
+  const coding = "00000000-0000-4000-8000-000000000001";
+  const approval = "00000000-0000-4000-8000-000000000002";
+  const firstHead = "1".repeat(40);
+  const secondHead = "2".repeat(40);
+  const thirdHead = "3".repeat(40);
+  const finalHead = "4".repeat(40);
+  const reviewRun = "46066424823";
+  fixture.branchHeads.set("main", current);
+  fixture.branchHeads.set(branch, head);
+  fixture.prs.push({ number: 299, branch, state: "open", baseSha: oldBase });
+  const parent = (runId, parentHead) => ({
+    runId,
+    runAttempt: 1,
+    workflowSha: current,
+    head: parentHead,
+  });
+  const ci = (runId, ciHead) => ({ runId, requestId: coding, head: ciHead, passed: true });
+  await ledger.update((state) => {
+    state.days["2026-11-27"] = [273, 299];
+    state.grants[coding] = {
+      id: coding,
+      ticket: 273,
+      phase: "code",
+      slot: "cycle1",
+      ...parent("10", firstHead),
+      status: "finished",
+      outcome: "awaiting_review",
+      at,
+    };
+    state.tickets[273] = {
+      origin: "factory",
+      coding: 1,
+      reviews: 0,
+      retries: 0,
+      status: "blocked",
+      head: finalHead,
+      pr: 274,
+      branch: "agent/factory-273",
+      automatic: {
+        runId: "10",
+        runAttempt: 1,
+        workflowRef: AUTOMATIC_WORKFLOW_REF,
+        workflowSha: current,
+        appSlug: "fixture-factory-app",
+      },
+      approval: null,
+      publishedRecovery: {
+        sourceCi: ci(741, firstHead),
+        refreshes: [
+          { from: firstHead, base: secondHead },
+          { from: secondHead, base: thirdHead },
+          { from: thirdHead, base: finalHead },
+        ],
+        previousParent: parent("20", secondHead),
+        parent: parent("40", finalHead),
+        finalContinuation: { failedParent: parent("30", thirdHead), priorCi: ci(742, thirdHead) },
+      },
+    };
+    state.grants[approval] = {
+      id: approval,
+      ticket: 299,
+      phase: "review",
+      slot: "dependency",
+      ...parent(reviewRun, head),
+      status: "finished",
+      outcome: "reviewed",
+      at,
+    };
+    state.tickets[299] = {
+      origin: "dependency-pr",
+      coding: 0,
+      reviews: 1,
+      retries: 0,
+      status: "reviewed",
+      pr: 299,
+      branch,
+      head,
+      criteriaHash: dependency.criteria(299),
+      ci: ci(46066640526, head),
+      feedback: JSON.stringify({
+        head,
+        verdict: "pass",
+        summary:
+          "Reviewed the ws lockfile update, available compatibility evidence and unchanged dependency constraints for the proposed revision.",
+        findings: [],
+      }),
+      approval: {
+        pr: 299,
+        head,
+        grant: approval,
+        verdict: "pass",
+        source: "claude-subscription",
+        fixture: false,
+        evidence: `https://github.com/${REPOSITORY}/actions/runs/${reviewRun}`,
+      },
+      dependency: {
+        version: 1,
+        pr: 299,
+        workflowRef: dependency.WORKFLOW,
+        workflowSha: current,
+        runId: reviewRun,
+        runAttempt: 1,
+        appSlug: "fixture-factory-app",
+        attempts: [{ ...parent(reviewRun, head), base: current, at }],
+      },
+    };
+    return { state };
+  });
+  const before = await ledger.read();
+  const hydrated = {
+    ...env,
+    FACTORY_BASE_REPOSITORY: REPOSITORY,
+    FACTORY_BASE_REF: "main",
+    FACTORY_BASE_SHA: oldBase,
+    FACTORY_HEAD: head,
+    FACTORY_PR: "299",
+    GITHUB_EVENT_NAME: "pull_request",
+    GH_TOKEN: "fixture-only",
+  };
+  const { resolveMain } = inlineStep("main");
+  const verifierSha = await resolveMain(hydrated, fixture.fetch);
+  assert.equal(verifierSha, current);
+  const result = await verifier()({ ...hydrated, FACTORY_VERIFIER_SHA: verifierSha }, api);
+  assert.equal(result.evidence, before.state.tickets[299].approval.evidence);
+  assert.deepEqual(await ledger.read(), before);
+  assert.deepEqual(fixture.runs, []);
 });
 test("the actual native verifier passes genuine exact-head fixture proof while the factory is disabled without writes", async () => {
   const { api, ledger, fixture, env } = await setup();
@@ -149,7 +340,14 @@ test("the exact stdin command really invokes the verifier and exits unsuccessful
       const snapshot = ${JSON.stringify(snapshot)};
       fixture.head = snapshot.head; fixture.objects = new Map(snapshot.objects);
       fixture.branchHeads = new Map(snapshot.branchHeads); fixture.prs = snapshot.prs;
-      global.fetch = fixture.fetch;\n`;
+      const original = fixture.fetch;
+      global.fetch = async (url, options) => {
+        const response = await original(url, options);
+        if (!new URL(url).pathname.endsWith('/pulls/30')) return response;
+        const pr = await response.json();
+        pr.base.repo = { full_name: process.env.GITHUB_REPOSITORY };
+        return Response.json(pr);
+      };\n`;
     const result = spawnSync(process.execPath, ["-"], {
       cwd: root,
       input: preload + inline,

@@ -104,7 +104,8 @@ function needsMergeCheck(ticket, autoMerge) {
     ticket.dependency &&
     ticket.status === "reviewed" &&
     !["merged", "closed"].includes(ticket.merge?.status) &&
-    (mergeRetry.blocksQueue(ticket) || (autoMerge && mergeRetry.due(ticket, new Date())))
+    (mergeRetry.blocksQueue(ticket) ||
+      (autoMerge && (mergeRetry.due(ticket, new Date()) || mergeRetry.heldGate(ticket))))
   );
 }
 
@@ -235,4 +236,145 @@ async function nextDependency({ api, source, context, vars, ledger, store, state
   return { signal: queueCheck, queueCheck, terminal, skipped };
 }
 
-module.exports = { nextDependency, verifyQueueCheck, terminalDependency, manualPickup, appWakeId };
+async function reconcileDispatches(api, store, receipts) {
+  const expected = new Map();
+  for (const r of receipts) {
+    const list = expected.get(r.signal.lane) || [];
+    list.push(r);
+    expected.set(r.signal.lane, list);
+  }
+  const accepted = [];
+  const { verifyDispatchIdentity } = require("./trusted-wake.cjs");
+  for (const [lane, intents] of expected) {
+    const file = c.LANES[lane];
+    const { workflow_runs } = await api.request(
+      "GET",
+      `${ROOT}/actions/workflows/${file}/runs?branch=main&event=workflow_dispatch&per_page=12`
+    );
+    if (!Array.isArray(workflow_runs) || workflow_runs.length > 12) continue;
+    const title = lane === "app" ? "Automatic factory" : "Dependency maintenance";
+    for (const r of intents) {
+      const matches = workflow_runs.filter(
+        (run) =>
+          run.display_title === `${title} / wake ${r.id}` &&
+          Date.parse(run.created_at) + 1000 >= Date.parse(r.at)
+      );
+      if (matches.length !== 1 || !c.ID.test(String(matches[0].id))) continue;
+      const [run] = matches;
+      try {
+        await verifyDispatchIdentity(
+          api,
+          { runId: String(run.id), workflowSha: run.head_sha },
+          r,
+          lane,
+          run
+        );
+      } catch (error) {
+        if (error.quotaResetAt || [429, 500, 502, 503, 504].includes(error.status)) throw error;
+        continue;
+      }
+      accepted.push(r.id);
+    }
+  }
+  if (!accepted.length) return 0;
+  const result = await store.update((state) => {
+    let reconciled = 0;
+    for (const id of accepted) {
+      if (state.receipts[id]?.status !== "intent") continue;
+      state.receipts[id].status = "sent";
+      reconciled++;
+    }
+    return { state, reconciled };
+  });
+  return result.reconciled;
+}
+
+function scheduleHold(state, limit) {
+  if (state.stop) return "stopped";
+  if (slots.pendingIntent(state)) return "merge_intent_pending";
+  return slots.capacity(state, limit) ? null : "busy";
+}
+
+async function recoverScheduledWake({ api, context, vars, store, ledger, producer, dispatchWake }) {
+  if (vars.FACTORY_ENABLED !== "true" || vars.FACTORY_AUTOMATION_ENABLED !== "true")
+    return { outcome: "disabled" };
+  const limit = Number(vars.FACTORY_MAX_CONCURRENT_TICKETS);
+  const { state: controls } = await ledger.read();
+  const hold = scheduleHold(controls, limit);
+  if (hold) return { outcome: hold };
+  const main = await api.request("GET", `${ROOT}/git/ref/heads/main`);
+  if (main.object?.sha !== context.workflowSha) return { outcome: "stale_main" };
+
+  const { state } = await store.read();
+  const receipts = Object.values(state.receipts);
+  if (!Number.isFinite(producer.createdAt)) throw Error("Invalid scheduled wake start");
+  const recentlyClaimed = (row) =>
+    ["intent", "sent", "bound"].includes(row.status) && Date.parse(row.at) >= producer.createdAt;
+  const intents = inputsToCheck(
+    receipts.filter((r) => r.status === "intent"),
+    producer.runId
+  );
+  const reconciled = await reconcileDispatches(api, store, intents);
+  // A confirmed receiver can still be starting. Leave this tick to that receiver.
+  if (reconciled) return { outcome: "reconciled", reconciled };
+  if (receipts.some(recentlyClaimed)) return { outcome: "duplicate" };
+
+  const pending = receipts.filter(
+    (r) =>
+      r.status === "pending" &&
+      !c.isPreparationDrain(r.signal) &&
+      (r.signal.kind !== "drain" || c.isAppQueueCheck(r.signal))
+  );
+  const stale = [];
+  let target;
+  const { verifySource, verifyRetainedProducer } = require("./trusted-wake.cjs");
+  for (const r of inputsToCheck(pending, producer.runId)) {
+    const { signal } = r;
+    try {
+      const ticket = controls.tickets[String(signal.number)];
+      if (
+        (signal.lane === "app" && signal.kind !== "drain" && ticket) ||
+        (c.isDependencyCI(signal) &&
+          ticket?.dependency?.attempts.some((a) => a.head === signal.head))
+      )
+        throw new c.StaleWakeSource("Wake already attempted");
+      await verifySource(api, signal, false, vars);
+      if (!(await currentCIBase(api, signal)))
+        throw new c.StaleWakeSource("Wake dependency base stale");
+      await verifyRetainedProducer(api, r);
+      target = r;
+      break;
+    } catch (error) {
+      if (error.quotaResetAt || error.status === 429) throw error;
+      if (error instanceof c.StaleWakeSource) stale.push(r.id);
+    }
+  }
+  if (!target && !stale.length) return { outcome: "idle" };
+  const currentHold = scheduleHold((await ledger.read()).state, limit);
+  if (currentHold) return { outcome: currentHold };
+  const claim = await store.update((current) => {
+    if (Object.values(current.receipts).some(recentlyClaimed))
+      return { state: current, duplicate: true };
+    for (const id of stale) {
+      if (current.receipts[id]?.status === "pending") current.receipts[id].status = "observed";
+    }
+    const receipt = target && current.receipts[target.id];
+    if (!receipt || receipt.status !== "pending") return { state: current };
+    // The original event still proves this receipt's authority. Only the claim
+    // time changes, so existing workers can read and verify the same schema.
+    receipt.status = "intent";
+    receipt.at = new Date().toISOString();
+    return { state: current, receipt };
+  });
+  if (claim.receipt) return dispatchWake(api, store, claim.receipt);
+  return { outcome: claim.duplicate ? "duplicate" : "idle" };
+}
+
+module.exports = {
+  nextDependency,
+  verifyQueueCheck,
+  terminalDependency,
+  manualPickup,
+  appWakeId,
+  recoverScheduledWake,
+};

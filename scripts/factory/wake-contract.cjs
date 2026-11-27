@@ -46,6 +46,8 @@ const isQueueCheckDrain = (signal) =>
 const isMainQueueCheck = (signal) => signal.kind === "drain" && signal.revision === "main-queue";
 const isAppMergeDrain = (signal) => signal.kind === "drain" && signal.revision === "app-merge";
 const isAppRelease = (signal) => signal.kind === "drain" && signal.revision === "app-release";
+const isDependencyRelease = (signal) =>
+  signal.kind === "drain" && signal.revision === "gate-recovery-release";
 const isAppQueueCheck = (signal) =>
   isMainQueueCheck(signal) || isAppMergeDrain(signal) || isAppRelease(signal);
 const isInterruptedApp = (signal) =>
@@ -56,7 +58,8 @@ function validateSignal(s) {
     (!["issue", "monitor", "finding", "drain"].includes(s.kind) && !isDependencyCI(s)) ||
     !LANES[s.lane] ||
     (s.kind === "dependency-alert-ci" && s.lane !== "dependency") ||
-    ((isPreparationDrain(s) || isQueueCheckDrain(s)) && s.lane !== "dependency") ||
+    ((isPreparationDrain(s) || isQueueCheckDrain(s) || isDependencyRelease(s)) &&
+      s.lane !== "dependency") ||
     (isMainQueueCheck(s) &&
       (s.lane !== "app" || s.sourceAttempt !== 1 || String(s.number) !== s.sourceRun)) ||
     ((isAppMergeDrain(s) || isAppRelease(s) || isInterruptedApp(s)) && s.lane !== "app") ||
@@ -191,6 +194,7 @@ module.exports = {
   isMainQueueCheck,
   isAppMergeDrain,
   isAppRelease,
+  isDependencyRelease,
   isAppQueueCheck,
   isInterruptedApp,
   createWake,

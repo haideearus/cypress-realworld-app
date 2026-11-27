@@ -4,6 +4,7 @@ const { runtimeContext } = require("./controller.cjs");
 const a = require("./activity.cjs");
 const { ActivityStore } = require("./activity-store.cjs");
 const { triageHarnessFaults } = require("./activity-harness-faults.cjs");
+const { reportDependencyMergeHold } = require("./dependency-merge-report.cjs");
 const { REPOSITORY, OWNER } = require("./wake-contract.cjs");
 const { timerTitle } = require("./pickup-timer.cjs");
 const link = (id) => `https://github.com/${REPOSITORY}/actions/runs/${id}`;
@@ -25,7 +26,7 @@ function producerFor(run, phase) {
     actor: run.actor.login,
   };
 }
-async function collectRunActivity({ run, jobs, ledger, deploymentStart = false }) {
+async function collectRunActivity({ run, jobs, ledger, state = null, deploymentStart = false }) {
   const workflow = run.path.split("/").at(-1);
   if (!a.WORKFLOWS.includes(workflow) || workflow === "factory-activity.yml")
     throw Error("Unknown observed workflow");
@@ -55,7 +56,7 @@ async function collectRunActivity({ run, jobs, ledger, deploymentStart = false }
       );
     return events;
   }
-  const { state } = await ledger.read();
+  state ??= (await a.readActivityLedger(ledger)).state;
   const grants = Object.values(state.grants).filter(
     (g) => g.runId === String(run.id) && g.runAttempt === run.run_attempt
   );
@@ -192,6 +193,20 @@ async function collectRunActivity({ run, jobs, ledger, deploymentStart = false }
     );
   return events;
 }
+
+function ledgerUnavailable(env) {
+  const summary =
+    "Factory activity held because the usage ledger could not be read or validated. Inspect the ledger revision and observer run before retrying. Model calls: 0.";
+  if (env.GITHUB_STEP_SUMMARY) {
+    try {
+      fs.appendFileSync(env.GITHUB_STEP_SUMMARY, `\n${summary}\n`);
+    } catch {
+      console.warn(summary);
+    }
+  }
+  return { outcome: "ledger_unavailable", modelCalls: 0 };
+}
+
 async function observeRun({
   api,
   runId,
@@ -202,6 +217,9 @@ async function observeRun({
   preview = false,
   triage = false,
   deploymentStart = false,
+  reportStore,
+  alertStore,
+  env = process.env,
 }) {
   const run = await api.request("GET", `${ROOT}/actions/runs/${runId}/attempts/${runAttempt}`);
   const probe = a.buildActivityEvent({
@@ -237,6 +255,15 @@ async function observeRun({
     `${ROOT}/actions/runs/${run.id}/attempts/${run.run_attempt}/jobs`,
     "jobs"
   );
+  let state;
+  if (!deploymentStart) {
+    try {
+      ({ state } = await a.readActivityLedger(ledger));
+    } catch (error) {
+      if (!(error instanceof a.ActivityLedgerUnavailable)) throw error;
+      return { ...ledgerUnavailable(env), events: 0, status: run.status };
+    }
+  }
   if (triage && !preview) {
     // Infrastructure triage can succeed even if journal scanning is unavailable.
     let result;
@@ -250,7 +277,31 @@ async function observeRun({
         "Harness maintenance ticket publication held. Check the durable activity receipt."
       );
   }
-  const events = await collectRunActivity({ run: trustedRun, jobs, ledger, deploymentStart });
+  if (
+    !preview &&
+    trustedRun.status === "completed" &&
+    trustedRun.path === ".github/workflows/factory-dependencies.yml"
+  ) {
+    const report = await reportDependencyMergeHold({
+      api,
+      ledger,
+      run: trustedRun,
+      state,
+      reportStore,
+      alertStore,
+    }).catch(() => "held");
+    if (report === "held")
+      console.warn(
+        "Dependency merge hold notification needs reconciliation. Inspect the verified dependency run and reporting receipt."
+      );
+  }
+  const events = await collectRunActivity({
+    run: trustedRun,
+    jobs,
+    ledger,
+    state,
+    deploymentStart,
+  });
   if (!deploymentStart && run.path === ".github/workflows/factory-deploy.yml") {
     const approvals = await api.request("GET", `${ROOT}/actions/runs/${run.id}/approvals`);
     for (const review of approvals)
@@ -368,7 +419,7 @@ async function checkFreshness({
     });
   return { change };
 }
-async function main(env = process.env) {
+async function runObserver(env) {
   require("./policy.cjs").assertSubscriptionEnv(env);
   const context = runtimeContext(env),
     vars = JSON.parse(env.FACTORY_VARIABLES || "{}");
@@ -426,7 +477,6 @@ async function main(env = process.env) {
     source.path === ".github/workflows/factory-deploy.yml";
   if (context.event === "workflow_run" && event.action !== "completed" && !deploymentProgress)
     return { outcome: "ignored", modelCalls: 0 };
-  await a.journal(api, journalIssue);
   const observe = (triage) =>
     observeRun({
       api,
@@ -436,16 +486,29 @@ async function main(env = process.env) {
       store,
       triage,
       deploymentStart: deploymentProgress,
+      env,
     });
   const terminalCI =
     context.event === "workflow_run" &&
     event.action === "completed" &&
     source.path === ".github/workflows/factory-ci.yml" &&
     source.event === "push";
-  if (terminalCI) await observe(true);
+  const terminalDependency =
+    context.event === "workflow_run" &&
+    event.action === "completed" &&
+    source.path === ".github/workflows/factory-dependencies.yml";
+  if (terminalDependency) {
+    // A broken journal cannot prevent per-ticket reporting.
+    const observed = await observe(false);
+    if (observed.outcome === "ledger_unavailable") return observed;
+  } else await a.journal(api, journalIssue);
+  if (terminalCI) {
+    const observed = await observe(true);
+    if (observed.outcome === "ledger_unavailable") return observed;
+  }
   const controlRegistry = (await store.read()).state;
   const commandEvents = require("./activity-controls.cjs").controlEvents(
-    await new Ledger(api).read(),
+    await a.readActivityLedger(new Ledger(api)),
     {
       runId: context.runId,
       runAttempt: context.runAttempt,
@@ -484,13 +547,27 @@ async function main(env = process.env) {
       links: [`https://github.com/${REPOSITORY}/issues/${issue.number}`],
     });
     await a.publishActivity({ api, event: current, journalIssue, store });
-  } else if (context.event === "workflow_run" && !terminalCI) await observe(false);
+  } else if (context.event === "workflow_run" && !terminalCI && !terminalDependency) {
+    const observed = await observe(false);
+    if (observed.outcome === "ledger_unavailable") return observed;
+  }
   await checkFreshness({ api, context, journalIssue, store });
   return { outcome: "observed", modelCalls: 0 };
 }
+async function main(env = process.env) {
+  try {
+    return await runObserver(env);
+  } catch (error) {
+    if (!(error instanceof a.ActivityLedgerUnavailable)) throw error;
+    return ledgerUnavailable(env);
+  }
+}
 if (require.main === module)
   main()
-    .then((r) => console.log(JSON.stringify(r)))
+    .then((r) => {
+      console.log(JSON.stringify(r));
+      if (r.outcome === "ledger_unavailable") process.exitCode = 1;
+    })
     .catch(() => {
       console.error(
         "Activity publication held. Inspect source, journal and durable intent; do not rerun a model for a notification failure."

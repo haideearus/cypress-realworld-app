@@ -100,6 +100,36 @@ async function verifyPreparationOrigin(api, run, ticket, attempt, store) {
   await verifyDispatchIdentity(api, context, receipt, "dependency", run);
   return true;
 }
+async function verifyDependencyReleaseOrigin(api, store, run) {
+  if (run.head_branch !== "main" || !["schedule", "workflow_dispatch"].includes(run.event))
+    return false;
+  if (
+    [run.actor, run.triggering_actor].every(
+      (actor) => actor?.login === c.OWNER && actor.id === c.OWNER_ID
+    )
+  )
+    return true;
+  const id = /^Dependency maintenance \/ wake ([a-f0-9]{64})$/.exec(run.display_title)?.[1];
+  if (!id || run.event !== "workflow_dispatch") return false;
+  const receipt = (await store.read()).state.receipts[id];
+  if (
+    receipt?.status !== "bound" ||
+    receipt.signal.lane !== "dependency" ||
+    receipt.receiver?.runId !== String(run.id) ||
+    receipt.receiver.runAttempt !== run.run_attempt ||
+    receipt.receiver.workflowSha !== run.head_sha
+  )
+    return false;
+  c.validateReceipt(receipt);
+  await verifyDispatchIdentity(
+    api,
+    { runId: String(run.id), workflowSha: run.head_sha },
+    receipt,
+    "dependency",
+    run
+  );
+  return true;
+}
 async function verifySource(api, signal, bound, vars = {}) {
   const { criteriaHash } = require("./controller.cjs");
   const { eligibleIssue } = require("./automation.cjs");
@@ -162,6 +192,7 @@ async function verifySource(api, signal, bound, vars = {}) {
     appMergeOwners,
     interruptedAppSignal,
     releasedAppSignal,
+    dependencyReleaseSignal,
   } = require("./wake-controller.cjs");
   if (c.isAppMergeDrain(signal) || c.isInterruptedApp(signal) || c.isAppRelease(signal)) {
     const [run, { state }] = await Promise.all([
@@ -243,11 +274,11 @@ async function verifySource(api, signal, bound, vars = {}) {
       d.SHA.test(pr.merge_commit_sha || "") &&
       Array.isArray(run.pull_requests) &&
       run.pull_requests.length === 0 &&
-      run.actor?.login === signal.actor.login &&
-      run.actor.id === signal.actor.id &&
       run.head_branch === pr.head.ref;
     if (
       run.event !== "pull_request" ||
+      run.actor?.login !== signal.actor.login ||
+      run.actor.id !== signal.actor.id ||
       run.head_sha !== signal.head ||
       (!associationRemoved && !run.pull_requests?.some((p) => p.number === pr.number))
     )
@@ -266,6 +297,23 @@ async function verifySource(api, signal, bound, vars = {}) {
   }
   if (c.isQueueCheckDrain(signal))
     return require("./wake-queue.cjs").verifyQueueCheck(api, signal, bound);
+  if (c.isDependencyRelease(signal)) {
+    const [run, { state }] = await Promise.all([
+      verifiedRun(api, signal.sourceRun, signal.sourceAttempt, c.LANES.dependency, {
+        success: false,
+      }),
+      new (require("./github.cjs").Ledger)(api).read(),
+    ]);
+    const source = await dependencyReleaseSignal(api, state, run, new WakeStore(api));
+    if (
+      !source ||
+      c.sourceKey(source) !== c.sourceKey(signal) ||
+      source.actor.login !== signal.actor.login ||
+      source.actor.id !== signal.actor.id
+    )
+      throw Error("Dependency release evidence changed");
+    return;
+  }
   if (signal.kind !== "drain" || c.isPreparationDrain(signal)) throw Error("Unknown wake source");
   const { Ledger } = require("./github.cjs");
   const { state } = await new Ledger(api).read();
@@ -317,7 +365,7 @@ async function verifySource(api, signal, bound, vars = {}) {
   )
     throw Error("Wake drain source changed");
 }
-async function verifyDispatchIdentity(api, context, receipt, lane, fetchedRun = null) {
+async function verifyRetainedProducer(api, receipt) {
   const { verifiedRun } = require("./wake-controller.cjs");
   const producer = await verifiedRun(api, receipt.producer.runId, 1, "factory-wake.yml", {
     terminal: false,
@@ -330,6 +378,11 @@ async function verifyDispatchIdentity(api, context, receipt, lane, fetchedRun = 
     producer.event !== receipt.producer.event
   )
     throw Error("Wake producer identity changed");
+}
+
+async function verifyDispatchIdentity(api, context, receipt, lane, fetchedRun = null) {
+  await verifyRetainedProducer(api, receipt);
+  const { verifiedRun } = require("./wake-controller.cjs");
   const receiver = await verifiedRun(api, context.runId, 1, c.LANES[lane], {
     terminal: false,
     success: false,
@@ -427,6 +480,9 @@ module.exports = {
   dependencyWakeTarget,
   interruptedWakeTarget,
   verifyPreparationOrigin,
+  verifyDependencyReleaseOrigin,
+  verifyDispatchIdentity,
+  verifyRetainedProducer,
   allowedModelBots,
   verifySource,
   verifyWake,

@@ -708,6 +708,151 @@ test("a claimed retry can merge with the same CI and review after all checks pas
   assert.equal(after.tickets["52"].merge.status, "merged");
 });
 
+test("#299 regression: a legacy gate hold can claim one merge-only attempt with the saved review", async () => {
+  const x = await protectedMergeFixture();
+  await assert.rejects(
+    failFinalCheck(x, ctx, Error("Refreshed native review gate did not pass")),
+    /Refreshed native review gate/
+  );
+  const original = (await x.ledger.read()).state;
+  const held = original.tickets["52"].dependencyMergeRetry;
+  assert.equal(held.phase, "held");
+  assert.equal(held.retryAt, null);
+  const later = new DependencyCoordinator(x.api, cfg, { ...ctx, runId: "101" });
+  const time = new Date(Date.parse(held.at) + 1_000);
+  const results = await Promise.all([later.select(false, time), later.select(false, time)]);
+  assert.equal(results.filter((result) => result.ready && result.mode === "merge").length, 1);
+  const claimed = (await x.ledger.read()).state;
+  assert.equal(claimed.active.ticket, 52);
+  assert.equal(claimed.active.runId, "101");
+  assert.deepEqual(claimed.grants, original.grants);
+  assert.deepEqual(claimed.days, original.days);
+  assert.deepEqual(claimed.tickets["52"].approval, original.tickets["52"].approval);
+  assert.deepEqual(claimed.tickets["52"].ci, original.tickets["52"].ci);
+  await later.finalize(52);
+  const completed = (await x.ledger.read()).state;
+  assert.equal(completed.active, null);
+  assert.equal(completed.tickets["52"].dependencyMergeRetry.phase, "held");
+  assert.equal((await later.select(false, time)).ready, false);
+});
+
+test("a held legacy gate without valid saved review does not starve the next dependency", async () => {
+  const x = await protectedMergeFixture();
+  await assert.rejects(failFinalCheck(x, ctx, Error("Refreshed native review gate did not pass")));
+  await x.ledger.update((state) => {
+    state.tickets["52"].feedback = "Archived text without review proof";
+    return { state };
+  });
+  const next = pr();
+  next.number = 53;
+  next.head = { ...next.head, ref: "dependabot/npm_and_yarn/bar-1.0.1", sha: "e".repeat(40) };
+  x.f.rows.push(next);
+  const route = x.f.route;
+  x.f.route = (path, ...args) => {
+    if (path === "/pulls/53") return next;
+    if (path === "/pulls/53/files") return [{ filename: "yarn.lock", status: "modified" }];
+    return route(path, ...args);
+  };
+  const later = new DependencyCoordinator(x.api, cfg, { ...ctx, runId: "101" });
+  const selected = await later.select(false);
+  assert.equal(selected.ready, true);
+  assert.equal(selected.ticket, 53);
+  const final = (await x.ledger.read()).state;
+  assert.equal(final.tickets["52"].dependencyMergeRetry.phase, "held");
+  assert.equal(final.active.ticket, 53);
+});
+
+test("#299 regression: an already reviewed dependency waits for a fresh native gate and merges once", async () => {
+  const x = await protectedMergeFixture();
+  await assert.rejects(failFinalCheck(x, ctx, Error("Refreshed native review gate did not pass")));
+  const saved = (await x.ledger.read()).state;
+  const held = saved.tickets["52"].dependencyMergeRetry;
+  const context = { ...ctx, runId: "101" };
+  const retry = new DependencyCoordinator(x.api, cfg, context);
+  assert.equal((await retry.select(false, new Date(Date.parse(held.at) + 1_000))).mode, "merge");
+  retryProducer(x);
+  const route = x.f.route;
+  const sha = pr().head.sha;
+  const originalChecks = route(`/commits/${sha}/check-runs`, "GET").check_runs;
+  const originalGate = route("/actions/runs/402", "GET");
+  const originalJob = route("/actions/runs/402/jobs", "GET").jobs[0];
+  let labelled = false;
+  let labelRequests = 0;
+  x.f.rows[0].mergeable_state = "blocked";
+  x.f.route = (path, method, ...args) => {
+    if (path === `/commits/${sha}/check-runs`) {
+      const gates = [{ ...originalChecks[1], conclusion: "failure" }];
+      if (labelled)
+        gates.push({
+          ...originalChecks[1],
+          id: 203,
+          check_suite: { id: 303 },
+          details_url: `https://github.com/${policy.REPOSITORY}/actions/runs/403/job/503`,
+        });
+      return { check_runs: [originalChecks[0], ...gates] };
+    }
+    if (path === "/actions/runs/402")
+      return { ...originalGate, run_attempt: 1, conclusion: "failure" };
+    if (path === "/actions/runs/402/jobs")
+      return {
+        jobs: [
+          {
+            ...originalJob,
+            conclusion: "failure",
+            steps: [
+              { name: "Verify current-head independent proof without a model or state write" },
+            ],
+          },
+        ],
+      };
+    if (path === "/actions/runs/403")
+      return { ...originalGate, id: 403, check_suite_id: 303, run_attempt: 1 };
+    if (path === "/actions/runs/403/jobs" || path === "/actions/runs/403/attempts/1/jobs")
+      return {
+        jobs: [
+          {
+            ...originalJob,
+            id: 503,
+            run_id: 403,
+            head_sha: sha,
+            run_attempt: 1,
+            check_run_url: `https://api.github.com${ROOT}/check-runs/203`,
+            steps: [
+              { name: "Verify exact-head review with current trusted main", conclusion: "success" },
+            ],
+          },
+        ],
+      };
+    if (path === "/labels/factory-gate-refresh") return { name: "factory-gate-refresh" };
+    if (path === "/issues/52/labels" && method === "POST") {
+      labelRequests++;
+      labelled = true;
+      x.f.rows[0].mergeable_state = "clean";
+      return [{ name: "factory-gate-refresh" }];
+    }
+    if (path === "/pulls/52/merge" && method === "PUT") assert.ok(labelled);
+    return route(path, method, ...args);
+  };
+  const result = await new DependencyMerger(
+    x.api,
+    cfg,
+    context,
+    report("premerge", new Date(), "101"),
+    {
+      sleep: async () => {},
+    }
+  ).merge(52);
+  assert.equal(result.merged, true);
+  assert.equal(labelRequests, 1);
+  assert.equal(x.f.puts, 1);
+  const complete = (await x.ledger.read()).state;
+  assert.equal(complete.active, null);
+  assert.equal(complete.tickets["52"].merge.status, "merged");
+  assert.deepEqual(complete.grants, saved.grants);
+  assert.deepEqual(complete.days, saved.days);
+  assert.deepEqual(complete.tickets["52"].approval, saved.tickets["52"].approval);
+});
+
 test("a final check identity failure holds only its PR and provides a safe diagnostic", async () => {
   const x = await protectedMergeFixture();
   const error = Error("Missing native required check: verify");

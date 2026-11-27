@@ -65,6 +65,10 @@ const HARNESS_FAULTS = Object.freeze({
     step: "Install the checksum-pinned secret scanner",
     title: "Factory maintenance: recurring secret scanner installation failure",
   }),
+  "review-gate-verifier": Object.freeze({
+    step: "Current trusted review gate unavailable after refresh",
+    title: "Factory maintenance: recurring review gate refresh failure",
+  }),
 });
 const issueOrRunNumber = (n) => Number.isSafeInteger(n) && n > 0;
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
@@ -218,6 +222,7 @@ module.exports = {
   STATES,
   MAX_EVENTS,
   HARNESS_FAULTS,
+  validateHarnessFaults,
   buildActivityEvent,
   validateProducer,
   validateEvent,

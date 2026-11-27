@@ -1,5 +1,7 @@
 name: Factory event wake
 on:
+  schedule:
+    - cron: "8,28,48 * * * *"
   issues:
     types: [opened, labeled, reopened, edited]
   workflow_run:

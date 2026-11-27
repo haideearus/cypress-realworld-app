@@ -289,6 +289,16 @@ class DependencyCoordinator {
     if (t.merge?.status === "intent")
       return { ready: !preview, mode: "reconcile", ticket: t.pr, head: t.head };
     const pr = checked ?? (await this.pr(t.pr, { closed: true, expected: t }));
+    if (mergeRetry.heldGate(t) && pr.state === "open") {
+      if (preview)
+        return { ready: false, mode: "preview", reason: "Saved review can resume at merge" };
+      if (
+        !(await mergeRetry.claim(this.ledger, t, this.context, this.config, now, (latest) =>
+          this.pr(latest.pr, { expected: latest })
+        ))
+      )
+        return { ready: false, reason: "Dependency merge retry is already claimed or unavailable" };
+    }
     return {
       ready: !preview,
       mode: pr.state === "closed" ? "reconcile" : "merge",
@@ -349,6 +359,18 @@ class DependencyCoordinator {
     }
     for (const entry of slots.activeEntries(state)) {
       const t = state.tickets[String(entry.ticket)];
+      const retry = mergeRetry.current(t);
+      if (
+        !preview &&
+        !t?.merge &&
+        retry?.phase === "retrying" &&
+        slots.owns(entry, { ticket: entry.ticket, ...retry.run }) &&
+        (await terminalParent(this.api, entry))
+      ) {
+        await mergeRetry.finish(this.ledger, t, retry.run);
+        state = (await this.ledger.read()).state;
+        continue;
+      }
       if (
         state.version === 2 &&
         t?.dependency &&
@@ -398,7 +420,10 @@ class DependencyCoordinator {
         t.status === "reviewed" &&
         (!t.dependency ||
           mergeRetry.blocksQueue(t, now) ||
-          (this.config.autoMerge && mergeRetry.due(t, now))) &&
+          (this.config.autoMerge &&
+            (mergeRetry.due(t, now) ||
+              (mergeRetry.heldGate(t) &&
+                policy.reviewGate(state, { number: t.pr, head: t.head }).ok)))) &&
         !["closed", "merged"].includes(t.merge?.status)
     );
     if (pending) {
@@ -407,8 +432,14 @@ class DependencyCoordinator {
       if (state.version === 2 && slots.activeFor(state, pending.pr))
         return { ready: false, reason: "Reviewed dependency parent is still running" };
       const result = await this.pending(pending, preview, now);
-      if (result) return result;
+      if (result && (result.ready || preview || !mergeRetry.heldGate(pending))) return result;
       state = (await this.ledger.read()).state;
+      if (
+        state.stop ||
+        slots.pendingIntent(state) ||
+        !slots.capacity(state, this.config.concurrent)
+      )
+        return { ready: false, reason: "Factory availability changed while checking a held merge" };
     }
     const target = require("./trusted-wake.cjs").dependencyWakeTarget(this.context);
     const turns = require("./feature-turn.cjs");
@@ -656,6 +687,17 @@ class DependencyMerger extends AutomaticMerger {
   }
   branchFor(_number, t) {
     return t.branch;
+  }
+  ownsPremergeLease(state, number, ticket) {
+    return (
+      !ticket.merge &&
+      mergeRetry.current(ticket)?.phase === "retrying" &&
+      mergeRetry.permits(ticket, this.context) &&
+      slots.owns(slots.activeFor(state, number), { ...this.context, ticket: number }) &&
+      !Object.values(state.grants).some(
+        (grant) => grant.ticket === number && grant.status === "reserved"
+      )
+    );
   }
   async issue(number, t, { confirmation = false, observed } = {}) {
     const current = await this.pr(number, t, { confirmation });

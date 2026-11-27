@@ -1727,6 +1727,7 @@ module.exports = {
   AlertAdmissionHold,
   issueTitle,
   issueBody,
+  issueOK,
   verifyAlertPR,
   verifyWiderContents,
   widerReceiptFor,
