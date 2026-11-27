@@ -6351,9 +6351,17 @@
       "reviews": 1,
       "retries": 0,
       "head": "5d7362a81f1ffb073d8bb7c84eddf2d150fce6a2",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 312,
-      "approval": null,
+      "approval": {
+        "head": "5d7362a81f1ffb073d8bb7c84eddf2d150fce6a2",
+        "pr": 312,
+        "grant": "f74f9185-f910-4e82-bc17-3b0cb7d8651b",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/46073633139"
+      },
       "criteriaHash": "a64a4a7dc7c11b94e778c81bc14c1f6fe9e060ede38cf2bdcf99f82125c53d8f",
       "branch": "agent/factory-reliability",
       "ci": {
@@ -6361,7 +6369,8 @@
         "head": "5d7362a81f1ffb073d8bb7c84eddf2d150fce6a2",
         "runId": 46073715668,
         "passed": true
-      }
+      },
+      "feedback": "{\"head\":\"5d7362a81f1ffb073d8bb7c84eddf2d150fce6a2\",\"verdict\":\"pass\",\"summary\":\"Reviewed ticket #311 (recover stale review gates / continue queue after merge hold) against the current source at the stated head. Core fix is in scripts/factory/merge.cjs (GATE_REFRESH_LABEL/requestCurrentGate/waitForRefreshedGate: detects a legacy \\\"Factory review gate\\\" job step and forces a relabel to obtain a fresh native check via the current trusted verifier, matching .github/workflows/factory-review-status.yml's \\\"Verify exact-head review with current trusted main\\\" step added to resolve main via the GitHub API rather than trusting a stale checkout), scripts/factory/dependency-merge-retry.cjs (heldGate/claim with a verifyHeldGate callback that re-verifies before a single recovery claim, gated by slots/capacity so it cannot double-claim), scripts/factory/trusted-wake.cjs (new verifyDependencyReleaseOrigin) and scripts/factory/wake-controller.cjs (dependencyReleaseSignal), which together implement \\\"verify the exact head with the current trusted verifier, recover a qualifying held merge once.\\\" scripts/factory/dependency-merge-report.cjs is new and implements the \\\"durable, deduplicated diagnostics\\\" criterion: it posts/patches a single marked issue comment per held PR (dedup via bodyHash/commentId reconciliation) and records harness faults via activity-harness-faults.cjs for persistent verifier unavailability, with a 500-key ledger bound and version/shape validation in validateReports. Regression tests directly tagged \\\"#299 regression\\\" exist in scripts/tests/factory-dependencies.test.cjs (concurrent-claim atomicity, approval/grant unchanged after recovery confirming no new model reservation) and scripts/tests/factory-dependency-merge-report.test.cjs (concurrent observers producing one comment, lost-POST reconciliation, secret redaction in the Actions summary, closed/forged/stopped-ledger cases producing no writes). The reviewed workflow files (factory-review-status.yml, factory-wake.yml) use pinned action SHAs, persist-credentials: false, and scoped permissions, and no deploy/production-approval workflow is touched, consistent with \\\"keep production deployment subject to manual approval\\\" and \\\"no settings change.\\\" Limits: this is a ~29-file, deeply interdependent meta-automation change; I inspected the central recovery/report/verification paths and their dedicated tests but did not trace every helper (e.g. wake-contract.cjs, metadata-store.cjs, activity-contract.cjs edits, concurrency-migration interactions) line-by-line, and I could not execute the test suite or fetch the linked CI run in this read-only session, so I'm relying on static reading of the code and its paired assertions rather than confirmed CI output.\",\"findings\":[]}"
     }
   },
   "grants": {
@@ -8654,24 +8663,13 @@
       "runId": "46073633139",
       "runAttempt": 1,
       "head": "5d7362a81f1ffb073d8bb7c84eddf2d150fce6a2",
-      "status": "reserved",
-      "at": "2026-11-27T21:58:22.162Z"
+      "status": "finished",
+      "at": "2026-11-27T21:58:22.162Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 311,
-    "runId": "46073633139",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
-    {
-      "at": "2026-11-15T16:36:14.835Z",
-      "event": "finished",
-      "ticket": 55,
-      "grant": "63fa8c92-34c0-4fc4-b587-47ce87245096",
-      "status": "reviewed",
-      "head": "69f348f41aa5aabc226e1ed373cc6e86ddcfadd6"
-    },
     {
       "at": "2026-11-15T17:38:48.420Z",
       "event": "dependency_metadata_admitted",
@@ -13816,6 +13814,14 @@
       "runId": "46073633139",
       "runAttempt": 1,
       "actor": "haideearus"
+    },
+    {
+      "at": "2026-11-27T22:11:10.870Z",
+      "event": "finished",
+      "ticket": 311,
+      "grant": "f74f9185-f910-4e82-bc17-3b0cb7d8651b",
+      "status": "reviewed",
+      "head": "5d7362a81f1ffb073d8bb7c84eddf2d150fce6a2"
     }
   ],
   "featureTurn": {
