@@ -4436,7 +4436,7 @@
       "origin": "dependency-pr",
       "head": "88aebd535023c5ab1996f20814458b96a5faf617",
       "pr": 232,
-      "status": "new",
+      "status": "blocked",
       "approval": null,
       "branch": "dependabot/npm_and_yarn/faker-js/faker-10.5.0",
       "criteriaHash": "bc16af64818669e69a6c0501b601a1a607f139984bb6437577ca56a2c221816c",
@@ -4459,7 +4459,8 @@
           }
         ]
       },
-      "ci": null
+      "ci": null,
+      "feedback": "Dependency preparation held; no model invocation"
     },
     "233": {
       "coding": 0,
@@ -8454,36 +8455,8 @@
       "outcome": "discovery_complete"
     }
   },
-  "active": {
-    "ticket": 232,
-    "runId": "45918515523",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
-    {
-      "at": "2026-11-14T23:47:47.072Z",
-      "event": "factory-stop-result",
-      "actor": "haideearus",
-      "commandId": "28613b22-59d4-4cee-a189-6bcef5779b2b",
-      "terminalRunIds": [
-        43654287550
-      ],
-      "quarantinedRunIds": [
-        43467058965
-      ],
-      "quarantinedRuns": [
-        {
-          "id": 43467058965,
-          "runAttempt": 1,
-          "status": "queued",
-          "head": "421553c2c108dc2704ef6cec7864582b8c63ead6",
-          "containmentTicket": 38,
-          "reason": "Frozen pre-job controller rejects retained drill history before admission"
-        }
-      ],
-      "pendingRunIds": [],
-      "elapsedMs": 28194
-    },
     {
       "at": "2026-11-15T06:39:49.771Z",
       "event": "factory-resumed",
@@ -13626,6 +13599,13 @@
       "head": "88aebd535023c5ab1996f20814458b96a5faf617",
       "runId": "45918515523",
       "actor": "haideearus"
+    },
+    {
+      "at": "2026-11-27T00:45:37.271Z",
+      "event": "dependency_preparation_blocked",
+      "ticket": 232,
+      "head": "88aebd535023c5ab1996f20814458b96a5faf617",
+      "runId": "45918515523"
     }
   ],
   "featureTurn": {
