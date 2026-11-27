@@ -181,7 +181,8 @@
       307,
       232,
       308,
-      234
+      234,
+      309
     ]
   },
   "tickets": {
@@ -6299,6 +6300,19 @@
         "workflowSha": "bd881afb2cc8e315083cd0b74279047ee84f09c6",
         "workflowRef": "haideearus/cypress-realworld-app/.github/workflows/factory-discovery.yml@refs/heads/main"
       }
+    },
+    "309": {
+      "coding": 0,
+      "origin": "owner-pr",
+      "reviews": 1,
+      "retries": 0,
+      "head": "fa324d76790e6edf831629cacffae69643f7ef7b",
+      "status": "reviewing",
+      "pr": 310,
+      "approval": null,
+      "criteriaHash": "99a19e5076227b6d7bd8f70c0e59bb33ad34dcbe34fafbdeb6124e4ccaddbbbf",
+      "branch": "agent/m2-ticket-recovery",
+      "ci": null
     }
   },
   "grants": {
@@ -8558,18 +8572,25 @@
       "status": "finished",
       "at": "2026-11-27T09:38:38.610Z",
       "outcome": "discovery_complete"
+    },
+    "9e00a37a-7a82-4bbd-9cb5-b89d60770b84": {
+      "id": "9e00a37a-7a82-4bbd-9cb5-b89d60770b84",
+      "ticket": 309,
+      "phase": "review",
+      "slot": "existing",
+      "runId": "46061379492",
+      "runAttempt": 1,
+      "head": "fa324d76790e6edf831629cacffae69643f7ef7b",
+      "status": "reserved",
+      "at": "2026-11-27T20:07:32.820Z"
     }
   },
-  "active": null,
+  "active": {
+    "ticket": 309,
+    "runId": "46061379492",
+    "runAttempt": 1
+  },
   "audit": [
-    {
-      "at": "2026-11-15T12:55:28.473Z",
-      "event": "finished",
-      "ticket": 53,
-      "grant": "291c280c-01be-4553-a6dd-d188808861e1",
-      "status": "reviewed",
-      "head": "797b28e18b6ee0f5a832a11c39277f717707d4eb"
-    },
     {
       "at": "2026-11-15T13:13:05.738Z",
       "event": "dependency_metadata_admitted",
@@ -13701,6 +13722,16 @@
       "ticket": 234,
       "head": "6f40659242b83c989c61f98bbf171400bc1ec74b",
       "runId": "46057863873"
+    },
+    {
+      "at": "2026-11-27T20:07:32.820Z",
+      "event": "reserved",
+      "ticket": 309,
+      "grant": "9e00a37a-7a82-4bbd-9cb5-b89d60770b84",
+      "phase": "review",
+      "runId": "46061379492",
+      "runAttempt": 1,
+      "actor": "haideearus"
     }
   ],
   "featureTurn": {
