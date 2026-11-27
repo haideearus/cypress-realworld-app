@@ -6312,7 +6312,11 @@
       "approval": null,
       "criteriaHash": "99a19e5076227b6d7bd8f70c0e59bb33ad34dcbe34fafbdeb6124e4ccaddbbbf",
       "branch": "agent/m2-ticket-recovery",
-      "ci": null
+      "ci": {
+        "requestId": "f64c8b73-e873-4d1b-ac7f-0c73b045339f",
+        "head": "fa324d76790e6edf831629cacffae69643f7ef7b",
+        "runId": null
+      }
     }
   },
   "grants": {
