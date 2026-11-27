@@ -4544,7 +4544,7 @@
       "origin": "dependency-pr",
       "head": "6f40659242b83c989c61f98bbf171400bc1ec74b",
       "pr": 234,
-      "status": "new",
+      "status": "blocked",
       "approval": null,
       "branch": "dependabot/npm_and_yarn/http-proxy-middleware-2.0.10",
       "criteriaHash": "7f3264046f512983269de3b291a30b3d163d85b6735734e68f5f15fd68caef76",
@@ -4567,7 +4567,8 @@
           }
         ]
       },
-      "ci": null
+      "ci": null,
+      "feedback": "Dependency preparation held; no model invocation"
     },
     "235": {
       "coding": 0,
@@ -8559,21 +8560,8 @@
       "outcome": "discovery_complete"
     }
   },
-  "active": {
-    "ticket": 234,
-    "runId": "46057863873",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
-    {
-      "at": "2026-11-15T12:44:15.919Z",
-      "event": "reserved",
-      "ticket": 53,
-      "grant": "291c280c-01be-4553-a6dd-d188808861e1",
-      "phase": "review",
-      "runId": "43715336434",
-      "runAttempt": 1
-    },
     {
       "at": "2026-11-15T12:55:28.473Z",
       "event": "finished",
@@ -13706,6 +13694,13 @@
       "head": "6f40659242b83c989c61f98bbf171400bc1ec74b",
       "runId": "46057863873",
       "actor": "haideearus"
+    },
+    {
+      "at": "2026-11-27T19:37:16.316Z",
+      "event": "dependency_preparation_blocked",
+      "ticket": 234,
+      "head": "6f40659242b83c989c61f98bbf171400bc1ec74b",
+      "runId": "46057863873"
     }
   ],
   "featureTurn": {
