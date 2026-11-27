@@ -6125,7 +6125,9 @@
             "evidence": [
               {
                 "at": "2026-11-27T21:03:19.837Z",
-                "status": "started"
+                "status": "ready",
+                "digest": "8a3a3649e3c4ff386f398414e7d9669efb636de3390256865ca7e0384d00f19e",
+                "finishedAt": "2026-11-27T21:03:26.991Z"
               }
             ]
           }
