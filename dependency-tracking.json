@@ -178,7 +178,16 @@
     "234": {
       "branch": "dependabot/npm_and_yarn/http-proxy-middleware-2.0.10",
       "issue": 246,
-      "status": "open"
+      "status": "open",
+      "recovery": {
+        "6f40659242b83c989c61f98bbf171400bc1ec74b": {
+          "bases": {
+            "68b111eb98a0d6778db3fdc071a5b82a94047fdc": {
+              "refresh": "attempted"
+            }
+          }
+        }
+      }
     },
     "235": {
       "branch": "dependabot/npm_and_yarn/humanfs/node-0.16.8",
