@@ -4470,7 +4470,7 @@
       "origin": "dependency-pr",
       "head": "bbfd82e23df3ec49f1321b6bdc0c72923a269fa5",
       "pr": 233,
-      "status": "new",
+      "status": "blocked",
       "approval": null,
       "branch": "dependabot/npm_and_yarn/babel/core-7.29.6",
       "criteriaHash": "611722c5e328e314138424f17603591e0536ddb00d27617bc46c0baea06e1abc",
@@ -8526,21 +8526,8 @@
       "outcome": "discovery_complete"
     }
   },
-  "active": {
-    "ticket": 233,
-    "runId": "45978362515",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
-    {
-      "at": "2026-11-15T10:53:55.196Z",
-      "event": "reserved",
-      "ticket": 50,
-      "grant": "fd31b6ad-0ffa-4937-9d36-5d29aedf1434",
-      "phase": "review",
-      "runId": "43706266447",
-      "runAttempt": 1
-    },
     {
       "at": "2026-11-15T11:04:41.555Z",
       "event": "finished",
@@ -13675,6 +13662,13 @@
       "head": "bbfd82e23df3ec49f1321b6bdc0c72923a269fa5",
       "runId": "45978362515",
       "actor": "haideearus"
+    },
+    {
+      "at": "2026-11-27T10:01:05.680Z",
+      "event": "dependency_preparation_blocked",
+      "ticket": 233,
+      "head": "bbfd82e23df3ec49f1321b6bdc0c72923a269fa5",
+      "runId": "45978362515"
     }
   ],
   "featureTurn": {
