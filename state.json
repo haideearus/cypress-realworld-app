@@ -6307,9 +6307,17 @@
       "reviews": 1,
       "retries": 0,
       "head": "fa324d76790e6edf831629cacffae69643f7ef7b",
-      "status": "reviewing",
+      "status": "reviewed",
       "pr": 310,
-      "approval": null,
+      "approval": {
+        "head": "fa324d76790e6edf831629cacffae69643f7ef7b",
+        "pr": 310,
+        "grant": "9e00a37a-7a82-4bbd-9cb5-b89d60770b84",
+        "verdict": "pass",
+        "source": "claude-subscription",
+        "fixture": false,
+        "evidence": "https://github.com/haideearus/cypress-realworld-app/actions/runs/46061379492"
+      },
       "criteriaHash": "99a19e5076227b6d7bd8f70c0e59bb33ad34dcbe34fafbdeb6124e4ccaddbbbf",
       "branch": "agent/m2-ticket-recovery",
       "ci": {
@@ -6317,7 +6325,8 @@
         "head": "fa324d76790e6edf831629cacffae69643f7ef7b",
         "runId": 46061482494,
         "passed": true
-      }
+      },
+      "feedback": "{\"head\":\"fa324d76790e6edf831629cacffae69643f7ef7b\",\"verdict\":\"pass\",\"summary\":\"Reviewed the harness-maintenance diff (base-to-head in .factory-input/context.json) against ticket #309's four criteria, inspecting scripts/factory/ticket-ai-budget.cjs, published-review-recovery.cjs, interrupted-publication.cjs, functional-repeat-evidence.cjs, merge.cjs, wake-queue.cjs, trusted-wake.cjs, queue-summary.cjs, docs/factory/M2-TICKET-RECOVERY.md and SETTINGS-REHEARSAL.md, plus scripts/rehearsal/prepare-settings.cjs. functional-repeat-evidence.cjs updates a single marker-keyed bot comment so repeated Settings-check evidence stays attached to the original issue rather than creating duplicates. published-review-recovery.cjs and interrupted-publication.cjs together verify terminal runs, jobs, CI, and patch identity before resuming CI/review on the same PR/branch after an interruption, bounding continuations at MAX_CONTINUATIONS=3 and refusing to let an old-head approval authorize a merge when main has advanced (RecoveryStaleBase/holdMovedBase path in merge.cjs). ticket-ai-budget.cjs pins aiSessionLimit on first reservation, applies min(pinned, liveLimit) so lower live caps apply immediately while higher ones can't retroactively raise a ticket's ceiling, and reserves 2 remaining sessions for coding (room for a follow-up review) vs 1 for review, matching the documented example. The end-to-end integration test scripts/tests/factory-m2-lifecycle.test.cjs exercises this whole path with fixtures (duplicate incident on one issue, interrupted review resumption, budget counters, protected-check merge, then wake-triggered admission of the next ticket with exactly one active slot afterward) and scripts/tests/factory-ticket-ai-budget.test.cjs covers pinning, legacy-ticket adoption, and exhausted-budget release as unit tests; none read as placeholder/sample content. deploy.cjs is untouched, consistent with production release staying behind its existing manual approval, and no model/live-trial code paths were added to the rehearsal preparation script. I treated the linked CI run as evidence of a green build per instructions; I did not execute any commands myself in this read-only session. Given the diff's size (~29 files), I did not line-by-line audit every touched module (e.g., wake-controller.cjs, monitor.cjs, controller.cjs, automation.cjs changes beyond what's shown above) with the same depth as the files above, so residual risk in those areas can't be fully ruled out from this pass alone.\",\"findings\":[]}"
     }
   },
   "grants": {
@@ -8586,23 +8595,13 @@
       "runId": "46061379492",
       "runAttempt": 1,
       "head": "fa324d76790e6edf831629cacffae69643f7ef7b",
-      "status": "reserved",
-      "at": "2026-11-27T20:07:32.820Z"
+      "status": "finished",
+      "at": "2026-11-27T20:07:32.820Z",
+      "outcome": "reviewed"
     }
   },
-  "active": {
-    "ticket": 309,
-    "runId": "46061379492",
-    "runAttempt": 1
-  },
+  "active": null,
   "audit": [
-    {
-      "at": "2026-11-15T13:13:05.738Z",
-      "event": "dependency_metadata_admitted",
-      "ticket": 52,
-      "head": "5b3d4c0a7580d93ef148996e0dacf30fbfe2e5fa",
-      "runId": "43717816985"
-    },
     {
       "at": "2026-11-15T13:20:53.261Z",
       "event": "reserved",
@@ -13737,6 +13736,14 @@
       "runId": "46061379492",
       "runAttempt": 1,
       "actor": "haideearus"
+    },
+    {
+      "at": "2026-11-27T20:19:17.072Z",
+      "event": "finished",
+      "ticket": 309,
+      "grant": "9e00a37a-7a82-4bbd-9cb5-b89d60770b84",
+      "status": "reviewed",
+      "head": "fa324d76790e6edf831629cacffae69643f7ef7b"
     }
   ],
   "featureTurn": {
