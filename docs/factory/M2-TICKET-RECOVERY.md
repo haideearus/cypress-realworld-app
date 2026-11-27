@@ -19,6 +19,11 @@ at most three continuation runs, including runs interrupted before a review
 reservation. When this bound or the AI allowance is exhausted, the original
 ticket retains its history and releases the slot for other eligible work.
 
+If `main` advances during a continuation, the factory records that attempt.
+It checks the previous run and the original patch before refreshing the same
+PR. The new head must pass fresh CI and independent review. An approval from
+the old head cannot authorize the merge.
+
 `FACTORY_MAX_AI_SESSIONS_PER_TICKET` optionally sets the combined allowance for
 automatic app coding and review reservations (default **6**, range **0–15**).
 The ticket pins its ceiling on admission. Older tickets retain all prior

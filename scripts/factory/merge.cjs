@@ -598,6 +598,7 @@ class AutomaticMerger {
         t.status = "blocked";
         t.approval = null;
         t.feedback = recovery.STALE_REASON;
+        recovery.recordStaleParent(t);
         return { state };
       });
     }

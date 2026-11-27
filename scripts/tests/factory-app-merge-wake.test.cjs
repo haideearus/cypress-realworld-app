@@ -95,6 +95,49 @@ test("wrong head, base, actor, PR origin, parent attempt or pending confirmation
   }
 });
 
+test("a merge owner with finished review grants cannot substitute a generic drain for its merge proof", async (t) => {
+  for (const change of [
+    (s) => (s.pr.head.sha = "d".repeat(40)),
+    (s) => (s.pr.merge_commit_sha = "d".repeat(40)),
+    (s) => (s.ticket.merge.status = "intent"),
+  ]) {
+    const s = mergedFixture();
+    s.ledger.state.grants.review = {
+      id: "review",
+      ticket: 12,
+      phase: "review",
+      runId: "700",
+      runAttempt: 1,
+      status: "finished",
+    };
+    change(s);
+    assert.equal((await handleWake(s)).outcome, "ignored");
+    assert.deepEqual(s.dispatches, []);
+  }
+  const s = mergedFixture();
+  t.mock.method(Ledger.prototype, "read", () => s.ledger.read());
+  s.ledger.state.grants.review = {
+    id: "review",
+    ticket: 12,
+    phase: "review",
+    runId: "700",
+    runAttempt: 1,
+    status: "finished",
+  };
+  const prior = {
+    kind: "drain",
+    lane: "app",
+    number: 12,
+    head: s.parent.head_sha,
+    criteriaHash: c.digest(["review"]),
+    revision: "1",
+    sourceRun: "700",
+    sourceAttempt: 1,
+    actor: s.parent.actor,
+  };
+  await assert.rejects(verifySource(s.api, prior, false), /merge/i);
+});
+
 test("the single occupied slot keeps the post-merge check pending until capacity returns", async () => {
   const s = mergedFixture();
   s.ledger.state.active = { ticket: 94, runId: "701", runAttempt: 1 };

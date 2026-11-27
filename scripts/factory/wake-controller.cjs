@@ -142,17 +142,23 @@ async function mainQueueSignal(api, run) {
 }
 // A later parent can confirm a protected merge without reserving another model.
 // The terminal merge receipt identifies that parent, even when it has zero grants.
-async function appMergeSignal(api, state, run) {
-  if (run.path !== ".github/workflows/factory-automatic.yml" || run.head_branch !== "main")
-    return null;
-  const rows = Object.entries(state.tickets).filter(
+function appMergeOwners(state, runId, runAttempt) {
+  return Object.entries(state.tickets).filter(
     ([, t]) =>
       t.origin === "factory" &&
       t.automatic &&
-      t.merge?.status === "merged" &&
-      t.merge.runId === String(run.id) &&
-      t.merge.runAttempt === run.run_attempt
+      t.merge?.runId === String(runId) &&
+      t.merge.runAttempt === runAttempt
   );
+}
+async function appMergeSignal(
+  api,
+  state,
+  run,
+  rows = appMergeOwners(state, run.id, run.run_attempt)
+) {
+  if (run.path !== ".github/workflows/factory-automatic.yml" || run.head_branch !== "main")
+    return null;
   if (rows.length !== 1) return null;
   const [id, ticket] = rows[0];
   const number = Number(id);
@@ -160,6 +166,7 @@ async function appMergeSignal(api, state, run) {
   if (
     slots.activeFor(state, number) ||
     ticket.status !== "reviewed" ||
+    merge.status !== "merged" ||
     merge.pr !== ticket.pr ||
     merge.head !== ticket.head ||
     !c.SHA.test(merge.mergeCommit || "")
@@ -539,8 +546,10 @@ async function classifySignal({
       .some((e) => e.runId === String(r.id) && e.runAttempt === r.run_attempt)
   )
     return null;
-  const merged = await appMergeSignal(api, state, r);
-  if (merged) return merged;
+  if (r.path === `.github/workflows/${c.LANES.app}`) {
+    const owners = appMergeOwners(state, r.id, r.run_attempt);
+    if (owners.length) return appMergeSignal(api, state, r, owners);
+  }
   if (!grants.length)
     return r.path === `.github/workflows/${c.LANES.dependency}`
       ? preparationDrain(api, state, r, store)
@@ -770,6 +779,7 @@ module.exports = {
   verifyAlertCI,
   mainQueueSignal,
   appMergeSignal,
+  appMergeOwners,
   interruptedAppSignal,
   releasedAppSignal,
 };

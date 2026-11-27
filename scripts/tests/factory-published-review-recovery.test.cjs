@@ -445,6 +445,82 @@ test("a running browser parent retains its only slot", async () => {
   assert.equal(state.active.runId, "700");
 });
 
+test("main moving after a functional continuation consumes no slot until a fresh tested base and never transfers approval", async () => {
+  const { Controller } = require("../factory/controller.cjs");
+  const { AutomaticMerger } = require("../factory/merge.cjs");
+  const recovery = require("../factory/published-review-recovery.cjs");
+  for (const reviewed of [false, true]) {
+    const { coordinator, state, issue } = interruptedBrowser();
+    const { api, context, ledger } = coordinator;
+    await recovery.releaseTerminalRecovery(
+      coordinator,
+      state.active,
+      state.tickets[issue.number],
+      base
+    );
+    await recovery.resumeInterruptedReview(coordinator, state, base, false);
+    const t = state.tickets[issue.number];
+    if (reviewed) {
+      state.grants.spent = {
+        ...state.active,
+        phase: "review",
+        slot: "cycle1",
+        head: t.head,
+        status: "finished",
+        outcome: "reviewed",
+      };
+      t.reviews = 1;
+      t.status = "reviewed";
+      t.approval = { head: t.head, verdict: "pass" };
+      await AutomaticMerger.prototype.holdMovedBase.call(
+        { ledger, stateTicket: (s, n) => s.tickets[n] },
+        issue.number,
+        t,
+        false
+      );
+    } else {
+      await Controller.prototype.block.call(
+        { ledger, context },
+        issue.number,
+        recovery.STALE_REASON
+      );
+    }
+    assert.equal(state.active, null);
+    context.runId = "801";
+    assert.equal(await recovery.resumeInterruptedReview(coordinator, state, base, false), null);
+    context.workflowSha = base;
+    const request = api.request.bind(api);
+    api.request = async (method, path, body) => {
+      const resp = await request(method, path, body);
+      if (path.endsWith("/800/attempts/1")) return { ...resp, conclusion: "success" };
+      return resp;
+    };
+    const pages = api.pages.bind(api);
+    api.pages = async (path, key) => {
+      if (!path.includes("/800/attempts/1/jobs")) return pages(path, key);
+      return Object.entries({
+        coding: "skipped",
+        publish: "skipped",
+        ci: "success",
+        reserve_review: reviewed ? "success" : "failure",
+        [reviewed ? "review / agent" : "review"]: reviewed ? "success" : "skipped",
+        assess: "success",
+      }).map(([name, conclusion]) => ({
+        name: "cycle1 / " + name,
+        status: "completed",
+        conclusion,
+      }));
+    };
+    const selected = await recovery.resumeInterruptedReview(coordinator, state, base, false);
+    assert.equal(selected?.reviewOnly, true);
+    assert.equal(state.tickets[issue.number].head, refreshedHead);
+    assert.equal(state.tickets[issue.number].ci, null);
+    assert.equal(state.tickets[issue.number].approval, null);
+    assert.equal(state.tickets[issue.number].reviews, Number(reviewed));
+    recovery.validateRecovery(state.tickets[issue.number], Object.values(state.grants));
+  }
+});
+
 test("a second interrupted browser parent retains each reservation and respects the ticket cap", async () => {
   const { AutomaticCoordinator } = require("../factory/automation.cjs");
   const recovery = require("../factory/published-review-recovery.cjs");

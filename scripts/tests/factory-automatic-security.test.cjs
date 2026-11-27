@@ -3,11 +3,11 @@ const assert = require("node:assert/strict");
 const policy = require("../factory/policy.cjs");
 const { Controller, runtimeContext } = require("../factory/controller.cjs");
 const { GitHub, Ledger } = require("../factory/github.cjs");
-const { vars, context, FactoryFixture } = require("./helpers/factory-fixtures.cjs");
+const { vars, context, head, FactoryFixture } = require("./helpers/factory-fixtures.cjs");
 
 const workflowRef =
   "haideearus/cypress-realworld-app/.github/workflows/factory-automatic.yml@refs/heads/main";
-const workflowSha = "b".repeat(40);
+const workflowSha = head;
 const automaticContext = { ...context, event: "schedule", workflowRef, workflowSha };
 const appSlug = "factory-fixture";
 const automaticVars = {
@@ -138,6 +138,22 @@ test("runtime context carries unmodified workflow identity from trusted environm
   assert.equal(ctx.workflowRef, workflowRef);
   assert.equal(ctx.workflowSha, workflowSha);
   assert.equal(ctx.actor, policy.OWNER);
+});
+
+test("stale automatic pickup leaves the ticket and AI allowance for a fresh main wake", async () => {
+  const c = await setup({}, { ...automaticContext, workflowSha: "b".repeat(40) });
+  const before = await c.ledger.read();
+  const stale = await c.controller.admit(10);
+  assert.equal(stale.ready, false);
+  assert.match(stale.reason, /main advanced/i);
+  assert.deepEqual(await c.ledger.read(), before);
+  const fresh = new Controller(c.api, c.config, automaticContext);
+  const grant = await fresh.admit(10);
+  assert.equal(grant.ready, true);
+  assert.equal(grant.head, workflowSha);
+  const { state } = await c.ledger.read();
+  assert.equal(state.tickets[10].coding, 1);
+  assert.equal(state.tickets[10].automatic.workflowSha, grant.head);
 });
 
 test("automatic reservation and preflight honor the automation kill switch", async () => {

@@ -159,6 +159,7 @@ async function verifySource(api, signal, bound, vars = {}) {
     verifyAlertCI,
     mainQueueSignal,
     appMergeSignal,
+    appMergeOwners,
     interruptedAppSignal,
     releasedAppSignal,
   } = require("./wake-controller.cjs");
@@ -268,6 +269,12 @@ async function verifySource(api, signal, bound, vars = {}) {
   if (signal.kind !== "drain" || c.isPreparationDrain(signal)) throw Error("Unknown wake source");
   const { Ledger } = require("./github.cjs");
   const { state } = await new Ledger(api).read();
+  if (
+    !bound &&
+    signal.lane === "app" &&
+    appMergeOwners(state, signal.sourceRun, signal.sourceAttempt).length
+  )
+    throw new c.StaleWakeSource("An app merge owner requires a confirmed merge receipt");
   const grants = Object.values(state.grants).filter(
     (g) => g.runId === signal.sourceRun && g.runAttempt === signal.sourceAttempt
   );

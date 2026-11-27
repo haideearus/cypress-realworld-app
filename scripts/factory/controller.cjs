@@ -116,9 +116,7 @@ class Controller {
       if (!monitor && !finding)
         throw new Error("Automatic admission needs an owner or verified incident/finding issue");
     }
-    const main = await this.api.request("GET", `${ROOT}/branches/main`);
-    if (finding && finding.intake.head !== main.commit?.sha)
-      throw Error("Discovery finding needs a new current-main replay");
+    const mainMoved = Error("Main advanced. A fresh automatic pickup on current main is required.");
     const snapshot = await this.ledger.read();
     const previous = snapshot.state.tickets[String(ticket)];
     if (automatic && previous) throw new Error("Automatic ticket already admitted");
@@ -133,7 +131,7 @@ class Controller {
       if (error.status !== 404) throw error;
       if (previous?.pr) throw new Error("Published agent branch is missing");
     }
-    const saved = await this.ledger.update(async (state) => {
+    const admitCurrent = async (state) => {
       const existing = state.tickets[String(ticket)];
       if (automatic && existing) throw new Error("Automatic ticket already admitted");
       const turns = require("./feature-turn.cjs");
@@ -168,12 +166,17 @@ class Controller {
               { workflowSha: this.context.workflowSha },
               {}
             );
-            if (tested.head !== main.commit?.sha) throw Error(turns.TESTED_MAIN);
+            if (tested.head !== this.context.workflowSha) throw Error(turns.TESTED_MAIN);
           } catch (error) {
             throw new Error(turns.TESTED_MAIN, { cause: error });
           }
         }
       }
+      const main = await this.api.request("GET", `${ROOT}/branches/main`);
+      if (!policy.SHA.test(main.commit?.sha || "")) throw Error("Invalid current main revision");
+      if (automatic && main.commit.sha !== this.context.workflowSha) throw mainMoved;
+      if (finding && finding.intake.head !== main.commit.sha)
+        throw Error("Discovery finding needs a new current-main replay");
       if (monitor) {
         const current = await verifyMonitorIssue(this.api, issue, { proof: monitor });
         if (!current || JSON.stringify(current) !== JSON.stringify(monitor))
@@ -227,8 +230,14 @@ class Controller {
       if (feature) result.state.tickets[String(ticket)].feature = feature;
       if (priorityFeature) turns.update(result.state, turn.runId, { status: "finished" });
       return result;
-    });
-    return this.result(saved.grant);
+    };
+    try {
+      const saved = await this.ledger.update(admitCurrent);
+      return this.result(saved.grant);
+    } catch (error) {
+      if (error !== mainMoved) throw error;
+      return { ready: false, reason: mainMoved.message };
+    }
   }
   async currentTicket(ticket) {
     const loaded = await this.ledger.read();
@@ -673,6 +682,8 @@ class Controller {
           }
         }
       const keepFeedback = t.delayedRetry?.parent && t.status === "retry" && t.feedback;
+      const recovery = require("./published-review-recovery.cjs");
+      if (reason === recovery.STALE_REASON) recovery.recordStaleParent(t);
       t.status = "blocked";
       t.approval = null;
       if (!keepFeedback) t.feedback = reason;

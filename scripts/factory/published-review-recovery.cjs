@@ -36,6 +36,24 @@ function functionalPublication(ticket) {
   );
 }
 
+// Archive the same review-only owner on a verified stale-base hold. It counts
+// against the same finite continuation limit as a cancelled owner.
+function recordStaleParent(ticket) {
+  const receipt = ticket.publishedRecovery;
+  const parent = receipt?.parent;
+  if (!receipt?.interruptedHead || !parent || ticket.ci?.passed === false) return;
+  const history = (receipt.interruptedParents ??= []);
+  if (history.some((p) => p.runId === parent.runId)) return;
+  history.push({
+    ...parent,
+    staleBase: true,
+    ci:
+      passingCiReceipt(ticket.ci) && ticket.ci.head === parent.head
+        ? structuredClone(ticket.ci)
+        : null,
+  });
+}
+
 function blockedReview(grant, parent) {
   return (
     parent &&
@@ -198,7 +216,11 @@ function eligible(ticket, n, state, config, context) {
     config.reviews > 0 &&
     (!ticket.feature || ticket.feature.mode === config.featureMode) &&
     (interrupted
-      ? interruptions.withinLimit(r, context.runId) && ticket.feedback === INTERRUPTED_REASON
+      ? interruptions.withinLimit(r, context.runId) &&
+        (ticket.feedback === INTERRUPTED_REASON ||
+          (ticket.feedback === STALE_REASON &&
+            r.interruptedParents?.at(-1)?.staleBase &&
+            r.parent.workflowSha !== context.workflowSha))
       : !r?.parent || retryParent) &&
     !ticket.finding &&
     (interrupted ? functionalPublication(ticket) : !ticket.monitor) &&
@@ -379,6 +401,7 @@ async function verifyOriginal(coordinator, state, n, ticket, ci, finalContinuati
       const [previous, jobs, result] = await Promise.all([
         verifiedRun(api, latest.runId, latest.runAttempt, "factory-automatic.yml", {
           success: false,
+          terminal: false,
         }),
         api.pages(
           `${ROOT}/actions/runs/${latest.runId}/attempts/${latest.runAttempt}/jobs`,
@@ -386,7 +409,24 @@ async function verifyOriginal(coordinator, state, n, ticket, ci, finalContinuati
         ),
         latest.ci ? controller.validateCI(latest.ci.runId, latest.head, latest.ci) : null,
       ]);
-      assertInterrupted(latest, previous, jobs, latest.ci, result, false);
+      if (previous.status !== "completed")
+        throw new RecoveryHold("Waiting for the previous continuation to finish");
+      if (latest.staleBase) {
+        const grant = Object.values(state.grants).find(
+          (g) => g.ticket === n && g.phase === "review" && g.runId === latest.runId
+        );
+        if (
+          previous.head_branch !== "main" ||
+          previous.head_sha !== latest.workflowSha ||
+          !["success", "failure"].includes(previous.conclusion) ||
+          (latest.ci && !result.passed) ||
+          ticket.ci?.passed === false ||
+          !interruptions.staleJobs(jobs, grant, latest.ci)
+        )
+          throw new RecoveryHold("Stale continuation lacks matching CI and review evidence");
+      } else {
+        assertInterrupted(latest, previous, jobs, latest.ci, result, false);
+      }
     }
     return { originalBase: grant.head };
   }
@@ -675,6 +715,8 @@ async function resumeOne(coordinator, state, commit, n, dryRun, sleep, recordWri
 
   if (patchIdentity(result, base) !== patch)
     throw new RecoveryHold("Current PR does not match the original verified patch");
+  if (receipt.interruptedParents?.at(-1)?.staleBase && pr.head.sha === receipt.parent.head)
+    throw new RecoveryHold("Stale review continuation needs a fresh verified branch head");
   if (dryRun)
     return {
       ready: false,
@@ -799,6 +841,7 @@ module.exports = {
   releaseTerminalRecovery,
   RecoveryStaleBase,
   functionalPublication,
+  recordStaleParent,
   STALE_REASON,
   INTERRUPTED_REASON,
 };

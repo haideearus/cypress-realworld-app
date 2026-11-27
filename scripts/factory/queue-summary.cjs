@@ -34,6 +34,11 @@ function nextAction(ticket, config) {
         require("./interrupted-publication.cjs").MAX_CONTINUATIONS
       )
         return "Interrupted repair continuation limit reached. Other work can use the slot.";
+      if (
+        ticket.feedback === STALE_REASON &&
+        ticket.publishedRecovery.interruptedParents?.at(-1)?.staleBase
+      )
+        return "Waiting for tested current main, a verified branch refresh and fresh CI and review.";
       return ticket.feedback === INTERRUPTED_REASON
         ? "Recheck the interrupted publication before admitting fresh work."
         : "Inspect the last published repair stage. It has no confirmed resumable interruption.";

@@ -80,6 +80,19 @@ async function deliver(parentId, receiverId, workflowSha, revision, api, ledger,
 // merge and the subsequent dispatch decision run through the production controllers.
 test("one Settings incident resumes its own PR within budget and hands off after confirmed merge", async () => {
   const { api, monitor, calls, gh, comments, receivers } = m2Fixture();
+  const formPath = "src/components/UserSettingsForm.tsx";
+  const expectedEmail = '.email("Must contain a valid email address")';
+  const seededEmail = '.email("Invalid email")';
+  const source = readFileSync(path.join(__dirname, "../..", formPath), "utf8");
+  const repairedForm = source.replace(seededEmail, expectedEmail);
+  const seededForm = repairedForm.replace(expectedEmail, seededEmail);
+  assert.notEqual(seededForm, repairedForm);
+  const seedBlob = gh.object({ content: seededForm, encoding: "utf-8" });
+  gh.objects.get(head).tree = gh.object({ tree: [{ path: formPath, sha: seedBlob }] });
+  function formAt(commit) {
+    const files = gh.objects.get(gh.objects.get(commit).tree).tree;
+    return gh.objects.get(files.find((f) => f.path === formPath).sha).content;
+  }
   const config = policy.readConfig({
     ...vars,
     FACTORY_AUTOMATION_ENABLED: "true",
@@ -109,6 +122,7 @@ test("one Settings incident resumes its own PR within budget and hands off after
     let checks = 0;
     const observed = await verifyFunctionalChecks(async () => {
       checks++;
+      assert.equal(formAt(head), seededForm);
       return { status: "failed", failures: { "form-validation": "settings-email-invalid" } };
     });
     assert.equal(checks, 2);
@@ -141,17 +155,16 @@ test("one Settings incident resumes its own PR within budget and hands off after
     base: code.head,
     files: [
       {
-        path: "src/components/UserSettingsForm.tsx",
+        path: formPath,
         mode: "100644",
-        content: readFileSync(
-          path.join(__dirname, "../../src/components/UserSettingsForm.tsx"),
-          "utf8"
-        ),
+        content: repairedForm,
       },
     ],
     evidence: "Fixture RED and GREEN for the synthetic Settings validation result.",
   });
   assert.equal(pr.pr, 20);
+  assert.equal(formAt(pr.head), repairedForm);
+  assert.notEqual(formAt(pr.head), formAt(head));
   const ci = await first.controller.ci(10);
   const interrupted = await first.controller.reserveReview(10, ci.runId, "cycle1");
   gh.issues.set(11, {
@@ -209,8 +222,24 @@ test("one Settings incident resumes its own PR within budget and hands off after
     sleep: async () => {},
     maxPolls: 1,
   });
+  const mergeCallsStart = calls.length;
   const merged = await merger.merge(10);
   assert.equal(merged.merged, true);
+  const mergeCalls = calls.slice(mergeCallsStart);
+  const beforePut = mergeCalls.slice(
+    0,
+    mergeCalls.findIndex((call) => call.method === "PUT")
+  );
+  for (const requiredProof of [
+    `/commits/${pr.head}/check-runs`,
+    "/actions/runs/610/jobs", // verify
+    "/actions/runs/611/jobs", // Factory review gate
+  ]) {
+    assert.ok(
+      beforePut.some((call) => call.method === "GET" && call.path === requiredProof),
+      requiredProof
+    );
+  }
   const { state } = await ledger.read();
   assert.equal(state.grants[interrupted.grantId].outcome, "blocked");
   assert.equal(state.grants[code.grantId].outcome, "awaiting_review");
