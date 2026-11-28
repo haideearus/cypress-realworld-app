@@ -44,6 +44,9 @@ outputs:
   head:
     value: ${{ steps.run.outputs.head }}
     description: Expected commit
+  base:
+    value: ${{ steps.run.outputs.base }}
+    description: Expected current main for an in-place dependency refresh
   ticket:
     value: ${{ steps.run.outputs.ticket }}
     description: Ticket number

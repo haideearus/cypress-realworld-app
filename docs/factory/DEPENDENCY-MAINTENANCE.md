@@ -150,18 +150,30 @@ Dependabot provenance, CI, independent review and branch protection. App
 repair issues use `factory-ready` and their existing coding workflow.
 
 ```text
-Dependabot PR -> metadata admission -> version/source/OSV checks -> exact-head CI
+Dependabot PR -> metadata admission -> optional compatibility patch on its branch
+             -> version/source/OSV checks -> exact-head CI
              -> scanned public evidence -> reserve and run read-only Claude Pro review
              -> fresh version/source/OSV checks
              -> native required checks -> protected merge
              -> named human deployment approval -> existing Render/live checks
 ```
 
-Claude reviews the diff and recorded evidence; it does not write dependency fixes,
-run a shell, or install packages. App tests execute candidate dependencies in a
-separate disposable job without Claude, production, or GitHub App credentials.
-Only the existing `CLAUDE_CODE_OAUTH_TOKEN` is supplied to the read-only model job.
-There is no paid API fallback. Subscription exhaustion blocks the attempt.
+For a supported single-package proposal, the factory can accept a scoped major
+upgrade after the usual proofs. A confirmed app CI failure or repairable lockfile
+drift can reserve a compatibility attempt. Trusted preparation restores
+out-of-scope lockfile entries from the pinned `main` commit. The coding role can
+adapt the application and tests to the requested package release with file tools.
+It preserves the manifest and cannot run a shell or edit the factory and CI
+configuration. The separate publisher validates the patch and appends a commit
+to the original Dependabot branch using the existing repository App.
+
+The ledger records the exact intended commit before changing the branch, so a
+later scan can confirm an interrupted publication using GitHub and resume CI.
+Passing CI, scanned public evidence, independent read-only review and protected
+merge all cover the resulting head. App CI executes candidate dependencies in
+a disposable job without Claude, production or GitHub App credentials. The
+reserved model roles use the existing subscription token and the shared AI
+budget. A subscription or configured budget limit ends the attempt.
 
 After committing a dependency assessment, the trusted assessor refreshes the
 informational `Factory review evidence` check through the existing ledger-based
@@ -218,19 +230,18 @@ observer reports an unreadable ledger in its Actions summary.
   metadata admission counts toward the existing daily ticket cap, even if analysis
   fails. It consumes no coding or review session. A pending merge holds new work
   in both lanes until reconciled.
-- A dependency PR has zero coding attempts/retries. Each distinct head gets at
-  most one review attempt, capped at ten lifetime heads and the configured review
-  limit. New bot commits preserve its admission and lifetime counters. A failed
-  model review is never automatically retried on the same head. The evidence
-  check can retry once without reserving a model. The existing turn and timeout
-  caps apply.
-- Only modified root `package.json` and `yarn.lock` are accepted. Stable patch and
-  minor updates and supported transitive fixes are eligible. Major upgrades,
-  downgrades, changed dependency names/sections, scripts/configuration, unsupported
-  sources, prereleases and ambiguous graph transitions are held under ordinary
-  dependency policy. A wider alert proposal has a separate, receipt-bound
-  policy for verified stable upgrades. The ordinary app merger still cannot merge
-  dependency files.
+- Compatibility attempts and follow-up reviews share the original PR's coding,
+  retry, review and combined AI limits. Verified app CI failures and genuine
+  independent review findings can qualify for a bounded correction. A changed branch or
+  base requires fresh verification. The evidence check can retry once without
+  reserving a model. The existing turn and timeout caps apply.
+- A native proposal starts with modifications to root `package.json` and
+  `yarn.lock`. A recorded compatibility publication adds a bounded set of
+  application or test changes. Supported single-package stable major upgrades
+  use a target-scoped lockfile check. Unsupported sources, ambiguous targets,
+  unrelated lockfile changes and migrations that require changing the manifest
+  or factory configuration can still be held. Wider alert proposals retain
+  their separate advisory-clearance policy.
 - OSV checks cover removed versions and every resulting version of affected
   package names. Added versions and existing versions selected by changed root or
   dependency paths are blocking candidates. Reused paths are followed recursively
@@ -397,6 +408,14 @@ It keeps at most five base receipts per head and retains requests even if the
 response is lost. The PR becomes eligible for fresh CI and review when
 Dependabot supplies a new eligible head. A delivered comment confirms the
 request, and the new commit confirms that Dependabot acted.
+If the proposal stays stale after its tracked refresh request, the scheduled
+scan can request one clean branch update through the repository App for that
+head and current base.
+
+After a factory compatibility commit, the scheduled scan requests a clean
+GitHub branch update on that original PR once per head and base. It verifies the
+merge parents and that the application patch survived before using the new
+head. Merge conflicts remain visible without consuming another model session.
 
 Automatic refresh needs the optional `FACTORY_DEPENDABOT_REBASE_TOKEN` Actions
 secret. Create a fine-grained personal access token as the repository owner,

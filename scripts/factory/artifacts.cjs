@@ -2,6 +2,12 @@ const { SHA } = require("./policy.cjs");
 const quality = require("./review-quality.cjs");
 const MAX_FILE = 200000;
 const MAX_TOTAL = 500000;
+const COMPATIBILITY_BUNDLE_LIMIT = 6000000;
+const DEPENDENCY_FILE_LIMITS = Object.freeze({ "package.json": 65536, "yarn.lock": 2000000 });
+const COMPATIBILITY_SEED_PATHS = Object.freeze([
+  "scripts/generateSeedData.ts",
+  "scripts/seedDataUtils.ts",
+]);
 function secretLike(text) {
   return /(?:gh[pousr]_|github_pat_)[A-Za-z0-9_]{20,}|sk-(?:ant-(?:api|oat|sid)\d*-|proj-)[A-Za-z0-9_-]{16,}|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|(?:postgres(?:ql)?):\/\/[^\s/:]+:[^\s@]+@(?!localhost[:/]|127\.0\.0\.1[:/])[^\s]+/i.test(
     text
@@ -27,30 +33,49 @@ function validPath(path) {
     /^(?:src\/|backend\/|cypress\/tests\/|scripts\/tests\/)/.test(path) || path === "README.md"
   );
 }
-function validateChanges(files) {
+function compatibilityArtifactPath(name) {
+  return (
+    typeof name === "string" &&
+    (Object.hasOwn(DEPENDENCY_FILE_LIMITS, name) ||
+      COMPATIBILITY_SEED_PATHS.includes(name) ||
+      (name !== "README.md" && validPath(name)))
+  );
+}
+function artifactFileLimit(name, compatibility = false) {
+  return compatibility && Object.hasOwn(DEPENDENCY_FILE_LIMITS, name)
+    ? DEPENDENCY_FILE_LIMITS[name]
+    : MAX_FILE;
+}
+function validatePatch(files, compatibility) {
   if (!Array.isArray(files) || files.length < 1 || files.length > 50)
     throw new Error("Invalid patch size");
+  const allowedPath = compatibility ? compatibilityArtifactPath : validPath;
   let total = 0;
   const seen = new Set();
   for (const file of files) {
-    if (!validPath(file.path) || seen.has(file.path.toLowerCase()))
+    if (!allowedPath(file?.path) || seen.has(file.path.toLowerCase()))
       throw new Error("Forbidden or duplicate patch path/policy change");
     seen.add(file.path.toLowerCase());
+    const dependencyFile = compatibility && Object.hasOwn(DEPENDENCY_FILE_LIMITS, file.path);
     if (file.deleted === true) {
+      if (dependencyFile) throw new Error("Forbidden dependency manifest or lockfile deletion");
       if (file.content !== undefined) throw new Error("Invalid deleted file");
       continue;
     }
     if (file.mode !== "100644" || typeof file.content !== "string")
       throw new Error("Only regular text files may be published");
     const size = Buffer.byteLength(file.content);
-    total += size;
-    if (size > MAX_FILE || total > MAX_TOTAL) throw new Error("Generated patch exceeds size limit");
+    if (!dependencyFile) total += size;
+    if (size > artifactFileLimit(file.path, compatibility) || total > MAX_TOTAL)
+      throw new Error("Generated patch exceeds size limit");
     if (file.content.includes("\0") || file.content.includes("\uFFFD"))
       throw new Error("Generated patch is binary or invalid UTF-8");
     if (secretLike(file.content)) throw new Error("Generated patch contains secret-like content");
   }
   return files;
 }
+const validateChanges = (files) => validatePatch(files, false);
+const validateCompatibilityChanges = (files) => validatePatch(files, true);
 function validateReview(value, head) {
   if (
     !value ||
@@ -113,4 +138,15 @@ const REVIEW_SCHEMA = {
     },
   },
 };
-module.exports = { validPath, validateChanges, validateReview, secretLike, REVIEW_SCHEMA };
+module.exports = {
+  validPath,
+  validateChanges,
+  validateReview,
+  secretLike,
+  REVIEW_SCHEMA,
+  compatibilityArtifactPath,
+  artifactFileLimit,
+  validateCompatibilityChanges,
+  COMPATIBILITY_SEED_PATHS,
+  COMPATIBILITY_BUNDLE_LIMIT,
+};

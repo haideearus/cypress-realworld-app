@@ -68,6 +68,7 @@ jobs:
       mode: ${{ steps.control.outputs.mode }}
       ticket: ${{ steps.control.outputs.ticket }}
       head: ${{ steps.control.outputs.head }}
+      base: ${{ steps.control.outputs.base }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -90,9 +91,151 @@ jobs:
           FACTORY_INPUTS: ${{ toJSON(inputs) }}
           FACTORY_DEPENDABOT_REBASE_TOKEN: ${{ secrets.FACTORY_DEPENDABOT_REBASE_TOKEN }}
 
-  analysis:
+  compatibility_refresh:
+    needs: select
+    if: ${{ needs.select.outputs.ready == 'true' && needs.select.outputs.mode == 'compatibility-refresh' && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+    concurrency:
+      group: factory-ledger
+      cancel-in-progress: false
+      queue: max
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - id: app
+        uses: ./.github/actions/factory-app-token
+        with:
+          client-id: ${{ vars.FACTORY_GITHUB_APP_CLIENT_ID }}
+          expected-slug: ${{ vars.FACTORY_GITHUB_APP_SLUG }}
+          private-key: ${{ secrets.FACTORY_GITHUB_APP_PRIVATE_KEY }}
+      - uses: ./.github/actions/factory-control
+        with:
+          operation: dep_compat_refresh
+          github_token: ${{ steps.app.outputs.token }}
+          variables_json: ${{ toJSON(vars) }}
+          parameters: '{"ticket":"${{ needs.select.outputs.ticket }}","head":"${{ needs.select.outputs.head }}","base":"${{ needs.select.outputs.base }}"}'
+
+  compatibility_plan:
     needs: select
     if: ${{ needs.select.outputs.ready == 'true' && needs.select.outputs.mode == 'review' && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      actions: read
+      contents: write
+      issues: read
+      pull-requests: read
+    concurrency:
+      group: factory-ledger
+      cancel-in-progress: false
+      queue: max
+    outputs:
+      grantId: ${{ steps.control.outputs.grantId }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.20.0
+      - name: Install trusted parser tools
+        working-directory: scripts/factory/dependency-tools
+        run: npm ci --ignore-scripts --no-audit --fund=false
+      - id: control
+        uses: ./.github/actions/factory-control
+        with:
+          operation: dep_compat_plan
+          variables_json: ${{ toJSON(vars) }}
+          parameters: '{"ticket":"${{ needs.select.outputs.ticket }}"}'
+
+  compatibility_code:
+    needs: [select, compatibility_plan]
+    if: ${{ needs.compatibility_plan.outputs.grantId != '' && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' }}
+    permissions:
+      actions: read
+      contents: read
+      issues: read
+      pull-requests: read
+    uses: ./.github/workflows/factory-model.yml
+    with:
+      ticket: ${{ needs.select.outputs.ticket }}
+      grantId: ${{ needs.compatibility_plan.outputs.grantId }}
+      head: ${{ needs.select.outputs.head }}
+      slot: dependency_compat
+      phase: code
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
+  compatibility_publish:
+    needs: [select, compatibility_plan, compatibility_code]
+    if: ${{ needs.compatibility_code.result == 'success' && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      actions: read
+      contents: read
+    concurrency:
+      group: factory-ledger
+      cancel-in-progress: false
+      queue: max
+    outputs:
+      head: ${{ steps.control.outputs.head }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.20.0
+      - name: Install trusted parser tools
+        working-directory: scripts/factory/dependency-tools
+        run: npm ci --ignore-scripts --no-audit --fund=false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: code-${{ needs.compatibility_plan.outputs.grantId }}
+          path: ${{ runner.temp }}/dependency-compatibility
+      - name: Scan the compatibility patch before publication
+        run: |
+          node scripts/factory/scanner-install.cjs
+          node <<'NODE'
+          const { readJson } = require("./scripts/factory/controller.cjs");
+          const { COMPATIBILITY_BUNDLE_LIMIT } = require("./scripts/factory/artifacts.cjs");
+          const { scanCompatibilityBundle } = require("./scripts/factory/worker.cjs");
+          scanCompatibilityBundle(
+            readJson(process.env.RUNNER_TEMP + "/dependency-compatibility/bundle.json", COMPATIBILITY_BUNDLE_LIMIT)
+          ).catch(() => {
+            console.error("Compatibility patch secret scan failed");
+            process.exitCode = 1;
+          });
+          NODE
+      - id: app
+        uses: ./.github/actions/factory-app-token
+        with:
+          client-id: ${{ vars.FACTORY_GITHUB_APP_CLIENT_ID }}
+          expected-slug: ${{ vars.FACTORY_GITHUB_APP_SLUG }}
+          private-key: ${{ secrets.FACTORY_GITHUB_APP_PRIVATE_KEY }}
+      - id: control
+        uses: ./.github/actions/factory-control
+        with:
+          operation: dep_compat_publish
+          github_token: ${{ steps.app.outputs.token }}
+          variables_json: ${{ toJSON(vars) }}
+          parameters: '{"ticket":"${{ needs.select.outputs.ticket }}","grantId":"${{ needs.compatibility_plan.outputs.grantId }}"}'
+          bundle_path: ${{ runner.temp }}/dependency-compatibility/bundle.json
+
+  analysis:
+    needs: [select, compatibility_plan, compatibility_publish]
+    if: >-
+      ${{ always() && !cancelled() && needs.compatibility_plan.result == 'success' &&
+          (needs.compatibility_plan.outputs.grantId == '' || needs.compatibility_publish.result == 'success') &&
+          vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 8
     permissions:
@@ -100,6 +243,8 @@ jobs:
       contents: read
       issues: read
       pull-requests: read
+    outputs:
+      head: ${{ steps.control.outputs.head }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -123,16 +268,18 @@ jobs:
         run: node scripts/factory/secret-scan.cjs file "$RUNNER_TEMP/factory-dependencies/analysis.json"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: dependency-analysis-${{ github.run_id }}-${{ github.run_attempt }}-${{ needs.select.outputs.ticket }}-${{ needs.select.outputs.head }}
+          name: dependency-analysis-${{ github.run_id }}-${{ github.run_attempt }}-${{ needs.select.outputs.ticket }}-${{ steps.control.outputs.head }}
           path: ${{ runner.temp }}/factory-dependencies/analysis.json
           if-no-files-found: error
           retention-days: 7
 
   ci:
     needs: [select, analysis]
-    if: ${{ needs.analysis.result == 'success' && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' }}
+    if: ${{ always() && !cancelled() && needs.analysis.result == 'success' && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 35
+    outputs:
+      passed: ${{ steps.control.outputs.passed }}
     permissions:
       contents: write
       issues: read
@@ -149,7 +296,7 @@ jobs:
           persist-credentials: false
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
-          name: dependency-analysis-${{ github.run_id }}-${{ github.run_attempt }}-${{ needs.select.outputs.ticket }}-${{ needs.select.outputs.head }}
+          name: dependency-analysis-${{ github.run_id }}-${{ github.run_attempt }}-${{ needs.select.outputs.ticket }}-${{ needs.analysis.outputs.head }}
           path: ${{ runner.temp }}/dependency-analysis
       - id: accept
         uses: ./.github/actions/factory-control
@@ -166,8 +313,8 @@ jobs:
           parameters: '{"ticket":"${{ needs.select.outputs.ticket }}"}'
 
   evidence:
-    needs: [select, ci]
-    if: ${{ needs.ci.result == 'success' && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' }}
+    needs: [select, analysis, ci]
+    if: ${{ always() && !cancelled() && needs.ci.result == 'success' && needs.ci.outputs.passed == 'true' && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 8
     permissions:
@@ -202,14 +349,14 @@ jobs:
       - if: ${{ steps.control.outputs.ready == 'true' }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: dependency-evidence-${{ github.run_id }}-${{ github.run_attempt }}-${{ needs.select.outputs.ticket }}-${{ needs.select.outputs.head }}
+          name: dependency-evidence-${{ github.run_id }}-${{ github.run_attempt }}-${{ needs.select.outputs.ticket }}-${{ needs.analysis.outputs.head }}
           path: ${{ runner.temp }}/factory-dependencies/evidence.json
           if-no-files-found: error
           retention-days: 7
 
   reserve:
-    needs: [select, evidence]
-    if: ${{ needs.evidence.outputs.ready == 'true' && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' }}
+    needs: [select, analysis, evidence]
+    if: ${{ always() && !cancelled() && needs.evidence.result == 'success' && needs.evidence.outputs.ready == 'true' && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -223,6 +370,7 @@ jobs:
       queue: max
     outputs:
       grantId: ${{ steps.control.outputs.grantId }}
+      head: ${{ steps.control.outputs.head }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -230,7 +378,7 @@ jobs:
           persist-credentials: false
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
-          name: dependency-evidence-${{ github.run_id }}-${{ github.run_attempt }}-${{ needs.select.outputs.ticket }}-${{ needs.select.outputs.head }}
+          name: dependency-evidence-${{ github.run_id }}-${{ github.run_attempt }}-${{ needs.select.outputs.ticket }}-${{ needs.analysis.outputs.head }}
           path: ${{ runner.temp }}/dependency-evidence
       - id: control
         uses: ./.github/actions/factory-control
@@ -242,7 +390,7 @@ jobs:
 
   review:
     needs: [select, reserve]
-    if: ${{ needs.reserve.outputs.grantId != '' && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' }}
+    if: ${{ always() && !cancelled() && needs.reserve.result == 'success' && needs.reserve.outputs.grantId != '' && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' }}
     permissions:
       actions: read
       contents: read
@@ -252,14 +400,14 @@ jobs:
     with:
       ticket: ${{ needs.select.outputs.ticket }}
       grantId: ${{ needs.reserve.outputs.grantId }}
-      head: ${{ needs.select.outputs.head }}
+      head: ${{ needs.reserve.outputs.head }}
       slot: dependency
       phase: review
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
   assess:
     needs: [select, reserve, review]
-    if: ${{ needs.review.result == 'success' && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' }}
+    if: ${{ always() && !cancelled() && needs.review.result == 'success' && vars.FACTORY_ENABLED == 'true' && vars.FACTORY_AUTOMATION_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -274,6 +422,7 @@ jobs:
       queue: max
     outputs:
       reviewed: ${{ steps.control.outputs.reviewed }}
+      head: ${{ steps.control.outputs.head }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -298,6 +447,7 @@ jobs:
     timeout-minutes: 8
     outputs:
       failure_evidence: ${{ steps.control.outputs.premergeEvidence }}
+      head: ${{ steps.control.outputs.head }}
     permissions:
       actions: read
       contents: read
@@ -326,7 +476,7 @@ jobs:
         run: node scripts/factory/secret-scan.cjs file "$RUNNER_TEMP/factory-dependencies/premerge.json"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: dependency-premerge-${{ github.run_id }}-${{ github.run_attempt }}-${{ needs.select.outputs.ticket }}-${{ needs.select.outputs.head }}
+          name: dependency-premerge-${{ github.run_id }}-${{ github.run_attempt }}-${{ needs.select.outputs.ticket }}-${{ steps.control.outputs.head }}
           path: ${{ runner.temp }}/factory-dependencies/premerge.json
           if-no-files-found: error
           retention-days: 7
@@ -351,7 +501,7 @@ jobs:
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         if: ${{ needs.select.outputs.mode != 'reconcile' }}
         with:
-          name: dependency-premerge-${{ github.run_id }}-${{ github.run_attempt }}-${{ needs.select.outputs.ticket }}-${{ needs.select.outputs.head }}
+          name: dependency-premerge-${{ github.run_id }}-${{ github.run_attempt }}-${{ needs.select.outputs.ticket }}-${{ needs.premerge.outputs.head }}
           path: ${{ runner.temp }}/dependency-premerge
       - id: app
         uses: ./.github/actions/factory-app-token
@@ -369,7 +519,21 @@ jobs:
           bundle_path: ${{ needs.select.outputs.mode != 'reconcile' && format('{0}/dependency-premerge/premerge.json', runner.temp) || '' }}
 
   finalize:
-    needs: [select, analysis, ci, evidence, reserve, review, assess, premerge, merge]
+    needs:
+      [
+        select,
+        compatibility_plan,
+        compatibility_code,
+        compatibility_publish,
+        analysis,
+        ci,
+        evidence,
+        reserve,
+        review,
+        assess,
+        premerge,
+        merge,
+      ]
     if: ${{ always() && !cancelled() && needs.select.outputs.ready == 'true' && (needs.select.outputs.mode == 'review' || needs.select.outputs.mode == 'merge') }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -394,7 +558,7 @@ jobs:
           variables_json: ${{ toJSON(vars) }}
           parameters: >-
             {"ticket":${{ toJSON(needs.select.outputs.ticket) }},
-            "head":${{ toJSON(needs.select.outputs.head) }},
+            "head":${{ toJSON(needs.assess.outputs.head || needs.compatibility_publish.outputs.head || needs.select.outputs.head) }},
             "premergeFailed":${{ toJSON(needs.premerge.result == 'failure') }},
             "premergeEvidence":${{ toJSON(needs.premerge.outputs.failure_evidence) }}}
 

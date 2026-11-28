@@ -189,8 +189,10 @@ function validateState(state) {
       )
         deny("Invalid feature ticket provenance");
     }
-    if (ticket.origin === "dependency-pr") dependency.validateTicket(ticket, grants);
-    else if (ticket.dependency !== undefined || ticket.dependencyMergeRetry !== undefined)
+    if (ticket.origin === "dependency-pr") {
+      if (ticket.pr !== Number(id)) deny("Invalid dependency ledger ticket number");
+      dependency.validateTicket(ticket, grants);
+    } else if (ticket.dependency !== undefined || ticket.dependencyMergeRetry !== undefined)
       deny("Invalid dependency ticket origin");
     if (ticket.origin === "drill") {
       const d = ticket.drill;
@@ -561,6 +563,36 @@ function reserve(original, request, config, now = new Date()) {
     deny("Invalid automatic reservation provenance");
   const ownerReview = request.phase === "review" && request.origin === "owner-pr";
   const dependencyReview = request.phase === "review" && request.origin === "dependency-pr";
+  const dependencyCode = request.phase === "code" && request.origin === "dependency-pr";
+  const owner = active.activeFor(state, request.ticket);
+  let dependencyAttempt;
+  if (dependencyCode) {
+    dependencyAttempt = dependency.matches(existing, request, config);
+    if (
+      request.slot !== dependency.COMPATIBILITY_SLOT ||
+      !config.automatic ||
+      !dependency.branch(existing.branch) ||
+      request.ticket !== existing.pr ||
+      request.pr !== existing.pr ||
+      request.head !== existing.head ||
+      !active.owns(owner, request) ||
+      active.usedCapacity(state) !== 1 ||
+      active.pendingIntent(state) ||
+      existing.merge ||
+      !["new", "awaiting_review"].includes(existing.status) ||
+      existing.dependency.attempts.length >= 10 ||
+      dependencyAttempt.compatibility !== undefined ||
+      !dependency.validCompatibilityRequest(request.compatibility) ||
+      (request.compatibility.reason === "review_blocked") !==
+        Boolean(dependency.archivedCompatibilityReview(existing))
+    )
+      deny("Invalid or already reserved dependency compatibility role");
+  } else if (
+    request.compatibility !== undefined ||
+    request.slot === dependency.COMPATIBILITY_SLOT
+  ) {
+    deny("Invalid dependency compatibility origin");
+  }
   if (dependencyReview) {
     const a = require("./dependency-analysis.cjs");
     const attempt = dependency.validateTicket(existing);
@@ -584,7 +616,8 @@ function reserve(original, request, config, now = new Date()) {
       !dependency.contextOK(request) ||
       request.slot !== "dependency" ||
       request.pr !== existing.pr ||
-      !config.automatic
+      !config.automatic ||
+      !active.owns(owner, request)
     )
       deny("Invalid dependency review origin");
     dependency.matches(existing, request, config);
@@ -599,11 +632,18 @@ function reserve(original, request, config, now = new Date()) {
       deny("Dependency public evidence must pass before review");
   }
   if (
-    (dependency.contextOK(request) && !dependencyReview) ||
-    (existing?.origin === "dependency-pr" && !dependencyReview)
+    (dependency.contextOK(request) || existing?.origin === "dependency-pr") &&
+    !dependencyReview &&
+    !dependencyCode
   )
     deny("Dependency origin cannot enter ordinary work");
-  if (request.origin !== undefined && !ownerReview && !dependencyReview && !drill)
+  if (
+    request.origin !== undefined &&
+    !ownerReview &&
+    !dependencyReview &&
+    !dependencyCode &&
+    !drill
+  )
     deny("Invalid reservation origin");
   if (ownerReview && (!Number.isSafeInteger(request.pr) || request.pr < 1))
     deny("Invalid owner PR number");
@@ -612,7 +652,6 @@ function reserve(original, request, config, now = new Date()) {
     (existing?.origin === "owner-pr" && !ownerReview)
   )
     deny("Ticket origin cannot change between owner review and coding");
-  const owner = active.activeFor(state, request.ticket);
   if (
     (owner && !active.owns(owner, request)) ||
     (!owner && !active.capacity(state, config.concurrent))
@@ -651,7 +690,7 @@ function reserve(original, request, config, now = new Date()) {
       ...(drill ? { drill: structuredClone(request.drill) } : {}),
     };
   }
-  if (automatic || existing?.automatic || existing?.aiSessionLimit !== undefined)
+  if (dependencyCode || automatic || existing?.automatic || existing?.aiSessionLimit !== undefined)
     ticketBudget.reserve(state.tickets[id], request, config, Object.values(state.grants));
   if (request.phase === "code") {
     const t = state.tickets[id];
@@ -687,6 +726,11 @@ function reserve(original, request, config, now = new Date()) {
     at: now.toISOString(),
   };
   state.grants[grant.id] = grant;
+  if (dependencyCode)
+    dependencyAttempt.compatibility = {
+      ...structuredClone(request.compatibility),
+      grantId: grant.id,
+    };
   if (recovering) {
     recovery.record(state, grant);
     audit(
@@ -744,10 +788,16 @@ function preflight(state, grantId, context, config) {
   if (ticket?.automatic || ticket?.aiSessionLimit !== undefined)
     ticketBudget.checkPending(ticket, grant, config);
   if (ticket?.origin === "dependency-pr") {
-    dependency.matches(ticket, context, config);
-    if (context.phase !== "review" || context.slot !== "dependency" || !config.automatic)
+    const attempt = dependency.matches(ticket, context, config);
+    const coding = context.phase === "code" && context.slot === dependency.COMPATIBILITY_SLOT;
+    const review = context.phase === "review" && context.slot === "dependency";
+    if ((!coding && !review) || !config.automatic || context.head !== ticket.head)
       deny("Invalid dependency model role");
-  } else if (dependency.contextOK(context))
+    if (coding && (attempt.compatibility?.grantId !== grantId || active.usedCapacity(state) !== 1))
+      deny("Dependency compatibility reservation provenance changed");
+    if (coding && attempt.compatibility.publish)
+      deny("Dependency compatibility cannot start after a publish intent");
+  } else if (dependency.contextOK(context) || context.slot === dependency.COMPATIBILITY_SLOT)
     deny("Dependency workflow requires dependency provenance");
   if (ticket?.origin === "drill") {
     if (

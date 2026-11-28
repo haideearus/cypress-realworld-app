@@ -7,6 +7,7 @@ const { DependencyCoordinator, DependencyMerger, expectedReport } = require("./d
 const { trackNativeDependencies } = require("./dependency-tracking.cjs");
 const { widerReceiptFor, verifyWiderContents } = require("./dependency-alert-repair.cjs");
 const { MergeCheckFailure, describe, premergeEvidence } = require("./dependency-merge-retry.cjs");
+const native = require("./dependency-native-recovery.cjs");
 const {
   inspectUpdate,
   queryOsv,
@@ -15,27 +16,18 @@ const {
   toolsAt,
 } = require("./dependency-analysis.cjs");
 
-async function content(api, ref, file) {
-  if (!policy.SHA.test(ref) || !["package.json", "yarn.lock"].includes(file))
-    throw new Error("Invalid dependency source");
-  const max = file === "package.json" ? 65536 : 2097152;
-  const r = await api.request("GET", `${ROOT}/contents/${file}?ref=${ref}`);
-  if (
-    r.type !== "file" ||
-    r.path !== file ||
-    r.encoding !== "base64" ||
-    !Number.isSafeInteger(r.size) ||
-    r.size < 1 ||
-    r.size > max ||
-    typeof r.content !== "string" ||
-    r.content.length > Math.ceil(max * 1.4)
-  )
-    throw new Error("Dependency file exceeds source boundary");
-  const bytes = Buffer.from(r.content.replace(/\n/g, ""), "base64");
-  const text = bytes.toString("utf8");
-  if (bytes.length !== r.size || !Buffer.from(text, "utf8").equals(bytes) || text.includes("\0"))
-    throw new Error("Invalid dependency source encoding");
-  return text;
+const dependencyTools = () => toolsAt(path.join(__dirname, "dependency-tools"));
+async function evidenceSources(api, ticket) {
+  const source = await native.sources(api, ticket);
+  return {
+    ...source,
+    wider: verifyWiderContents(
+      await widerReceiptFor(api, ticket),
+      source.headManifest,
+      source.headLock
+    ),
+    ...native.analysisScope(source, ticket, dependencyTools()),
+  };
 }
 async function analyze(coordinator, number, stage, { transport = fetch } = {}) {
   if (!["analysis", "premerge"].includes(stage)) throw new Error("Invalid dependency stage");
@@ -52,21 +44,16 @@ async function analyze(coordinator, number, stage, { transport = fetch } = {}) {
   )
     throw new Error("Dependency review required before premerge");
   const identity = expectedReport(t, coordinator.context, stage);
-  const [bm, hm, bl, hl] = await Promise.all([
-    content(coordinator.api, identity.base, "package.json"),
-    content(coordinator.api, identity.head, "package.json"),
-    content(coordinator.api, identity.base, "yarn.lock"),
-    content(coordinator.api, identity.head, "yarn.lock"),
-  ]);
-  const wider = verifyWiderContents(await widerReceiptFor(coordinator.api, t), hm, hl);
+  const { baseManifest, headManifest, baseLock, headLock, wider, nativeMajor } =
+    await evidenceSources(coordinator.api, t);
   const inventory = inspectUpdate(
-    bm,
-    hm,
-    bl,
-    hl,
-    toolsAt(path.join(__dirname, "dependency-tools")),
+    baseManifest,
+    headManifest,
+    baseLock,
+    headLock,
+    dependencyTools(),
     false,
-    { wider }
+    { wider: wider || nativeMajor }
   );
   if (!inventory.changed) throw new Error("Dependency PR has no changed package versions");
   const advisory = await queryOsv(inventory.queries, transport);
@@ -112,6 +99,17 @@ async function main(env = process.env) {
       recoveryOnly: op === "dep_recover_tracked",
       mainCIEvent: afterMainCI ? readJson(env.GITHUB_EVENT_PATH, 2000000) : undefined,
     });
+  } else if (op === "dep_compat_refresh")
+    result = await c.refreshCompatibility(n, inputs.head, inputs.base);
+  else if (op === "dep_compat_plan") result = await native.planCompatibility(c, n);
+  else if (op === "dep_compat_publish") {
+    const { COMPATIBILITY_BUNDLE_LIMIT } = require("./artifacts.cjs");
+    result = await native.publishCompatibility(
+      c,
+      n,
+      inputs.grantId,
+      readJson(env.FACTORY_BUNDLE_PATH, COMPATIBILITY_BUNDLE_LIMIT)
+    );
   } else if (op === "dep_analysis" || op === "dep_premerge") {
     const stage = op === "dep_analysis" ? "analysis" : "premerge";
     const report = await analyze(c, n, stage).catch((error) => {
@@ -141,25 +139,7 @@ async function main(env = process.env) {
     const { packet, ...outcome } = await preflight.prepare(
       c,
       n,
-      async (t) => {
-        const attempt = require("./dependency-contract.cjs").validateTicket(t);
-        const [baseManifest, headManifest, baseLock, headLock] = await Promise.all([
-          content(api, attempt.base, "package.json"),
-          content(api, t.head, "package.json"),
-          content(api, attempt.base, "yarn.lock"),
-          content(api, t.head, "yarn.lock"),
-        ]);
-        return {
-          base: attempt.base,
-          head: t.head,
-          baseManifest,
-          headManifest,
-          baseLock,
-          headLock,
-          ci: t.ci,
-          wider: verifyWiderContents(await widerReceiptFor(api, t), headManifest, headLock),
-        };
-      },
+      async (t) => ({ ...(await evidenceSources(api, t)), ci: t.ci }),
       { transport: preflight.evidenceTransport(env.GH_TOKEN) }
     );
     if (packet) {
@@ -207,6 +187,9 @@ function refusalReason(error, operation) {
     dep_evidence: "review evidence",
     dep_assess: "assessment",
     dep_reserve: "review reservation",
+    dep_compat_plan: "native compatibility planning",
+    dep_compat_publish: "native compatibility publication",
+    dep_compat_refresh: "native compatibility refresh",
   };
   const { stage, reason } =
     error instanceof MergeCheckFailure
@@ -228,4 +211,9 @@ if (require.main === module)
     console.error(refusalReason(error, process.env.FACTORY_OPERATION));
     process.exitCode = 1;
   });
-module.exports = { content, analyze, main, refusalReason };
+module.exports = {
+  content: require("./dependency-compatibility.cjs").readDependencySource,
+  analyze,
+  main,
+  refusalReason,
+};

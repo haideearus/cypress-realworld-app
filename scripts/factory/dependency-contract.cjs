@@ -3,6 +3,15 @@ const REPOSITORY = "haideearus/cypress-realworld-app";
 const WORKFLOW = REPOSITORY + "/.github/workflows/factory-dependencies.yml@refs/heads/main";
 const SHA = /^[a-f0-9]{40}$/;
 const HASH = /^[a-f0-9]{64}$/;
+const COMPATIBILITY_SLOT = "dependency_compat";
+const COMPATIBILITY_REASONS = new Set([
+  "native_ci_failure",
+  "major_upgrade",
+  "dependency_analysis_failure",
+  "review_blocked",
+]);
+const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
+const exact = (x, keys) => Boolean(x && Object.keys(x).sort().join(",") === keys);
 const digest = (value) =>
   createHash("sha256")
     .update(typeof value === "string" ? value : JSON.stringify(value))
@@ -92,6 +101,155 @@ const timestamp = (value) =>
   typeof value === "string" &&
   Number.isFinite(Date.parse(value)) &&
   new Date(value).toISOString() === value;
+function validCompatibilityRequest(record) {
+  return (
+    exact(record, "package,reason") &&
+    COMPATIBILITY_REASONS.has(record.reason) &&
+    exact(record.package, "name,version") &&
+    typeof record.package.name === "string" &&
+    /^(?:@[A-Za-z0-9._-]+\/)?[A-Za-z0-9._-]+$/.test(record.package.name) &&
+    record.package.name.length <= 214 &&
+    typeof record.package.version === "string" &&
+    /^\d+\.\d+\.\d+(?:-[\w.-]+)?(?:\+[\w.-]+)?$/.test(record.package.version) &&
+    record.package.version.length <= 128
+  );
+}
+
+function validArchivedCI(ci, head) {
+  return (
+    exact(ci, "head,passed,requestId,runId") &&
+    ci.head === head &&
+    UUID.test(ci.requestId || "") &&
+    Number.isSafeInteger(ci.runId) &&
+    ci.runId > 0 &&
+    typeof ci.passed === "boolean"
+  );
+}
+
+function validBlockingReview(result, head) {
+  try {
+    require("./artifacts.cjs").validateReview(result, head);
+    return (
+      result.verdict === "changes_requested" &&
+      result.findings.some((finding) => ["important", "critical"].includes(finding.severity))
+    );
+  } catch {
+    return false;
+  }
+}
+
+function matchesBlockingGrant(attempt, grant) {
+  const evidence = attempt.evidence?.at(-1);
+  return Boolean(
+    grant?.phase === "review" &&
+      grant.slot === "dependency" &&
+      grant.status === "finished" &&
+      grant.outcome === "blocked" &&
+      grant.head === attempt.head &&
+      grant.runId === attempt.runId &&
+      grant.runAttempt === attempt.runAttempt &&
+      evidence?.status === "ready" &&
+      timestamp(grant.at) &&
+      grant.at >= evidence.finishedAt
+  );
+}
+
+function validateArchivedReview(attempt, next, grants) {
+  const review = attempt.review;
+  if (review === undefined) return;
+  if (
+    !exact(review, "grantId,result") ||
+    !UUID.test(review.grantId || "") ||
+    !next?.compatibilityReclaim ||
+    next.head !== attempt.head ||
+    !validArchivedCI(attempt.ci, attempt.head) ||
+    attempt.ci.passed !== true ||
+    attempt.evidence?.at(-1)?.status !== "ready" ||
+    !validBlockingReview(review.result, attempt.head) ||
+    (grants &&
+      !matchesBlockingGrant(
+        attempt,
+        grants.find((grant) => grant.id === review.grantId)
+      ))
+  )
+    throw new Error("Invalid archived dependency blocking review");
+}
+
+function validateCompatibilityRefresh(attempt, next) {
+  const refreshes = attempt.compatibilityRefreshes;
+  if (refreshes === undefined) return;
+  if (
+    !Array.isArray(refreshes) ||
+    refreshes.length < 1 ||
+    refreshes.length > 10 ||
+    new Set(refreshes.map((refresh) => refresh?.base)).size !== refreshes.length ||
+    refreshes.some(
+      (refresh, index) =>
+        !exact(refresh, "at,base") ||
+        !SHA.test(refresh.base || "") ||
+        refresh.base === attempt.base ||
+        refresh.base === attempt.head ||
+        !timestamp(refresh.at) ||
+        refresh.at < (refreshes[index - 1]?.at ?? attempt.at) ||
+        (next && refresh.at > next.at)
+    )
+  )
+    throw new Error("Invalid dependency compatibility refresh intents");
+}
+
+function validateCompatibility(attempt, next, grants) {
+  const record = attempt.compatibility;
+  if (record === undefined) return;
+  const { grantId, publish, ...request } = record || {};
+  const grant = grants?.find((g) => g.id === grantId);
+  if (
+    !validCompatibilityRequest(request) ||
+    !UUID.test(grantId || "") ||
+    (grants &&
+      (grant?.phase !== "code" ||
+        grant.slot !== COMPATIBILITY_SLOT ||
+        grant.head !== attempt.head ||
+        grant.runId !== attempt.runId ||
+        grant.runAttempt !== attempt.runAttempt ||
+        !timestamp(grant.at) ||
+        grant.at < attempt.at ||
+        (grant.status === "reserved"
+          ? grant.outcome !== undefined
+          : !["awaiting_review", "blocked"].includes(grant.outcome))))
+  )
+    throw new Error("Invalid dependency compatibility grant provenance");
+  if (publish === undefined) {
+    if (grant?.outcome === "awaiting_review")
+      throw new Error("Dependency compatibility grant has no confirmed publication");
+    return;
+  }
+  const finish = publish?.confirmedAt ?? publish?.abortedAt;
+  if (
+    !(
+      exact(publish, "at,head") ||
+      exact(publish, "at,confirmedAt,head") ||
+      (exact(publish, "abortedAt,at,head,outcome") &&
+        ["not_published", "changed"].includes(publish.outcome))
+    ) ||
+    !SHA.test(publish.head || "") ||
+    publish.head === attempt.head ||
+    !timestamp(publish.at) ||
+    publish.at < (grant?.at ?? attempt.at) ||
+    (finish !== undefined && (!timestamp(finish) || finish < publish.at)) ||
+    (publish.confirmedAt !== undefined
+      ? !next ||
+        next.head !== publish.head ||
+        next.base !== attempt.base ||
+        next.at !== publish.confirmedAt ||
+        (grant &&
+          (grant.status !== "finished" || !["awaiting_review", "blocked"].includes(grant.outcome)))
+      : grant?.outcome === "awaiting_review" ||
+        (publish.abortedAt && grant && grant.outcome !== "blocked") ||
+        (next && !publish.abortedAt))
+  )
+    throw new Error("Invalid dependency compatibility publication provenance");
+}
+
 function validateEvidenceHistory(attempt) {
   const records = attempt.evidence;
   if (records === undefined) return;
@@ -130,12 +288,10 @@ function validateEvidenceHistory(attempt) {
       throw new Error("Invalid dependency evidence result");
   }
 }
-function validateTicket(t, grants = []) {
+function validateTicket(t, grants) {
   const d = t?.dependency;
   if (
     t?.origin !== "dependency-pr" ||
-    t.coding !== 0 ||
-    t.retries !== 0 ||
     !d ||
     d.version !== 1 ||
     d.pr !== t.pr ||
@@ -155,12 +311,28 @@ function validateTicket(t, grants = []) {
     d.attempts.length > 10
   )
     throw new Error("Invalid dependency provenance");
-  const seen = new Set();
-  for (const a of d.attempts) {
+  const seen = new Map();
+  const compat = new Set();
+  const fixed = new Set();
+  for (const [index, a] of d.attempts.entries()) {
+    const previous = d.attempts[index - 1];
+    const lastSeen = seen.get(a?.head);
     if (
       !a ||
       Object.keys(a)
-        .filter((key) => key !== "evidence")
+        .filter(
+          (key) =>
+            ![
+              "evidence",
+              "compatibility",
+              "compatibilityReclaim",
+              "compatibilityContinuation",
+              "compatibilityRefreshes",
+              "compatibilityRefreshFrom",
+              "ci",
+              "review",
+            ].includes(key)
+        )
         .sort()
         .join(",") !== "at,base,head,runAttempt,runId,workflowSha" ||
       !SHA.test(a.head || "") ||
@@ -169,33 +341,81 @@ function validateTicket(t, grants = []) {
       !/^[1-9]\d*$/.test(a.runId || "") ||
       !Number.isSafeInteger(a.runAttempt) ||
       a.runAttempt < 1 ||
-      !Number.isFinite(Date.parse(a.at)) ||
-      new Date(a.at).toISOString() !== a.at ||
-      seen.has(a.head)
+      !timestamp(a.at) ||
+      (a.ci !== undefined && !validArchivedCI(a.ci, a.head)) ||
+      (a.compatibilityReclaim === undefined && a.compatibilityContinuation === undefined
+        ? lastSeen !== undefined
+        : !previous ||
+          ![undefined, true].includes(a.compatibilityReclaim) ||
+          ![undefined, true].includes(a.compatibilityContinuation) ||
+          (a.compatibilityReclaim === true) === (a.compatibilityContinuation === true) ||
+          !branch(t.branch) ||
+          lastSeen !== previous ||
+          previous?.compatibilityReclaim === true ||
+          (previous.compatibilityContinuation === true &&
+            !(a.compatibilityReclaim === true && previous.review)) ||
+          previous?.compatibility !== undefined ||
+          previous?.base !== a.base ||
+          a.at < previous.at ||
+          (previous?.runId === a.runId && previous?.runAttempt === a.runAttempt) ||
+          (a.compatibilityContinuation === true && !fixed.has(a.head)) ||
+          (a.compatibilityReclaim === true &&
+            fixed.has(a.head) &&
+            previous.ci?.passed !== false &&
+            previous.review === undefined)) ||
+      (a.compatibilityRefreshFrom !== undefined &&
+        (!previous ||
+          a.head === previous.head ||
+          a.compatibilityRefreshFrom !== previous.head ||
+          !fixed.has(previous.head) ||
+          !previous.compatibilityRefreshes?.some((record) => record.base === a.base))) ||
+      ((a.compatibility !== undefined || t.aiSessionLimit !== undefined) && !branch(t.branch)) ||
+      (a.compatibility && compat.has(a.compatibility.grantId))
     )
       throw new Error("Invalid dependency head history");
     validateEvidenceHistory(a);
-    seen.add(a.head);
+    validateCompatibility(a, d.attempts[index + 1], grants);
+    validateCompatibilityRefresh(a, d.attempts[index + 1]);
+    validateArchivedReview(a, d.attempts[index + 1], grants);
+    if (
+      a.compatibility &&
+      (a.compatibility.reason === "review_blocked") !==
+        Boolean(a.compatibilityReclaim && previous?.review)
+    )
+      throw new Error("Dependency compatibility repair lacks its archived review evidence");
+    if (
+      a.compatibilityRefreshFrom !== undefined ||
+      previous?.compatibility?.publish?.confirmedAt === a.at
+    )
+      fixed.add(a.head);
+    if (a.compatibilityRefreshes !== undefined && !fixed.has(a.head))
+      throw new Error("Dependency refresh requires confirmed compatibility provenance");
+    if (a.compatibility) compat.add(a.compatibility.grantId);
+    seen.set(a.head, a);
   }
   const first = d.attempts[0],
-    last = d.attempts.at(-1);
+    last = d.attempts.at(-1),
+    reviews = grants?.filter((g) => g.phase === "review") ?? [];
   if (
     first.runId !== d.runId ||
     first.runAttempt !== d.runAttempt ||
     first.workflowSha !== d.workflowSha ||
     last.head !== t.head ||
-    grants.some(
+    t.coding !== compat.size ||
+    t.retries !== Math.max(0, t.coding - 1) ||
+    t.coding > 0 !== (t.aiSessionLimit !== undefined) ||
+    grants?.some((g) => g.phase !== "review" && !compat.has(g.id)) ||
+    reviews.some(
       (g) =>
-        g.phase !== "review" ||
         g.slot !== "dependency" ||
         !d.attempts.some(
           (a) => a.head === g.head && a.runId === g.runId && a.runAttempt === g.runAttempt
         )
     ) ||
-    new Set(grants.map((g) => g.head)).size !== grants.length
+    new Set(reviews.map((g) => g.head)).size !== reviews.length
   )
     throw new Error("Dependency grant provenance changed");
-  require("./dependency-merge-retry.cjs").validate(t, d.attempts, grants);
+  require("./dependency-merge-retry.cjs").validate(t, d.attempts, grants ?? []);
   return last;
 }
 function matches(t, c, config) {
@@ -210,11 +430,28 @@ function matches(t, c, config) {
     throw new Error("Dependency lease belongs to another trusted run");
   return a;
 }
+function compatibilityForHead(t) {
+  let expected = t?.head;
+  for (const attempt of [...(t?.dependency?.attempts ?? [])].reverse()) {
+    if (
+      attempt.compatibility?.publish?.confirmedAt &&
+      attempt.compatibility.publish.head === expected
+    )
+      return attempt;
+    if (attempt.head === expected && attempt.compatibilityRefreshFrom)
+      expected = attempt.compatibilityRefreshFrom;
+  }
+}
+function archivedCompatibilityReview(t) {
+  const attempts = t?.dependency?.attempts;
+  return attempts?.at(-1)?.compatibilityReclaim ? attempts.at(-2)?.review : undefined;
+}
 module.exports = {
   REPOSITORY,
   WORKFLOW,
   SHA,
   HASH,
+  COMPATIBILITY_SLOT,
   EVIDENCE_DELAY_MS,
   EVIDENCE_REASONS,
   digest,
@@ -226,6 +463,12 @@ module.exports = {
   prOK,
   filesOK,
   alertFilesOK,
+  validCompatibilityRequest,
+  validArchivedCI,
+  validBlockingReview,
+  matchesBlockingGrant,
+  archivedCompatibilityReview,
+  compatibilityForHead,
   validateTicket,
   matches,
 };
