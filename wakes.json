@@ -7609,18 +7609,48 @@
         }
       },
       "producer": {
-        "runId": "46085209441",
+        "runId": "46085516440",
         "runAttempt": 1,
         "workflowSha": "e892d5c46f30e594848fafc5b433f055a7e1770d",
         "actor": {
-          "login": "haideearus-software-factory[bot]",
-          "id": 356310548
+          "login": "haideearus",
+          "id": 101267861
         },
         "event": "workflow_run"
       },
-      "status": "pending",
+      "status": "intent",
       "receiver": null,
-      "at": "2026-11-27T23:56:41.641Z"
+      "at": "2026-11-28T00:00:27.254Z"
+    },
+    "0f54b203d550be8f058f33e1df9633cac93a086666923e5010439f0487e895b1": {
+      "id": "0f54b203d550be8f058f33e1df9633cac93a086666923e5010439f0487e895b1",
+      "signal": {
+        "kind": "drain",
+        "lane": "app",
+        "number": 313,
+        "head": "e892d5c46f30e594848fafc5b433f055a7e1770d",
+        "criteriaHash": "9b6abc1beb2cddac7e0bbf33e3167c2ecc5f6becfac39927118dd7a3a127ebc7",
+        "revision": "1",
+        "sourceRun": "46084390162",
+        "sourceAttempt": 1,
+        "actor": {
+          "login": "haideearus",
+          "id": 101267861
+        }
+      },
+      "producer": {
+        "runId": "46085516440",
+        "runAttempt": 1,
+        "workflowSha": "e892d5c46f30e594848fafc5b433f055a7e1770d",
+        "actor": {
+          "login": "haideearus",
+          "id": 101267861
+        },
+        "event": "workflow_run"
+      },
+      "status": "observed",
+      "receiver": null,
+      "at": "2026-11-28T00:00:26.909Z"
     }
   }
 }
