@@ -224,7 +224,12 @@
           }
         },
         "50ddab4015f729b79e4f37b48297ead6160dd18c": {
-          "blocked": true
+          "blocked": true,
+          "bases": {
+            "208b46d876af98ca5a8ea2ebba5deaadfbb5508a": {
+              "refresh": "attempted"
+            }
+          }
         }
       }
     },
