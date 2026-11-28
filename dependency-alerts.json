@@ -389,9 +389,10 @@
       "base": "e892d5c46f30e594848fafc5b433f055a7e1770d",
       "head": "f39b5d7fd26bbbcaa89f06ac48842e4eea589de6",
       "name": "ws",
-      "phase": "ready",
+      "phase": "resolved",
       "issue": 298,
-      "pr": 299
+      "pr": 299,
+      "resolvedAt": "2026-11-28T00:25:58.401Z"
     }
   },
   "heldAfter": "@graphql-tools/utils",
