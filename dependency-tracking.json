@@ -229,6 +229,13 @@
               "stale": "requested"
             }
           }
+        },
+        "02f7ca0f70b8bc49f61169b769051042b3c80412": {
+          "bases": {
+            "12815b31fc33e2335f7f17fb1fdfd858b95ab51d": {
+              "refresh": "attempted"
+            }
+          }
         }
       }
     },
