@@ -8107,6 +8107,36 @@
         "workflowSha": "208b46d876af98ca5a8ea2ebba5deaadfbb5508a"
       },
       "at": "2026-11-28T13:13:25.729Z"
+    },
+    "ee8a0d39c5e3f1bdfc8c4138771b103ea5db73505446b7dc0ca9316e3f401e37": {
+      "id": "ee8a0d39c5e3f1bdfc8c4138771b103ea5db73505446b7dc0ca9316e3f401e37",
+      "signal": {
+        "kind": "dependency-failed-ci",
+        "lane": "dependency",
+        "number": 232,
+        "head": "b982755266a5a71567e81fa8199230a805afd5d2",
+        "criteriaHash": "bc16af64818669e69a6c0501b601a1a607f139984bb6437577ca56a2c221816c",
+        "revision": "208b46d876af98ca5a8ea2ebba5deaadfbb5508a",
+        "sourceRun": "46148726594",
+        "sourceAttempt": 1,
+        "actor": {
+          "login": "dependabot[bot]",
+          "id": 49699333
+        }
+      },
+      "producer": {
+        "runId": "46148952949",
+        "runAttempt": 1,
+        "workflowSha": "208b46d876af98ca5a8ea2ebba5deaadfbb5508a",
+        "actor": {
+          "login": "dependabot[bot]",
+          "id": 49699333
+        },
+        "event": "workflow_run"
+      },
+      "status": "intent",
+      "receiver": null,
+      "at": "2026-11-28T13:18:41.208Z"
     }
   }
 }
