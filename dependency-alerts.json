@@ -395,13 +395,5 @@
       "resolvedAt": "2026-11-28T00:25:58.401Z"
     }
   },
-  "heldAfter": "@graphql-tools/utils",
-  "deferred": {
-    "base": "1e877adef42c07e87197af1d9d8b5c95d257f670",
-    "fingerprint": "6999fed3786269a2c1ee12ec7d2a25b3354c97654b327bb59046bb6e4b325ea1",
-    "runs": [
-      "46087766603"
-    ],
-    "at": "2026-11-28T00:25:58.401Z"
-  }
+  "heldAfter": "@graphql-tools/utils"
 }
