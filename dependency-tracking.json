@@ -193,7 +193,8 @@
         "5e553169c8075294c52cd3fcb45592943dc1e161": {
           "bases": {
             "1e877adef42c07e87197af1d9d8b5c95d257f670": {
-              "refresh": "confirmed"
+              "refresh": "confirmed",
+              "stale": "requested"
             }
           }
         }
