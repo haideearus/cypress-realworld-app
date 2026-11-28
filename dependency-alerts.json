@@ -405,8 +405,8 @@
       "name": "@babel/runtime",
       "day": "2026-11-28",
       "trackingReason": "selector-held",
-      "phase": "tracking-intent",
-      "issue": null,
+      "phase": "tracking",
+      "issue": 317,
       "pr": null
     }
   },
