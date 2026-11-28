@@ -156,7 +156,8 @@
         "73a4ae397dfa63736b00da66b06ee227fa1a8d77": {
           "bases": {
             "12815b31fc33e2335f7f17fb1fdfd858b95ab51d": {
-              "refresh": "confirmed"
+              "refresh": "confirmed",
+              "stale": "requested"
             }
           }
         }
