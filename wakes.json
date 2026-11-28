@@ -7843,6 +7843,66 @@
       "status": "observed",
       "receiver": null,
       "at": "2026-11-28T02:54:49.541Z"
+    },
+    "896ce94e02a23294cae60b5f843ee5ffe0d03bbea813302bb5a5e0e0dae749e1": {
+      "id": "896ce94e02a23294cae60b5f843ee5ffe0d03bbea813302bb5a5e0e0dae749e1",
+      "signal": {
+        "kind": "dependency-ci",
+        "lane": "dependency",
+        "number": 247,
+        "head": "4c0ee460e8b20c4c7dba2372870635b6a448553f",
+        "criteriaHash": "a423a2104e7c24fb1c9fb5d45bf62d380e9a177989629720b1c57b32b4fa4bdf",
+        "revision": "1e877adef42c07e87197af1d9d8b5c95d257f670",
+        "sourceRun": "46087291317",
+        "sourceAttempt": 1,
+        "actor": {
+          "login": "dependabot[bot]",
+          "id": 49699333
+        }
+      },
+      "producer": {
+        "runId": "46106157615",
+        "runAttempt": 1,
+        "workflowSha": "1e877adef42c07e87197af1d9d8b5c95d257f670",
+        "actor": {
+          "login": "haideearus",
+          "id": 101267861
+        },
+        "event": "workflow_run"
+      },
+      "status": "intent",
+      "receiver": null,
+      "at": "2026-11-28T04:09:06.280Z"
+    },
+    "eb88bf2bab5d8528430563209abbf6cedb75f67c61e39cd8a6cd7654e262970b": {
+      "id": "eb88bf2bab5d8528430563209abbf6cedb75f67c61e39cd8a6cd7654e262970b",
+      "signal": {
+        "kind": "drain",
+        "lane": "dependency",
+        "number": 247,
+        "head": "1e877adef42c07e87197af1d9d8b5c95d257f670",
+        "criteriaHash": "a086713d1323f312dab3a2e6c45cc9dcd349bc151bb67ac740d015fed3b6dd4a",
+        "revision": "queue-check:1",
+        "sourceRun": "46106127012",
+        "sourceAttempt": 1,
+        "actor": {
+          "login": "haideearus",
+          "id": 101267861
+        }
+      },
+      "producer": {
+        "runId": "46106157615",
+        "runAttempt": 1,
+        "workflowSha": "1e877adef42c07e87197af1d9d8b5c95d257f670",
+        "actor": {
+          "login": "haideearus",
+          "id": 101267861
+        },
+        "event": "workflow_run"
+      },
+      "status": "observed",
+      "receiver": null,
+      "at": "2026-11-28T04:09:05.959Z"
     }
   }
 }
