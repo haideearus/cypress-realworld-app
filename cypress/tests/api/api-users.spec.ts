@@ -119,16 +119,16 @@ describe("Users API", function () {
 
   context("POST /users", function () {
     it("creates a new user", function () {
-      const firstName = faker.name.firstName();
+      const firstName = faker.person.firstName();
 
       cy.request("POST", `${apiUsers}`, {
         firstName,
-        lastName: faker.name.lastName(),
-        username: faker.internet.userName(),
+        lastName: faker.person.lastName(),
+        username: faker.internet.username(),
         password: faker.internet.password(),
         email: faker.internet.email(),
-        phoneNumber: faker.phone.phoneNumber(),
-        avatar: faker.internet.avatar(),
+        phoneNumber: faker.phone.number(),
+        avatar: faker.image.avatar(),
       }).then((response) => {
         expect(response.status).to.eq(201);
         expect(response.body.user).to.contain({ firstName });
@@ -136,16 +136,16 @@ describe("Users API", function () {
     });
 
     it("creates a new user with an account balance in cents", function () {
-      const firstName = faker.name.firstName();
+      const firstName = faker.person.firstName();
 
       cy.request("POST", `${apiUsers}`, {
         firstName,
-        lastName: faker.name.lastName(),
-        username: faker.internet.userName(),
+        lastName: faker.person.lastName(),
+        username: faker.internet.username(),
         password: faker.internet.password(),
         email: faker.internet.email(),
-        phoneNumber: faker.phone.phoneNumber(),
-        avatar: faker.internet.avatar(),
+        phoneNumber: faker.phone.number(),
+        avatar: faker.image.avatar(),
         balance: 100_00,
       }).then((response) => {
         expect(response.status).to.eq(201);
@@ -171,7 +171,7 @@ describe("Users API", function () {
 
   context("PATCH /users/:userId", function () {
     it("updates a user", function () {
-      const firstName = faker.name.firstName();
+      const firstName = faker.person.firstName();
 
       cy.request("PATCH", `${apiUsers}/${ctx.authenticatedUser!.id}`, {
         firstName,
