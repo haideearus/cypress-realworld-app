@@ -141,7 +141,11 @@ function claimDependency(
   if (context.wake) {
     if (!config.eventPickup) throw new Error("Event pickup disabled");
     const target = require("./trusted-wake.cjs").dependencyWakeTarget(context);
-    if (target?.number !== pr.number || target.head !== pr.head.sha)
+    if (
+      target?.number !== pr.number ||
+      target.head !== pr.head.sha ||
+      (target.compatibility && target.base !== pr.base.sha)
+    )
       throw new Error("Dependency PR does not match the verified CI wake");
   }
   if (

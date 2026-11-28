@@ -13,7 +13,7 @@ async function main(env = process.env) {
     throw Error("Invalid wake event file");
   const event = JSON.parse(fs.readFileSync(env.GITHUB_EVENT_PATH, "utf8")),
     inputs = event.inputs || {};
-  const api = new GitHub({ token: env.GITHUB_TOKEN });
+  const api = new GitHub({ token: env.GITHUB_TOKEN, retryReads: true, retryInternalReads: true });
   const preview = inputs.preview === true || inputs.preview === "true";
   let result;
   if (context.event === "workflow_dispatch") {
@@ -42,9 +42,13 @@ async function main(env = process.env) {
   return result;
 }
 if (require.main === module)
-  main().catch(() => {
+  main().catch((error) => {
+    const reason = [429, 500, 502, 503, 504].includes(error?.status)
+      ? ` GitHub metadata ${error.method === "GET" ? "read" : "request"} returned HTTP ${error.status}.`
+      : "";
     console.error(
-      "Event wake held; inspect trusted source and retained receipt. No dispatch was retried."
+      "Event wake held; inspect trusted source and retained receipt. No dispatch was retried." +
+        reason
     );
     process.exitCode = 1;
   });

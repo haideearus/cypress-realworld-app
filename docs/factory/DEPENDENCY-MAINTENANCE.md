@@ -139,6 +139,19 @@ the durable registry. A valid event can start **Dependency maintenance**
 through the same receipt mechanism as a native Dependabot PR. Existing CI,
 independent review, budgets and protected merge requirements still apply.
 
+For native Dependabot PRs, **Factory event wake** can also hand off a failed
+app check on the exact current PR commit. It verifies the Dependabot
+identity, repository, PR association, current main ancestry, and completed
+app and required verification jobs before dispatch. A runner setup failure,
+an unrelated job failure, or a stale branch does not admit repair coding.
+Busy capacity defers the repair until a worker is available. The same
+one-ticket slot, AI budget, repair branch, fresh CI and independent review
+apply after the handoff.
+
+The wake producer and pickup jobs retry temporary GitHub metadata reads
+twice. Dispatches and branch writes keep their existing receipt and
+confirmation rules.
+
 ## What happens
 
 Dependabot proposes changes to the application's library versions. The native

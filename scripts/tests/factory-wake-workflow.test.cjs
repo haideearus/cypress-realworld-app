@@ -527,7 +527,7 @@ test("only a verified terminal dependency parent without a reserved model can re
   state.tickets[259].merge = { status: "intent" };
   assert.equal(await terminalDependency(s.api, state, false), 259);
 });
-test("successful exact-head native Dependabot CI selects the dependency lane; failed or stale CI cannot", async () => {
+test("successful exact-head native Dependabot CI selects the dependency lane; unverified failures and stale CI cannot", async () => {
   for (const mode of ["ok", "failed", "stale", "fork"]) {
     const s = fixture();
     s.context.event = "workflow_run";
@@ -570,8 +570,7 @@ test("successful exact-head native Dependabot CI selects the dependency lane; fa
             : p.includes("/pulls/22/files")
               ? [{ filename: "yarn.lock", status: "modified" }]
               : base(m, p, b);
-    if (mode === "failed") await assert.rejects(classifySignal(s));
-    else assert.equal((await classifySignal(s))?.lane || null, mode === "ok" ? "dependency" : null);
+    assert.equal((await classifySignal(s))?.lane || null, mode === "ok" ? "dependency" : null);
   }
 });
 test("completion drains a queued signal in the opposite lane exactly once, not another idle run", async () => {

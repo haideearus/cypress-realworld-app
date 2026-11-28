@@ -2,6 +2,7 @@ const fs = require("node:fs");
 const c = require("./wake-contract.cjs");
 const { ROOT } = require("./github.cjs");
 const { WakeStore } = require("./wake-store.cjs");
+const dependency = require("./dependency-contract.cjs");
 // A JSON field is not authorization. Only this API-verifying module can mint a proof.
 const proofs = new WeakMap();
 class PendingWakeBinding extends Error {}
@@ -24,22 +25,63 @@ function dependencyWakeTarget(context) {
 function interruptedWakeTarget(context) {
   return isTrustedWakeContext(context, "app") ? proofs.get(context.wake).interruptedTicket : null;
 }
+function ownedDependencyAttempt(attempt, receiver) {
+  return Boolean(
+    attempt &&
+      receiver &&
+      ["runId", "runAttempt", "workflowSha"].every((key) => attempt[key] === receiver[key])
+  );
+}
+const failedTarget = (signal) => ({
+  number: signal.number,
+  head: signal.head,
+  base: signal.revision,
+  compatibility: true,
+});
+function confirmedFailurePublication(ticket, receiver, target) {
+  const attempt = ticket?.dependency?.attempts?.at(-1);
+  if (
+    !dependency.branch(ticket?.branch) ||
+    !ownedDependencyAttempt(attempt, receiver) ||
+    attempt.base !== target.base ||
+    attempt.head !== ticket.head
+  )
+    return false;
+  const source = dependency.compatibilityForHead(ticket);
+  return Boolean(
+    ownedDependencyAttempt(source, receiver) &&
+      source.head === target.head &&
+      source.base === target.base &&
+      ["native_ci_failure", "review_blocked"].includes(source.compatibility?.reason) &&
+      source.compatibility.publish?.confirmedAt &&
+      source.compatibility.publish.head === ticket.head
+  );
+}
 function allowedModelBots(context, ticket) {
   if (ticket?.origin === "dependency-pr") {
     const target = dependencyWakeTarget(context);
     const attempt = ticket.dependency?.attempts?.at(-1);
-    return target &&
-      context.phase === "review" &&
-      context.slot === "dependency" &&
-      context.ticket === target.number &&
-      ticket.pr === target.number &&
-      ticket.dependency?.pr === target.number &&
-      context.head === target.head &&
+    if (
+      !target ||
+      context.ticket !== target.number ||
+      ticket.pr !== target.number ||
+      ticket.dependency?.pr !== target.number ||
+      context.head !== ticket.head ||
+      !ownedDependencyAttempt(attempt, context) ||
+      attempt.head !== ticket.head
+    )
+      return "";
+    const reviewing = context.phase === "review" && context.slot === "dependency";
+    if (!target.compatibility) return reviewing && ticket.head === target.head ? c.BOT : "";
+    const coding = context.phase === "code" && context.slot === dependency.COMPATIBILITY_SLOT;
+    const original =
       ticket.head === target.head &&
-      attempt?.head === target.head &&
-      attempt.runId === context.runId &&
-      attempt.runAttempt === context.runAttempt &&
-      attempt.workflowSha === context.workflowSha
+      dependency.branch(ticket.branch) &&
+      attempt.base === target.base &&
+      ["native_ci_failure", "review_blocked"].includes(attempt.compatibility?.reason) &&
+      !attempt.compatibility.publish;
+    return (coding && original) ||
+      (reviewing && confirmedFailurePublication(ticket, context, target))
       ? c.BOT
       : "";
   }
@@ -75,7 +117,7 @@ async function verifyPreparationOrigin(api, run, ticket, attempt, store) {
     triggeringActor: run.triggering_actor?.login,
     ref: "refs/heads/main",
     event: run.event,
-    workflowRef: require("./dependency-contract.cjs").WORKFLOW,
+    workflowRef: dependency.WORKFLOW,
     workflowSha: run.head_sha,
     runId: String(run.id),
     runAttempt: run.run_attempt,
@@ -91,8 +133,12 @@ async function verifyPreparationOrigin(api, run, ticket, attempt, store) {
     receipt.signal.lane !== "dependency" ||
     receipt.signal.number !== ticket.pr ||
     receipt.signal.criteriaHash !== ticket.criteriaHash ||
-    receipt.signal.head !== attempt.head ||
-    receipt.signal.revision !== attempt.base
+    !ownedDependencyAttempt(attempt, context) ||
+    !(
+      (receipt.signal.head === attempt.head && receipt.signal.revision === attempt.base) ||
+      (c.isFailedDependencyCI(receipt.signal) &&
+        confirmedFailurePublication(ticket, context, failedTarget(receipt.signal)))
+    )
   )
     return false;
   // Binding already proved this CI source. The PR can change after release.
@@ -130,7 +176,67 @@ async function verifyDependencyReleaseOrigin(api, store, run) {
   );
   return true;
 }
-async function verifySource(api, signal, bound, vars = {}) {
+async function verifyFailedDependencySource(api, signal, receiver) {
+  const pr = await api.request("GET", `${ROOT}/pulls/${signal.number}`);
+  if (pr?.number !== signal.number) throw Error("Wake dependency PR identity unavailable");
+  if (!receiver && pr.state === "closed") throw new c.StaleWakeSource("Wake dependency PR closed");
+  dependency.prOK(pr, Boolean(receiver));
+  if (!dependency.branch(pr.head.ref) || dependency.criteria(pr.number) !== signal.criteriaHash)
+    throw Error("Wake failed dependency PR identity changed");
+  let mergedPublication = false;
+  if (pr.head.sha !== signal.head) {
+    if (!receiver) throw new c.StaleWakeSource("Wake dependency head changed");
+    const { state } = await new (require("./github.cjs").Ledger)(api).read();
+    const ticket = state.tickets[String(pr.number)];
+    if (
+      ticket?.pr !== pr.number ||
+      ticket.branch !== pr.head.ref ||
+      ticket.head !== pr.head.sha ||
+      !confirmedFailurePublication(ticket, receiver, failedTarget(signal))
+    )
+      throw new c.StaleWakeSource(
+        "Wake dependency head changed without a confirmed same-run repair"
+      );
+    mergedPublication =
+      pr.state === "closed" &&
+      pr.merged === true &&
+      ticket.merge?.status === "merged" &&
+      ticket.merge.pr === pr.number &&
+      ticket.merge.head === pr.head.sha &&
+      ticket.merge.runId === receiver.runId &&
+      ticket.merge.runAttempt === receiver.runAttempt &&
+      dependency.SHA.test(pr.merge_commit_sha || "") &&
+      ticket.merge.mergeCommit === pr.merge_commit_sha;
+  } else {
+    if (!receiver) {
+      const main = await api.request("GET", `${ROOT}/git/ref/heads/main`);
+      if (!c.SHA.test(main?.object?.sha || "")) throw Error("Wake main head unavailable");
+      if (main.object.sha !== signal.revision || pr.base.sha !== signal.revision)
+        throw new c.StaleWakeSource("Wake dependency base stale");
+    }
+    dependency.filesOK(await api.request("GET", `${ROOT}/pulls/${pr.number}/files?per_page=3`));
+  }
+  const { verifiedRun } = require("./wake-controller.cjs");
+  const run = await verifiedRun(api, signal.sourceRun, signal.sourceAttempt, "factory-ci.yml", {
+    success: false,
+  });
+  if (run.actor?.login !== signal.actor.login || run.actor.id !== signal.actor.id)
+    throw Error("Wake failed dependency CI actor changed");
+  const source = {
+    ...pr,
+    head: { ...pr.head, sha: signal.head },
+    base: { ...pr.base, sha: signal.revision },
+  };
+  if (
+    !(await require("./dependency-native-recovery.cjs").verifyNativeFailureRun(api, source, run, {
+      allowMissingAssociation: mergedPublication,
+    }))
+  )
+    throw Error("Wake source failed CI proof changed");
+}
+async function verifySource(api, signal, bound, vars = {}, receiver) {
+  if (c.isFailedDependencyCI(signal))
+    return verifyFailedDependencySource(api, signal, bound ? receiver : null);
   const { criteriaHash } = require("./controller.cjs");
   const { eligibleIssue } = require("./automation.cjs");
   if (signal.kind === "issue" || signal.kind === "monitor" || signal.kind === "finding") {
@@ -419,11 +525,11 @@ async function verifyWake({
     throw Error("Wake dispatch intent missing");
   if (c.isMainQueueCheck(receipt.signal) && receipt.signal.head !== context.workflowSha)
     throw new c.StaleWakeSource("Main changed before the queue check ran");
-  await verifyDispatchIdentity(api, context, receipt, lane);
-  await verifySource(api, receipt.signal, receipt.receiver !== null, vars);
   const expected = { runId: context.runId, runAttempt: 1, workflowSha: context.workflowSha };
   if (receipt.receiver && JSON.stringify(receipt.receiver) !== JSON.stringify(expected))
     throw Error("Wake already bound to another receiver");
+  await verifyDispatchIdentity(api, context, receipt, lane);
+  await verifySource(api, receipt.signal, receipt.receiver !== null, vars, receipt.receiver);
   if (!receipt.receiver) {
     if (!bind) throw new PendingWakeBinding("Wake receiver has not been bound");
     await store.update((s) => {
@@ -444,7 +550,9 @@ async function verifyWake({
   });
   const { kind: signalKind, number, head } = receipt.signal;
   const dependencyTarget = c.isDependencyCI(receipt.signal)
-    ? Object.freeze({ number, head })
+    ? Object.freeze(
+        c.isFailedDependencyCI(receipt.signal) ? failedTarget(receipt.signal) : { number, head }
+      )
     : null;
   const interruptedTicket = c.isInterruptedApp(receipt.signal) ? number : null;
   proofs.set(proof, { ...expected, lane, signalKind, dependencyTarget, interruptedTicket });

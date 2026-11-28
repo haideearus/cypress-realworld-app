@@ -5,11 +5,22 @@ const { ROOT } = require("../factory/github.cjs");
 const { REPOSITORY } = require("../factory/policy.cjs");
 const { canRequestNativeBranchUpdate } = require("../factory/dependency-tracking.cjs");
 
-const head = "a".repeat(40);
-const ref = "dependabot/npm_and_yarn/passport-0.6.0";
-const pr = { number: 267, head: { sha: head, ref } };
+const head = "580ad5765e63a4380ca2a63b724d3cceca084cb9";
+const ref = "dependabot/npm_and_yarn/faker-js/faker-10.5.0";
+const actor = { login: "dependabot[bot]", id: 49699333, type: "Bot" };
+const repo = { full_name: REPOSITORY };
+const pr = {
+  number: 232,
+  state: "open",
+  draft: false,
+  user: actor,
+  head: { sha: head, ref, repo },
+  base: { sha: "12815b31fc33e2335f7f17fb1fdfd858b95ab51d", ref: "main", repo },
+};
 const candidate = {
-  id: 45,
+  id: 46139647441,
+  display_title: "Factory CI / 232",
+  actor,
   path: ".github/workflows/factory-ci.yml",
   status: "completed",
   conclusion: "failure",
@@ -32,7 +43,7 @@ test("only a completed exact native app CI failure permits compatibility coding"
     async request(method, url) {
       calls.push([method, url]);
       if (url.includes("/workflows/factory-ci.yml/runs?")) return { workflow_runs: [run] };
-      assert.equal(url, `${ROOT}/actions/runs/45/attempts/1/jobs?per_page=100`);
+      assert.equal(url, `${ROOT}/actions/runs/${candidate.id}/attempts/1/jobs?per_page=100`);
       return {
         jobs: [
           { name: "verify", status: "completed", conclusion: "failure" },
@@ -56,6 +67,14 @@ test("only a completed exact native app CI failure permits compatibility coding"
     false
   );
   assert.equal(await verifyNativeFailure(fixture({ ...candidate, status: "queued" }), pr), false);
+  assert.equal(
+    await verifyNativeFailure(fixture({ ...candidate, actor: { ...actor, id: 12 } }), pr),
+    false
+  );
+  assert.equal(
+    await verifyNativeFailure(fixture({ ...candidate, display_title: "Factory CI / 233" }), pr),
+    false
+  );
   assert.equal(await verifyNativeFailure(fixture(candidate, "review"), pr), false);
   assert.equal(await verifyNativeFailure(fixture(candidate, "app", "Set up job"), pr), false);
   assert.ok(calls.every(([method]) => method === "GET"));

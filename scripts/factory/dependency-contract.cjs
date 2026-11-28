@@ -430,6 +430,16 @@ function matches(t, c, config) {
     throw new Error("Dependency lease belongs to another trusted run");
   return a;
 }
+function compatibilityWakeMatches(ticket, context) {
+  const target = require("./trusted-wake.cjs").dependencyWakeTarget(context);
+  const attempt = ticket?.dependency?.attempts?.at(-1);
+  return Boolean(
+    target?.compatibility &&
+      target.number === ticket?.pr &&
+      target.head === ticket.head &&
+      target.base === attempt?.base
+  );
+}
 function compatibilityForHead(t) {
   let expected = t?.head;
   for (const attempt of [...(t?.dependency?.attempts ?? [])].reverse()) {
@@ -469,6 +479,7 @@ module.exports = {
   matchesBlockingGrant,
   archivedCompatibilityReview,
   compatibilityForHead,
+  compatibilityWakeMatches,
   validateTicket,
   matches,
 };

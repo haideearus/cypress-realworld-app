@@ -229,6 +229,35 @@ async function verifyProducer(api, context) {
     ...(r.event === "schedule" ? { createdAt: Date.parse(r.created_at) } : {}),
   };
 }
+
+async function activeWakeReadersAreCurrent(api, state, workflowSha) {
+  const parents = [
+    ...slots.activeEntries(state),
+    ...slots.reservedPlanners(state).map(({ runId }) => ({ runId, runAttempt: 1 })),
+  ];
+  const revisions = await Promise.all(
+    parents.map(async ({ runId, runAttempt }) => {
+      try {
+        const run = await api.request(
+          "GET",
+          `${ROOT}/actions/runs/${runId}/attempts/${runAttempt}`
+        );
+        return (
+          run.id === Number(runId) &&
+          run.run_attempt === runAttempt &&
+          run.head_sha === workflowSha &&
+          run.head_branch === "main" &&
+          run.repository?.full_name === c.REPOSITORY &&
+          run.head_repository?.full_name === c.REPOSITORY
+        );
+      } catch {
+        return false;
+      }
+    })
+  );
+  return revisions.every(Boolean);
+}
+
 function interruptedAppSignal(state, run, boundTicket = null) {
   if (
     run.path !== ".github/workflows/factory-automatic.yml" ||
@@ -565,14 +594,14 @@ async function classifySignal({
   }
   if (source.path === ".github/workflows/factory-ci.yml") {
     const r = await verifiedRun(api, String(source.id), source.run_attempt, "factory-ci.yml", {
-      success: source.event !== "push",
+      success: false,
     });
     if (r.event === "push") {
       if (r.head_sha !== context.workflowSha || r.conclusion !== "success") return null;
       const main = await api.request("GET", `${ROOT}/git/ref/heads/main`);
       return main.object?.sha === r.head_sha ? mainQueueSignal(api, r) : null;
     }
-    if (r.event !== "pull_request" || r.conclusion !== "success") return null;
+    if (r.event !== "pull_request" || !["success", "failure"].includes(r.conclusion)) return null;
     const config = alertWakeConfig(vars);
     for (const link of r.pull_requests || []) {
       let pr;
@@ -587,8 +616,10 @@ async function classifySignal({
       }
       if (pr.number !== link.number || pr.head.sha !== r.head_sha) return null;
       const generated = Boolean(dependency.alertKey(pr.head.ref));
+      const failed = r.conclusion === "failure";
       let revision = pr.base.sha;
       if (generated) {
+        if (failed) return null;
         try {
           revision = (await verifyAlertCI(api, pr, r, config)).base;
         } catch {
@@ -596,21 +627,32 @@ async function classifySignal({
         }
       } else {
         dependency.filesOK(await api.request("GET", `${ROOT}/pulls/${pr.number}/files?per_page=3`));
-        const jobs = await api.pages(
-          `${ROOT}/actions/runs/${r.id}/attempts/${r.run_attempt}/jobs`,
-          "jobs"
-        );
-        if (
-          jobs.filter(
-            (j) => j.name === "verify" && j.conclusion === "success" && j.status === "completed"
-          ).length !== 1
-        )
-          return null;
+        if (failed) {
+          const { verifyNativeFailureRun } = require("./dependency-native-recovery.cjs");
+          if (!(await verifyNativeFailureRun(api, pr, r))) return null;
+          const compare = await api.request(
+            "GET",
+            `${ROOT}/compare/${pr.base.sha}...${pr.head.sha}?per_page=1`
+          );
+          if (compare.behind_by !== 0 || compare.merge_base_commit?.sha !== pr.base.sha)
+            return null;
+        } else {
+          const jobs = await api.pages(
+            `${ROOT}/actions/runs/${r.id}/attempts/${r.run_attempt}/jobs`,
+            "jobs"
+          );
+          if (
+            jobs.filter(
+              (j) => j.name === "verify" && j.conclusion === "success" && j.status === "completed"
+            ).length !== 1
+          )
+            return null;
+        }
         const main = await api.request("GET", `${ROOT}/git/ref/heads/main`);
         if (pr.base.sha !== main.object?.sha) return null;
       }
       return {
-        kind: generated ? "dependency-alert-ci" : "dependency-ci",
+        kind: generated ? "dependency-alert-ci" : failed ? "dependency-failed-ci" : "dependency-ci",
         lane: "dependency",
         number: pr.number,
         head: pr.head.sha,
@@ -740,6 +782,17 @@ async function handleWake({
   if (controls.stop) return { outcome: "stopped" };
   if (vars.FACTORY_ENABLED !== "true" || vars.FACTORY_AUTOMATION_ENABLED !== "true")
     return { outcome: "disabled" };
+  if (c.isFailedDependencyCI(signal)) {
+    if (queue.dependencyWakeAttempted(controls, signal, vars)) return { outcome: "ignored" };
+    // A parent running an older controller cannot read this receipt kind. The
+    // bounded idle scan rediscovers the original CI once that parent releases.
+    if (
+      slots.usedCapacity(controls) &&
+      !(await store.read()).state.receipts[c.sourceKey(signal)] &&
+      !(await activeWakeReadersAreCurrent(api, controls, context.workflowSha))
+    )
+      return { outcome: "busy" };
+  }
   const concurrent = Number(vars.FACTORY_MAX_CONCURRENT_TICKETS);
   if (![1, 2].includes(concurrent)) throw Error("Invalid wake capacity setting");
   const interruptedOwner =
@@ -806,12 +859,7 @@ async function handleWake({
           controls.tickets[String(queued.signal.number)]
         )
           throw new c.StaleWakeSource("Wake issue already admitted");
-        if (
-          preparation &&
-          controls.tickets[String(queued.signal.number)]?.dependency?.attempts.some(
-            (attempt) => attempt.head === queued.signal.head
-          )
-        )
+        if (preparation && queue.dependencyWakeAttempted(controls, queued.signal, vars))
           throw new c.StaleWakeSource("Wake dependency head already attempted");
         await require("./trusted-wake.cjs").verifySource(api, queued.signal, false, vars);
       } catch (error) {

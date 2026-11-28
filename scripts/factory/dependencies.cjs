@@ -539,6 +539,7 @@ class DependencyCoordinator {
         return { ready: false, reason: "Factory availability changed while checking a held merge" };
     }
     const target = require("./trusted-wake.cjs").dependencyWakeTarget(this.context);
+    const compatibilityWake = target?.compatibility === true;
     const turns = require("./feature-turn.cjs");
     if (turns.priority(state, this.config)) return { ready: false, reason: turns.WAITING };
     if (this.context.wake && !target)
@@ -573,7 +574,7 @@ class DependencyCoordinator {
             previous.merge ||
             (previous.dependency.attempts.some((a) => a.head === row.head.sha) &&
               (released.has(row.number) ||
-                this.context.wake ||
+                (this.context.wake && !compatibilityWake) ||
                 previous.status !== "blocked" ||
                 !d.branch(row.head.ref))) ||
             previous.dependency.attempts.length >= 10 ||
@@ -583,7 +584,12 @@ class DependencyCoordinator {
         try {
           if (generated && d.alertKey(row.head.ref)) continue;
           const verified = await this.pr(row.number, { history: previous });
-          if (target && verified.head.sha !== target.head) continue;
+          if (
+            target &&
+            (verified.head.sha !== target.head ||
+              (compatibilityWake && verified.base.sha !== target.base))
+          )
+            continue;
           if (
             previous?.dependency.attempts.some((a) => a.head === verified.head.sha) &&
             !lifecycle.canClaimCompatibility(
@@ -739,7 +745,7 @@ class DependencyCoordinator {
       return {
         state: lifecycle.claimDependency(s, pr, this.context, this.config, new Date(), receipt, {
           compatibility:
-            !this.context.wake &&
+            (!this.context.wake || compatibilityWake) &&
             lifecycle.canClaimCompatibility(previous, pr, this.config, Object.values(s.grants)),
           continuation:
             !this.context.wake &&
