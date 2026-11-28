@@ -397,11 +397,11 @@
   },
   "heldAfter": "@graphql-tools/utils",
   "deferred": {
-    "base": "33f5f85eb3b5a388fc896f50496384c93a836205",
-    "fingerprint": "0ccb00ac061ded1c83dcc621cf73a6735d515d4b19d25f261f61352fea450495",
+    "base": "1e877adef42c07e87197af1d9d8b5c95d257f670",
+    "fingerprint": "6999fed3786269a2c1ee12ec7d2a25b3354c97654b327bb59046bb6e4b325ea1",
     "runs": [
-      "45815732489"
+      "46087766603"
     ],
-    "at": "2026-11-26T12:02:15.543Z"
+    "at": "2026-11-28T00:25:58.401Z"
   }
 }
