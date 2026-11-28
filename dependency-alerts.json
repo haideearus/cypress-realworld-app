@@ -247,6 +247,11 @@
           "fingerprint": "ff1170e6f3e9d955d6f548793786032cbaae9f965aa62ddd1ca066bb66acbda5",
           "result": "wider-held",
           "at": "2026-11-25T20:56:14.509Z"
+        },
+        {
+          "fingerprint": "5fd934691492d24961671815cc5c28f674024bedfe549de70432a3c5933ddba9",
+          "result": "wider-held",
+          "at": "2026-11-28T13:13:52.994Z"
         }
       ]
     },
