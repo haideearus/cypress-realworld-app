@@ -7719,6 +7719,36 @@
         "workflowSha": "1e877adef42c07e87197af1d9d8b5c95d257f670"
       },
       "at": "2026-11-28T00:25:18.984Z"
+    },
+    "2d6df73d665fbe97c1a4cdbd713dd3c2fd2778065f607d3a680e96cb3d875c47": {
+      "id": "2d6df73d665fbe97c1a4cdbd713dd3c2fd2778065f607d3a680e96cb3d875c47",
+      "signal": {
+        "kind": "dependency-ci",
+        "lane": "dependency",
+        "number": 233,
+        "head": "99269919487ba92c1894587e4916e360902eed0b",
+        "criteriaHash": "611722c5e328e314138424f17603591e0536ddb00d27617bc46c0baea06e1abc",
+        "revision": "1e877adef42c07e87197af1d9d8b5c95d257f670",
+        "sourceRun": "46087241539",
+        "sourceAttempt": 1,
+        "actor": {
+          "login": "dependabot[bot]",
+          "id": 49699333
+        }
+      },
+      "producer": {
+        "runId": "46088056436",
+        "runAttempt": 1,
+        "workflowSha": "1e877adef42c07e87197af1d9d8b5c95d257f670",
+        "actor": {
+          "login": "dependabot[bot]",
+          "id": 49699333
+        },
+        "event": "workflow_run"
+      },
+      "status": "pending",
+      "receiver": null,
+      "at": "2026-11-28T00:28:38.250Z"
     }
   }
 }
