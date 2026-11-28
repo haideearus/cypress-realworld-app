@@ -400,6 +400,14 @@
       "issue": 298,
       "pr": 299,
       "resolvedAt": "2026-11-28T00:25:58.401Z"
+    },
+    "0a5502f078212838365529d6f383aae21a2e305a11d84940da49215b565d9fc6": {
+      "name": "@babel/runtime",
+      "day": "2026-11-28",
+      "trackingReason": "selector-held",
+      "phase": "tracking-intent",
+      "issue": null,
+      "pr": null
     }
   },
   "heldAfter": "@graphql-tools/utils"
