@@ -8168,9 +8168,9 @@
         },
         "event": "workflow_run"
       },
-      "status": "pending",
+      "status": "intent",
       "receiver": null,
-      "at": "2026-11-28T13:29:00.652Z"
+      "at": "2026-11-28T14:07:45.055Z"
     }
   }
 }
