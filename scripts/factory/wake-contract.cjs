@@ -35,8 +35,11 @@ const actor = (a) =>
   /^[a-zA-Z0-9][a-zA-Z0-9[\]-]{0,100}$/.test(a.login) &&
   Number.isSafeInteger(a.id) &&
   a.id > 0;
+const isFailedDependencyCI = (signal) => signal.kind === "dependency-failed-ci";
 const isDependencyCI = (signal) =>
-  signal.kind === "dependency-ci" || signal.kind === "dependency-alert-ci";
+  signal.kind === "dependency-ci" ||
+  signal.kind === "dependency-alert-ci" ||
+  isFailedDependencyCI(signal);
 // Older workflow revisions also read this registry and accept the existing drain kind.
 const preparationRevision = (attempt) => `preparation:${attempt}`;
 const isPreparationDrain = (signal) =>
@@ -57,7 +60,7 @@ function validateSignal(s) {
     !exact(s, "kind,lane,number,head,criteriaHash,revision,sourceRun,sourceAttempt,actor") ||
     (!["issue", "monitor", "finding", "drain"].includes(s.kind) && !isDependencyCI(s)) ||
     !LANES[s.lane] ||
-    (s.kind === "dependency-alert-ci" && s.lane !== "dependency") ||
+    (isDependencyCI(s) && s.lane !== "dependency") ||
     ((isPreparationDrain(s) || isQueueCheckDrain(s) || isDependencyRelease(s)) &&
       s.lane !== "dependency") ||
     (isMainQueueCheck(s) &&
@@ -188,6 +191,7 @@ module.exports = {
   digest,
   actor,
   isDependencyCI,
+  isFailedDependencyCI,
   preparationRevision,
   isPreparationDrain,
   isQueueCheckDrain,

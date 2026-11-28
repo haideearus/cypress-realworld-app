@@ -592,9 +592,11 @@ async function main(env = process.env) {
   const readOnlyPreview =
     dryRun &&
     (config.priorityRetry || (operation === "auto_pick" && (findingHandoff || blockedHandoff)));
+  const normalPickup = operation === "auto_pick" && mode === "run";
   const api = new GitHub({
     token: env.GH_TOKEN,
-    retryReads: operation === "auto_pick" && findingHandoff,
+    retryReads: normalPickup || (operation === "auto_pick" && findingHandoff),
+    retryInternalReads: normalPickup,
   });
   const context = await require("./trusted-wake.cjs").loadWakeContext(
     api,

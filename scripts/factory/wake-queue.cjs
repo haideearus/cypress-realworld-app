@@ -130,12 +130,30 @@ function inputsToCheck(rows, runId) {
 }
 
 async function currentCIBase(api, signal) {
-  if (signal.kind !== "dependency-ci") return true;
+  if (signal.kind !== "dependency-ci" && !c.isFailedDependencyCI(signal)) return true;
   const base = await api.request(
     "GET",
     `${ROOT}/compare/${signal.revision}...${signal.head}?per_page=1`
   );
   return base.behind_by === 0 && base.merge_base_commit?.sha === signal.revision;
+}
+
+function dependencyWakeAttempted(state, signal, vars) {
+  const ticket = state.tickets[String(signal.number)];
+  if (!ticket?.dependency?.attempts.some((attempt) => attempt.head === signal.head)) return false;
+  if (!c.isFailedDependencyCI(signal)) return true;
+  const pr = {
+    number: signal.number,
+    head: { ref: ticket.branch, sha: signal.head },
+    base: { sha: signal.revision },
+  };
+  const config = require("./policy.cjs").readConfig(vars);
+  return !require("./dependency-policy.cjs").canClaimCompatibility(
+    ticket,
+    pr,
+    config,
+    Object.values(state.grants)
+  );
 }
 
 async function nextDependency({ api, source, context, vars, ledger, store, state }) {
@@ -169,12 +187,10 @@ async function nextDependency({ api, source, context, vars, ledger, store, state
   const skipped = [];
   let number = terminal || intent?.ticket || merge?.pr;
   if (!number) {
-    const alreadyAttempted = (number, head) =>
-      state.tickets[String(number)]?.dependency?.attempts.some((attempt) => attempt.head === head);
     const unused = (signal) => {
       const prior = wakes.receipts[c.sourceKey(signal)];
       return (
-        !alreadyAttempted(signal.number, signal.head) && (!prior || prior.status === "pending")
+        !dependencyWakeAttempted(state, signal, vars) && (!prior || prior.status === "pending")
       );
     };
     const pending = Object.values(wakes.receipts).filter(
@@ -197,15 +213,31 @@ async function nextDependency({ api, source, context, vars, ledger, store, state
     // Rediscover recent exact-head CI if its original completion wake was missed.
     const { workflow_runs: recent } = await api.request(
       "GET",
-      `${ROOT}/actions/workflows/${CI_WORKFLOW}/runs?event=pull_request&status=success&per_page=12`
+      `${ROOT}/actions/workflows/${CI_WORKFLOW}/runs?event=pull_request&status=completed&per_page=12`
     );
-    const ready = (recent || []).filter(
-      (ci) =>
-        (ci.actor?.login === "dependabot[bot]" ||
-          (vars.FACTORY_GITHUB_APP_SLUG &&
-            ci.actor?.login === `${vars.FACTORY_GITHUB_APP_SLUG}[bot]`)) &&
-        ci.pull_requests?.some((pr) => !alreadyAttempted(pr.number, ci.head_sha))
-    );
+    const ready = (recent || []).filter((ci) => {
+      const native = ci.actor?.login === "dependabot[bot]";
+      const app =
+        vars.FACTORY_GITHUB_APP_SLUG && ci.actor?.login === `${vars.FACTORY_GITHUB_APP_SLUG}[bot]`;
+      const failed = ci.conclusion === "failure" && native;
+      const succeeded = ci.conclusion === "success" && (native || app);
+      return (
+        (failed || succeeded) &&
+        ci.pull_requests?.some(
+          (pr) =>
+            !dependencyWakeAttempted(
+              state,
+              {
+                kind: failed ? "dependency-failed-ci" : "dependency-ci",
+                number: pr.number,
+                head: ci.head_sha,
+                revision: run.head_sha,
+              },
+              vars
+            )
+        )
+      );
+    });
     for (const ci of inputsToCheck(ready, run.id)) {
       try {
         const signal = await require("./wake-controller.cjs").classifySignal({
@@ -334,8 +366,7 @@ async function recoverScheduledWake({ api, context, vars, store, ledger, produce
       const ticket = controls.tickets[String(signal.number)];
       if (
         (signal.lane === "app" && signal.kind !== "drain" && ticket) ||
-        (c.isDependencyCI(signal) &&
-          ticket?.dependency?.attempts.some((a) => a.head === signal.head))
+        (c.isDependencyCI(signal) && dependencyWakeAttempted(controls, signal, vars))
       )
         throw new c.StaleWakeSource("Wake already attempted");
       await verifySource(api, signal, false, vars);
@@ -373,6 +404,7 @@ async function recoverScheduledWake({ api, context, vars, store, ledger, produce
 module.exports = {
   nextDependency,
   verifyQueueCheck,
+  dependencyWakeAttempted,
   terminalDependency,
   manualPickup,
   appWakeId,

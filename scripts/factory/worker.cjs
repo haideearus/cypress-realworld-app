@@ -734,7 +734,11 @@ async function main(env = process.env) {
   };
   const cwd = env.GITHUB_WORKSPACE || process.cwd();
   if (env.FACTORY_OPERATION === "prepare") {
-    const api = new GitHub({ token: env.GH_TOKEN, retryReads: true });
+    const api = new GitHub({
+      token: env.GH_TOKEN,
+      retryReads: true,
+      retryInternalReads: context.workflowRef === dependencyContract.WORKFLOW,
+    });
     try {
       output(
         await prepare(api, config, context, { grantId: inputs.grantId, cwd, environment: env }),

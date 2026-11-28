@@ -7,8 +7,6 @@ const { inspectUpdate, toolsAt } = require("./dependency-analysis.cjs");
 const compatibility = require("./dependency-compatibility.cjs");
 
 const APP_CI_STEPS = new Set([
-  "Run yarn install --frozen-lockfile",
-  "Run yarn predev:cognito:ci",
   "Run yarn types && yarn lint && yarn test:unit:ci",
   "Run yarn build:production && yarn test:production",
   "Run yarn test:production:browser",
@@ -119,7 +117,34 @@ async function verifyNativeFailure(api, pr) {
       row.event === "pull_request" &&
       row.pull_requests?.some((pull) => pull.number === pr.number)
   );
-  return run ? appFailed(api, run) : false;
+  return run ? verifyNativeFailureRun(api, pr, run) : false;
+}
+
+async function verifyNativeFailureRun(api, pr, run, { allowMissingAssociation = false } = {}) {
+  try {
+    d.prOK(pr, true);
+  } catch {
+    return false;
+  }
+  if (
+    run?.event !== "pull_request" ||
+    run.head_sha !== pr.head.sha ||
+    run.head_branch !== pr.head.ref ||
+    run.display_title !== `Factory CI / ${pr.number}` ||
+    run.actor?.login !== pr.user.login ||
+    run.actor?.id !== pr.user.id ||
+    run.actor?.type !== "Bot" ||
+    !Array.isArray(run.pull_requests) ||
+    !(
+      run.pull_requests.some((pull) => pull.number === pr.number) ||
+      (allowMissingAssociation &&
+        pr.state === "closed" &&
+        pr.merged === true &&
+        run.pull_requests.length === 0)
+    )
+  )
+    return false;
+  return appFailed(api, run);
 }
 
 async function archivedCIFailed(coordinator, ticket) {
@@ -143,11 +168,12 @@ async function archivedCIFailed(coordinator, ticket) {
 async function planCompatibility(coordinator, number) {
   const t = await coordinator.ticket(number);
   const skipped = { ready: false, reason: "No dependency compatibility coding required" };
-  if (!d.branch(t.branch) || coordinator.context.wake) return skipped;
+  const failedWake = d.compatibilityWakeMatches(t, coordinator.context);
+  if (!d.branch(t.branch) || (coordinator.context.wake && !failedWake)) return skipped;
   const sourceAttempt = d.compatibilityForHead(t);
   const reviewedBlock = d.archivedCompatibilityReview(t);
-  const savedFailure = await archivedCIFailed(coordinator, t);
-  if (sourceAttempt && !savedFailure && !reviewedBlock) return skipped;
+  const savedFailure = !failedWake && (await archivedCIFailed(coordinator, t));
+  if (sourceAttempt && !failedWake && !savedFailure && !reviewedBlock) return skipped;
   const pr = await coordinator.pr(number, { expected: t });
   const source = await sources(coordinator.api, t);
   const tools = toolsAt(path.join(__dirname, "dependency-tools"));
@@ -164,7 +190,7 @@ async function planCompatibility(coordinator, number) {
     reason = "dependency_analysis_failure";
   }
   if (reviewedBlock) reason = "review_blocked";
-  else if (savedFailure || (await verifyNativeFailure(coordinator.api, pr)))
+  else if (failedWake || savedFailure || (await verifyNativeFailure(coordinator.api, pr)))
     reason = "native_ci_failure";
   if (!reason) return skipped;
   const { name, version } = targetFor(source, t, tools);
@@ -187,7 +213,7 @@ async function publishCompatibility(coordinator, number, grantId, bundle) {
   const pr = await coordinator.pr(number, { expected: t });
   const { api, config, context, ledger } = coordinator;
   if (
-    context.wake ||
+    (context.wake && !d.compatibilityWakeMatches(t, context)) ||
     reservation?.grantId !== grantId ||
     bundle?.kind !== "code" ||
     bundle.grantId !== grantId ||
@@ -243,6 +269,7 @@ module.exports = {
   sources,
   analysisScope,
   verifyNativeFailure,
+  verifyNativeFailureRun,
   planCompatibility,
   publishCompatibility,
 };

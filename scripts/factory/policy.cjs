@@ -583,6 +583,10 @@ function reserve(original, request, config, now = new Date()) {
       existing.dependency.attempts.length >= 10 ||
       dependencyAttempt.compatibility !== undefined ||
       !dependency.validCompatibilityRequest(request.compatibility) ||
+      (request.wake &&
+        (!config.eventPickup ||
+          !dependency.compatibilityWakeMatches(existing, request) ||
+          !["native_ci_failure", "review_blocked"].includes(request.compatibility.reason))) ||
       (request.compatibility.reason === "review_blocked") !==
         Boolean(dependency.archivedCompatibilityReview(existing))
     )
@@ -795,6 +799,12 @@ function preflight(state, grantId, context, config) {
       deny("Invalid dependency model role");
     if (coding && (attempt.compatibility?.grantId !== grantId || active.usedCapacity(state) !== 1))
       deny("Dependency compatibility reservation provenance changed");
+    if (
+      coding &&
+      context.wake &&
+      (!config.eventPickup || !dependency.compatibilityWakeMatches(ticket, context))
+    )
+      deny("Dependency compatibility requires its verified failed CI wake");
     if (coding && attempt.compatibility.publish)
       deny("Dependency compatibility cannot start after a publish intent");
   } else if (dependency.contextOK(context) || context.slot === dependency.COMPATIBILITY_SLOT)

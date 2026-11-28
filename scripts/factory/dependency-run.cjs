@@ -79,7 +79,7 @@ async function main(env = process.env) {
   const runtime = runtimeContext(env);
   const preview =
     inputs.preview === undefined ? runtime.event === "workflow_dispatch" : inputs.preview;
-  const api = new GitHub({ token: env.GH_TOKEN });
+  const api = new GitHub({ token: env.GH_TOKEN, retryReads: true, retryInternalReads: true });
   const afterMainCI = runtime.event === "workflow_run" && op === "dep_recover_tracked";
   const context = afterMainCI
     ? runtime

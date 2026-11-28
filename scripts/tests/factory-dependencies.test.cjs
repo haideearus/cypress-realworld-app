@@ -152,6 +152,89 @@ test("genuine dependency intake reserves metadata only and forged authors are ig
   y.f.rows[0].user.login = "attacker";
   assert.equal((await y.coordinator.select(true)).ready, false);
 });
+
+test("a bound exact failed CI wake takes the single slot and reserves in-place coding", async (t) => {
+  const config = { ...cfg, eventPickup: true };
+  const x = await fixture(config);
+  await x.coordinator.select(false);
+  await x.coordinator.finalize(52);
+  const proposal = x.f.rows[0];
+  const origin = require("../factory/trusted-wake.cjs");
+  const wake = { receiptId: "e".repeat(64), sourceActor: proposal.user.login };
+  const bot = "github-actions[bot]";
+  const run = {
+    ...ctx,
+    runId: "101",
+    event: "workflow_dispatch",
+    actor: bot,
+    triggeringActor: bot,
+    wake,
+  };
+  const target = {
+    number: proposal.number,
+    head: proposal.head.sha,
+    base: head,
+    compatibility: true,
+  };
+  t.mock.method(origin, "isTrustedWakeContext", (c) => c.wake === wake);
+  t.mock.method(origin, "dependencyWakeTarget", (c) => (c.wake === wake ? target : null));
+  const next = new DependencyCoordinator(x.api, config, run);
+  const reserved = await next.select(false);
+  assert.equal(reserved.ticket, 52);
+  assert.equal(reserved.head, proposal.head.sha);
+
+  const native = require("../factory/dependency-native-recovery.cjs");
+  x.f.route = (url, method, _body, request) => {
+    if (url === "/actions/runs/101/attempts/1")
+      return { id: 101, run_attempt: 1, status: "in_progress" };
+    const file = /^\/contents\/(package\.json|yarn\.lock)$/.exec(url)?.[1];
+    if (!file) return undefined;
+    assert.equal(method, "GET");
+    const version = request.searchParams.get("ref") === head ? "1.0.0" : "1.0.1";
+    const raw =
+      file === "package.json"
+        ? JSON.stringify({ dependencies: { foo: version } })
+        : `foo@${version}:\n  version "${version}"\n  resolved "https://registry.yarnpkg.com/foo/-/foo-${version}.tgz"\n  integrity sha512-${Buffer.alloc(64, 1).toString("base64")}\n`;
+    return {
+      type: "file",
+      path: file,
+      encoding: "base64",
+      size: Buffer.byteLength(raw),
+      content: Buffer.from(raw).toString("base64"),
+    };
+  };
+  const result = await native.planCompatibility(next, 52);
+  assert.equal((await x.coordinator.select(false)).ready, false);
+  const { state } = await x.ledger.read();
+  const ticket = state.tickets[52];
+  assert.equal(state.grants[result.grantId].slot, "dependency_compat");
+  assert.equal(ticket.coding, 1);
+  assert.equal(ticket.reviews, 0);
+  assert.equal(ticket.dependency.attempts.length, 2);
+  assert.deepEqual(ticket.dependency.attempts.at(-1).compatibility, {
+    grantId: result.grantId,
+    package: { name: "foo", version: "1.0.1" },
+    reason: "native_ci_failure",
+  });
+  target.base = "f".repeat(40);
+  assert.throws(
+    () =>
+      policy.preflight(
+        state,
+        result.grantId,
+        {
+          ...run,
+          ticket: 52,
+          head: proposal.head.sha,
+          phase: "code",
+          slot: "dependency_compat",
+        },
+        config
+      ),
+    /verified failed CI wake/
+  );
+});
+
 test("foreign producer and wrong-head report cannot authorize dependency analysis", async () => {
   const x = await fixture();
   await x.coordinator.select(false);
