@@ -62,9 +62,9 @@ describe("Bank Accounts API", function () {
       const { id: userId } = ctx.authenticatedUser!;
 
       cy.request("POST", `${apiBankAccounts}`, {
-        bankName: `${faker.company.companyName()} Bank`,
-        accountNumber: faker.finance.account(10),
-        routingNumber: faker.finance.account(9),
+        bankName: `${faker.company.name()} Bank`,
+        accountNumber: faker.finance.accountNumber(10),
+        routingNumber: faker.finance.accountNumber(9),
       }).then((response) => {
         expect(response.status).to.eq(200);
         expect(response.body.account.id).to.be.a("string");
@@ -125,9 +125,9 @@ describe("Bank Accounts API", function () {
           }
         }`,
         variables: {
-          bankName: `${faker.company.companyName()} Bank`,
-          accountNumber: faker.finance.account(10),
-          routingNumber: faker.finance.account(9),
+          bankName: `${faker.company.name()} Bank`,
+          accountNumber: faker.finance.accountNumber(10),
+          routingNumber: faker.finance.accountNumber(9),
         },
       }).then((response) => {
         expect(response.status).to.eq(200);
