@@ -35,7 +35,7 @@ function reserve(ticket, request, config, grants) {
 function validate(ticket) {
   if (
     ticket.aiSessionLimit !== undefined &&
-    (ticket.origin !== "factory" ||
+    (!["factory", "dependency-pr"].includes(ticket.origin) ||
       !Number.isSafeInteger(ticket.aiSessionLimit) ||
       ticket.aiSessionLimit < ticket.coding + ticket.reviews ||
       ticket.aiSessionLimit > MAX_SESSIONS)

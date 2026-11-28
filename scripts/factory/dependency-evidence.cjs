@@ -182,9 +182,11 @@ async function collectEvidence(
     source.headLock,
     tools,
     true,
-    { wider: source.wider === true }
+    { wider: source.wider === true || source.nativeMajor === true }
   );
-  if (!inventory.changed || inventory.registryEntries.length > 50)
+  // Large, scoped native upgrades can replace a full toolchain subtree.
+  const registryLimit = source.nativeMajor === true ? 100 : 50;
+  if (!inventory.changed || inventory.registryEntries.length > registryLimit)
     fail("Dependency evidence inventory exceeds bound");
   const registry = await mapBounded(inventory.registryEntries, async (entry) => {
     const url = `https://registry.npmjs.org/${encodeURIComponent(entry.name)}/${encodeURIComponent(entry.version)}`;

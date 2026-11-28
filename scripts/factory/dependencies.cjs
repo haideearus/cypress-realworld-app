@@ -9,6 +9,11 @@ const { Controller } = require("./controller.cjs");
 const { AutomaticMerger } = require("./merge.cjs");
 const { validateReview } = require("./artifacts.cjs");
 const { ConfirmationUnavailable, readMergePR } = require("./merge-confirmation.cjs");
+const {
+  repairFilesOK,
+  requestCompatibilityRefresh,
+  validCompatibilityRefresh,
+} = require("./dependency-compatibility.cjs");
 const mergeRetry = require("./dependency-merge-retry.cjs");
 const {
   verifyAlertPR,
@@ -17,8 +22,10 @@ const {
 } = require("./dependency-alert-repair.cjs");
 
 class StaleDependencyBase extends Error {
-  constructor() {
+  constructor(currentMain, verifiedRefresh) {
     super("Dependency PR requires a current-main rebase");
+    this.currentMain = currentMain;
+    this.verifiedRefresh = verifiedRefresh;
   }
 }
 
@@ -306,7 +313,7 @@ class DependencyCoordinator {
       head: t.head,
     };
   }
-  async pr(number, { closed = false, expected, confirmation = false } = {}) {
+  async pr(number, { closed = false, expected, confirmation = false, history = expected } = {}) {
     if (!Number.isSafeInteger(number) || number < 1) throw new Error("Invalid dependency PR");
     const observed = await readMergePR(this.api, number, confirmation);
     const reconciling = confirmation && expected?.merge?.status === "intent";
@@ -321,14 +328,56 @@ class DependencyCoordinator {
     )
       throw new Error("Dependency head changed");
     const receipt = await verifyAlertPR(this.api, pr, config, undefined, reconciling);
-    const base = receipt?.base ?? pr.base.sha;
+    const source = d.compatibilityForHead(history);
+    let compatibility = history?.head === pr.head.sha && source;
+    let compatibilityRefresh;
+    let base = receipt?.base ?? pr.base.sha;
     if (pr.state === "open" && !confirmation) {
-      if (base === pr.base.sha)
+      const main = await this.api.request("GET", `${ROOT}/git/ref/heads/main`);
+      const currentMain = main.object?.sha;
+      if (
+        !receipt &&
+        !compatibility &&
+        source &&
+        d.validateTicket(history).compatibilityRefreshes?.length
+      ) {
+        const commit = await this.api.request("GET", `${ROOT}/git/commits/${pr.head.sha}`);
+        const mergedBase = commit.parents?.[1]?.sha;
+        const refresh = {
+          originalHead: history.head,
+          head: pr.head.sha,
+          base: mergedBase,
+        };
+        if (
+          d.SHA.test(mergedBase || "") &&
+          lifecycle.compatibilityRefreshRequested(history, history.head, mergedBase) &&
+          (await validCompatibilityRefresh({
+            api: this.api,
+            pr,
+            ...refresh,
+            originalBase: d.validateTicket(history).base,
+            allowAdvancedBase: true,
+          }))
+        ) {
+          if (mergedBase !== currentMain)
+            throw new StaleDependencyBase(currentMain, {
+              ...pr,
+              base: { ...pr.base, sha: mergedBase },
+              compatibilityRefresh: refresh,
+            });
+          compatibility = source;
+          compatibilityRefresh = refresh;
+        }
+      }
+      if (compatibility)
+        repairFilesOK(await this.api.request("GET", `${ROOT}/pulls/${number}/files?per_page=53`));
+      else if (base === pr.base.sha)
         d.alertFilesOK(
           await this.api.request("GET", `${ROOT}/pulls/${number}/files?per_page=3`),
           receipt
         );
-      const main = await this.api.request("GET", `${ROOT}/git/ref/heads/main`);
+      if (!receipt && compatibility) base = currentMain;
+      if (!d.SHA.test(base || "")) throw new StaleDependencyBase();
       const compare = await this.api.request("GET", `${ROOT}/compare/${base}...${pr.head.sha}`);
       if (
         main.object?.sha !== base ||
@@ -336,9 +385,13 @@ class DependencyCoordinator {
         compare.merge_base_commit?.sha !== base ||
         (expected && base !== d.validateTicket(expected).base)
       )
-        throw new StaleDependencyBase();
+        throw new StaleDependencyBase(currentMain);
     }
-    return base === pr.base.sha ? pr : { ...pr, base: { ...pr.base, sha: base } };
+    return {
+      ...pr,
+      base: { ...pr.base, sha: base },
+      ...(compatibilityRefresh ? { compatibilityRefresh } : {}),
+    };
   }
   async select(preview = true, now = new Date()) {
     this.authorize();
@@ -357,8 +410,46 @@ class DependencyCoordinator {
         return { ready: false, reason: "Merge intent parent is still running" };
       return this.pending(intentOwner.record, preview);
     }
+    if (!preview && !this.context.wake && slots.usedCapacity(state) === 0) {
+      const orphan = Object.values(state.tickets).find(lifecycle.unresolvedCompatibilityPublish);
+      if (orphan) {
+        const attempt = lifecycle.unresolvedCompatibilityPublish(orphan);
+        if (await terminalParent(this.api, attempt)) {
+          const recovered = await this.reconcileCompatibility(orphan, attempt);
+          if (recovered) return recovered;
+          state = (await this.ledger.read()).state;
+        }
+      }
+    }
+    const released = new Set();
     for (const entry of slots.activeEntries(state)) {
       const t = state.tickets[String(entry.ticket)];
+      const publishing = lifecycle.unresolvedCompatibilityPublish(t);
+      if (publishing && !preview && !this.context.wake && (await terminalParent(this.api, entry))) {
+        const recovered = await this.reconcileCompatibility(t, publishing);
+        if (recovered) return recovered;
+        state = (await this.ledger.read()).state;
+        released.add(entry.ticket);
+        continue;
+      }
+      if (
+        !publishing &&
+        !preview &&
+        (t?.dependency?.attempts?.at(-1).compatibility || d.compatibilityForHead(t)) &&
+        Object.values(state.grants).some(
+          (g) => g.ticket === entry.ticket && g.status === "reserved"
+        ) &&
+        (await terminalParent(this.api, entry))
+      ) {
+        await new Controller(this.api, this.config, {
+          ...this.context,
+          runId: entry.runId,
+          runAttempt: entry.runAttempt,
+        }).block(t.pr, "Dependency model parent ended before assessment; recorded usage retained");
+        state = (await this.ledger.read()).state;
+        released.add(entry.ticket);
+        continue;
+      }
       const retry = mergeRetry.current(t);
       if (
         !preview &&
@@ -391,8 +482,13 @@ class DependencyCoordinator {
       if (
         !preview &&
         t?.dependency &&
+        t.status !== "reviewed" &&
         !t.merge &&
-        !Object.values(state.grants).some((g) => g.ticket === t.pr && g.head === t.head)
+        !publishing &&
+        slots.owns(slots.activeFor(state, t.pr), entry) &&
+        !Object.values(state.grants).some(
+          (g) => g.ticket === t.pr && g.head === t.head && g.status === "reserved"
+        )
       ) {
         const attempt = d.validateTicket(t);
         const original = {
@@ -407,6 +503,7 @@ class DependencyCoordinator {
             state: lifecycle.finishPreparation(s, t.pr, original),
           }));
           state = (await this.ledger.read()).state;
+          released.add(entry.ticket);
         }
       }
     }
@@ -446,7 +543,11 @@ class DependencyCoordinator {
     if (turns.priority(state, this.config)) return { ready: false, reason: turns.WAITING };
     if (this.context.wake && !target)
       return { ready: false, reason: "No exact dependency CI wake for a new review" };
-    let candidate, generated;
+    let candidate,
+      generated,
+      compatibilityRefresh,
+      nativeTracking,
+      recordedStaleRefresh = false;
     const holds = [];
     for (let page = 1; page <= 5 && !candidate; page++) {
       const rows = target
@@ -470,15 +571,35 @@ class DependencyCoordinator {
           previous &&
           (previous.origin !== "dependency-pr" ||
             previous.merge ||
-            previous.dependency.attempts.some((a) => a.head === row.head.sha) ||
-            previous.dependency.attempts.length >= Math.min(10, this.config.reviews) ||
+            (previous.dependency.attempts.some((a) => a.head === row.head.sha) &&
+              (released.has(row.number) ||
+                this.context.wake ||
+                previous.status !== "blocked" ||
+                !d.branch(row.head.ref))) ||
+            previous.dependency.attempts.length >= 10 ||
             previous.reviews >= this.config.reviews)
         )
           continue;
         try {
           if (generated && d.alertKey(row.head.ref)) continue;
-          const verified = await this.pr(row.number);
+          const verified = await this.pr(row.number, { history: previous });
           if (target && verified.head.sha !== target.head) continue;
+          if (
+            previous?.dependency.attempts.some((a) => a.head === verified.head.sha) &&
+            !lifecycle.canClaimCompatibility(
+              previous,
+              verified,
+              this.config,
+              Object.values(state.grants)
+            ) &&
+            !lifecycle.canResumeCompatibility(
+              previous,
+              verified,
+              this.config,
+              Object.values(state.grants)
+            )
+          )
+            continue;
           if (d.alertKey(row.head.ref)) {
             if (
               !(await heldMergeAllowed(
@@ -494,6 +615,58 @@ class DependencyCoordinator {
             break;
           }
         } catch (error) {
+          if (error.verifiedRefresh && !preview && !this.context.wake && !recordedStaleRefresh) {
+            const refreshed = error.verifiedRefresh;
+            const saved = await this.ledger.update((s) => {
+              const claimed = lifecycle.claimDependency(
+                s,
+                refreshed,
+                this.context,
+                this.config,
+                new Date(),
+                undefined,
+                { refreshReceipt: refreshed.compatibilityRefresh }
+              );
+              return {
+                state: lifecycle.finishPreparation(claimed, refreshed.number, this.context),
+              };
+            });
+            state = saved.state;
+            recordedStaleRefresh = true;
+            continue;
+          }
+          if (
+            !compatibilityRefresh &&
+            !this.context.wake &&
+            error instanceof StaleDependencyBase &&
+            d.SHA.test(error.currentMain || "") &&
+            d.branch(row.head.ref)
+          ) {
+            let refreshable;
+            if (previous?.head === row.head.sha && d.compatibilityForHead(previous))
+              refreshable = !lifecycle.compatibilityRefreshRequested(
+                previous,
+                previous.head,
+                error.currentMain
+              );
+            else if (!preview) {
+              const tracking = require("./dependency-tracking.cjs");
+              nativeTracking ??= (
+                await tracking.nativeTrackingStore(this.api).read({ allowMissing: true })
+              ).state;
+              refreshable = tracking.canRequestNativeBranchUpdate(
+                nativeTracking.records[row.number],
+                row,
+                error.currentMain
+              );
+            }
+            if (refreshable)
+              compatibilityRefresh = {
+                ticket: row.number,
+                head: row.head.sha,
+                base: error.currentMain,
+              };
+          }
           if (holds.length < 5)
             holds.push({
               pr: row.number,
@@ -519,6 +692,8 @@ class DependencyCoordinator {
       candidate = generated;
     if (!candidate && generated)
       return { ready: false, reason: "App work takes priority over dependency alert repair" };
+    if (!candidate && compatibilityRefresh && !preview)
+      return { ready: true, mode: "compatibility-refresh", ...compatibilityRefresh };
     if (!candidate)
       return holds.length
         ? {
@@ -538,7 +713,10 @@ class DependencyCoordinator {
         reason: "Preview only; no reservation, model session or merge",
       };
     await this.ledger.update(async (s) => {
-      const pr = await this.pr(candidate.number);
+      const previous = s.tickets[candidate.number];
+      const pr = await this.pr(candidate.number, { history: previous });
+      if (pr.head.sha !== candidate.head.sha || pr.base.sha !== candidate.base.sha)
+        throw new Error("Dependency candidate changed while claiming");
       const receipt = await verifyAlertPR(this.api, pr, this.config);
       if (
         receipt &&
@@ -559,10 +737,125 @@ class DependencyCoordinator {
       )
         throw Error("App work takes priority over dependency alert repair");
       return {
-        state: lifecycle.claimDependency(s, pr, this.context, this.config, new Date(), receipt),
+        state: lifecycle.claimDependency(s, pr, this.context, this.config, new Date(), receipt, {
+          compatibility:
+            !this.context.wake &&
+            lifecycle.canClaimCompatibility(previous, pr, this.config, Object.values(s.grants)),
+          continuation:
+            !this.context.wake &&
+            lifecycle.canResumeCompatibility(previous, pr, this.config, Object.values(s.grants)),
+          refreshReceipt: pr.compatibilityRefresh,
+        }),
       };
     });
     return { ready: true, mode: "review", ticket: candidate.number, head: candidate.head.sha };
+  }
+  async refreshCompatibility(number, head, base) {
+    this.authorize();
+    if (this.context.wake)
+      throw new Error("Compatibility refresh requires a scheduled or owner scan");
+    const { state } = await this.ledger.read();
+    const t = state.tickets[number];
+    const pr = d.prOK(await readMergePR(this.api, number), false, this.config);
+    if (!d.branch(pr.head.ref) || pr.number !== number || pr.head.sha !== head)
+      throw new Error("Dependency compatibility refresh head changed");
+    const stillAvailable = async () => {
+      const { state: current } = await this.ledger.read();
+      policy.assertNotStopped(current);
+      if (
+        !this.config.enabled ||
+        !this.config.automatic ||
+        slots.usedCapacity(current) !== 0 ||
+        slots.pendingIntent(current)
+      )
+        throw new Error("Dependency branch refresh must wait for the active ticket");
+    };
+    const repaired = t?.head === head && d.compatibilityForHead(t);
+    if (repaired && pr.head.ref !== t.branch)
+      throw new Error("Dependency compatibility refresh branch changed");
+    if (!repaired)
+      d.filesOK(await this.api.request("GET", `${ROOT}/pulls/${number}/files?per_page=3`));
+    return requestCompatibilityRefresh({
+      api: this.api,
+      pr,
+      expectedHead: head,
+      expectedBase: base,
+      claim: async (evidence) => {
+        await stillAvailable();
+        if (!repaired)
+          return require("./dependency-tracking.cjs").claimNativeBranchUpdate(
+            this.api,
+            pr,
+            base,
+            stillAvailable
+          );
+        const result = await this.ledger.update((s) => {
+          if (lifecycle.compatibilityRefreshRequested(s.tickets[number], head, base))
+            return { state: s, claimed: false };
+          return {
+            state: lifecycle.beginDependencyCompatibilityRefresh(
+              s,
+              number,
+              this.context,
+              this.config,
+              evidence
+            ),
+            claimed: true,
+          };
+        });
+        return result.claimed;
+      },
+    });
+  }
+  async reconcileCompatibility(ticket, attempt) {
+    const pr = d.prOK(await readMergePR(this.api, ticket.pr), true, this.config);
+    if (pr.number !== ticket.pr || pr.head.ref !== ticket.branch)
+      throw new Error("Dependency compatibility recovery PR identity changed");
+    const [ref, main] = await Promise.all([
+      pr.state === "open"
+        ? this.api.request(
+            "GET",
+            `${ROOT}/git/ref/heads/${ticket.branch.split("/").map(encodeURIComponent).join("/")}`
+          )
+        : Promise.resolve({ object: { sha: pr.head.sha } }),
+      this.api.request("GET", `${ROOT}/git/ref/heads/main`),
+    ]);
+    if (ref.object?.sha !== pr.head.sha || !d.SHA.test(main.object?.sha || ""))
+      throw new Error("Dependency compatibility recovery references unavailable");
+    const head = attempt.compatibility.publish.head;
+    const evidence = {
+      grantId: attempt.compatibility.grantId,
+      head,
+      originalHead: attempt.head,
+      base: attempt.base,
+      observedHead: pr.head.sha,
+      observedBase: main.object.sha,
+      observedOpen: pr.state === "open",
+      outcome:
+        pr.head.sha === head
+          ? "published"
+          : pr.head.sha === attempt.head
+            ? "not_published"
+            : "changed",
+    };
+    const saved = await this.ledger.update((state) => ({
+      state: lifecycle.reconcileDependencyCompatibility(
+        state,
+        ticket.pr,
+        this.context,
+        this.config,
+        evidence
+      ),
+    }));
+    if (
+      pr.state === "open" &&
+      slots.owns(slots.activeFor(saved.state, ticket.pr), {
+        ...this.context,
+        ticket: ticket.pr,
+      })
+    )
+      return { ready: true, mode: "review", ticket: ticket.pr, head };
+    return null;
   }
   async ticket(number, active = true) {
     this.authorize();
@@ -656,6 +949,8 @@ class DependencyCoordinator {
     const t = state.tickets[String(number)];
     if (t.status === "reviewed" || t.merge)
       return { reason: "Reviewed or merge-intent history preserved" };
+    if (lifecycle.unresolvedCompatibilityPublish(t))
+      return { reason: "Dependency branch write will be reconciled from its retained intent" };
     d.matches(t, this.context, this.config);
     if (Object.values(state.grants).some((g) => g.ticket === number && g.status === "reserved"))
       return this.controller.block(

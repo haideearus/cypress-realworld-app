@@ -315,7 +315,14 @@ test("secret scanning gates source, model context and every uploaded model bundl
     steps[upload - 1].run,
     'node "$RUNNER_TEMP/factory-control/secret-scan.cjs" file "$RUNNER_TEMP/factory-artifact/bundle.json"'
   );
-  assert.equal(steps[upload - 1].if, undefined);
+  assert.equal(steps[upload - 1].if, "${{ inputs.slot != 'dependency_compat' }}");
+  const collect = steps.findIndex((step) => step.env?.FACTORY_OPERATION === "collect");
+  assert.ok(collect >= 0 && collect < upload);
+  assert.notEqual(steps[collect]["continue-on-error"], true);
+  assert.match(
+    fs.readFileSync(path.join(__dirname, "../factory/worker.cjs"), "utf8"),
+    /if \(compatibility\) await scanCompatibilityBundle\(bundle\)/
+  );
   assert.notEqual(steps[upload - 1]["continue-on-error"], true);
   assert.ok(
     steps
@@ -388,7 +395,8 @@ test("dependency review downloads prepared facts and scans the audit upload befo
 test("dependency review needs a successfully scanned and uploaded public evidence packet", () => {
   const jobs = load("factory-dependencies.yml").jobs;
   const evidence = jobs.evidence;
-  assert.deepEqual(evidence.needs, ["select", "ci"]);
+  assert.deepEqual(evidence.needs, ["select", "analysis", "ci"]);
+  assert.match(evidence.if, /needs.ci.outputs.passed == 'true'/);
   assert.doesNotMatch(JSON.stringify(evidence), /secrets\.|CLAUDE|ANTHROPIC|factory-ledger/);
   const operation = evidence.steps.findIndex((step) => step.with?.operation === "dep_evidence");
   const scan = evidence.steps.findIndex((step) =>
@@ -398,9 +406,42 @@ test("dependency review needs a successfully scanned and uploaded public evidenc
   const upload = evidence.steps[scan + 1];
   assert.match(upload.uses, /^actions\/upload-artifact@/);
   assert.equal(upload.with["if-no-files-found"], "error");
-  assert.deepEqual(jobs.reserve.needs, ["select", "evidence"]);
+  assert.deepEqual(jobs.reserve.needs, ["select", "analysis", "evidence"]);
   assert.match(jobs.reserve.if, /needs.evidence.outputs.ready == 'true'/);
   const reserve = jobs.reserve.steps.findIndex((step) => step.with?.operation === "dep_reserve");
   assert.equal(jobs.reserve.steps[reserve - 1].with.name, upload.with.name);
   assert.ok(jobs.finalize.needs.includes("evidence"));
+});
+
+test("dependency compatibility writes the original PR only after publishing a scoped code bundle", () => {
+  const jobs = load("factory-dependencies.yml").jobs;
+  const {
+    compatibility_plan: plan,
+    compatibility_code: code,
+    compatibility_publish: publish,
+  } = jobs;
+  assert.ok(plan.steps.some((step) => step.with?.operation === "dep_compat_plan"));
+  assert.equal(code.with.slot, "dependency_compat");
+  assert.equal(code.with.phase, "code");
+  assert.deepEqual(code.permissions, {
+    actions: "read",
+    contents: "read",
+    issues: "read",
+    "pull-requests": "read",
+  });
+  assert.match(publish.if, /needs.compatibility_code.result == 'success'/);
+  const scan = publish.steps.findIndex((step) => step.run?.includes("scanCompatibilityBundle"));
+  const mint = publish.steps.findIndex(
+    (step) => step.uses === "./.github/actions/factory-app-token"
+  );
+  assert.ok(scan >= 0 && scan < mint);
+  assert.doesNotMatch(JSON.stringify(publish), /CLAUDE_CODE_OAUTH_TOKEN/);
+  assert.match(jobs.analysis.if, /needs.compatibility_publish.result == 'success'/);
+  assert.match(
+    jobs.ci.steps.find((step) => step.with?.name?.startsWith("dependency-analysis-")).with.name,
+    /needs.analysis.outputs.head/
+  );
+  assert.equal(jobs.review.with.head, "${{ needs.reserve.outputs.head }}");
+  assert.match(jobs.premerge.if, /needs.assess.outputs.reviewed == 'true'/);
+  assert.match(jobs.merge.if, /needs.premerge.result == 'success'/);
 });

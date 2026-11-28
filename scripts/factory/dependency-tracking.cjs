@@ -114,7 +114,8 @@ function validBases(bases) {
         typeof receipt === "object" &&
         !Array.isArray(receipt) &&
         Object.keys(receipt).length > 0 &&
-        Object.keys(receipt).every((key) => ["refresh", "stale"].includes(key)) &&
+        Object.keys(receipt).every((key) => ["refresh", "stale", "branchUpdate"].includes(key)) &&
+        (receipt.branchUpdate === undefined || receipt.branchUpdate === true) &&
         validRefresh(receipt)
     )
   );
@@ -372,9 +373,12 @@ function blocker(state, pr) {
   const attempt = dependency.validateTicket(t);
   const evidence = attempt.evidence?.at(-1);
   const hasReview = Object.values(state.grants).some(
-    (g) => g.ticket === pr.number && g.head === pr.head.sha
+    (g) => g.ticket === pr.number && g.head === pr.head.sha && g.phase === "review"
   );
   let reason = "Dependency preparation stopped before a review could be reserved.";
+  if (attempt.compatibility)
+    reason =
+      "The compatibility repair did not finish on this head. Its coding attempt remains counted.";
   if (hasReview)
     reason = "The independent review did not produce a usable approval for this commit.";
   if (evidence && ["started", "temporary"].includes(evidence.status))
@@ -533,6 +537,8 @@ async function recoverTrackedPR({
   for (const proposal of batch) {
     if (!recoveryAllowed(usage, proposal)) continue;
     const number = proposal.number;
+    const ticket = usage.tickets[number];
+    const repaired = ticket?.head === proposal.head.sha && dependency.compatibilityForHead(ticket);
     let row = state.records[number];
     const receipt = row.recovery?.[proposal.head.sha];
     const message = preview || mainCIHead || receipt?.blocked ? null : blocker(usage, proposal);
@@ -545,8 +551,9 @@ async function recoverTrackedPR({
     let refresh = refreshReceipt?.refresh;
     const canRecord =
       !base || refreshReceipt || Object.keys(receipt?.bases || {}).length < RECOVERY_BASES_PER_HEAD;
-    const wantsRefresh = Boolean(canRecord && refreshApi && !refresh);
-    const wantsStaleNote = canRecord && refreshReceipt?.stale !== staleNoteKind(refresh);
+    const wantsRefresh = Boolean(!repaired && canRecord && refreshApi && !refresh);
+    const wantsStaleNote =
+      !repaired && canRecord && refreshReceipt?.stale !== staleNoteKind(refresh);
     let stale = false;
     if (wantsRefresh || wantsStaleNote) {
       if (refresh) {
@@ -559,9 +566,13 @@ async function recoverTrackedPR({
 
     const pr = await currentPR(api, number, row.branch);
     if (pr?.head.sha !== proposal.head.sha || pr.base.sha !== proposal.base.sha) continue;
-    const files = await api.request("GET", `${ROOT}/pulls/${number}/files?per_page=3`);
+    const files = await api.request(
+      "GET",
+      `${ROOT}/pulls/${number}/files?per_page=${repaired ? 53 : 3}`
+    );
     try {
-      dependency.filesOK(files);
+      if (repaired) require("./dependency-compatibility.cjs").repairFilesOK(files);
+      else dependency.filesOK(files);
     } catch {
       continue;
     }
@@ -865,4 +876,34 @@ async function verifiedTrackingIssue(api, pr) {
   return issue?.state === "open" && issueOK(issue, pr.number, row.issue) ? issue.number : null;
 }
 
-module.exports = { trackNativeDependencies, previewNativeRecovery, verifiedTrackingIssue };
+const nativeTrackingStore = (api) => new MetadataStore(api, "dependency-tracking", empty, validate);
+function canRequestNativeBranchUpdate(row, pr, base) {
+  const head = pr.head.sha;
+  const evidence = row?.recovery?.[head];
+  const pair = evidence?.bases?.[base];
+  return Boolean(
+    row?.status === "open" &&
+      row.branch === pr.head.ref &&
+      evidence &&
+      !pair?.branchUpdate &&
+      (pair?.refresh || pair?.stale || evidence.refresh || evidence.stale === "manual") &&
+      (pair || Object.keys(evidence.bases || {}).length < RECOVERY_BASES_PER_HEAD)
+  );
+}
+async function claimNativeBranchUpdate(api, pr, base, beforeWrite) {
+  const store = nativeTrackingStore(api);
+  const row = (await store.read(ALLOW_MISSING)).state.records[pr.number];
+  if (!canRequestNativeBranchUpdate(row, pr, base) || !(await verifiedTrackingIssue(api, pr)))
+    return false;
+  await saveRecovery(store, pr, row, { branchUpdate: true }, beforeWrite, base);
+  return true;
+}
+
+module.exports = {
+  trackNativeDependencies,
+  previewNativeRecovery,
+  verifiedTrackingIssue,
+  nativeTrackingStore,
+  canRequestNativeBranchUpdate,
+  claimNativeBranchUpdate,
+};

@@ -190,6 +190,63 @@ test("terminal metadata-only preparation can be finalized without resetting its 
   assert.equal(s.tickets["52"].status, "blocked");
   assert.equal(Object.values(s.days).flat().length, 1);
 });
+test("a lost same-PR compatibility publication resumes CI under the original admission", async (t) => {
+  const x = await fixture();
+  await x.coordinator.select(false);
+  const lifecycle = require("../factory/dependency-policy.cjs");
+  const native = require("../factory/dependency-native-recovery.cjs");
+  const publisher = require("../factory/dependency-compatibility.cjs");
+  const originalHead = x.f.rows[0].head.sha;
+  const headAfterRepair = "d".repeat(40);
+  const { grant } = await x.ledger.update((state) =>
+    lifecycle.reserveDependencyCompatibility(state, 52, ctx, cfg, {
+      package: { name: "foo", version: "1.0.1" },
+      reason: "native_ci_failure",
+    })
+  );
+  t.mock.method(publisher, "prepareCompatibility", async () => ({ newHead: headAfterRepair }));
+  const write = t.mock.method(publisher, "applyCompatibility", async (input) => {
+    assert.equal(input.pr.number, 52);
+    assert.equal(input.expectedHead, originalHead);
+    assert.equal(input.newHead, headAfterRepair);
+    x.f.rows[0].head.sha = headAfterRepair;
+    x.f.files = [
+      { filename: "yarn.lock", status: "modified" },
+      { filename: "src/component.tsx", status: "modified" },
+    ];
+    throw new Error("Lost branch update response");
+  });
+  await assert.rejects(
+    native.publishCompatibility(x.coordinator, 52, grant.id, {
+      kind: "code",
+      grantId: grant.id,
+      base: originalHead,
+    }),
+    /Lost branch update response/
+  );
+  assert.equal(write.mock.callCount(), 1);
+  const before = (await x.ledger.read()).state;
+  assert.equal(before.tickets[52].head, originalHead);
+  assert.equal(before.grants[grant.id].status, "reserved");
+  x.f.route = (url) =>
+    url.startsWith("/git/ref/heads/dependabot/") ? { object: { sha: headAfterRepair } } : undefined;
+  x.f.terminal = true;
+  const recovery = new DependencyCoordinator(x.api, cfg, { ...ctx, runId: "101" });
+  assert.deepEqual(await recovery.select(false), {
+    ready: true,
+    mode: "review",
+    ticket: 52,
+    head: headAfterRepair,
+  });
+  const recovered = await recovery.ticket(52);
+  assert.equal(recovered.ci, null);
+  assert.equal(recovered.approval, null);
+  assert.equal(recovered.coding, 1);
+  assert.equal(recovered.reviews, 0);
+  assert.equal(d.compatibilityForHead(recovered).head, originalHead);
+  assert.deepEqual((await x.ledger.read()).state.days, before.days);
+  assert.equal(write.mock.callCount(), 1);
+});
 test("a refreshed PR can recover an old terminal bot preparation using its bound receipt", async (t) => {
   const x = await fixture();
   await x.coordinator.select(false);

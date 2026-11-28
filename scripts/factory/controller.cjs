@@ -314,14 +314,22 @@ class Controller {
         pr,
         this.config
       );
+      const compatibility = d.compatibilityForHead(t);
+      const base = compatibility
+        ? (await this.api.request("GET", `${ROOT}/git/ref/heads/main`)).object?.sha
+        : (receipt?.base ?? pr.base.sha);
       if (
         pr.number !== t.pr ||
         pr.head.sha !== t.head ||
         pr.head.ref !== t.branch ||
-        (receipt?.base ?? pr.base.sha) !== attempt.base
+        base !== attempt.base
       )
         throw new Error("Dependency PR identity changed");
-      if (!receipt || receipt.base === pr.base.sha)
+      if (compatibility)
+        require("./dependency-compatibility.cjs").repairFilesOK(
+          await this.api.request("GET", `${ROOT}/pulls/${t.pr}/files?per_page=53`)
+        );
+      else if (!receipt || receipt.base === pr.base.sha)
         d.alertFilesOK(
           await this.api.request("GET", `${ROOT}/pulls/${t.pr}/files?per_page=3`),
           receipt
