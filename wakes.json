@@ -7682,7 +7682,7 @@
         },
         "event": "workflow_run"
       },
-      "status": "pending",
+      "status": "observed",
       "receiver": null,
       "at": "2026-11-28T00:11:57.635Z"
     },
@@ -7737,18 +7737,18 @@
         }
       },
       "producer": {
-        "runId": "46088056436",
+        "runId": "46088794298",
         "runAttempt": 1,
         "workflowSha": "1e877adef42c07e87197af1d9d8b5c95d257f670",
         "actor": {
-          "login": "dependabot[bot]",
-          "id": 49699333
+          "login": "haideearus-software-factory[bot]",
+          "id": 356310548
         },
         "event": "workflow_run"
       },
-      "status": "pending",
+      "status": "intent",
       "receiver": null,
-      "at": "2026-11-28T00:28:38.250Z"
+      "at": "2026-11-28T00:36:48.772Z"
     },
     "c2bc1809626a40e9444bd737de86f94ca5a06e17df7b500cd28f7ab7d032534b": {
       "id": "c2bc1809626a40e9444bd737de86f94ca5a06e17df7b500cd28f7ab7d032534b",
@@ -7779,6 +7779,36 @@
       "status": "pending",
       "receiver": null,
       "at": "2026-11-28T00:28:53.132Z"
+    },
+    "83f9c20976f01af077ce0e4f657eb0f3452aefd017288b86c9170d59a23faa0b": {
+      "id": "83f9c20976f01af077ce0e4f657eb0f3452aefd017288b86c9170d59a23faa0b",
+      "signal": {
+        "kind": "drain",
+        "lane": "app",
+        "number": 314,
+        "head": "1e877adef42c07e87197af1d9d8b5c95d257f670",
+        "criteriaHash": "b77fb8e277abd41bdf96265db4616a936cb72d5dd5d7097cfe8b1cd99666d9d4",
+        "revision": "1",
+        "sourceRun": "46087766603",
+        "sourceAttempt": 1,
+        "actor": {
+          "login": "haideearus-software-factory[bot]",
+          "id": 356310548
+        }
+      },
+      "producer": {
+        "runId": "46088794298",
+        "runAttempt": 1,
+        "workflowSha": "1e877adef42c07e87197af1d9d8b5c95d257f670",
+        "actor": {
+          "login": "haideearus-software-factory[bot]",
+          "id": 356310548
+        },
+        "event": "workflow_run"
+      },
+      "status": "observed",
+      "receiver": null,
+      "at": "2026-11-28T00:36:48.445Z"
     }
   }
 }
